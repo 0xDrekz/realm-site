@@ -233,6 +233,56 @@ def over(base, top):
     return np.dstack([rgb, oa*255]).astype(np.uint8)
 
 
+def build_on(being_png, recipe, canvas, scale):
+    """Stack one being onto a canvas larger than itself, then blow it up by a
+    whole number.
+
+    The canvas is in art pixels and `scale` is how many screen pixels each one
+    becomes. Both are chosen per tier so every tier lands on the same final
+    size with a WHOLE-number scale — 80x15, 100x12, 150x8, 240x5, 300x4,
+    400x3, 600x2 all make 1200. A fractional scale would make some pixel rows
+    wider than others, which is instantly visible on a grid of sprites.
+
+    A rarer being sits on a canvas closer to its own size, so it fills more of
+    the picture. The God fills it entirely.
+    """
+    art = Image.open(being_png).convert("RGBA")
+    w = h = canvas
+
+    base = np.dstack([field(w, h, recipe["sky_top"], recipe["sky_bottom"],
+                            recipe["seed"], recipe.get("stars", True)),
+                      np.full((h, w, 1), 255, np.uint8)])
+    if recipe.get("geometry") is not None:
+        base = over(base, geometry(w, h, recipe["geometry"],
+                                   recipe.get("geo_kind", 0), recipe["seed"]))
+    if recipe.get("light") is not None:
+        base = over(base, light(w, h, recipe["light"],
+                                power=recipe.get("light_power", 1.0),
+                                seed=recipe["seed"]))
+
+    eye_col = None if recipe.get("eye_mode") == "drawn" else recipe.get("eye")
+    if recipe.get("mode") == "shade":
+        being = shade(being_png, recipe["shadow"], recipe["mid"],
+                      recipe["light_col"], eye_col)
+    else:
+        being = tint(being_png, recipe["being_top"], recipe["being_bottom"],
+                     eye_col, recipe.get("solid", 1.0))
+
+    layer = np.zeros((h, w, 4), np.uint8)
+    oy = (h - being.shape[0]) // 2
+    ox = (w - being.shape[1]) // 2
+    layer[oy:oy+being.shape[0], ox:ox+being.shape[1]] = being
+    base = over(base, layer)
+
+    if recipe.get("frame") is not None:
+        base = over(base, frame(w, h, recipe["frame"],
+                                inset=recipe.get("frame_inset", 2),
+                                thick=recipe.get("frame_thick", 1)))
+
+    img = Image.fromarray(base, "RGBA").convert("RGB")
+    return img.resize((w*scale, h*scale), Image.NEAREST)
+
+
 def build(being_png, recipe, out_size=512):
     """Stack one being from a recipe and return it at display size."""
     im = Image.open(being_png)

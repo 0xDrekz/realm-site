@@ -150,3 +150,52 @@ what gets measured.
 | Lights | 0 | 5 |
 | Frames | 0 | 4 |
 | One-of-ones | 0 | 7 |
+
+---
+
+# Generating a round
+
+    python3 tools/round.py <round-number> [out-dir]
+
+111 beings, a PNG and a Metaplex JSON each, then it checks its own work and
+refuses to finish if anything is off. The same round number always gives the
+same round.
+
+Every image is 1200 × 1200, about 68 KB — 7.5 MB for a whole round.
+
+## The tier counts are dealt, not rolled
+
+40 Common, 28 Uncommon, 18 Rare, 11 Epic, 7 Legendary, 4 Mythic, 2 Entity,
+1 God. The list is built to those exact counts and then shuffled, so a round
+cannot come out with two Gods or none.
+
+## Whole-number scaling
+
+Each tier has its own canvas in art pixels and its own scale, chosen so they
+all land on 1200 with a whole number: 80×15, 100×12, 150×8, 240×5, 300×4,
+400×3, 600×2. A fractional scale would make some pixel rows wider than
+others, which is obvious the moment you see a grid of them.
+
+A rarer being sits on a canvas closer to its own size, so it fills more of
+the picture. The God fills it entirely.
+
+## A unique combination is not enough at the top
+
+The first round generated had two Entities that were both Deep, two Mythics
+both Void, and two Legendaries both Bone. Every one was a unique combination
+— they differed by a frame or a piece of geometry — and every one read as the
+same picture as its twin. These are the pieces meant to feel singular.
+
+So for any tier with seven or fewer in a round, the colourway is dealt
+without replacement. Seven Legendaries against six fields means exactly one
+repeat is forced, and the check allows exactly that many and no more.
+
+## What is checked before it will finish
+
+- 111 beings, and the tier counts exactly as above
+- every combination of being, field, geometry, light and frame unique
+- no avoidable repeated colourway in a scarce tier
+- every image present, 1200 × 1200, and not blank
+- every being matched to the tier it was assigned
+
+It prints the problems and exits rather than writing a round that is wrong.
