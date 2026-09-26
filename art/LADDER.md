@@ -69,6 +69,9 @@ field is behind it rather than sitting in a black box.
 | Legendary | `crowned-flame` | a crown of flame, and an aura |
 | Mythic | `dread-winged` | opens the third eye, and sits in cloud |
 | Entity | `crowned-entity` | a crown, thorn hands, and rises out of the rock |
+| God | `god-serpent` | one eye, bone wings, and a serpent coiled beneath |
+
+All eight tiers are drawn.
 
 It is one being ascending, which is why the order is what it is rather than
 what each piece was called when it arrived. Three of them moved down a rank
@@ -114,8 +117,17 @@ Three of its checks exist because something went wrong first:
 - **the keying is checked** by laying the cut back over black and comparing
   to the master. The alpha was once computed in a number format too small to
   hold 255 × 255, so every being came out inverted.
-- **the eyes are counted.** Two is right. Anything else means a fold in a
-  cloak is being read as an eye, which happened.
+- **the eyes are counted, and drawn.** Two is right — but a count on its own
+  is not evidence. The God reported two eyes while pointing at the gaps in
+  its elbows, and the check passed because there happened to be two of them.
+  So every being also gets an overlay in `art/checks/`, with whatever was
+  found painted pink, and it gets looked at.
+
+  Confining the search to the top third fixed seven of the eight. It cannot
+  fix the God, whose eye is drawn — a white and a pupil — rather than left
+  open. Nothing that looks for holes can ever find it. That being is marked
+  `eye_mode: "drawn"` in `beings.json` and its eye is left to the shading
+  ramp, which suits it.
 - **detail at the rung is measured** — the art cut to the rung, against the
   art cut to half the rung and blown back up. If those match, there is
   nothing at this rung and the finer cut is wasted.
@@ -132,7 +144,7 @@ what gets measured.
 
 | | Drawn | Left |
 |---|---|---|
-| Beings | 7 | 5 |
+| Beings | 8 | 0 — all eight tiers drawn |
 | Fields | 0 | 6 |
 | Geometries | 0 | 6 |
 | Lights | 0 | 5 |

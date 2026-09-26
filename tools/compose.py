@@ -40,10 +40,22 @@ def _dither(field, seed=0):
 
 # ---------------------------------------------------------------- the eyes
 
-def eyes(alpha, thresh=96):
-    """The eyes are holes inside the head: transparent, but enclosed by ink
-    and not joined to the outside. Find every such hole, keep the two
-    largest in the upper half, and that is the pair."""
+def eyes(alpha, thresh=96, head=0.34):
+    """Find a being's eye holes.
+
+    An eye hole is transparent, enclosed by ink, and not joined to the
+    outside. That alone is not enough — the God has two dark gaps in the
+    elbows of its arms that fit the description perfectly, and because there
+    were exactly two of them the "found 2 eyes" check passed while pointing
+    at the wrong thing entirely.
+
+    So the search is confined to the head: the top third. Every real eye in
+    the cast sits between 0.13 and 0.24 down; the elbow gaps sit at 0.50.
+
+    This will not find an eye that was drawn rather than left open — the
+    God's is a full eye with a white and a pupil, and nothing here can see
+    it. Those beings are marked `eye_mode: drawn` and left alone.
+    """
     ink = alpha > thresh
     gap = ~ink
     lab, n = ndimage.label(gap)
@@ -55,7 +67,7 @@ def eyes(alpha, thresh=96):
         if i in border:
             continue
         ys, xs = np.where(lab == i)
-        if ys.mean() > h * 0.55:          # below the head — not an eye
+        if ys.mean() > h * head:          # below the head — not an eye
             continue
         found.append((len(ys), i))
     found.sort(reverse=True)
@@ -160,7 +172,8 @@ def tint(png_path, top, bottom, eye=None, solid=1.0):
         # gaps count as enclosed, and a fold in the cloak starts reading as
         # an eye
         e = eyes(drawn)
-        out[e] = list(eye) + [255]
+        if e.any():
+            out[e] = list(eye) + [255]
     return out
 
 
@@ -204,7 +217,8 @@ def shade(png_path, shadow, mid, light, eye=None, floor=20):
 
     if eye is not None:
         e = eyes(drawn)
-        out[e] = list(eye) + [255]
+        if e.any():
+            out[e] = list(eye) + [255]
     return out
 
 
@@ -234,12 +248,16 @@ def build(being_png, recipe, out_size=512):
         canvas = over(canvas, light(w, h, recipe["light"],
                                     power=recipe.get("light_power", 1.0),
                                     seed=recipe["seed"]))
+    # a being whose eye was drawn rather than left open has nothing for the
+    # finder to fill, and filling the nearest hole instead puts a bright
+    # patch in its crown
+    eye_col = None if recipe.get("eye_mode") == "drawn" else recipe.get("eye")
     if recipe.get("mode") == "shade":
         canvas = over(canvas, shade(being_png, recipe["shadow"], recipe["mid"],
-                                    recipe["light"], recipe.get("eye")))
+                                    recipe["light"], eye_col))
     else:
         canvas = over(canvas, tint(being_png, recipe["being_top"],
-                                   recipe["being_bottom"], recipe.get("eye"),
+                                   recipe["being_bottom"], eye_col,
                                    recipe.get("solid", 1.0)))
     if recipe.get("frame") is not None:
         canvas = over(canvas, frame(w, h, recipe["frame"]))

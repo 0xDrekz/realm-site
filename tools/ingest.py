@@ -83,10 +83,23 @@ def cut(src, n, out):
     return err
 
 
-def count_eyes(png):
+def check_eyes(png, name):
+    """Count them, and draw what was found so it can be looked at.
+
+    A number on its own is not evidence. The God reported two eyes and was
+    pointing at its elbows.
+    """
     from compose import eyes
-    a = np.asarray(Image.open(png).convert("RGBA"))[:,:,3]
-    _, n = ndimage.label(eyes(a))
+    im = Image.open(png).convert("RGBA")
+    a = np.asarray(im)
+    m = eyes(a[:,:,3])
+    _, n = ndimage.label(m)
+
+    flat = Image.alpha_composite(Image.new("RGBA", im.size, (0,0,0,255)), im).convert("RGB")
+    ov = np.asarray(flat).copy()
+    ov[m] = [255, 0, 120]
+    os.makedirs(f"{ROOT}/art/checks", exist_ok=True)
+    Image.fromarray(ov).resize((320, 320), Image.NEAREST).save(f"{ROOT}/art/checks/{name}-eyes.png")
     return n
 
 
@@ -100,19 +113,24 @@ def ingest(src, name, tier):
     Image.open(src).convert("RGB").save(f"{ROOT}/art/masters/{name}.png")
     out = f"{ROOT}/art/beings/{name}.png"
     err = cut(src, rung, out)
-    n_eyes = count_eyes(out)
+    n_eyes = check_eyes(out, name)
 
     mf = f"{ROOT}/art/beings.json"
     book = json.load(open(mf)) if os.path.exists(mf) else {}
+    prev = book.get(name, {})
     book[name] = {"tier": tier, "rung": rung, "detail": round(detail, 3),
                   "mode": mode, "mid_grey": round(mid, 3),
-                  "eyes": n_eyes, "key_error": round(err, 2)}
+                  "eyes": n_eyes, "key_error": round(err, 2),
+                  # set by hand for a being whose eye is drawn rather than
+                  # left open; the finder cannot see those
+                  "eye_mode": prev.get("eye_mode", "holes")}
     json.dump(dict(sorted(book.items())), open(mf, "w"), indent=2)
 
     flags = []
     if detail < 0.06:       flags.append(f"almost nothing at this rung (detail {detail:.3f}) — "
                                         f"it would look the same cut to {rung//2}")
-    if n_eyes != 2:         flags.append(f"found {n_eyes} eyes, not 2")
+    if book[name]["eye_mode"] == "holes" and n_eyes != 2:
+        flags.append(f"found {n_eyes} eye holes, not 2 — look at art/checks/{name}-eyes.png")
     if err > 2:             flags.append(f"keying is off by {err}")
     print(f"{name:16s} {tier:10s} rung {rung:3d}  detail {detail:.3f}  {mode:8s} "
           f"({mid*100:.0f}% mid)  eyes {n_eyes}")
