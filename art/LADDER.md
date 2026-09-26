@@ -54,16 +54,28 @@ far that cannot be moved up.
 
 ## Keying
 
-Both pieces sit on pure black with nothing bleeding, so black is keyed to
+All three sit on pure black with nothing bleeding, so black is keyed to
 transparent and each one is squared on its own centre. Soft edges survive
 as partial transparency: the Epic's starfield haze blends over whatever
 field is behind it rather than sitting in a black box.
+
+## The Rare and the Epic share a body
+
+They are the same being with a different crown. The Rare wears a solid
+blocky one, the Epic a crown of flame, and the Epic carries a starfield
+aura the Rare does not. Below the neck they are near enough identical.
+
+That may be exactly right — one entity, higher forms of it, and the aura is
+the tell at thumbnail size. But it is worth deciding on purpose rather than
+by accident, because the being is the loudest thing in the picture and the
+field, light and frame layers behind it cannot do much to separate two
+tiers that share a silhouette.
 
 ## Still to come
 
 | | Drawn | Left |
 |---|---|---|
-| Beings | 2 | 10 |
+| Beings | 3 | 9 |
 | Fields | 0 | 6 |
 | Geometries | 0 | 6 |
 | Lights | 0 | 5 |
