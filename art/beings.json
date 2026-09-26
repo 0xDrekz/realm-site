@@ -1,0 +1,65 @@
+{
+  "crowned": {
+    "tier": "epic",
+    "rung": 200,
+    "detail": 0.208,
+    "mode": "stencil",
+    "mid_grey": 0.155,
+    "eyes": 2,
+    "key_error": 1.0
+  },
+  "crowned-entity": {
+    "tier": "entity",
+    "rung": 480,
+    "detail": 0.109,
+    "mode": "shade",
+    "mid_grey": 0.523,
+    "eyes": 2,
+    "key_error": 1.0
+  },
+  "crowned-flame": {
+    "tier": "legendary",
+    "rung": 300,
+    "detail": 0.188,
+    "mode": "stencil",
+    "mid_grey": 0.25,
+    "eyes": 2,
+    "key_error": 1.0
+  },
+  "dread-winged": {
+    "tier": "mythic",
+    "rung": 380,
+    "detail": 0.073,
+    "mode": "shade",
+    "mid_grey": 0.497,
+    "eyes": 2,
+    "key_error": 1.0
+  },
+  "grey-fourarm": {
+    "tier": "uncommon",
+    "rung": 89,
+    "detail": 0.121,
+    "mode": "stencil",
+    "mid_grey": 0.039,
+    "eyes": 2,
+    "key_error": 1.0
+  },
+  "grey-plain": {
+    "tier": "common",
+    "rung": 64,
+    "detail": 0.119,
+    "mode": "stencil",
+    "mid_grey": 0.036,
+    "eyes": 2,
+    "key_error": 1.0
+  },
+  "grey-winged": {
+    "tier": "rare",
+    "rung": 128,
+    "detail": 0.115,
+    "mode": "stencil",
+    "mid_grey": 0.155,
+    "eyes": 2,
+    "key_error": 1.0
+  }
+}

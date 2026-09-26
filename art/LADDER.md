@@ -68,6 +68,7 @@ field is behind it rather than sitting in a black box.
 | Epic | `crowned` | a cloak and a crown |
 | Legendary | `crowned-flame` | a crown of flame, and an aura |
 | Mythic | `dread-winged` | opens the third eye, and sits in cloud |
+| Entity | `crowned-entity` | a crown, thorn hands, and rises out of the rock |
 
 It is one being ascending, which is why the order is what it is rather than
 what each piece was called when it arrived. Three of them moved down a rank
@@ -100,23 +101,38 @@ other being so far it is about fifteen per cent.
 `mode: "shade"` in a recipe picks it, with `shadow`, `mid` and `light`
 instead of `being_top` and `being_bottom`.
 
-## What the round-trip test is for
+## Taking a drawing in
 
-Every drawing is checked by cutting it to a size, blowing it back up with
-hard edges and comparing to the original. The size where that error bottoms
-out is the size it was really drawn at.
+    python3 tools/ingest.py <image> <name> <tier>
 
-It corrected a mistake here. The plain grey alien was read as a native
-89-pixel sprite and written up as the one piece that could never move up the
-ladder. Searched over a wider range it bottoms out at 183, and at 89 its
-mouth and nose were quietly degrading. All three sprites measure 183 to 198,
-so the whole sprite family can sit at any rung up to about 190.
+It keeps the master, cuts to the rung, keys the black out, decides stencil
+or shaded, counts the eyes, and writes the lot to `beings.json`. It warns
+rather than fails, so nothing is silently wrong.
+
+Three of its checks exist because something went wrong first:
+
+- **the keying is checked** by laying the cut back over black and comparing
+  to the master. The alpha was once computed in a number format too small to
+  hold 255 × 255, so every being came out inverted.
+- **the eyes are counted.** Two is right. Anything else means a fold in a
+  cloak is being read as an eye, which happened.
+- **detail at the rung is measured** — the art cut to the rung, against the
+  art cut to half the rung and blown back up. If those match, there is
+  nothing at this rung and the finer cut is wasted.
+
+That last one replaced a worse question. "What size was this drawn at" is
+not answerable from a JPEG, and two honest attempts both lied: measuring by
+round-trip error said 552 for every piece including a chunky sprite, because
+the error falls all the way to full resolution and never bottoms out; reading
+the block period off the edge energy said 93 for the finest piece we have.
+Whether the rung is earning its place can actually be measured, so that is
+what gets measured.
 
 ## Still to come
 
 | | Drawn | Left |
 |---|---|---|
-| Beings | 6 | 6 |
+| Beings | 7 | 5 |
 | Fields | 0 | 6 |
 | Geometries | 0 | 6 |
 | Lights | 0 | 5 |
