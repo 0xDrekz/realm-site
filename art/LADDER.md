@@ -45,31 +45,50 @@ Nothing is ever upscaled, because coming down is reversible and inventing
 detail is not. That means a piece can be re-cut to a different rung at any
 time if a being changes tier, and nothing is lost.
 
-## The one exception
+## Files are named for what they are, not what rank they hold
 
-`uncommon-grey.png` was drawn native, at 89 across, as a true sprite. It is
-already at its rung, so its master is just the original file. If it ever
-needs to be a Rare, it would have to be redrawn — it is the only piece so
-far that cannot be moved up.
+`grey-winged.png`, not `rare-winged.png`. Ranks move; drawings do not. Which
+being holds which rank lives in `tiers.json`, one line each, and changing a
+line there plus a re-cut is the whole job.
 
 ## Keying
 
-All three sit on pure black with nothing bleeding, so black is keyed to
+All of them sit on pure black with nothing bleeding, so black is keyed to
 transparent and each one is squared on its own centre. Soft edges survive
 as partial transparency: the Epic's starfield haze blends over whatever
 field is behind it rather than sitting in a black box.
 
-## The Rare and the Epic share a body
+## The cast, and why it is ordered this way
 
-They are the same being with a different crown. The Rare wears a solid
-blocky one, the Epic a crown of flame, and the Epic carries a starfield
-aura the Rare does not. Below the neck they are near enough identical.
+| Rank | Drawing | What it gains |
+|------|---------|---------------|
+| Common | `grey-plain` | — |
+| Uncommon | `grey-fourarm` | a third eye, four arms |
+| Rare | `grey-winged` | and wings |
+| Epic | `crowned` | a cloak and a crown |
+| Legendary | `crowned-flame` | a crown of flame, and an aura |
 
-That may be exactly right — one entity, higher forms of it, and the aura is
-the tell at thumbnail size. But it is worth deciding on purpose rather than
-by accident, because the being is the loudest thing in the picture and the
-field, light and frame layers behind it cannot do much to separate two
-tiers that share a silhouette.
+It is one being ascending, which is why the order is what it is rather than
+what each piece was called when it arrived. Three of them moved down a rank
+to make room: the plain grey was an Uncommon, the crowned one a Rare, the
+flame-crowned one an Epic.
+
+The two crowned ones still share a body below the neck. The crown and the
+aura are the tells. Now that they sit a rank apart rather than adjacent,
+that matters less than it did — but it is still the pair most likely to be
+mistaken for each other.
+
+## What the round-trip test is for
+
+Every drawing is checked by cutting it to a size, blowing it back up with
+hard edges and comparing to the original. The size where that error bottoms
+out is the size it was really drawn at.
+
+It corrected a mistake here. The plain grey alien was read as a native
+89-pixel sprite and written up as the one piece that could never move up the
+ladder. Searched over a wider range it bottoms out at 183, and at 89 its
+mouth and nose were quietly degrading. All three sprites measure 183 to 198,
+so the whole sprite family can sit at any rung up to about 190.
 
 ## Still to come
 
