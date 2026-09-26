@@ -1,0 +1,10 @@
+{
+  "common": 64,
+  "uncommon": 89,
+  "rare": 128,
+  "epic": 200,
+  "legendary": 300,
+  "mythic": 380,
+  "entity": 480,
+  "god": 600
+}
