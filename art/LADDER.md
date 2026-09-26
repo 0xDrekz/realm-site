@@ -67,6 +67,7 @@ field is behind it rather than sitting in a black box.
 | Rare | `grey-winged` | and wings |
 | Epic | `crowned` | a cloak and a crown |
 | Legendary | `crowned-flame` | a crown of flame, and an aura |
+| Mythic | `dread-winged` | opens the third eye, and sits in cloud |
 
 It is one being ascending, which is why the order is what it is rather than
 what each piece was called when it arrived. Three of them moved down a rank
@@ -77,6 +78,27 @@ The two crowned ones still share a body below the neck. The crown and the
 aura are the tells. Now that they sit a rank apart rather than adjacent,
 that matters less than it did — but it is still the pair most likely to be
 mistaken for each other.
+
+## Two ways to colour a being
+
+Which one a being uses depends on how it was drawn, and getting it wrong is
+visible immediately.
+
+**Stencil.** The drawn greys become how much colour lands, and whatever is
+behind shows through the dark parts. Right for white line art on black,
+where the dark *is* the background — the crowned pair, the grey sprites.
+
+**Shaded.** The silhouette is filled in solid and the drawn brightness is
+mapped along a shadow-to-light ramp instead. Right for a being with real
+tonal modelling.
+
+The Mythic is the first that needs the second one. Its wings and
+dreadlocks are dark on purpose, and as a stencil they turn see-through and
+the sky pours straight through them. Half its ink is mid-grey; on every
+other being so far it is about fifteen per cent.
+
+`mode: "shade"` in a recipe picks it, with `shadow`, `mid` and `light`
+instead of `being_top` and `being_bottom`.
 
 ## What the round-trip test is for
 
@@ -94,7 +116,7 @@ so the whole sprite family can sit at any rung up to about 190.
 
 | | Drawn | Left |
 |---|---|---|
-| Beings | 3 | 9 |
+| Beings | 6 | 6 |
 | Fields | 0 | 6 |
 | Geometries | 0 | 6 |
 | Lights | 0 | 5 |

@@ -164,6 +164,50 @@ def tint(png_path, top, bottom, eye=None, solid=1.0):
     return out
 
 
+def shade(png_path, shadow, mid, light, eye=None, floor=20):
+    """The other way to colour a being.
+
+    `tint` treats the drawing as a stencil: the drawn greys become how much
+    colour lands, so whatever is behind shows through the dark parts. That is
+    right for white line art on black, where the darks ARE the background.
+
+    It is wrong for a being with real tonal modelling. The Mythic's wings and
+    dreadlocks are dark on purpose, and as a stencil they turn see-through and
+    the sky pours through them.
+
+    So: take the silhouette, fill it in solid, and map the drawn brightness
+    along a shadow-to-light ramp instead. Dark stays dark.
+    """
+    im = Image.open(png_path).convert("RGBA")
+    a = np.asarray(im).astype(float)
+    drawn = a[:,:,3]
+
+    # the silhouette: anything the artist put down at all, holes filled, so
+    # the gaps inside the cloak or between the dreadlocks are part of the body
+    body = ndimage.binary_fill_holes(drawn > floor)
+
+    # brightness within the body, stretched to use the whole ramp
+    v = drawn.copy()
+    inside = v[body]
+    if inside.size:
+        lo, hi = np.percentile(inside, 2), np.percentile(inside, 98)
+        v = np.clip((v - lo) / max(hi - lo, 1e-6), 0, 1)
+    else:
+        v = np.zeros_like(v)
+
+    shadow, mid, light = (np.array(c, float) for c in (shadow, mid, light))
+    lower = shadow[None,None,:] + (mid - shadow)[None,None,:] * np.clip(v*2, 0, 1)[:,:,None]
+    upper = mid[None,None,:] + (light - mid)[None,None,:] * np.clip(v*2-1, 0, 1)[:,:,None]
+    col = np.where((v[:,:,None] < 0.5), lower, upper)
+
+    out = np.dstack([col, np.where(body, 255, 0)]).astype(np.uint8)
+
+    if eye is not None:
+        e = eyes(drawn)
+        out[e] = list(eye) + [255]
+    return out
+
+
 # ---------------------------------------------------------------- stacking
 
 def over(base, top):
@@ -190,9 +234,13 @@ def build(being_png, recipe, out_size=512):
         canvas = over(canvas, light(w, h, recipe["light"],
                                     power=recipe.get("light_power", 1.0),
                                     seed=recipe["seed"]))
-    canvas = over(canvas, tint(being_png, recipe["being_top"],
-                               recipe["being_bottom"], recipe.get("eye"),
-                               recipe.get("solid", 1.0)))
+    if recipe.get("mode") == "shade":
+        canvas = over(canvas, shade(being_png, recipe["shadow"], recipe["mid"],
+                                    recipe["light"], recipe.get("eye")))
+    else:
+        canvas = over(canvas, tint(being_png, recipe["being_top"],
+                                   recipe["being_bottom"], recipe.get("eye"),
+                                   recipe.get("solid", 1.0)))
     if recipe.get("frame") is not None:
         canvas = over(canvas, frame(w, h, recipe["frame"]))
 
