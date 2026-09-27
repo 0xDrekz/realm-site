@@ -132,6 +132,7 @@ Telegram and a marketplace link appear the same way when they are real.
 | `apple-touch-icon.png` | the mark when the site is saved to a phone's home screen |
 | `og.png` | the picture that shows when the link is posted |
 | `collection.png` | the collection avatar for the launchpad — not used by the site |
+| `preview/` | one being per tier, shown in the Beings panel |
 | `server.js` | the tiny server Railway runs |
 | `package.json` | tells Railway how to start it |
 
@@ -242,3 +243,22 @@ This site does not mint anything itself — the Mint button sends people to
 your launchpad, which handles payment, the 111 supply cap and the
 3-per-wallet limit. Set the collection up on a Solana launchpad first, then
 paste the link into `mintLink`.
+
+
+---
+
+## The beings shown on the site
+
+`preview/<tier>.png` — eight pictures, one per tier, shown beside the tier
+names in the Beings panel.
+
+They come out of the same pipeline as the collection, but from a seed that
+belongs to **no round**, so nothing on the page is a token anybody will be
+minted. They show what a tier looks like; they are not the thing being sold,
+and which tier a mint holds still is not known until the reveal.
+
+To remake them after the art changes:
+
+```
+python3 tools/preview.py
+```

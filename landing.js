@@ -108,8 +108,13 @@
   });
 
   /* ---------- the eight tiers ----------
-     Each row shows an actual being of that tier rather than a coloured
-     dot, drawn by the same generator the chamber uses. */
+     Each row shows a real being of that tier, rendered by the same pipeline
+     that makes the collection.
+
+     These are rendered from a seed that belongs to no round, so nothing on
+     this page is a token anybody will be minted. They show what a tier looks
+     like; they are not the thing being sold, and which being a mint holds
+     still is not known until the reveal. */
   const tiersEl = $(".tiers");
   TIERS.forEach((t, i) => {
     const el = document.createElement("div");
@@ -118,13 +123,13 @@
 
     const slot = document.createElement("span");
     slot.className = "form-slot";
-    if (window.RealmForms) {
-      const form = RealmForms.pixelate(RealmForms.makeForm({
-        id: 100 + i, n: i + 1, tier: t.key, tierName: t.name, color: t.color
-      }), 14 + i * 2);
-      form.style.setProperty("--fs", (21 + i * 3.6).toFixed(0) + "px");
-      slot.appendChild(form);
-    }
+    const art = document.createElement("img");
+    art.className = "tier-art";
+    art.src = "preview/" + t.key + ".png";
+    art.alt = "";
+    art.loading = "lazy";
+    art.width = 360; art.height = 360;
+    slot.appendChild(art);
     el.appendChild(slot);
 
     const rest = document.createElement("span");
