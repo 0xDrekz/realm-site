@@ -74,7 +74,14 @@
     "eyes": 2,
     "key_error": 1.0,
     "eye_mode": "holes",
-    "extra_eyes": []
+    "extra_eyes": [
+      [
+        0.405,
+        0.316,
+        0.032,
+        0.047
+      ]
+    ]
   },
   "god-serpent": {
     "tier": "god",

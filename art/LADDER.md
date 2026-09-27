@@ -193,27 +193,35 @@ The fanged one's third eye is a marking, not an opening, so nothing that
 looks for holes will ever find it. Those are named by hand in `beings.json`:
 
 ```json
-"extra_eyes": [[0.405, 0.316, 0.026]]
+"extra_eyes": [[0.405, 0.316, 0.032, 0.047]]
 ```
 
-across, down, radius — all fractions of the picture. The mechanism works;
-what is hard is knowing where to point it.
+across and down, then half-width and half-height — all fractions of the
+picture. Three numbers instead of four makes a circle; four makes an
+ellipse, which real eyes usually are. The fanged one's outer eye is half
+again as tall as it is wide, and a circle either misses it or spills past
+it.
 
-`fanged` is currently empty, and the story of why is worth keeping. Three
-marks were placed there and all three were wrong:
+The fanged one has **three** eyes: two inner ones the finder gets on its own,
+and one outer on its left which is not enclosed — it opens into the shadow
+under the wing, so nothing that looks for holes will ever see it.
 
-1. A "third eye" between the two real ones, at a guessed 0.500 with a radius
-   of 0.022. The radius was wide enough to touch both eyes and merge with
-   them into one blob, so the count read 2 and nothing new appeared.
-2. The same eye measured properly — the eyes sit at 0.476 and 0.552, so the
-   middle is 0.514, and the brightness there dips between 0.279 and 0.298.
-   It painted. But it was an invented eye: that dip is the ridge of the nose.
-3. An outer pair at 0.405 and 0.623, which landed on the edge of the skull.
+Three wrong marks were placed there before the right one, and the reason is
+worth keeping:
 
-Every one of those came from reading a **cropped** picture and inferring the
-anatomy from it. Rendering the whole being with a coordinate grid over it
-took one command and would have prevented all three. Look at the whole thing
-before placing anything on it.
+1. A "third eye" between the two inner ones, guessed at 0.500 with a radius
+   of 0.022. Wide enough to touch both eyes and merge with them into one
+   blob, so the count still read 2 and nothing appeared.
+2. The same eye measured properly and painted — but it was an invented eye.
+   The dip in brightness it was measuring is the ridge of the nose.
+3. An outer pair at 0.405 and 0.623. The left one was very nearly right; the
+   right one landed on the edge of the skull, and there is no eye there.
+
+Every one came from reading a **cropped** picture and inferring the anatomy
+from it. Rendering the whole being with a coordinate grid took one command
+and would have prevented all three. Look at the whole thing before placing
+anything on it — and when the anatomy is genuinely unclear, ask the person
+who drew it rather than guess a fourth time.
 
 ## An eye must never be the colour of the face it sits in
 

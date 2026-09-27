@@ -115,10 +115,18 @@ def eyes(alpha, thresh=96, head=0.42, extra=None):
     # named by hand in beings.json as (across, down, radius), all fractions.
     if extra:
         yy, xx = np.mgrid[0:h, 0:w]
-        for ex, ey_, er in extra:
+        for e in extra:
+            # three numbers is a circle; four is an ellipse, which real eyes
+            # usually are — the fanged one's outer eye is half again as tall
+            # as it is wide, and a circle either misses it or spills past it
+            if len(e) == 4:
+                ex, ey_, rx, ry = e
+            else:
+                ex, ey_, rr = e
+                rx = ry = rr
             cx, cy = ex * w, ey_ * h
-            rr = er * min(h, w)
-            mask |= ((xx - cx) ** 2 + (yy - cy) ** 2) <= rr * rr
+            ax, ay = max(rx * w, 1), max(ry * h, 1)
+            mask |= (((xx - cx) / ax) ** 2 + ((yy - cy) / ay) ** 2) <= 1.0
     return mask
 
 
