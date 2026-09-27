@@ -157,11 +157,25 @@ seven or fewer in a sector the colourway is dealt without replacement.
 
 It prints the problems and exits rather than writing a drop that is wrong.
 
-## The Source is a placeholder
+## The Source is the one picture that is not generated
 
-It has not been drawn. Until it is, it borrows the God's drawing wearing its
-own colourway with every trait at its loudest, and `drop.py` says so on every
-run. Set `SOURCE_DRAWN = True` once the real one is in.
+It arrived as a finished composition — a winged, three-eyed being with its
+geometry, its two mushrooms and its smoke already in it. Putting that through
+trait generation would lay a second mandala over the first, so it does not go
+through it. It is squared, put on the same 600 x 4 grid as everything else,
+and used as drawn.
+
+Two decisions were forced by the picture rather than chosen:
+
+- **It is trimmed, not padded.** It came in at 1179 x 1136. The composition
+  is symmetric about its centre line and the outermost 21 pixels each side
+  are only smoke, so losing 43 pixels of width costs less than inventing 43
+  pixels of height.
+- **It is 64 colours, not the collection's 48.** At 48 the green channel down
+  its centre vanishes completely: 0 of 7,143 green-dominant pixels survive,
+  measured. 64 is the smallest palette that keeps it. The pixel grid is
+  identical to every other being — only the palette differs, and only for the
+  one being there is one of.
 
 ---
 

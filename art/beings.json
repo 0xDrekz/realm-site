@@ -1,161 +1,170 @@
 {
-  "crowned": {
-    "tier": "epic",
-    "rung": 480,
-    "detail": 0.121,
-    "mode": "stencil",
-    "mid_grey": 0.155,
-    "eyes": 3,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "crowned-entity": {
-    "tier": "entity",
-    "rung": 480,
-    "detail": 0.109,
-    "mode": "shade",
-    "mid_grey": 0.523,
-    "eyes": 3,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "crowned-flame": {
-    "tier": "legendary",
-    "rung": 480,
-    "detail": 0.144,
-    "mode": "stencil",
-    "mid_grey": 0.25,
-    "eyes": 3,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "cyclops": {
-    "tier": "rare",
-    "rung": 480,
-    "detail": 0.059,
-    "mode": "shade",
-    "mid_grey": 0.623,
-    "eyes": 1,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "dread-winged": {
-    "tier": "mythic",
-    "rung": 480,
-    "detail": 0.06,
-    "mode": "shade",
-    "mid_grey": 0.497,
-    "eyes": 3,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "fairy": {
-    "tier": "legendary",
-    "rung": 480,
-    "detail": 0.086,
-    "mode": "shade",
-    "mid_grey": 0.724,
-    "eyes": 2,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "fanged": {
-    "tier": "epic",
-    "rung": 480,
-    "detail": 0.057,
-    "mode": "shade",
-    "mid_grey": 0.612,
-    "eyes": 2,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": [
-      [
-        0.405,
-        0.316
-      ]
-    ]
-  },
-  "god-serpent": {
-    "tier": "god",
-    "rung": 480,
-    "detail": 0.166,
-    "mode": "shade",
-    "mid_grey": 0.489,
-    "eyes": 1,
-    "key_error": 1.0,
-    "eye_mode": "drawn",
-    "extra_eyes": []
-  },
-  "grey-fourarm": {
-    "tier": "uncommon",
-    "rung": 480,
-    "detail": 0.029,
-    "mode": "stencil",
-    "mid_grey": 0.039,
-    "eyes": 3,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "grey-plain": {
-    "tier": "common",
-    "rung": 480,
-    "detail": 0.026,
-    "mode": "stencil",
-    "mid_grey": 0.036,
-    "eyes": 2,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "grey-tall": {
-    "tier": "common",
-    "rung": 480,
-    "detail": 0.022,
-    "mode": "stencil",
-    "mid_grey": 0.051,
-    "eyes": 2,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "grey-winged": {
-    "tier": "rare",
-    "rung": 480,
-    "detail": 0.041,
-    "mode": "stencil",
-    "mid_grey": 0.155,
-    "eyes": 3,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  },
-  "reptilian": {
-    "tier": "uncommon",
-    "rung": 480,
-    "detail": 0.035,
-    "mode": "stencil",
-    "mid_grey": 0.204,
-    "eyes": 3,
-    "key_error": 1.0,
-    "eye_mode": "drawn",
-    "extra_eyes": []
-  },
-  "six-eyed": {
-    "tier": "mythic",
-    "rung": 480,
-    "detail": 0.12,
-    "mode": "shade",
-    "mid_grey": 0.523,
-    "eyes": 6,
-    "key_error": 1.0,
-    "eye_mode": "holes",
-    "extra_eyes": []
-  }
+ "crowned": {
+  "tier": "epic",
+  "rung": 480,
+  "detail": 0.121,
+  "mode": "stencil",
+  "mid_grey": 0.155,
+  "eyes": 3,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "crowned-entity": {
+  "tier": "entity",
+  "rung": 480,
+  "detail": 0.109,
+  "mode": "shade",
+  "mid_grey": 0.523,
+  "eyes": 3,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "crowned-flame": {
+  "tier": "legendary",
+  "rung": 480,
+  "detail": 0.144,
+  "mode": "stencil",
+  "mid_grey": 0.25,
+  "eyes": 3,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "cyclops": {
+  "tier": "rare",
+  "rung": 480,
+  "detail": 0.059,
+  "mode": "shade",
+  "mid_grey": 0.623,
+  "eyes": 1,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "dread-winged": {
+  "tier": "mythic",
+  "rung": 480,
+  "detail": 0.06,
+  "mode": "shade",
+  "mid_grey": 0.497,
+  "eyes": 3,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "fairy": {
+  "tier": "legendary",
+  "rung": 480,
+  "detail": 0.086,
+  "mode": "shade",
+  "mid_grey": 0.724,
+  "eyes": 2,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "fanged": {
+  "tier": "epic",
+  "rung": 480,
+  "detail": 0.057,
+  "mode": "shade",
+  "mid_grey": 0.612,
+  "eyes": 2,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": [
+   [
+    0.405,
+    0.316
+   ]
+  ]
+ },
+ "god-serpent": {
+  "tier": "god",
+  "rung": 480,
+  "detail": 0.166,
+  "mode": "shade",
+  "mid_grey": 0.489,
+  "eyes": 1,
+  "key_error": 1.0,
+  "eye_mode": "drawn",
+  "extra_eyes": []
+ },
+ "grey-fourarm": {
+  "tier": "uncommon",
+  "rung": 480,
+  "detail": 0.029,
+  "mode": "stencil",
+  "mid_grey": 0.039,
+  "eyes": 3,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "grey-plain": {
+  "tier": "common",
+  "rung": 480,
+  "detail": 0.026,
+  "mode": "stencil",
+  "mid_grey": 0.036,
+  "eyes": 2,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "grey-tall": {
+  "tier": "common",
+  "rung": 480,
+  "detail": 0.022,
+  "mode": "stencil",
+  "mid_grey": 0.051,
+  "eyes": 2,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "grey-winged": {
+  "tier": "rare",
+  "rung": 480,
+  "detail": 0.041,
+  "mode": "stencil",
+  "mid_grey": 0.155,
+  "eyes": 3,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "reptilian": {
+  "tier": "uncommon",
+  "rung": 480,
+  "detail": 0.035,
+  "mode": "stencil",
+  "mid_grey": 0.204,
+  "eyes": 3,
+  "key_error": 1.0,
+  "eye_mode": "drawn",
+  "extra_eyes": []
+ },
+ "six-eyed": {
+  "tier": "mythic",
+  "rung": 480,
+  "detail": 0.12,
+  "mode": "shade",
+  "mid_grey": 0.523,
+  "eyes": 6,
+  "key_error": 1.0,
+  "eye_mode": "holes",
+  "extra_eyes": []
+ },
+ "source": {
+  "tier": "source",
+  "rung": 600,
+  "mode": "finished",
+  "eyes": 3,
+  "eye_mode": "drawn",
+  "extra_eyes": [],
+  "note": "A finished composition, not a keyed cut-out. It arrives with its own geometry, mushrooms and smoke already in it, so it does NOT go through trait generation \u2014 that would lay a second mandala over the first. Squared by trimming 43px of width, put on the collection's 600x4 grid, and cut to 64 colours rather than 48 because 48 destroys the green channel down its centre entirely: measured, 0 of 7,143 pixels survive."
+ }
 }

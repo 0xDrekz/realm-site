@@ -34,46 +34,45 @@ TOTAL = PER_SECTOR * SECTORS + 1             # 1,111 — the Source is the last
 # The 1,111th being. One in the collection, weight 111, and the only being
 # that is not one of ten of its kind.
 #
-# PLACEHOLDER: it has not been drawn yet, so it borrows the God's drawing
-# wearing its own colourway with every trait at its loudest. Swap the drawing
-# for the real one and delete this note. Nothing else here needs to change.
-SOURCE_BEING = "god-serpent"
-SOURCE_DRAWN = False                          # flip to True once it is drawn
-SOURCE_WEAVE = "Auric"
-SOURCE_TRAITS = dict(Stars="Dense", Geometry="Metatron", GeometryUnder="Mandala",
-                     Lightning="Tempest", UFOs="Fleet", Planets="Cluster",
-                     Explosions="Barrage", Mushrooms="Grove", Trees="Copse",
-                     Smoke="Shroud", Dust="Heavy", Spores="Golden", Aura="Warm",
-                     Eyes="Ringed")
+# It is the ONE picture in the collection that is not generated. It arrived
+# as a finished composition with its own geometry, mushrooms and smoke, so
+# putting it through trait generation would lay a second mandala over the
+# first. It is squared, put on the same 600 x 4 grid as everything else, and
+# used as drawn.
+#
+# Its palette is 64 colours rather than the collection's 48. That is not a
+# preference: at 48 the green channel down its centre disappears completely —
+# 0 of 7,143 pixels survive, measured — and at 64 it comes back.
+SOURCE_ART   = f"{ROOT}/art/source.png"
+SOURCE_DRAWN = True
+
+# what is actually in the picture, rather than what a roll would have given it
+SOURCE_TRAITS = dict(Stars="None", Geometry="Yantra", GeometryUnder="Mandala",
+                     Lightning="None", UFOs="None", Planets="None",
+                     Explosions="None", Mushrooms="Few", Trees="None",
+                     Smoke="Shroud", Dust="Faint", Spores="Golden",
+                     Aura="Cold", Eyes="Slit")
 
 
 def make_source(out_dir, n, rng):
-    info = R.BEINGS[SOURCE_BEING]
-    pal = dict(BY_NAME[R.PALETTE_FOR[SOURCE_WEAVE]])
-    pal["weave"] = dict(WEAVES[SOURCE_WEAVE])
-    pal["weave"]["vivid"] = pal["weave"].get("vivid", 1.0) + 0.45
-
-    t = dict(SOURCE_TRAITS)
-    t["ExtraEyes"] = info.get("extra_eyes") or None
-
-    canvas, scale = 600, 4
-    img = render(f"{ROOT}/art/beings/{SOURCE_BEING}.png", pal, t, canvas, scale,
-                 seed=int(rng.integers(0, 1 << 30)), mode=info["mode"],
-                 eye_mode=info.get("eye_mode", "holes"),
-                 fill=info["rung"] / canvas)
+    if not os.path.exists(SOURCE_ART):
+        raise SystemExit(f"the Source's picture is missing: {SOURCE_ART}")
+    img = Image.open(SOURCE_ART).convert("RGB")
+    if img.size != (2400, 2400):
+        raise SystemExit(f"the Source is {img.size[0]}x{img.size[1]}, not 2400x2400")
     png = f"{out_dir}/images/{n}.png"
     img.save(png, optimize=True)
 
     attrs = [{"trait_type": "Tier", "value": "Source"},
-             {"trait_type": "Being", "value": SOURCE_BEING},
-             {"trait_type": "Colourway", "value": SOURCE_WEAVE}]
+             {"trait_type": "Being", "value": "source"},
+             {"trait_type": "Colourway", "value": "The Source"}]
     for k in ("Geometry", "Stars", "Planets", "UFOs", "Explosions", "Lightning",
               "Smoke", "Dust", "Trees", "Mushrooms", "Spores", "Aura", "Eyes"):
-        attrs.append({"trait_type": k, "value": t[k]})
+        attrs.append({"trait_type": k, "value": SOURCE_TRAITS[k]})
     attrs.append({"trait_type": "Sector", "value": "The Source"})
     attrs.append({"trait_type": "Sector number", "value": "10"})
 
-    json.dump({"name": f"REALM #{n} — The Source", "symbol": "REALM",
+    json.dump({"name": f"REALM #{n} \u2014 The Source", "symbol": "REALM",
                "description": "The 1,111th being of the realm. There is one, "
                               "and there will never be another.",
                "image": f"{n}.png", "attributes": attrs,
@@ -81,9 +80,9 @@ def make_source(out_dir, n, rng):
                               "category": "image"}},
               open(f"{out_dir}/metadata/{n}.json", "w"), indent=2)
 
-    row = {"id": n, "tier": "source", "being": SOURCE_BEING,
-           "colourway": SOURCE_WEAVE, "png": png, "loud": 1.0, "sector": 10}
-    row.update({k: t[k] for k in R.TRAITS})
+    row = {"id": n, "tier": "source", "being": "source",
+           "colourway": "The Source", "png": png, "loud": 1.0, "sector": 10}
+    row.update({k: SOURCE_TRAITS[k] for k in R.TRAITS})
     return row
 
 
@@ -130,9 +129,6 @@ def verify(rows, out_dir):
         a = np.asarray(im.convert("RGB"))
         if a.std() < 3:
             bad.append(f"#{r['id']}: blank")
-
-    if not SOURCE_DRAWN:
-        print("\n  NOTE: the Source is still the God's drawing as a placeholder.")
 
     if bad:
         print(f"\n{len(bad)} problem(s):")

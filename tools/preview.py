@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-REALM — the eight pictures shown on the website.
+REALM — the nine pictures shown on the website.
 
 One being per tier, beside the tier names in the Beings panel.
 
 They come out of the same pipeline as the collection but from a seed that
-belongs to NO round, so nothing on the page is a token anybody will be
-minted. They show what a tier looks like; they are not the thing being sold.
+belongs to NO part of the collection, so nothing on the page is a token
+anybody will be minted. The Source is the exception: there is one of it,
+and the page shows the real thing. They show what a tier looks like; they are not the thing being sold.
 """
 import os, sys, json
 from PIL import Image
@@ -42,18 +43,6 @@ SHOW = [
                                                  Explosions="Two", Mushrooms="Grove",
                                                  Smoke="Wisp")),
 
- # ---- PLACEHOLDER ----
- # The Source is the 1,111th being and there is exactly one. It has not been
- # drawn yet, so this is the God's drawing wearing the Source's palette and
- # every trait at its loudest. It is here so the site is not missing a tier;
- # it is NOT the Source. Replace the drawing and delete this note.
- ("source",    "god-serpent",    "Auric",   dict(Stars="Dense",  Geometry="Metatron",
-                                                 GeometryUnder="Mandala",
-                                                 Lightning="Tempest", UFOs="Fleet",
-                                                 Planets="Cluster", Explosions="Barrage",
-                                                 Mushrooms="Grove", Trees="Copse",
-                                                 Smoke="Shroud", Dust="Heavy",
-                                                 Spores="Golden", Aura="Warm")),
 ]
 
 BASE = dict(Stars="None", Planets="None", Geometry="None", GeometryUnder="None",
@@ -64,6 +53,16 @@ BASE = dict(Stars="None", Planets="None", Geometry="None", GeometryUnder="None",
 
 def main():
     os.makedirs(f"{ROOT}/preview", exist_ok=True)
+
+    # The Source is not generated — it arrived as a finished composition and
+    # is used as drawn. Its preview is just that picture, shrunk.
+    src = f"{ROOT}/art/source.png"
+    if os.path.exists(src):
+        Image.open(src).convert("RGB").resize((360, 360), Image.BOX) \
+             .quantize(colors=64, method=Image.MEDIANCUT, dither=Image.Dither.NONE) \
+             .save(f"{ROOT}/preview/source.png", optimize=True)
+        print("  source     (the finished drawing)")
+
     for tier, being, wname, extra in SHOW:
         info = BEINGS[being]
         t = dict(BASE); t.update(extra)

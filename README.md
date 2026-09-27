@@ -152,6 +152,7 @@ Telegram and a marketplace link appear the same way when they are real.
 | `collection.png` | the collection avatar for the launchpad — not used by the site |
 | `preview/` | one being per tier, shown in the Beings panel |
 | `tools/drop.py` | generates the whole collection — 1,111 in one pass |
+| `art/source.png` | the Source, the one picture that is not generated |
 | `server.js` | the tiny server Railway runs |
 | `package.json` | tells Railway how to start it |
 
