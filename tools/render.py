@@ -354,7 +354,8 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     os.unlink(tmp)
 
     if eye_mode != "drawn":
-        lay = traits.iris(lay, eyes(drawn), t["Eyes"], pal, seed)
+        lay = traits.iris(lay, eyes(drawn, extra=t.get("ExtraEyes")),
+                          t["Eyes"], pal, seed)
     lay = outline(lay, pal["ink"])
 
     # Always dead centre. Shifting and cropping was tried and it read as

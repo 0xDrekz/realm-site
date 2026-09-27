@@ -83,7 +83,7 @@ def cut(src, n, out):
     return err
 
 
-def check_eyes(png, name):
+def check_eyes(png, name, extra=None):
     """Count them, and draw what was found so it can be looked at.
 
     A number on its own is not evidence. The God reported two eyes and was
@@ -92,7 +92,7 @@ def check_eyes(png, name):
     from compose import eyes
     im = Image.open(png).convert("RGBA")
     a = np.asarray(im)
-    m = eyes(a[:,:,3])
+    m = eyes(a[:,:,3], extra=extra)
     _, n = ndimage.label(m)
 
     flat = Image.alpha_composite(Image.new("RGBA", im.size, (0,0,0,255)), im).convert("RGB")
@@ -113,7 +113,9 @@ def ingest(src, name, tier):
     Image.open(src).convert("RGB").save(f"{ROOT}/art/masters/{name}.png")
     out = f"{ROOT}/art/beings/{name}.png"
     err = cut(src, rung, out)
-    n_eyes = check_eyes(out, name)
+    mf_path = f"{ROOT}/art/beings.json"
+    prev_book = json.load(open(mf_path)) if os.path.exists(mf_path) else {}
+    n_eyes = check_eyes(out, name, prev_book.get(name, {}).get("extra_eyes"))
 
     mf = f"{ROOT}/art/beings.json"
     book = json.load(open(mf)) if os.path.exists(mf) else {}
@@ -123,7 +125,9 @@ def ingest(src, name, tier):
                   "eyes": n_eyes, "key_error": round(err, 2),
                   # set by hand for a being whose eye is drawn rather than
                   # left open; the finder cannot see those
-                  "eye_mode": prev.get("eye_mode", "holes")}
+                  "eye_mode": prev.get("eye_mode", "holes"),
+                  # eyes that are painted rather than open, named by hand
+                  "extra_eyes": prev.get("extra_eyes", [])}
     json.dump(dict(sorted(book.items())), open(mf, "w"), indent=2)
 
     flags = []

@@ -40,7 +40,7 @@ def _dither(field, seed=0):
 
 # ---------------------------------------------------------------- the eyes
 
-def eyes(alpha, thresh=96, head=0.34):
+def eyes(alpha, thresh=96, head=0.42, extra=None):
     """Find a being's eye holes.
 
     An eye hole is transparent, enclosed by ink, and not joined to the
@@ -49,8 +49,11 @@ def eyes(alpha, thresh=96, head=0.34):
     were exactly two of them the "found 2 eyes" check passed while pointing
     at the wrong thing entirely.
 
-    So the search is confined to the head: the top third. Every real eye in
-    the cast sits between 0.13 and 0.24 down; the elbow gaps sit at 0.50.
+    So the search is confined to the head. The limit was the top third, which
+    was one hundredth of the picture too tight: the cyclops has a single eye
+    taking up most of its face, and its middle sits at 0.35 — just outside.
+    Its whole eye was being thrown away and two specks on its wings kept
+    instead.
 
     This will not find an eye that was drawn rather than left open — the
     God's is a full eye with a white and a pupil, and nothing here can see
@@ -86,13 +89,36 @@ def eyes(alpha, thresh=96, head=0.34):
         return mask
 
     # Every eye, not the two biggest. A being with six of them was having two
-    # of them lit and four left dark, which is worse than leaving all six
-    # alone. Anything at least a third the size of the largest hole in the
-    # head counts as one of the set.
+    # lit and four left dark, which is worse than leaving all six alone.
+    #
+    # Size alone cannot sort them. Cut at a third of the largest and the
+    # six-eyed one's shoulder openings come in as a seventh eye; cut at 45%
+    # and the crowned one loses the smaller third eye in its forehead.
+    #
+    # The cut is 40% of the largest hole in the head, and that number was
+    # found by measuring rather than guessing.
+    #
+    # Height cannot sort these. The crowned one's third eye sits 0.184 of the
+    # picture above its main eyes; the six-eyed one's shoulder openings sit
+    # 0.180 above its own. A band tight enough to reject one rejects the
+    # other.
+    #
+    # Size can. Every real third eye in the cast comes to between 42% and 60%
+    # of a main eye. The shoulder openings come to 35%.
     biggest = found[0][0]
     for size, i in found:
-        if size >= biggest * 0.33:
+        if size >= biggest * 0.40:
             mask |= (lab == i)
+
+    # Eyes that were painted rather than left open cannot be found at all —
+    # the fanged one's third eye is a marking, not an opening. Those are
+    # named by hand in beings.json as (across, down, radius), all fractions.
+    if extra:
+        yy, xx = np.mgrid[0:h, 0:w]
+        for ex, ey_, er in extra:
+            cx, cy = ex * w, ey_ * h
+            rr = er * min(h, w)
+            mask |= ((xx - cx) ** 2 + (yy - cy) ** 2) <= rr * rr
     return mask
 
 

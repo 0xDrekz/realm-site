@@ -169,9 +169,42 @@ third eye in the forehead — the crowned pair, the Entity, the winged grey,
 the four-armed grey — and all of them were having it quietly left dark. Then
 a being arrived with six.
 
-It takes every hole in the head at least a third the size of the largest one
-now, which gives two where there are two, three where there is a third eye,
-and six where there are six.
+It takes every hole in the head at least **40%** the size of the largest one
+now: two where there are two, three where there is a third eye, six where
+there are six, and one for the cyclops.
+
+That number was measured, not guessed, and several guesses were wrong first.
+Height cannot sort these — the crowned one's third eye sits 0.184 of the
+picture above its main eyes and the six-eyed one's shoulder openings sit
+0.180 above its own, so a band tight enough to reject one rejects the other.
+Anchoring the band on the topmost hole was exactly backwards: on a crowned
+being the third eye set the top and both real eyes fell outside it. Size
+separates them cleanly — every real third eye in the cast is 42% to 60% of a
+main eye, and the shoulder openings are 35%.
+
+The head zone also had to widen from the top third to 0.42. The cyclops has
+one eye taking up most of its face and its middle sits at 0.35 — one
+hundredth of the picture outside the old limit. Its entire eye was being
+thrown away and two specks on its wings kept instead.
+
+## Eyes that were painted rather than left open
+
+The fanged one's third eye is a marking, not an opening, so nothing that
+looks for holes will ever find it. Those are named by hand in `beings.json`:
+
+```json
+"extra_eyes": [[0.500, 0.283, 0.022]]
+```
+
+across, down, radius — all fractions of the picture.
+
+## An eye must never be the colour of the face it sits in
+
+Auric's eye colour was white and Auric faces are near-white: difference of
+6.7 out of 255. The eyes were being painted on and could not be seen at all,
+and a whole being came out with a blank face. It is violet now, and the
+generator refuses to finish if any eye comes within 34 of its face — the same
+class of fault as the geometry matching the character, caught the same way.
 
 That needed one more rule. The fairy's wings carry big pale patches in the
 top third of the picture, and without it they counted as seven more eyes —

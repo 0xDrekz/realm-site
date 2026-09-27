@@ -194,6 +194,7 @@ def generate(round_no, out_dir):
             # loudness would just make every God a close crop.
             FLAT = {"Spores", "Eyes", "Aura"}
             t = {k: roll(k, 0.0 if k in FLAT else loud, rng) for k in TRAITS}
+            t["ExtraEyes"] = info.get("extra_eyes") or None
             key = (being, wname) + tuple(t[k] for k in TRAITS)
             if key not in seen:
                 if tier in SCARCE:
@@ -314,6 +315,18 @@ def verify(rows, out_dir):
             if k > n / len(pool) + 1:
                 bad.append(f"{tier}: {name} takes {k} of {n} when {len(pool)} "
                            f"drawings share the tier")
+
+    # an eye must never be the colour of the face it sits in
+    for r in rows:
+        if BEINGS[r["being"]].get("eye_mode") == "drawn":
+            continue
+        eye = np.array(BY_NAME[PALETTE_FOR[r["colourway"]]]["eye"], float)
+        face = WEAVES[r["colourway"]]["Face"]
+        face = np.array(face["b"][-1] if isinstance(face, dict) else face[-1], float)
+        gap = float(np.abs(eye - face).mean())
+        if gap < 34:
+            bad.append(f"#{r['id']}: the eye colour is {gap:.0f} from the face "
+                       f"it is painted on — it cannot be seen")
 
     # the figure behind must never be the colour of the being in front
     from render import _aura_palette, _hue_gap

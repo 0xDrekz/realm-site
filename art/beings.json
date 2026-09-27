@@ -7,7 +7,8 @@
     "mid_grey": 0.155,
     "eyes": 3,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "crowned-entity": {
     "tier": "entity",
@@ -17,7 +18,8 @@
     "mid_grey": 0.523,
     "eyes": 3,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "crowned-flame": {
     "tier": "legendary",
@@ -27,7 +29,8 @@
     "mid_grey": 0.25,
     "eyes": 3,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "cyclops": {
     "tier": "rare",
@@ -35,9 +38,10 @@
     "detail": 0.059,
     "mode": "shade",
     "mid_grey": 0.623,
-    "eyes": 3,
+    "eyes": 1,
     "key_error": 1.0,
-    "eye_mode": "drawn"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "dread-winged": {
     "tier": "mythic",
@@ -47,7 +51,8 @@
     "mid_grey": 0.497,
     "eyes": 3,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "fairy": {
     "tier": "legendary",
@@ -57,7 +62,8 @@
     "mid_grey": 0.724,
     "eyes": 2,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "fanged": {
     "tier": "epic",
@@ -67,7 +73,14 @@
     "mid_grey": 0.612,
     "eyes": 2,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": [
+      [
+        0.5,
+        0.283,
+        0.022
+      ]
+    ]
   },
   "god-serpent": {
     "tier": "god",
@@ -77,7 +90,8 @@
     "mid_grey": 0.489,
     "eyes": 1,
     "key_error": 1.0,
-    "eye_mode": "drawn"
+    "eye_mode": "drawn",
+    "extra_eyes": []
   },
   "grey-fourarm": {
     "tier": "uncommon",
@@ -87,7 +101,8 @@
     "mid_grey": 0.039,
     "eyes": 3,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "grey-plain": {
     "tier": "common",
@@ -97,7 +112,8 @@
     "mid_grey": 0.036,
     "eyes": 2,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "grey-tall": {
     "tier": "common",
@@ -107,7 +123,8 @@
     "mid_grey": 0.051,
     "eyes": 2,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "grey-winged": {
     "tier": "rare",
@@ -117,7 +134,8 @@
     "mid_grey": 0.155,
     "eyes": 3,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   },
   "reptilian": {
     "tier": "uncommon",
@@ -127,7 +145,8 @@
     "mid_grey": 0.204,
     "eyes": 3,
     "key_error": 1.0,
-    "eye_mode": "drawn"
+    "eye_mode": "drawn",
+    "extra_eyes": []
   },
   "six-eyed": {
     "tier": "mythic",
@@ -137,6 +156,7 @@
     "mid_grey": 0.523,
     "eyes": 6,
     "key_error": 1.0,
-    "eye_mode": "holes"
+    "eye_mode": "holes",
+    "extra_eyes": []
   }
 }
