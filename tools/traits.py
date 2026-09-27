@@ -20,6 +20,33 @@ def _rgba(h, w):
     return np.zeros((h, w, 4), np.uint8)
 
 
+# The character stands in the middle and owns that column. Nothing is placed
+# inside it except high above the head, because anything behind the character
+# is simply not seen — it is work done and thrown away.
+KEEP_OUT = 0.24            # half-width of the character's column, as a fraction
+ABOVE = 0.22               # above this fraction of the height, the middle is free
+
+
+def _aside(w, h, r, size, allow_above=True, top=0.0, bottom=0.6):
+    """A spot at the side of the character — or above its head.
+
+    Returns a centre. Tries the sides first and falls back to high and
+    central, which is the only part of the middle anything can occupy.
+    """
+    for _ in range(40):
+        cx = r.uniform(size * 0.5, w - size * 0.5)
+        cy = r.uniform(h * top + size * 0.5, h * bottom)
+        off = abs(cx / w - 0.5)
+        if off > KEEP_OUT:
+            return cx, cy
+        if allow_above and (cy + size * 0.5) / h < ABOVE:
+            return cx, cy
+    side = -1 if r.random() < 0.5 else 1
+    cx = float(np.clip(w / 2 + side * w * r.uniform(KEEP_OUT + 0.04, 0.46),
+                       size * 0.5, w - size * 0.5))
+    return cx, r.uniform(h * top + size * 0.5, h * bottom)
+
+
 def _put(layer, mask, colour, alpha=255):
     layer[mask] = list(colour) + [alpha]
 
@@ -61,7 +88,7 @@ def planets(w, h, kind, pal, seed):
 
     for i in range(n):
         R = w * r.uniform(0.06, 0.15)
-        cx, cy = r.uniform(R, w-R), r.uniform(R, h*0.55)
+        cx, cy = _aside(w, h, r, R * 2, allow_above=True, top=0.02, bottom=0.50)
         d = np.sqrt((x-cx)**2 + (y-cy)**2)
         disc = d <= R
 
@@ -99,10 +126,7 @@ def ufos(w, h, kind, pal, seed):
     # is a saucer nobody sees. Four were being drawn and one was visible.
     for i in range(n):
         S = w * r.uniform(0.045, 0.085)
-        side = -1 if (i % 2 == 0) else 1
-        cx = w/2 + side * r.uniform(w*0.20, w*0.42)
-        cx = float(np.clip(cx, S, w - S))
-        cy = r.uniform(h*0.05, h*0.38)
+        cx, cy = _aside(w, h, r, S * 2, allow_above=True, top=0.02, bottom=0.38)
 
         hull = (((x-cx)/S)**2 + ((y-cy)/(S*0.30))**2) <= 1
         dome = (((x-cx)/(S*0.46))**2 + ((y-cy+S*0.26)/(S*0.42))**2) <= 1
@@ -289,9 +313,7 @@ def explosions(w, h, kind, pal, seed):
 
     for i in range(n):
         R = w * r.uniform(0.07, 0.15)
-        side = -1 if i % 2 == 0 else 1
-        cx = float(np.clip(w/2 + side * r.uniform(w*0.22, w*0.44), R, w-R))
-        cy = r.uniform(h*0.08, h*0.55)
+        cx, cy = _aside(w, h, r, R * 2, allow_above=True, top=0.04, bottom=0.52)
         d = np.sqrt((x-cx)**2 + (y-cy)**2)
 
         # the shockwave, thrown out well past the fireball
@@ -375,7 +397,7 @@ def lightning(w, h, kind, pal, seed):
 
     for i in range(n):
         side = -1 if i % 2 == 0 else 1
-        sx = w/2 + side * r.uniform(w*0.16, w*0.46)
+        sx = w/2 + side * r.uniform(w * (KEEP_OUT + 0.04), w*0.48)
         bolt(float(np.clip(sx, 6, w-7)), r.uniform(-h*0.02, h*0.06),
              h * r.uniform(0.55, 0.95), 2, 3)
     return out
@@ -464,7 +486,7 @@ def trees(w, h, kind, pal, seed):
         near = r.random() ** 0.8
         # pushed out to the sides: the being owns the middle of the floor
         side = -1 if i % 2 == 0 else 1
-        cx = w/2 + side * r.uniform(w*0.18, w*0.50)
+        cx = w/2 + side * r.uniform(w * (KEEP_OUT + 0.03), w*0.50)
         stand.append((near, float(np.clip(cx, 4, w-5))))
     stand.sort()
 
@@ -526,12 +548,15 @@ def mushrooms(w, h, kind, pal, seed, horizon=FLOOR):
     clumps = []
     for k in range(max(3, n // 3)):
         side = -1 if k % 2 == 0 else 1
-        clumps.append(float(np.clip(w/2 + side * r.uniform(w*0.14, w*0.52), 4, w-5)))
+        clumps.append(float(np.clip(w/2 + side * r.uniform(w * (KEEP_OUT + 0.02), w*0.52),
+                                    4, w-5)))
 
     order = []
     for i in range(n):
         near = r.random() ** 0.7                    # 0 far, 1 near
-        cx = float(np.clip(r.choice(clumps) + r.normal(0, w * 0.07), 2, w - 3))
+        cx = float(np.clip(r.choice(clumps) + r.normal(0, w * 0.05), 2, w - 3))
+        if abs(cx / w - 0.5) < KEEP_OUT:          # never under the character
+            cx = w/2 + np.sign(cx - w/2 or 1) * w * (KEEP_OUT + 0.02)
         base = floor + (h - floor) * near * r.uniform(0.35, 1.0)
         # Enlarged once because they were invisible, and that overshot — at
         # this width a near mushroom stood taller than the trees and buried

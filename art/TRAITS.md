@@ -290,18 +290,26 @@ The edge of a being now catches the colour of whatever it stands in front
 of. Lit the same whatever was behind, it read as pasted over the picture
 rather than standing in it.
 
-## It does not always stand in the middle
+## The character is always dead centre
 
-| Pose | |
-|------|--|
-| Centred | as before |
-| Left / Right | shifted off the axis |
-| Close | cropped in, head higher in the frame |
+Shifting it left and right and cropping in close was built and removed. It
+read as sloppy rather than varied. The variety belongs in what surrounds the
+character, not in where the character is.
 
-Dead centre every time made a round look like one template with the
-variables changed. Pose is not tilted by rarity — nor are Spores or Eyes —
-because those are choices, not intensities, and tilting them would make
-every God a close crop.
+## Nothing is placed behind the character
+
+Every being stands in the middle and owns that column — the middle 48% of
+the width. Nothing is placed inside it, because anything behind the
+character is simply not seen: work done and thrown away.
+
+Trees and mushrooms go to the sides of it, on the floor. Planets, UFOs,
+explosions and lightning go to the sides **or high above the head**, which is
+the only part of the middle anything may occupy.
+
+## There is always a floor
+
+It used to appear only when something grew on it. Every being stands on
+something now.
 
 ## Mushrooms need not match the ground
 

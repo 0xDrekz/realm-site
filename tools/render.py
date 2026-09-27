@@ -256,9 +256,6 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     # Close crops in on the being. It is applied here, before the art is
     # resized, so the whole figure is still drawn — it simply runs off the
     # bottom and sides of the frame the way a portrait does.
-    pose_now = t.get("Pose", "Centred")
-    if pose_now == "Close":
-        fill = min(1.55, fill * 1.45)
     s = int(canvas * fill)
     fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
     art.resize((s, s), Image.NEAREST).save(tmp)
@@ -275,13 +272,11 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
         lay = traits.iris(lay, eyes(drawn), t["Eyes"], pal, seed)
     lay = outline(lay, pal["ink"])
 
-    # where it stands. Dead centre every time made a round look like one
-    # template with the variables changed.
-    pose = t.get("Pose", "Centred")
-    off = {"Centred": 0.0, "Left": -0.14, "Right": 0.14, "Close": 0.0}[pose]
-    nx = int(w/2 - s/2 + off * w)
-    # a close crop sits the head higher in the frame, not the feet lower
-    ny = int(h * (1.20 if pose == "Close" else 1.02)) - s
+    # Always dead centre. Shifting and cropping was tried and it read as
+    # sloppy rather than varied — the variety belongs in what surrounds the
+    # character, not in where the character is.
+    nx = int(w/2 - s/2)
+    ny = int(h * 1.02) - s
 
     # the air, still born at the being's mouth but laid down before it
     mx, my = bodyparts.mouth(drawn)
@@ -289,8 +284,8 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
                                     nx + mx, ny + my, phase or 0.0))
     base = over(base, traits.moondust(w, h, t["Dust"], pal, seed, phase or 0.0))
     # the floor and what grows on it, far to near
-    grows = t.get("Trees", "None") != "None" or t.get("Mushrooms", "None") != "None"
-    base = over(base, traits.ground(w, h, "Floor" if grows else "None", pal, seed))
+    # every being stands on something
+    base = over(base, traits.ground(w, h, "Floor", pal, seed))
     base = over(base, traits.trees(w, h, t.get("Trees", "None"), pal, seed))
     base = over(base, traits.mushrooms(w, h, t.get("Mushrooms", "None"), pal, seed))
 

@@ -70,7 +70,6 @@ TRAITS = {
  "Mushrooms":    [("None", 76), ("Few", 13), ("Cluster", 8), ("Grove", 3)],
  "Spores":       [("Matching", 40), ("Golden", 20), ("Complementary", 18),
                   ("Opposed", 14), ("Cold", 8)],
- "Pose":         [("Centred", 58), ("Left", 16), ("Right", 16), ("Close", 10)],
  "Eyes":         [("Plain", 40), ("Ringed", 20), ("Slit", 16),
                   ("Starburst", 12), ("Spiral", 8), ("Void", 4)],
 }
@@ -154,7 +153,7 @@ def generate(round_no, out_dir):
                 continue
             # Pose and Spores are choices, not intensities — tilting them by
             # loudness would just make every God a close crop.
-            FLAT = {"Pose", "Spores", "Eyes"}
+            FLAT = {"Spores", "Eyes"}
             t = {k: roll(k, 0.0 if k in FLAT else loud, rng) for k in TRAITS}
             key = (being, wname) + tuple(t[k] for k in TRAITS)
             if key not in seen:
@@ -182,7 +181,7 @@ def generate(round_no, out_dir):
                  {"trait_type": "Colourway", "value": wname}]
         for k in ("Geometry", "Stars", "Planets", "UFOs", "Explosions",
                   "Lightning", "Smoke", "Dust", "Trees", "Mushrooms",
-                  "Spores", "Pose", "Eyes"):
+                  "Spores", "Eyes"):
             attrs.append({"trait_type": k, "value": t[k]})
         attrs.append({"trait_type": "Round", "value": str(round_no)})
 
