@@ -47,11 +47,15 @@ const CONFIG = {
     marketplace: ""
   },
 
-  /* --- LIVE NFT DATA (leave alone until after the mint) ---
-     Kept for when the collection exists and the site can read the real
-     beings and their owners. Nothing reads these yet. */
-  collectionAddress: "",
-  heliusApiKey: ""
+  /* The collection's on-chain address, once it exists. Public by nature —
+     it is on the chain — so it is safe to put here.
+
+     There is deliberately NO API KEY in this file. data.js is downloaded by
+     every single visitor, so a key pasted here is a key handed to everybody
+     who opens the site. If the wallet panel ever needs a paid RPC, it goes
+     behind a small endpoint in server.js reading process.env, and the key
+     lives in Railway's variables where nobody can read it. */
+  collectionAddress: ""
 };
 
 /* ============================================================
@@ -135,42 +139,50 @@ const TOKEN_BANDS = [
 /* ============================================================
    THE STORY
 
-   Ten chapters of the realm. They are lore and nothing else: no
-   being belongs to one, nothing is counted in them, and holding
-   a particular being does not get you a particular chapter.
+   One story, open from the first visit. It was ten chapters that
+   unsealed as the mint filled — which was the staged release wearing
+   its last disguise, and it rationed the only thing on the site that
+   costs nothing to give away.
+
+   It is about the beings that were actually drawn, rather than the
+   standard tour. Edit the text between the quotes; the site takes it
+   as written.
    ============================================================ */
-const CHAPTERS = [
-  { name: "The Threshold", hue: 270,
-    lore: "You do not arrive here. You are delivered. The Threshold is the held breath between the room you left and everything after it — a curtain of moving light that recognises you before you recognise yourself. The first beings wait at the edge, and they have been expecting you for longer than you have existed." },
-  { name: "The Chrysanthemum", hue: 320,
-    lore: "The gate is a flower and the flower is opening, petal folding out of petal without end. Every petal is a door and every door is the same door seen from further in. The beings of the Chrysanthemum are gardeners. They do not grow the flower. They keep it from closing." },
-  { name: "The Dome", hue: 45,
-    lore: "A vaulted chamber with no visible ceiling, ribbed in gold and breathing slowly. The walls are not walls; they are rows of watchers, packed shoulder to shoulder, leaning in. They have waited the entire time. When you enter, the whole dome turns to look, and something enormous is pleased." },
-  { name: "The Elf Workshop", hue: 150,
-    lore: "Machine elves, working at impossible speed, making objects that sing themselves into being and then insist you take them. They hand you gifts made of language. They are hysterical with delight that you came, and the gifts keep arriving faster than you can hold them." },
-  { name: "The Jester's Court", hue: 15,
-    lore: "A checkered floor tilting under a court of tricksters, where the joke is structural and the punchline is you. Nothing here lies, but nothing here is straight either. The Court teaches by laughter, and the lesson only lands once you have stopped defending yourself." },
-  { name: "The Hyperspace Corridor", hue: 195,
-    lore: "Not a place but a passage, screaming past at a speed with no number. Walls of braided colour, information travelling the other way. The corridor beings are ferrymen. They are indifferent to you. They have carried everything that has ever crossed, and they will carry what comes after." },
-  { name: "The Fractal Sea", hue: 220,
-    lore: "An ocean that is made of its own reflection, each wave containing the whole sea, each drop containing every wave. To look closely is to fall in. The beings here have no edges. They are patterns wearing the idea of a body, and they rise when the depth decides to speak." },
-  { name: "The Temple of Geometry", hue: 258,
-    lore: "Architecture that is alive and knows it is being observed. Columns solve themselves. Arches rearrange to stay beautiful from wherever you stand. The temple guardians are laws rather than creatures — the rules that keep the realm from spilling, given faces so you can bear them." },
-  { name: "The Loom", hue: 292,
-    lore: "Here the realm is woven. Threads of every colour that does not exist run through hands too fast to see, and each thread is a life, a timeline, a version of the room you left behind. The weavers do not look up. They are building the thing you are standing inside." },
-  { name: "The Source", hue: 50,
-    lore: "The centre. Light without a lamp, love without a condition, understanding without a question left to ask. There is nothing here to collect and nothing here to own. Everything you were carrying is set down at the door, and the realm finally shows you why it opened at all." }
+const LORE = [
+  "They are not visions. That is the first thing to be wrong about.",
+
+  "A vision is something your own head made and handed back to you wearing "
+  + "a costume. These have been here the whole time, going about an existence "
+  + "that has nothing to do with you, and the only thing the medicine does is "
+  + "thin the wall enough that you notice. They look up when you arrive the "
+  + "way people look up when a door opens. Some of them are pleased. Some of "
+  + "them were in the middle of something.",
+
+  "The small grey ones are the most common thing in the realm and the least "
+  + "interesting to themselves. They stand about in the geometry like commuters "
+  + "in a station, and they will let you look at them for as long as you like. "
+  + "The ones with four arms are busier. The reptiles are older and know it. "
+  + "The one with a single enormous eye does not blink and does not need to.",
+
+  "Further in they start to be dressed. Crowns, or something the drawing can "
+  + "only render as a crown. Wings that are not for flying. Teeth that are "
+  + "clearly a statement rather than a tool. There is a winged thing with "
+  + "dreadlocks that will not show you its face straight on, and a six-eyed "
+  + "one that looks at you with all of them at once and is not hostile, only "
+  + "thorough.",
+
+  "The Gods are ten. Each one is a serpent knotted into the shape of a seated "
+  + "figure, crowned, with a third eye that is painted rather than opened. "
+  + "They do not move while you are watching. The consensus among people who "
+  + "have met one is that they moved a great deal before you arrived.",
+
+  "And then there is the Source, which is one, and which is not like the rest. "
+  + "White, winged, three eyes, a green channel of light running the length of "
+  + "it, and a red-capped mushroom standing to either side like a witness. It "
+  + "does not look up when you arrive. It has been looking the whole time.",
+
+  "Every one of them is in the geometry. Not standing in front of it — in it, "
+  + "the way a fish is in water, the way a word is in a sentence. The patterns "
+  + "behind them are not decoration and not a background. They are the room, "
+  + "and the beings are what the room does."
 ];
-
-/* ============================================================
-   HOW MUCH OF THE STORY IS OPEN
-
-   A chapter opens for every tenth of the mint that goes. Nothing is
-   gated behind a wallet — it opens for everybody at once, as the drop
-   fills.
-   ============================================================ */
-function chaptersOpen() {
-  const gone = Math.min(Math.max(CONFIG.minted, 0), TOTAL_BEINGS);
-  return Math.min(CHAPTERS.length,
-                  Math.max(1, Math.ceil(gone / TOTAL_BEINGS * CHAPTERS.length)));
-}

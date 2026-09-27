@@ -206,6 +206,28 @@
     + `fixed sum — if the drop does not fill, the pool is smaller in the same proportion, `
     + `and it pays on whatever sold by the closing date.`;
 
+  /* This line used to be written by hand and it was false: it claimed the
+     400 Commons outweighed every God and the Source together. They are 400
+     points against 661. The earlier version of the same sentence was wrong
+     too, so a wrong claim survived a rewrite unchecked.
+
+     It is computed now. A sentence about numbers on a page whose whole
+     argument is that the numbers can be checked has no business being
+     typed in by hand. */
+  const weightLine = $("[data-rw-weightline]");
+  if (weightLine) {
+    const src  = TIERS.find(t => t.key === "source");
+    const low  = ["common", "uncommon", "rare"].map(k => TIERS.find(t => t.key === k));
+    const lowN = low.reduce((a, t) => a + t.count, 0);
+    const lowW = low.reduce((a, t) => a + t.count * t.weight, 0);
+    weightLine.textContent =
+      `Every being carries a weight, and yours add up. The Source alone is worth `
+      + `${src.weight} Commons. The ${lowN.toLocaleString()} Commons, Uncommons and Rares `
+      + `are ${Math.round(lowN / TOTAL_BEINGS * 100)}% of the collection but only `
+      + `${Math.round(lowW / TOTAL_WEIGHT * 100)}% of the weight — the pool leans to the `
+      + `rare end, and that is the whole shape of it.`;
+  }
+
   const tokEl = $("[data-rw-token]");
   if (tokEl) tokEl.textContent =
     `${TOKEN_NAME} multiplies what your beings are worth, up to ${
@@ -393,7 +415,12 @@
   }
 
   /* the two pickers */
-  let pickQty = MAX_PER_WALLET, pickBand = TOKEN_BANDS.length - 1;
+  /* It used to open on five beings at the top token band — the most
+     flattering corner of the grid, on a panel whose whole argument is that
+     it does not flatter. It opens on one being and no tokens now, which is
+     what somebody actually has before they decide anything. Everything
+     better than that is one tap away. */
+  let pickQty = 1, pickBand = 0;
 
   function picker(el, items, initial, onPick) {
     if (!el) return;
@@ -416,7 +443,7 @@
   picker($("[data-ch-qty]"),
     [...Array(MAX_PER_WALLET)].map((_, i) => ({
       html: n_(i + 1), label: (i + 1) + (i ? " beings" : " being")
-    })), MAX_PER_WALLET - 1, i => pickQty = i + 1);
+    })), 0, i => pickQty = i + 1);
 
   picker($("[data-ch-band]"),
     TOKEN_BANDS.map(b => ({
@@ -424,7 +451,7 @@
       label: (b.hold === 0 ? "no " + TOKEN_NAME
                            : b.hold.toLocaleString() + " " + TOKEN_NAME)
              + ", " + b.mult.toFixed(1) + " times"
-    })), TOKEN_BANDS.length - 1, i => pickBand = i);
+    })), 0, i => pickBand = i);
 
   detail(pickQty, pickBand);
 
@@ -437,28 +464,27 @@
     + `people trade. None of this is a promise of profit, and none of it is financial advice.`;
 
   /* ---------- lore ----------
-     The ten rounds used to unseal a chapter at a time, and that was the
-     best thing about them. It survives the drop: a chapter opens for
-     every tenth that mints, for everybody at once. */
-  const openChapters = chaptersOpen();
+     One story, and all of it, from the first visit. It used to be ten
+     chapters that unsealed as the mint filled — the staged release wearing
+     its last disguise, rationing the one thing on the site that costs
+     nothing to give away. */
   const chaptersEl = $(".chapters");
-  if (chaptersEl) CHAPTERS.forEach((chapter, i) => {
-    const open = i < openChapters;
-    const el = document.createElement("article");
-    el.className = "chapter" + (open ? "" : " sealed");
-    el.innerHTML = `<p class="meta">Chapter ${i + 1}</p>
-                    <h3>${open ? chapter.name : "Sealed"}</h3>
-                    <p class="body">${open ? chapter.lore
-                      : "This chapter opens when the mint passes "
-                        + Math.round(i / CHAPTERS.length * 100) + "%."}</p>`;
-    chaptersEl.appendChild(el);
-  });
+  if (chaptersEl) {
+    const art = document.createElement("img");
+    art.className = "lore-art";
+    art.src = "preview/source.png";
+    art.alt = "";
+    art.loading = "lazy";
+    art.width = 360; art.height = 360;
+    chaptersEl.appendChild(art);
 
-  const loreNote = $("[data-lore-note]");
-  if (loreNote) loreNote.textContent = soldOut
-    ? "The realm is complete, and every chapter is open."
-    : `${openChapters} of ${CHAPTERS.length} chapters are open. One more opens with every `
-      + `tenth of the drop that goes.`;
+    LORE.forEach((para, i) => {
+      const p = document.createElement("p");
+      p.className = "lore-p" + (i === 0 ? " lore-open" : "");
+      p.textContent = para;
+      chaptersEl.appendChild(p);
+    });
+  }
 
   /* ---------- digits in prose ----------
      The numeric face is applied by class, and CSS cannot select a digit

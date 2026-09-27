@@ -369,8 +369,7 @@ window.RealmJourney = (() => {
       case "mint":    return cfg.mintLink ? "open" : "shut";
       case "beings":  return all.toLocaleString() + " in all";
       case "rewards": return g_("POOL_PERCENT", 75) + "% of the mint";
-      case "lore":    return g_("chaptersOpen", () => 1)() + " of "
-                           + (g_("CHAPTERS", []).length || 10) + " open";
+      case "lore":    return "who they are";
       default:        return "";
     }
   }

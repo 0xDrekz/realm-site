@@ -95,12 +95,13 @@ next to MINT.
 
 ### Editing the story
 
-The `CHAPTERS` list holds each chapter's name and text. Edit the text between
-the quotes. Keep all ten entries — a chapter opens for every tenth of the
-drop that mints, so ten chapters is what makes that come out even.
+The `LORE` list holds the story, one paragraph per entry. Edit the text
+between the quotes; the site prints it as written.
 
-They are lore and nothing else. No being belongs to a chapter and nothing is
-counted in them.
+It used to be ten chapters that unsealed as the mint filled. That was the
+staged release wearing its last disguise — it rationed the one thing on the
+site that costs nothing to give away, and with nothing minted, nine of the
+ten were shut. It is one story now and all of it shows from the first visit.
 
 ### Changing the rarity split
 
@@ -411,3 +412,42 @@ It does **not** prove how mint order was assigned to token number. That is
 the launchpad's shuffle, not ours. The site says both halves of this, in the
 FAQ and beside the hash itself, and the checker fails if the page shows a
 hash without stating the second half.
+
+---
+
+## Two things a review caught that the checker had not
+
+Worth recording, because both were the same mistake in different clothes:
+**everything computed was verified and everything written by hand was not.**
+
+### A sentence about numbers that was false
+
+The Rewards card said the 400 Commons outweighed every God and the Source
+combined. They are 400 points against 661. The earlier version of the line
+said forty Commons outweighed a God — 40 against 55 — so a false claim had
+already survived one rewrite unchecked, on a page whose entire argument is
+that the numbers can be checked.
+
+It is computed from `TIERS` now rather than typed, and the checker asserts
+the figures in it and fails if the word "outweigh" comes back.
+
+### An API key in a file every visitor downloads
+
+`data.js` had a `heliusApiKey` field with a comment inviting one to be pasted
+in. It was empty, which is the only reason it was not already a leak. Every
+visitor downloads that file.
+
+It is gone. If the wallet panel ever needs a paid RPC, it goes behind a small
+endpoint in `server.js` reading `process.env`, with the key in Railway's
+variables. The checker now fails on any key-shaped field in `data.js`.
+
+### And one the site could not have caught
+
+`og.png` still read "1,111 BEINGS · 10 SECTORS" — baked into the pixels, so it
+outlived the sectors by a whole restructure and every posted link advertised a
+drop that no longer existed.
+
+`tools/share.py` rebuilds it, and the new one carries **no claim about the
+shape of the collection at all** — just the emblem and four beings. Wording
+that can go stale belongs in the meta description, where it is text and can
+be checked. An image cannot be.
