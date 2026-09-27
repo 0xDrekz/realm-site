@@ -193,10 +193,17 @@ The fanged one's third eye is a marking, not an opening, so nothing that
 looks for holes will ever find it. Those are named by hand in `beings.json`:
 
 ```json
-"extra_eyes": [[0.500, 0.283, 0.022]]
+"extra_eyes": [[0.514, 0.286, 0.011]]
 ```
 
 across, down, radius — all fractions of the picture.
+
+Those numbers were measured: the two real eyes sit at 0.476 and 0.552
+across, so the middle is 0.514, and the brightness along that line dips
+between 0.279 and 0.298, which is the marking. The first attempt guessed
+0.500 and a radius of 0.022, and the circle was wide enough to touch both
+eyes and merge with them into a single blob — the count read 2 and nothing
+new appeared. The radius has to be small enough to stand alone in the gap.
 
 ## An eye must never be the colour of the face it sits in
 
