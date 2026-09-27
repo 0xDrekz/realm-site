@@ -123,11 +123,33 @@ def tier_list():
     return out
 
 
-def being_for(tier):
-    for name, info in BEINGS.items():
-        if info["tier"] == tier:
-            return name
-    raise SystemExit(f"no being drawn for tier {tier!r}")
+def beings_for(tier):
+    """Every drawing that belongs to this tier.
+
+    A tier used to hold exactly one, and the first match won — so forty
+    Commons in a round were forty copies of one alien, and two drawings were
+    61% of the whole round. A tier holds as many as have been drawn for it.
+    """
+    out = [n for n, i in BEINGS.items() if i["tier"] == tier]
+    if not out:
+        raise SystemExit(f"no being drawn for tier {tier!r}")
+    return sorted(out)
+
+
+def deal_beings(tier, n, rng):
+    """Share a tier's count out among its drawings as evenly as it goes.
+
+    Dealt rather than rolled, for the same reason the tiers themselves are:
+    left to chance, forty Commons across two drawings comes out 25/15 often
+    enough to look like a mistake.
+    """
+    pool = beings_for(tier)
+    per, rest = divmod(n, len(pool))
+    out = []
+    for i, name in enumerate(pool):
+        out += [name] * (per + (1 if i < rest else 0))
+    rng.shuffle(out)
+    return out
 
 
 def generate(round_no, out_dir):
@@ -145,18 +167,23 @@ def generate(round_no, out_dir):
     # tier with seven or fewer in a round the colourway is dealt without
     # replacement.
     SCARCE = {t for t, n in COUNTS.items() if n <= 7}
-    used = {t: set() for t in SCARCE}
+    used_cw = {t: set() for t in SCARCE}
+
+    # each tier's drawings, dealt out and handed round in order
+    dealt = {t: deal_beings(t, n, rng) for t, n in COUNTS.items()}
+    used = {t: 0 for t in COUNTS}
 
     seen, rows = set(), []
     for i, tier in enumerate(tiers, start=1):
-        being = being_for(tier)
+        being = dealt[tier][used[tier]]
+        used[tier] += 1
         info = BEINGS[being]
         loud = LOUD[tier]
 
         for _ in range(120):
             wname = colourway(tier, loud, rng)
             pool_n = POOL.get(tier, len(WEAVES))
-            if tier in SCARCE and wname in used[tier] and len(used[tier]) < pool_n:
+            if tier in SCARCE and wname in used_cw[tier] and len(used_cw[tier]) < pool_n:
                 continue
             # Pose and Spores are choices, not intensities — tilting them by
             # loudness would just make every God a close crop.
@@ -165,7 +192,7 @@ def generate(round_no, out_dir):
             key = (being, wname) + tuple(t[k] for k in TRAITS)
             if key not in seen:
                 if tier in SCARCE:
-                    used[tier].add(wname)
+                    used_cw[tier].add(wname)
                 break
         else:
             raise SystemExit(f"#{i}: could not find an unused combination")
@@ -253,6 +280,35 @@ def verify(rows, out_dir):
             bad.append(f"#{r['id']}: the picture is nearly blank")
         if BEINGS[r["being"]]["tier"] != r["tier"]:
             bad.append(f"#{r['id']}: {r['being']} is not a {r['tier']}")
+
+    # no drawing may take more than its share of a tier that has alternatives
+    for tier, n in COUNTS.items():
+        pool = beings_for(tier)
+        if len(pool) < 2:
+            continue
+        got = {}
+        for r in rows:
+            if r["tier"] == tier:
+                got[r["being"]] = got.get(r["being"], 0) + 1
+        fair = n / len(pool)
+        for name, k in got.items():
+            if k > fair + 1:
+                bad.append(f"{tier}: {name} takes {k} of {n} when {len(pool)} "
+                           f"drawings share the tier")
+
+    # no drawing may take more than its share of a tier that has alternatives
+    for tier, n in COUNTS.items():
+        pool = beings_for(tier)
+        if len(pool) < 2:
+            continue
+        got = {}
+        for r in rows:
+            if r["tier"] == tier:
+                got[r["being"]] = got.get(r["being"], 0) + 1
+        for name, k in got.items():
+            if k > n / len(pool) + 1:
+                bad.append(f"{tier}: {name} takes {k} of {n} when {len(pool)} "
+                           f"drawings share the tier")
 
     # the figure behind must never be the colour of the being in front
     from render import _aura_palette, _hue_gap

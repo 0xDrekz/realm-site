@@ -29,12 +29,42 @@
     "key_error": 1.0,
     "eye_mode": "holes"
   },
+  "cyclops": {
+    "tier": "rare",
+    "rung": 480,
+    "detail": 0.059,
+    "mode": "shade",
+    "mid_grey": 0.623,
+    "eyes": 0,
+    "key_error": 1.0,
+    "eye_mode": "drawn"
+  },
   "dread-winged": {
     "tier": "mythic",
     "rung": 480,
     "detail": 0.06,
     "mode": "shade",
     "mid_grey": 0.497,
+    "eyes": 2,
+    "key_error": 1.0,
+    "eye_mode": "holes"
+  },
+  "fairy": {
+    "tier": "legendary",
+    "rung": 480,
+    "detail": 0.086,
+    "mode": "shade",
+    "mid_grey": 0.724,
+    "eyes": 2,
+    "key_error": 1.0,
+    "eye_mode": "holes"
+  },
+  "fanged": {
+    "tier": "epic",
+    "rung": 480,
+    "detail": 0.057,
+    "mode": "shade",
+    "mid_grey": 0.612,
     "eyes": 2,
     "key_error": 1.0,
     "eye_mode": "holes"
@@ -69,6 +99,16 @@
     "key_error": 1.0,
     "eye_mode": "holes"
   },
+  "grey-tall": {
+    "tier": "common",
+    "rung": 480,
+    "detail": 0.022,
+    "mode": "stencil",
+    "mid_grey": 0.051,
+    "eyes": 2,
+    "key_error": 1.0,
+    "eye_mode": "holes"
+  },
   "grey-winged": {
     "tier": "rare",
     "rung": 480,
@@ -78,5 +118,15 @@
     "eyes": 2,
     "key_error": 1.0,
     "eye_mode": "holes"
+  },
+  "reptilian": {
+    "tier": "uncommon",
+    "rung": 480,
+    "detail": 0.035,
+    "mode": "stencil",
+    "mid_grey": 0.204,
+    "eyes": 0,
+    "key_error": 1.0,
+    "eye_mode": "drawn"
   }
 }
