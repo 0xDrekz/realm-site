@@ -26,6 +26,14 @@ def _p(name, weight, sigil, glow, star, being, eyec, iris_c, **kw):
         shadow=tuple(int(c*0.22) for c in being), mid=being,
         light=tuple(min(255, int(c*1.45)) for c in being),
         eye=eyec, iris=iris_c, pupil=(10, 6, 14), glint=(255, 255, 255),
+        # for the things living in the background
+        sclera=(250, 244, 236),
+        vein=(196, 52, 46),
+        iris_dark=tuple(int(c*0.42) for c in iris_c),
+        wing=sigil, wing_in=tuple(min(255, int(c*1.35)) for c in sigil),
+        body=tuple(int(c*0.22) for c in sigil),
+        skin=star,
+        moon=(238, 236, 244), moon_dark=(150, 148, 166),
     )
     d.update(kw)
     return d

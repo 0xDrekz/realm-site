@@ -118,3 +118,41 @@ from the top of its silhouette.
 The plume starts tight at the mouth and opens as it climbs. Its first puffs
 were three pixels across and disappeared, which made the smoke look like it
 began somewhere above the head.
+
+---
+
+# Colour across a part, and things living in the background
+
+## Wings that change colour along their length
+
+A part can now carry two ramps and a direction, so one wing runs gold at the
+top into red at the bottom. However many stops a single ramp has, it can only
+ever fade one hue into itself, which is why the wings stayed flat while
+everything else improved.
+
+| Scheme | The wing runs |
+|--------|---------------|
+| Regalia | violet into red |
+| Verdant | green into amber |
+| Furnace | gold into red |
+| Abyss | blue into violet |
+
+## Motifs
+
+Patterns are geometry. These are things: **Eyes** (sclera, veins, iris,
+pupil, a glint), **Moths** (eyespots on the wings, antennae), **Hands** (four
+fingers, a thumb, an eye in the palm) and **Moons** (cratered crescents).
+
+They are scattered behind the geometry at several sizes, the far ones dimmer,
+and kept clear of the middle where the being stands.
+
+Three passes to get them right:
+
+- **Too small and too dim** and they were smudges — shapes of roughly the
+  right colour dissolving into the pattern. Every one now gets a dark rim,
+  which is what makes a thing read as a thing rather than a stain.
+- **Too large and too bright** and they competed with the being, and the
+  picture had no subject. They sit at about a sixth of the frame and never
+  above 82% brightness.
+- **The hand was a blob.** Its fingers started in the middle of the palm and
+  were shorter than the palm was wide, so they never emerged.

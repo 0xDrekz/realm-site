@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-import patterns, traits, parts as bodyparts
+import patterns, traits, motifs, parts as bodyparts
 from compose import over, tint, shade, eyes
 from scene import outline
 
@@ -115,19 +115,45 @@ def dress(drawn, weave, rim=True):
     blur = ndimage.uniform_filter(v, size=max(3, int(min(h, w) * 0.05)))
     detail = np.clip(v - blur, -0.5, 0.5)
 
+    yy, xx = np.mgrid[0:h, 0:w]
+    vivid = weave.get("vivid", 1.0)
+
+    def pick(ramp, vals):
+        idx = vals * (len(ramp) - 1)
+        lo_i = np.floor(idx).astype(int)
+        hi_i = np.minimum(lo_i + 1, len(ramp) - 1)
+        f = (idx - lo_i)[:, None]
+        return ramp[lo_i] * (1 - f) + ramp[hi_i] * f
+
     col = np.zeros((h, w, 3), float)
     for k, name in enumerate(bodyparts.NAMES):
         m = reg == k
         if not m.any():
             continue
         spec = weave[name]
-        ramp = _ramp(spec if isinstance(spec[0], (list, tuple)) else [spec],
-                     vivid=weave.get("vivid", 1.0))
-        idx = v[m] * (len(ramp) - 1)
-        lo_i = np.floor(idx).astype(int)
-        hi_i = np.minimum(lo_i + 1, len(ramp) - 1)
-        f = (idx - lo_i)[:, None]
-        base = ramp[lo_i] * (1 - f) + ramp[hi_i] * f
+
+        if isinstance(spec, dict):
+            # A gradient ACROSS the part, not only along its shading. A
+            # painted wing goes green at the top and red at the bottom; one
+            # ramp per part can never do that, however many stops it has.
+            ra = _ramp(spec["a"], vivid=vivid)
+            rb = _ramp(spec["b"], vivid=vivid)
+            ys, xs = np.where(m)
+            axis = spec.get("axis", "y")
+            if axis == "x":
+                p0, p1, coord = xs.min(), xs.max(), xs
+            elif axis == "out":
+                cxp = (xs.min() + xs.max()) / 2
+                coord = np.abs(xs - cxp); p0, p1 = 0, max(coord.max(), 1)
+            else:
+                p0, p1, coord = ys.min(), ys.max(), ys
+            g = np.clip((coord - p0) / max(p1 - p0, 1), 0, 1)[:, None]
+            base = pick(ra, v[m]) * (1 - g) + pick(rb, v[m]) * g
+        else:
+            ramp = _ramp(spec if isinstance(spec[0], (list, tuple)) else [spec],
+                         vivid=vivid)
+            base = pick(ramp, v[m])
+
         col[m] = base + detail[m][:, None] * 210      # put the drawing back
 
     if rim:
@@ -146,6 +172,9 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
 
     base = over(base, traits.stars(w, h, t["Stars"], pal, seed))
     base = over(base, traits.planets(w, h, t["Planets"], pal, seed))
+    # things that live there, behind the geometry
+    base = over(base, motifs.scatter(w, h, t.get("Motif", "None"),
+                                     t.get("MotifCount", 0), pal, seed))
 
     if t["Geometry"] != "None":
         base = over(base, sigilry(w, h, t["Geometry"], pal, seed,
