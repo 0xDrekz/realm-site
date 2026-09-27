@@ -90,9 +90,17 @@ is already there:
 - **The eyes anchor the head.** Everything above the brow is crown, between
   brow and chin and near the middle is face. Because it keys off the eyes, it
   works whatever the proportions are.
-- **Thickness separates an arm from a wing.** A wing is a sheet, an arm is a
-  stick. Position alone called the arms of a wingless alien its wings, since
-  all the rule had to go on was "far from the middle".
+- **Height separates an arm from a wing.** Wings sit high, arms hang low.
+  Thickness was tried first — a wing is a sheet, an arm is a stick — but the
+  bones running through a wing are thin, so one wing came out in two colours.
+- **Every part is settled into one solid area.** Each pixel is handed to
+  whichever part wins its neighbourhood, so a bone inside a wing joins the
+  wing while an arm out in open space stays an arm. Without this the map was
+  right about where things were and wrong about what they belonged to, which
+  is the one thing a part map cannot be.
+- **Hair is kept narrow.** At the full width of the being, the dark inner
+  half of a wing fell inside the hair zone and every winged being came out
+  with violet wings and a violet base.
 - **Assignment is per pixel, not per fragment.** Labelling the bright areas
   gives 435 fragments on the Entity, and handing a whole fragment to one part
   put a crown and the face it touches in the same bucket — their shared

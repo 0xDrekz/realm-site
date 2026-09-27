@@ -47,33 +47,46 @@ def split(alpha, dark_at=90, bright_at=150):
 
     out = np.full((h, w), -1, np.int8)
 
-    # hair first: dark, but inside the being
-    hair = body & (alpha <= dark_at)
-    out[hair] = HAIR
-
-    # Per pixel, not per fragment. Handing a whole fragment to one part put
-    # a crown and the face it touches into the same bucket, because their
-    # shared blob had one middle and it landed on the face.
     yy, xx = np.mgrid[0:h, 0:w]
     ny = (yy - y0) / bh
     nx = (xx - x0) / bw
     side = np.abs(nx - 0.5)
 
-    # how broad the being is at each pixel. A wing is a sheet; an arm is a
-    # stick. Without this the arms of a wingless alien were called wings,
-    # because all the rule had to go on was "far from the middle".
-    thick = ndimage.distance_transform_edt(body)
-    broad = thick > max(2.0, np.percentile(thick[body], 88) * 0.45)
+    # Where things are, for every pixel of the being — dark ones included.
+    # Judging only the bright pixels and calling everything dark "hair" gave
+    # the Entity violet wings and a violet base, because its wings and the
+    # coil under it are dark too.
+    out[body] = BODY
+    out[body & (ny > 0.66)] = BASE
+    # Wings sit high and arms hang low. Thickness was tried first — a wing is
+    # a sheet, an arm is a stick — but the bones running through a wing are
+    # thin, so a single wing came out in two colours, which is the one thing
+    # a part map cannot do.
+    outer = body & (side > 0.24) & (ny >= brow) & (ny < 0.82)
+    out[outer & (ny < 0.50)] = WINGS
+    out[outer & (ny >= 0.50)] = ARMS
+    out[body & (ny >= brow) & (ny < chin) & (side < 0.20)] = FACE
+    out[body & (ny < brow)] = CROWN
 
-    bright = body & (alpha > bright_at)
-    out[bright & (ny < brow)] = CROWN
-    out[bright & (ny >= brow) & (ny < chin) & (side < 0.20)] = FACE
-    outer = bright & (ny >= brow) & (side > 0.24) & (ny < 0.80)
-    out[outer & broad] = WINGS
-    out[outer & ~broad] = ARMS
-    rest = bright & (out < 0)
-    out[rest & (ny > 0.66)] = BASE
-    out[rest & (out < 0)] = BODY
+    # Hair is the dark, but only where hair can be: around the head and down
+    # the middle. Dark out at the edges is a wing, dark at the bottom is
+    # whatever the being is standing in.
+    # Kept narrow on purpose. At 0.40 the dark inner half of a wing fell
+    # inside the hair zone and every winged being came out with violet wings.
+    hair = body & (alpha <= dark_at) & (ny < 0.62) & (side < 0.25)
+    out[hair] = HAIR
+
+    # Make each part one solid area.
+    #
+    # Deciding pixel by pixel is right about WHERE things are and wrong about
+    # what they belong to: the bones running through a wing are thin, so the
+    # thickness rule called them arms and the wing came out in two colours.
+    # A part has to be one colour or the whole idea falls apart.
+    #
+    # So every pixel is handed to whichever part wins its neighbourhood. A
+    # bone sitting inside a wing is surrounded by wing and joins it; a real
+    # arm out in open space is surrounded by arm and stays.
+    out = _settle(out, body, max(3, int(min(h, w) * 0.055)))
 
     # whatever is left inside the being — the mid greys, the drawn lines
     # themselves — takes the part of its nearest labelled neighbour rather
@@ -87,6 +100,19 @@ def split(alpha, dark_at=90, bright_at=150):
         else:
             out[gap] = BODY
     return out
+
+
+def _settle(out, body, radius):
+    """Give every pixel the part that wins its neighbourhood."""
+    h, w = out.shape
+    best = np.full((h, w), -np.inf)
+    win = np.full((h, w), -1, np.int8)
+    for k in range(len(NAMES)):
+        share = ndimage.uniform_filter((out == k).astype(np.float32), size=radius)
+        take = share > best
+        best = np.where(take, share, best)
+        win = np.where(take, np.int8(k), win)
+    return np.where(body & (best > 0), win, np.int8(-1))
 
 
 def mouth(alpha):
