@@ -27,6 +27,28 @@ KEEP_OUT = 0.24            # half-width of the character's column, as a fraction
 ABOVE = 0.22               # above this fraction of the height, the middle is free
 
 
+def clear_column(layer, w, h, soften=0.06, above=None):
+    """Erase whatever strayed into the character's column.
+
+    Keeping a thing's BASE outside the column is not enough — a tree rooted
+    at the side still throws branches back across the middle, and the trunk
+    came up between the character's legs. Placement is a wish; this is the
+    guarantee.
+
+    The edge is faded over a few per cent of the width rather than cut
+    straight, so nothing ends on a visible line.
+    """
+    above = ABOVE if above is None else above
+    x = np.arange(w)[None, :]
+    y = np.arange(h)[:, None]
+    off = np.abs(x / w - 0.5)
+    keep = np.clip((off - KEEP_OUT) / max(soften, 1e-6), 0, 1)
+    keep = np.where(y / h < above, 1.0, keep)     # high above the head is free
+    out = layer.copy()
+    out[:, :, 3] = (out[:, :, 3].astype(float) * keep).astype(np.uint8)
+    return out
+
+
 def _aside(w, h, r, size, allow_above=True, top=0.0, bottom=0.6):
     """A spot at the side of the character — or above its head.
 
@@ -461,8 +483,12 @@ def ground(w, h, kind, pal, seed):
     y, x = np.mgrid[0:h, 0:w]
     f = h * FLOOR
     depth = np.clip((y - f) / max(h - f, 1), 0, 1)
-    _put(out, _dither(depth * 0.30, seed + 71) & (y >= f), pal["ground"], 200)
-    _put(out, _dither(depth * 0.12, seed + 72) & (y >= f), pal["ground_lit"], 150)
+    _put(out, _dither(0.18 + depth * 0.45, seed + 71) & (y >= f), pal["ground"], 220)
+    _put(out, _dither(depth * 0.22, seed + 72) & (y >= f), pal["ground_lit"], 170)
+    # a line of grit where the ground begins, so it reads as ground rather
+    # than as the picture getting slightly lighter toward the bottom
+    lip = (y >= f) & (y < f + max(1, h * 0.006))
+    _put(out, lip & _dither(np.full((h, w), 0.5), seed + 73), pal["ground_lit"], 200)
     return out
 
 
@@ -519,12 +545,16 @@ def trees(w, h, kind, pal, seed):
                 px, py = nx_, ny_
                 ang += r.uniform(-0.05, 0.05)
             for s_ in (-1, 1):
-                limb(px, py, ang + s_ * r.uniform(0.35, 0.72),
+                # lean away from the middle: a branch that would head back
+                # across the character is turned outward instead
+                outward = 1.0 if px > w / 2 else -1.0
+                bias = 0.30 * outward * (1.0 - min(abs(px / w - 0.5) / 0.5, 1.0))
+                limb(px, py, ang + s_ * r.uniform(0.35, 0.72) + bias,
                      length * r.uniform(0.58, 0.76),
                      max(0, thick - 1), depth - 1)
 
         limb(cx, base, -np.pi/2, H * 0.34, max(1, int(H * 0.018)), 5)
-    return out
+    return clear_column(out, w, h)
 
 
 def mushrooms(w, h, kind, pal, seed, horizon=FLOOR):
@@ -596,4 +626,4 @@ def mushrooms(w, h, kind, pal, seed, horizon=FLOOR):
         glow = np.exp(-(((x - cx) / (size * 2.2)) ** 2 + ((y - base) / (size * 0.7)) ** 2))
         _put(out, _dither(glow * 0.45, seed + int(cx)) & (y > base - 1),
              pal["shroom_cap_light"], 110)
-    return out
+    return clear_column(out, w, h, above=0.0)

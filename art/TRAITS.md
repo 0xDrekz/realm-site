@@ -306,10 +306,19 @@ Trees and mushrooms go to the sides of it, on the floor. Planets, UFOs,
 explosions and lightning go to the sides **or high above the head**, which is
 the only part of the middle anything may occupy.
 
+**Placing a thing outside the column is a wish; erasing what strays in is
+the guarantee.** A tree rooted at the side still threw branches back across
+the middle and its trunk came up between the character's legs. Two things
+fix it: branches now lean away from the centre as they split, and the whole
+flora layer is then cut out of the column anyway, faded over a few per cent
+of the width so nothing ends on a visible line.
+
 ## There is always a floor
 
 It used to appear only when something grew on it. Every being stands on
-something now.
+something now, and the floor carries a line of grit where it begins — without
+it the ground read as the picture getting slightly lighter toward the bottom
+rather than as ground.
 
 ## Mushrooms need not match the ground
 
