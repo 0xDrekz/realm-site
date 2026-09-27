@@ -25,12 +25,36 @@ from compose import over, tint, shade, eyes
 from scene import outline
 
 
-def dress(drawn, weave):
-    """Colour a being part by part.
+def _ramp(dark, light, stops=5):
+    """A ramp from dark to light that bends the way paint does.
 
-    The parts are read off the art itself — see tools/parts.py. Inside each
-    part the drawn brightness still does the shading, so an arm can be red and
-    a face gold without either going flat.
+    A straight line between two colours goes through mud in the middle.
+    Real shading is cooler and more saturated in shadow and warmer and less
+    saturated in light, so the ramp is pushed that way as it climbs.
+    """
+    dark, light = np.array(dark, float), np.array(light, float)
+    out = []
+    for i in range(stops):
+        t = i / (stops - 1)
+        c = dark + (light - dark) * t
+        # shadows cool and rich, highlights warm and washed
+        cool = np.array([-16, -6, 22], float) * (1 - t) ** 2
+        warm = np.array([20, 10, -10], float) * (t ** 2)
+        grey = c.mean()
+        sat = 1.22 - 0.42 * t                 # let the colour go in the dark
+        c = grey + (c - grey) * sat + cool + warm
+        out.append(np.clip(c, 0, 255))
+    return np.array(out)
+
+
+def dress(drawn, weave, rim=True):
+    """Colour a being part by part, keeping the drawing's own shading.
+
+    The parts come from tools/parts.py. Two colours per part was not enough:
+    it flattened hand-drawn shading into a single gradient and the result
+    looked like a colouring book. Each part now runs through a five-stop
+    ramp, the art's own local contrast is kept on top of it, and the light
+    side of every edge is lifted.
     """
     h, w = drawn.shape
     reg = bodyparts.split(drawn)
@@ -39,18 +63,34 @@ def dress(drawn, weave):
     v = drawn.astype(float)
     inside = v[body]
     if inside.size:
-        lo, hi = np.percentile(inside, 3), np.percentile(inside, 97)
+        lo, hi = np.percentile(inside, 2), np.percentile(inside, 98)
         v = np.clip((v - lo) / max(hi - lo, 1e-6), 0, 1)
+
+    # what the artist drew that a smooth ramp throws away: every line, scale
+    # and crease is a local departure from the surrounding tone
+    blur = ndimage.uniform_filter(v, size=max(3, int(min(h, w) * 0.05)))
+    detail = np.clip(v - blur, -0.5, 0.5)
 
     col = np.zeros((h, w, 3), float)
     for k, name in enumerate(bodyparts.NAMES):
         m = reg == k
         if not m.any():
             continue
-        dark, light = (np.array(c, float) for c in weave[name])
-        col[m] = dark[None, :] + (light - dark)[None, :] * v[m][:, None]
+        ramp = _ramp(*weave[name])
+        idx = v[m] * (len(ramp) - 1)
+        lo_i = np.floor(idx).astype(int)
+        hi_i = np.minimum(lo_i + 1, len(ramp) - 1)
+        f = (idx - lo_i)[:, None]
+        base = ramp[lo_i] * (1 - f) + ramp[hi_i] * f
+        col[m] = base + detail[m][:, None] * 190      # put the drawing back
 
-    return np.dstack([col, np.where(body, 255, 0)]).astype(np.uint8)
+    if rim:
+        # lift the lit edge, which is what stops a flat fill reading as flat
+        edge = body & ~ndimage.binary_erosion(body, iterations=1)
+        up = np.zeros_like(body); up[1:, :] = body[:-1, :]
+        col[edge & ~up] = np.clip(col[edge & ~up] * 1.35 + 34, 0, 255)
+
+    return np.dstack([np.clip(col, 0, 255), np.where(body, 255, 0)]).astype(np.uint8)
 
 
 def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
