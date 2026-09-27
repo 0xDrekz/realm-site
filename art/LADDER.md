@@ -193,17 +193,27 @@ The fanged one's third eye is a marking, not an opening, so nothing that
 looks for holes will ever find it. Those are named by hand in `beings.json`:
 
 ```json
-"extra_eyes": [[0.514, 0.286, 0.011]]
+"extra_eyes": [[0.405, 0.316, 0.026]]
 ```
 
-across, down, radius — all fractions of the picture.
+across, down, radius — all fractions of the picture. The mechanism works;
+what is hard is knowing where to point it.
 
-Those numbers were measured: the two real eyes sit at 0.476 and 0.552
-across, so the middle is 0.514, and the brightness along that line dips
-between 0.279 and 0.298, which is the marking. The first attempt guessed
-0.500 and a radius of 0.022, and the circle was wide enough to touch both
-eyes and merge with them into a single blob — the count read 2 and nothing
-new appeared. The radius has to be small enough to stand alone in the gap.
+`fanged` is currently empty, and the story of why is worth keeping. Three
+marks were placed there and all three were wrong:
+
+1. A "third eye" between the two real ones, at a guessed 0.500 with a radius
+   of 0.022. The radius was wide enough to touch both eyes and merge with
+   them into one blob, so the count read 2 and nothing new appeared.
+2. The same eye measured properly — the eyes sit at 0.476 and 0.552, so the
+   middle is 0.514, and the brightness there dips between 0.279 and 0.298.
+   It painted. But it was an invented eye: that dip is the ridge of the nose.
+3. An outer pair at 0.405 and 0.623, which landed on the edge of the skull.
+
+Every one of those came from reading a **cropped** picture and inferring the
+anatomy from it. Rendering the whole being with a coordinate grid over it
+took one command and would have prevented all three. Look at the whole thing
+before placing anything on it.
 
 ## An eye must never be the colour of the face it sits in
 
