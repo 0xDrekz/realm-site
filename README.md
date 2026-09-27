@@ -1,7 +1,18 @@
 # REALM
 
-10 sectors of the DMT realm. 1,111 beings, max 3 per wallet, on Solana.
-Nine rounds of 111 and a tenth of 112.
+10 sectors of the DMT realm. 1,111 beings, max 5 per wallet, on Solana.
+
+**One drop.** Every being mints at once, at one price. The ten sectors are
+still here — they are what a being belongs to and how the story is told —
+but they are not a release schedule. Nine hold 111 beings each; the tenth
+holds 112, because the Source is counted there.
+
+It used to be ten rounds of 111 at a rising price. That was abandoned for
+three reasons: ten cohorts with separate reward pools fragments the
+collection and its floor, ten sell-outs needs ten marketing pushes over a
+year or more, and stalling at round three would have left 800 unminted
+beings and no clean way out. One drop is worth less on paper if all ten
+rounds sell — and more than the first six of them combined if they do not.
 
 One page. No build step, no framework, nothing to install.
 
@@ -16,7 +27,7 @@ Everything happens on `index.html`, in three states:
 3. **The chamber** — the room you come out into, with five ways on.
 
 Each of the five opens a panel over the room: Mint, The Beings, Rewards,
-Lore, The Rounds. Nothing navigates away.
+Lore, The Sectors. Nothing navigates away.
 
 ---
 
@@ -36,8 +47,8 @@ Everything you will ever need to edit is in **`data.js`**.
 
 ```js
 const CONFIG = {
-  currentRound: 1,      // 1-10. Unlocks sectors and lore automatically.
-  minted: 0,            // how many of this round's 111 are gone
+  minted: 0,            // how many of the 1,111 are gone
+  mintCloses: "",       // when the gate shuts, sold out or not
   mintLink: "",         // your launchpad mint page URL
   links: {
     x: "https://x.com/yourhandle",
@@ -47,21 +58,32 @@ const CONFIG = {
 };
 ```
 
-### Opening a new round
+### As the mint fills
 
 Change one number:
 
 ```js
-currentRound: 2,
+minted: 340,
 ```
 
 That single edit will:
 
-- name sector 2 as the live round, on the door and in the chamber
-- unlock lore chapter 2 (3 onward stay sealed)
-- move the marker down the rounds list
+- move the mint bar and the count on the door
+- open lore chapters — one for every tenth of the drop that goes
+- light the sectors that have been reached
 
 Commit it, and Railway redeploys in about a minute.
+
+### The closing date
+
+```js
+mintCloses: "2026-11-30",
+```
+
+**This has to be decided and published before the mint opens.** The pool is
+a share of what the mint actually took, so it can be paid on a part mint —
+but only if people were told the closing date going in. While it is `""` the
+site says the date is still to be announced rather than inventing one.
 
 ### Turning the mint on
 
@@ -76,21 +98,17 @@ between the quotes. Keep all ten entries.
 
 ### Changing the rarity split
 
-The `TIERS` list holds the eight tiers. **The counts must add up to 111.**
+The `TIERS` list holds the nine tiers. `perSector` is how many of that tier
+live in **each** of the ten sectors, and it is the old per-round table
+unchanged — the same 111 beings, ten times over. **The per-sector counts must
+add up to 111**, and the whole collection then lands on 1,110 plus the Source.
 
-### Why the tenth round is 112
+### Why there are 1,111 and not 1,110
 
-Ten rounds of 111 is 1,110. The tenth holds one extra so the total is 1,111.
-Two lines in `data.js` do it:
-
-```js
-const EXTRA_IN_FINAL_ROUND = 1;
-const TOTAL_BEINGS = SUPPLY_PER_ROUND * 10 + EXTRA_IN_FINAL_ROUND;   // 1,111
-```
-
-Set `EXTRA_IN_FINAL_ROUND` to 0 and everything on the site goes back to 1,110
-on its own — the door, the FAQ, the rounds list and the mint counter all read
-from it.
+Ten sectors of 111 is 1,110. The Source is the 1,111th: one in the whole
+collection, 111 weight points, and the only being that is not one of ten of
+its kind. It is the `only: 1` entry at the bottom of `TIERS`, and the tenth
+sector is counted as holding 112 because of it.
 
 ### The top bar, and the X link
 
@@ -117,7 +135,7 @@ Telegram and a marketplace link appear the same way when they are real.
 
 | File | What it is |
 |------|------------|
-| **`data.js`** | **the only file you edit** — round, mint link, sectors, rarity |
+| **`data.js`** | **the only file you edit** — minted, mint link, sectors, rarity |
 | `index.html` | the whole site |
 | `styles.css` | the shared look: black, gold hairline, pixel type |
 | `landing.css` | the door, the chamber and the panels |
@@ -133,6 +151,7 @@ Telegram and a marketplace link appear the same way when they are real.
 | `og.png` | the picture that shows when the link is posted |
 | `collection.png` | the collection avatar for the launchpad — not used by the site |
 | `preview/` | one being per tier, shown in the Beings panel |
+| `tools/drop.py` | generates the whole collection — 1,111 in one pass |
 | `server.js` | the tiny server Railway runs |
 | `package.json` | tells Railway how to start it |
 
@@ -249,14 +268,19 @@ paste the link into `mintLink`.
 
 ## The earnings chart
 
-The bottom of the Rewards panel holds three tables: the ten rounds and what
-each one's pool comes to, every holding a wallet can legally have priced for
-a chosen round, and what one being of each tier in all ten rounds adds up to.
+The bottom of the Rewards panel holds two tables: how big the pool is
+depending on how much of the drop sells, and what every holding pays.
 
 **Not a single number in it is typed in.** They are all worked out from the
-constants in `data.js` when the page loads, so changing a price, a weight, a
-tier count or `POOL_PERCENT` moves the whole chart with it. There is nothing
-to keep in step by hand and nothing that can quietly go stale.
+constants in `data.js` when the page loads, so changing the price, a weight,
+a tier count or `POOL_PERCENT` moves the whole chart with it.
+
+### Why the pool table exists
+
+One drop has a risk the ten rounds did not: it might not fill. The pool is
+75% of what the mint **actually takes**, not a fixed sum, so it scales down
+with a part mint. That is printed at the top of the chart rather than left
+for somebody to discover, and the FAQ says the same thing in words.
 
 ### Why every holding has two figures
 
@@ -265,33 +289,40 @@ what a multiplier is worth depends entirely on what everybody else is
 holding, and a single number would be a lie whichever one was chosen.
 
 - **Even field** — every holder carrying the same multiplier as you. They
-  cancel out and your slice is simply your weight over the round's 532
-  points. This is the honest baseline.
+  cancel out and your slice is simply your weight over the collection's
+  5,431 points. This is the honest baseline.
 - **Best case** — you at the top token band and the pilgrim ceiling with
   nobody else multiplied at all. It falls the moment anyone else buys
   tokens, so it is a ceiling and not a forecast.
 
-A real round lands between them, and nearer the first.
+A real outcome lands between them, and nearer the first.
 
 ### The line the chart is built around
 
-The first row is what any three mints return **on average**, which is exactly
+The first row is what any holding returns **on average**, which is exactly
 the 75% coming back. Every holding that beats that line is paid for by one
 that does not.
 
-A holding has to weigh 6.4 points to return its own mint price, so Epic is
-the first tier that pays for itself — and that is true in every round,
-because the mint price cancels out of both sides. Everything below Epic
-loses money at the even field. The chart says so in green and red rather
-than hiding it, which is the only defensible way to publish it.
+A holding has to weigh 6.5 points to return its own mint price, so Epic is
+the first tier that pays for itself. Everything below Epic loses money at
+the even field. The chart says so in green and red rather than hiding it,
+which is the only defensible way to publish it.
+
+### Why the quantity is chosen rather than listed
+
+Nine tiers times five quantities is forty-five rows, and nobody scrolls
+forty-five rows on a phone. Tapping a quantity keeps the table nine rows
+long. The even-field column is exactly linear in quantity anyway, so
+nothing is lost.
 
 ### Checking it
 
-`tools/chart-check` is not in the repo — it lives in the scratchpad — but the
-method is worth keeping: open the page, read the numbers back out of the
-DOM, and compare them to the same sums done again from scratch. 220 holding
-figures, 10 pool rows and 8 ten-round rows were checked that way, and the
-panel was measured for sideways overflow at phone width.
+The checker is not in the repo — it lives in the scratchpad — but the method
+is worth keeping: open the page, read the numbers back out of the DOM, and
+compare them to the same sums done again from scratch. Every quantity of
+every tier was checked that way, along with the pool table, and every panel
+was swept for language left over from the ten-round structure and measured
+for sideways overflow at phone width.
 
 ---
 

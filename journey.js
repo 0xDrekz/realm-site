@@ -20,7 +20,7 @@ window.RealmJourney = (() => {
     { key: "beings",  label: "THE BEINGS", panel: "nfts" },
     { key: "rewards", label: "REWARDS",    panel: "rewards" },
     { key: "lore",    label: "LORE",       panel: "lore" },
-    { key: "rounds",  label: "THE ROUNDS", panel: "rounds" }
+    { key: "sectors", label: "THE SECTORS", panel: "sectors" }
   ];
 
   return { OPTIONS };
@@ -362,16 +362,16 @@ window.RealmJourney = (() => {
 
   /* ---------- what each way on says about itself ---------- */
   function noteFor(o) {
-    const cfg   = g_("CONFIG", {});
-    const secs  = g_("SECTORS", []);
-    const round = g_("ROUND", 1);
-    const here  = g_("supplyFor", () => 111)(round);
+    const cfg  = g_("CONFIG", {});
+    const all  = g_("TOTAL_BEINGS", 1111);
+    const gone = Math.min(Math.max(cfg.minted || 0, 0), all);
     switch (o.key) {
       case "mint":    return cfg.mintLink ? "open" : "shut";
-      case "beings":  return here + " here";
-      case "rewards": return g_("POOL_PERCENT", 75) + "% of each round";
-      case "lore":    return (secs[round - 1] && secs[round - 1].name) || "";
-      case "rounds":  return round + " of 10";
+      case "beings":  return all.toLocaleString() + " in all";
+      case "rewards": return g_("POOL_PERCENT", 75) + "% of the mint";
+      case "lore":    return g_("chaptersOpen", () => 1)() + " of "
+                           + g_("SECTOR_COUNT", 10) + " open";
+      case "sectors": return g_("SECTOR_COUNT", 10) + " sectors";
       default:        return "";
     }
   }
@@ -419,9 +419,11 @@ window.RealmJourney = (() => {
 
     const where = document.querySelector(".j-where");
     if (where) {
-      const secs = g_("SECTORS", []), round = g_("ROUND", 1);
-      const name = (secs[round - 1] && secs[round - 1].name) || "";
-      where.textContent = name ? `Round ${round} · ${name}` : `Round ${round}`;
+      const all  = g_("TOTAL_BEINGS", 1111);
+      const gone = Math.min(Math.max((g_("CONFIG", {}).minted) || 0, 0), all);
+      where.textContent = gone
+        ? `${gone.toLocaleString()} of ${all.toLocaleString()} taken`
+        : `${all.toLocaleString()} beings · one drop`;
     }
   }
 

@@ -112,53 +112,56 @@ what gets measured.
 
 ---
 
-# Generating a round
+# Generating the drop
 
-    python3 tools/round.py <round-number> [out-dir]
+    python3 tools/drop.py [out-dir]
 
-111 beings, a PNG and a Metaplex JSON each, then it checks its own work and
-refuses to finish if anything is off. The same round number always gives the
-same round.
+1,111 beings in one pass: ten sectors of 111, numbered straight through, and
+then the 1,111th, which is the Source. It checks its own work and refuses to
+finish if anything is off.
 
-Every image is 1200 × 1200, about 68 KB — 7.5 MB for a whole round.
+`tools/round.py` still makes a single sector of 111 — `drop.py` calls it ten
+times with a running offset and a **shared set of used combinations**. That
+shared set is the point: without it, sector four could repeat sector one
+exactly and every per-sector check would still pass.
+
+Every image is 2400 x 2400. A whole drop is about 75 MB.
 
 ## The tier counts are dealt, not rolled
 
-40 Common, 28 Uncommon, 18 Rare, 11 Epic, 7 Legendary, 4 Mythic, 2 Entity,
-1 God. The list is built to those exact counts and then shuffled, so a round
-cannot come out with two Gods or none.
+Per sector: 40 Common, 28 Uncommon, 18 Rare, 11 Epic, 7 Legendary, 4 Mythic,
+2 Entity, 1 God. The list is built to those exact counts and shuffled, so a
+sector cannot come out with two Gods or none. Ten sectors gives 400/280/180/
+110/70/40/20/10, and the Source is the 1,111th.
 
 ## Whole-number scaling
 
-Each tier has its own canvas in art pixels and its own scale, chosen so they
-all land on 1200 with a whole number: 80×15, 100×12, 150×8, 240×5, 300×4,
-400×3, 600×2. A fractional scale would make some pixel rows wider than
-others, which is obvious the moment you see a grid of them.
-
-A rarer being sits on a canvas closer to its own size, so it fills more of
-the picture. The God fills it entirely.
+Every tier shares one canvas: 600 art pixels at scale 4, landing on 2400,
+with the drawing cut at 480 so it is never resampled by a fraction.
 
 ## A unique combination is not enough at the top
 
 The first round generated had two Entities that were both Deep, two Mythics
 both Void, and two Legendaries both Bone. Every one was a unique combination
-— they differed by a frame or a piece of geometry — and every one read as the
-same picture as its twin. These are the pieces meant to feel singular.
-
-So for any tier with seven or fewer in a round, the colourway is dealt
-without replacement. Seven Legendaries against six fields means exactly one
-repeat is forced, and the check allows exactly that many and no more.
+and every one read as the same picture as its twin. So for any tier with
+seven or fewer in a sector the colourway is dealt without replacement.
 
 ## What is checked before it will finish
 
-- 111 beings, and the tier counts exactly as above
-- every combination of being, field, geometry, light and frame unique
-- no avoidable repeated colourway in a scarce tier
-- every image present, 1200 × 1200, and not blank
-- every being matched to the tier it was assigned
+- 1,111 beings, and the tier counts exactly as above
+- ten sectors of 111, with the Source counted in the tenth
+- ids 1 to 1,111, each exactly once, no gaps
+- every combination of being, colourway and trait unique **across the whole
+  drop**, not merely within a sector
+- every image present, 2400 x 2400, and not blank
 
-It prints the problems and exits rather than writing a round that is wrong.
+It prints the problems and exits rather than writing a drop that is wrong.
 
+## The Source is a placeholder
+
+It has not been drawn. Until it is, it borrows the God's drawing wearing its
+own colourway with every trait at its loudest, and `drop.py` says so on every
+run. Set `SOURCE_DRAWN = True` once the real one is in.
 
 ---
 

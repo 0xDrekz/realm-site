@@ -41,6 +41,19 @@ SHOW = [
                                                  UFOs="Few", Planets="Ringed",
                                                  Explosions="Two", Mushrooms="Grove",
                                                  Smoke="Wisp")),
+
+ # ---- PLACEHOLDER ----
+ # The Source is the 1,111th being and there is exactly one. It has not been
+ # drawn yet, so this is the God's drawing wearing the Source's palette and
+ # every trait at its loudest. It is here so the site is not missing a tier;
+ # it is NOT the Source. Replace the drawing and delete this note.
+ ("source",    "god-serpent",    "Auric",   dict(Stars="Dense",  Geometry="Metatron",
+                                                 GeometryUnder="Mandala",
+                                                 Lightning="Tempest", UFOs="Fleet",
+                                                 Planets="Cluster", Explosions="Barrage",
+                                                 Mushrooms="Grove", Trees="Copse",
+                                                 Smoke="Shroud", Dust="Heavy",
+                                                 Spores="Golden", Aura="Warm")),
 ]
 
 BASE = dict(Stars="None", Planets="None", Geometry="None", GeometryUnder="None",

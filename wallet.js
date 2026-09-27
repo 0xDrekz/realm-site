@@ -141,7 +141,7 @@
     box.className = "wal-hold";
     if (!cfg.collectionAddress) {
       box.innerHTML = "<b>Nothing to show yet</b>"
-        + "<i>No being has been minted. Once round one exists, this is where "
+        + "<i>No being has been minted. Once the collection exists, this is where "
         + "yours will be listed, with the weight they carry.</i>";
     } else {
       box.innerHTML = "<b>Reading your beings…</b>"

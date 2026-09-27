@@ -22,6 +22,17 @@ from weaves import WEAVES
 
 BEINGS = json.load(open(f"{ROOT}/art/beings.json"))
 
+
+def _sector_names():
+    """The ten names, read out of data.js so they are written down once."""
+    import re
+    src = open(f"{ROOT}/data.js").read()
+    block = src[src.index("const SECTORS = ["):]
+    return re.findall(r'\{ name: "([^"]+)"', block)[:10]
+
+
+SECTOR_NAMES = _sector_names()
+
 # which sky palette goes with which colour scheme
 PALETTE_FOR = {"Regalia": "Void", "Verdant": "Verdigris", "Furnace": "Ember",
                "Abyss": "Deep", "Ossuary": "Bone", "Auric": "Aurum",
@@ -157,7 +168,18 @@ def deal_beings(tier, n, rng, round_no=None):
     return out
 
 
-def generate(round_no, out_dir):
+def generate(round_no, out_dir, offset=0, seen=None):
+    """One sector of 111.
+
+    `offset` is how many beings were written before this one, so a
+    ten-sector drop numbers straight through 1..1,110 instead of
+    restarting at 1 ten times.
+
+    `seen` is the set of combinations already used. Passing one in makes
+    uniqueness hold across the WHOLE drop rather than only inside a
+    sector — without it, sector four could repeat sector one exactly and
+    every per-sector check would still pass.
+    """
     tiers = tier_list()
     if len(tiers) != 111:
         raise SystemExit(f"the tier counts add up to {len(tiers)}, not 111")
@@ -178,7 +200,9 @@ def generate(round_no, out_dir):
     dealt = {t: deal_beings(t, n, rng, round_no) for t, n in COUNTS.items()}
     used = {t: 0 for t in COUNTS}
 
-    seen, rows = set(), []
+    if seen is None:
+        seen = set()
+    rows = []
     for i, tier in enumerate(tiers, start=1):
         being = dealt[tier][used[tier]]
         used[tier] += 1
@@ -213,7 +237,8 @@ def generate(round_no, out_dir):
                      seed=int(rng.integers(0, 1 << 30)),
                      mode=info["mode"], eye_mode=info.get("eye_mode", "holes"),
                      fill=info["rung"] / canvas)
-        png = f"{out_dir}/images/{i}.png"
+        n = offset + i
+        png = f"{out_dir}/images/{n}.png"
         img.save(png, optimize=True)
 
         attrs = [{"trait_type": "Tier", "value": tier.capitalize()},
@@ -223,25 +248,27 @@ def generate(round_no, out_dir):
                   "Lightning", "Smoke", "Dust", "Trees", "Mushrooms",
                   "Spores", "Aura", "Eyes"):
             attrs.append({"trait_type": k, "value": t[k]})
-        attrs.append({"trait_type": "Round", "value": str(round_no)})
+        attrs.append({"trait_type": "Sector", "value": SECTOR_NAMES[round_no - 1]})
+        attrs.append({"trait_type": "Sector number", "value": str(round_no)})
 
-        json.dump({"name": f"REALM #{i}", "symbol": "REALM",
+        json.dump({"name": f"REALM #{n}", "symbol": "REALM",
                    "description": "One of 1,111 beings of the realm. "
-                                  f"Round {round_no} of 10.",
-                   "image": f"{i}.png", "attributes": attrs,
-                   "properties": {"files": [{"uri": f"{i}.png",
+                                  f"{SECTOR_NAMES[round_no - 1]}, "
+                                  f"sector {round_no} of 10.",
+                   "image": f"{n}.png", "attributes": attrs,
+                   "properties": {"files": [{"uri": f"{n}.png",
                                              "type": "image/png"}],
                                   "category": "image"}},
-                  open(f"{out_dir}/metadata/{i}.json", "w"), indent=2)
+                  open(f"{out_dir}/metadata/{n}.json", "w"), indent=2)
 
-        row = {"id": i, "tier": tier, "being": being, "colourway": wname,
-               "png": png, "loud": round(loud, 2), "round": round_no}
+        row = {"id": n, "tier": tier, "being": being, "colourway": wname,
+               "png": png, "loud": round(loud, 2), "sector": round_no}
         row.update({k: t[k] for k in TRAITS})
         rows.append(row)
         if i % 20 == 0:
             print(f"  {i}/111")
 
-    json.dump(rows, open(f"{out_dir}/round.json", "w"), indent=2)
+    json.dump(rows, open(f"{out_dir}/sector-{round_no}.json", "w"), indent=2)
     return rows
 
 

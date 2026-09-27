@@ -208,15 +208,15 @@ canvas{
 .ch-foot{margin:11px 0 0;font-size:.76rem;line-height:1.62;color:var(--faint)}
 .ch-foot b{color:var(--dim);font-weight:700}
 
-.ch-rounds{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 13px}
-.ch-rounds button{
+.ch-picker{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 13px}
+.ch-picker button{
   min-width:40px;padding:8px 6px;cursor:pointer;
   font-family:'Space Grotesk',system-ui,sans-serif;
   font-variant-numeric:tabular-nums;font-size:.82rem;
   color:var(--dim);background:var(--ink);border:1px solid var(--line);
 }
-.ch-rounds button:hover{color:var(--bone);border-color:var(--line-lit)}
-.ch-rounds button[aria-pressed="true"]{
+.ch-picker button:hover{color:var(--bone);border-color:var(--line-lit)}
+.ch-picker button[aria-pressed="true"]{
   color:var(--void);background:var(--gold);border-color:var(--gold);font-weight:700;
 }
 

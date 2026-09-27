@@ -56,15 +56,15 @@
     <button id="enter" class="enter" type="button">
       <span class="enter-in">Enter the realm</span>
     </button>
-    <p class="creed">10 sectors &middot; 1,111 beings</p>
+    <p class="creed">1,111 beings &middot; one drop</p>
 
     <!-- what a stranger needs to know, all of it from data.js -->
     <dl class="standing">
-      <div><dt>Open now</dt><dd id="st-chapter"></dd></div>
+      <div><dt>The drop</dt><dd id="st-chapter"></dd></div>
       <div><dt>Taken</dt><dd id="st-supply"></dd></div>
       <div><dt>Mint</dt><dd id="st-status"></dd></div>
     </dl>
-    <p class="terms">Solana &middot; 3 per wallet &middot; sealed until reveal</p>
+    <p class="terms">Solana &middot; <span data-max></span> per wallet &middot; sealed until reveal</p>
   </div>
 </main>
 
@@ -87,14 +87,14 @@
 <section class="panel" id="p-mint" hidden>
   <button class="panel-close" aria-label="Close">&times;</button>
   <div class="panel-in">
-    <h2 data-sector-name></h2>
-    <p class="lede">The sector open in this round. One hundred and eleven beings live here, and when they are gone the gate shuts and the next sector opens.</p>
+    <h2>Mint</h2>
+    <p class="lede">All <span data-total></span> beings, at one price, in one go. Ten sectors open at once and every tier is in the draw from the first mint to the last.</p>
     <div class="mint-card">
       <div class="mint-head">
-        <span class="pill">Round <span data-round></span></span>
+        <span class="pill"><span data-total></span> beings</span>
         <span class="pill soft">Sealed until reveal</span>
       </div>
-      <p class="price"><b data-price></b><i>to mint &middot; max 3 per wallet</i></p>
+      <p class="price"><b data-price></b><i>to mint &middot; max <span data-max></span> per wallet</i></p>
       <div class="bar"><div class="bar-fill" data-bar></div></div>
       <p class="bar-label"><span data-minted></span> / <span data-supply></span> minted</p>
       <div class="qty">
@@ -102,7 +102,7 @@
         <span class="qty-num" data-qty>1</span>
         <button type="button" class="step" data-step="1" aria-label="More">+</button>
       </div>
-      <p class="limit">Max 3 per wallet</p>
+      <p class="limit">Max <span data-max></span> per wallet &middot; closes <span data-closes></span></p>
       <a class="btn primary wide" data-mint-btn href="#">Mint</a>
       <p class="fine" data-mint-note></p>
     </div>
@@ -113,9 +113,9 @@
   <button class="panel-close" aria-label="Close">&times;</button>
   <div class="panel-in">
     <h2>The Beings</h2>
-    <p class="lede">Every round holds 111 beings across eight tiers — the tenth and last holds 112. One God per sector, so ten Gods will ever exist.</p>
+    <p class="lede">Nine tiers across <span data-sectors></span> sectors. Each sector holds 111 beings and one God, so ten Gods will ever exist — and above all of them, one Source.</p>
     <div class="tiers"></div>
-    <p class="fine">Every being stays sealed until the round finishes. Nobody, including us, knows which tier a mint holds until the reveal.</p>
+    <p class="fine">Every being stays sealed until the mint closes. Nobody, including us, knows which tier a mint holds until the reveal.</p>
   </div>
 </section>
 
@@ -129,11 +129,11 @@
       <article class="card">
         <h3>The pool</h3>
         <p data-rw-pool></p>
-        <p class="who">Paid when the round sells out</p>
+        <p class="who">Paid when the mint closes</p>
       </article>
       <article class="card">
         <h3>Your beings</h3>
-        <p>Every being carries a weight, and yours add up. A God is worth 55 Commons &mdash; but the forty Commons of a round together outweigh the God.</p>
+        <p>Every being carries a weight, and yours add up. The Source is worth 111 Commons &mdash; but the 400 Commons of the collection together outweigh every God and the Source combined.</p>
         <p class="who">Every tier counts for something</p>
       </article>
       <article class="card">
@@ -152,19 +152,15 @@
     <p class="eyebrow rw-label">Walking the realm</p>
     <div class="rw-rows" data-rw-pilgrim></div>
 
-    <p class="eyebrow rw-label">The ten rounds</p>
+    <p class="eyebrow rw-label">How big the pool is</p>
     <p class="ch-note" data-ch-poolnote></p>
     <div class="ch-table" data-ch-pools></div>
 
     <p class="eyebrow rw-label">What every holding pays</p>
     <p class="ch-note" data-ch-lede></p>
-    <div class="ch-rounds" data-ch-rounds role="group" aria-label="Choose a round"></div>
+    <div class="ch-picker" data-ch-qty role="group" aria-label="How many you hold"></div>
     <div class="ch-table" data-ch-table></div>
     <p class="ch-foot" data-ch-foot></p>
-
-    <p class="eyebrow rw-label">Holding one of a tier in all ten rounds</p>
-    <div class="ch-table" data-ch-ten></div>
-    <p class="ch-foot" data-ch-tenfoot></p>
 
     <p class="disclaimer" data-rw-fine></p>
   </div>
@@ -174,16 +170,17 @@
   <button class="panel-close" aria-label="Close">&times;</button>
   <div class="panel-in">
     <h2>Lore</h2>
-    <p class="lede">The story is told one sector at a time. Sealed chapters stay sealed.</p>
+    <p class="lede">The story is told one sector at a time. A chapter opens for every tenth of the drop that goes &mdash; for everybody at once.</p>
+    <p class="fine" data-lore-note></p>
     <div class="chapters"></div>
   </div>
 </section>
 
-<section class="panel" id="p-rounds" hidden>
+<section class="panel" id="p-sectors" hidden>
   <button class="panel-close" aria-label="Close">&times;</button>
   <div class="panel-in">
-    <h2>The Rounds</h2>
-    <p class="lede">Ten rounds, one sector each. A round opens, its beings are taken, and the realm reaches one sector further in. The tenth holds 112 rather than 111, which is what makes 1,111. After it there is no eleventh.</p>
+    <h2>The Sectors</h2>
+    <p class="lede">Ten sectors of the realm, and every being belongs to one of them. Nine hold 111 beings; the tenth holds 112, because the Source is counted there &mdash; and that is what makes 1,111. They all open together.</p>
     <ol class="timeline"></ol>
   </div>
 </section>
@@ -193,26 +190,46 @@
   <div class="panel-in">
     <h2>FAQ</h2>
     <details><summary>How many are there in total?</summary>
-      <p>1,111. Nine rounds of 111 and a tenth of 112 — the final sector holds one more than the rest, and that is the last being there will ever be.</p></details>
+      <p><span data-total></span>, and that is all there will ever be. Ten sectors of 111, and
+      one more — the Source — counted in the tenth.</p></details>
+    <details><summary>Is this a staged release?</summary>
+      <p>No. Every being mints at once, at one price. The ten sectors are where a being comes
+      from and how the story is told; they are not a schedule.</p></details>
     <details><summary>How many can I mint?</summary>
-      <p>Three per wallet, per round.</p></details>
-    <details><summary>What chain is REALM on?</summary>
-      <p>Solana. You'll need a Solana wallet such as Phantom, Solflare or Backpack, and some SOL for the mint and network fees.</p></details>
-    <details><summary>Do I know which tier I'm getting?</summary>
-      <p>No. Every being stays sealed until the round finishes and the reveal happens. That keeps the rare tiers fair.</p></details>
-    <details><summary>Are the common ones worthless?</summary>
-      <p>No. Commons and Uncommons can be chosen as Witnesses each round, and they carry the story of their sector.</p></details>
-    <details><summary>What happens after round 10?</summary>
-      <p>The realm is complete, the Source opens, and the collection closes forever. There is no round 11.</p></details>
+      <p><span data-max></span> per wallet.</p></details>
     <details><summary>What does it cost?</summary>
-      <p>Round one is <span data-price></span>. Every round after costs 0.1 SOL more than
-      the one before, so the tenth and last is 1.05 SOL. The earlier you arrive, the less
-      the realm asks of you.</p></details>
+      <p><span data-price></span> each, the same for every being whatever tier it turns out to
+      be. There is no early price and no late price.</p></details>
+    <details><summary>What chain is REALM on?</summary>
+      <p>Solana. You'll need a Solana wallet such as Phantom, Solflare or Backpack, and some SOL
+      for the mint and network fees.</p></details>
+    <details><summary>Do I know which tier I'm getting?</summary>
+      <p>No. Every being stays sealed until the mint closes and the reveal happens. That keeps
+      the rare tiers fair.</p></details>
+    <details><summary>What if it doesn't sell out?</summary>
+      <p>The gate shuts on <span data-closes></span> whether or not every being is taken, and
+      the pool pays on what was actually minted. The pool is a share of the money that came in,
+      not a fixed sum, so a smaller mint means a smaller pool and nothing is owed that does not
+      exist. Nobody is left waiting for a sell-out that may not come.</p></details>
+    <details><summary>Are the common ones worthless?</summary>
+      <p>No, but be clear about what they are. A Common carries one weight point, and at the
+      even field it returns less than it cost to mint — the rare tiers are paid for by the
+      common ones. What a Common does carry is its sector's story, and the same art quality as
+      everything else in the collection.</p></details>
+    <details><summary>What is the Source?</summary>
+      <p>The 1,111th being. There is exactly one, it carries 111 weight points, and there will
+      never be another. It is the only being in the collection that is not one of ten of its
+      kind.</p></details>
     <details><summary>Is there a royalty on resales?</summary>
-      <p><span data-royalty></span> on every secondary sale. That is what funds what is
-      shared with holders — if nobody trades, there is nothing to share.</p></details>
+      <p><span data-royalty></span> on every secondary sale. It is separate from the holder
+      pool, which is 75% of the mint and is paid once when the mint closes.</p></details>
     <details><summary>When does minting open?</summary>
-      <p>When the gate for the round is opened. Until then the mint control on this site says so plainly rather than taking anything.</p></details>
+      <p>When the gate is opened. Until then the mint control on this site says so plainly
+      rather than taking anything.</p></details>
+    <details><summary>Will there be another collection?</summary>
+      <p>These 1,111 are closed once they are minted and nothing will ever be added to them.
+      Whether anything else is ever made is a separate question with a separate answer, and
+      no promise is being made here either way.</p></details>
     <p class="fine">Not financial advice. Mint responsibly.</p>
   </div>
 </section>

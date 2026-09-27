@@ -1,17 +1,30 @@
 /* ============================================================
    REALM — the only file you need to edit.
    Both the homepage and the immersive realm read from here.
+
+   ONE DROP. 1,111 beings, all at once, one price, one pool.
+
+   The realm still has ten sectors — they are what a being belongs
+   to and what the story is told in. They are not a release
+   schedule any more. Everything mints together.
    ============================================================ */
 
 const CONFIG = {
-  // Which round is live right now (1-10). This unlocks sectors automatically.
-  currentRound: 1,
-
-  // How many of this round's 111 have been minted so far.
+  // How many of the 1,111 have been minted so far.
   minted: 0,
 
   // Paste your launchpad mint link here. Leave as "" to show "opens soon".
   mintLink: "",
+
+  /* When the gate shuts whether or not it has sold out — an ISO date,
+     "2026-11-30", or "" while it is undecided.
+
+     THIS HAS TO BE DECIDED AND PUBLISHED BEFORE THE MINT OPENS. The pool
+     is a share of what was actually taken, so it can be paid on a part
+     mint — but only if people were told the closing date going in. While
+     this is "" the site says the date is still to be announced rather
+     than pretending there is one. */
+  mintCloses: "",
 
   // Social + marketplace links.
   links: {
@@ -20,53 +33,73 @@ const CONFIG = {
     marketplace: ""
   },
 
-  /* --- LIVE NFT DATA (leave alone until after your first mint) ---
+  /* --- LIVE NFT DATA (leave alone until after the mint) ---
      Kept for when the collection exists and the site can read the real
      beings and their owners. Nothing reads these yet. */
   collectionAddress: "",
   heliusApiKey: ""
 };
 
-const SUPPLY_PER_ROUND = 111;
+/* ============================================================
+   THE SHAPE OF IT
+   ============================================================ */
 
-/* Ten rounds of 111 is 1,110. The tenth round holds one more, which is what
-   makes the total 1,111. Change EXTRA_IN_FINAL_ROUND to 0 to go back. */
-const EXTRA_IN_FINAL_ROUND = 1;
-const TOTAL_BEINGS = SUPPLY_PER_ROUND * 10 + EXTRA_IN_FINAL_ROUND;
+/* Ten sectors of 111, and the tenth holds one more — the Source, the
+   1,111th being, of which there is exactly one. */
+const SECTOR_COUNT   = 10;
+const PER_SECTOR     = 111;
+const EXTRA_IN_LAST  = 1;
+const TOTAL_BEINGS   = PER_SECTOR * SECTOR_COUNT + EXTRA_IN_LAST;   // 1,111
 
-/* What a being costs to mint, in SOL. Round one is 0.15, and every round
-   after costs 0.1 more than the one before — so the tenth is 1.05. */
-const PRICE_ROUND_1 = 0.15;
-const PRICE_STEP    = 0.1;
-function priceFor(round) {
-  return Math.round((PRICE_ROUND_1 + (round - 1) * PRICE_STEP) * 100) / 100;
+/* how many beings sector i (1-10) holds */
+function sectorSize(i) {
+  return PER_SECTOR + (i === SECTOR_COUNT ? EXTRA_IN_LAST : 0);
 }
 
-/* Taken on every resale, for ever. This is the only income that recurs. */
+/* One price for everything. No ladder, no rounds. */
+const PRICE = 0.25;
+
+/* Nobody may hold more than this many from the mint. */
+const MAX_PER_WALLET = 5;
+
+/* Taken on every resale, for ever. */
 const ROYALTY_PERCENT = 5;
 
-/* how many this round holds */
-function supplyFor(round) {
-  return SUPPLY_PER_ROUND + (round === 10 ? EXTRA_IN_FINAL_ROUND : 0);
-}
+/* ============================================================
+   THE BEINGS
 
-/* Rarity breakdown per round — must add up to 111. */
+   `perSector` is how many of that tier live in EACH of the ten
+   sectors, which is why the counts look like the old per-round
+   table — they are. The same 111 beings, ten times over, minted
+   in one go instead of ten.
+
+   `total` is the whole collection, and the eight tiers plus the
+   Source must add up to TOTAL_BEINGS.
+   ============================================================ */
 const TIERS = [
-  { name: "Common",    count: 40, key: "common",    weight:  1,    color: "#9ca3af" , accent: "#e5e7eb" },
-  { name: "Uncommon",  count: 28, key: "uncommon",  weight:  2,  color: "#34d399" , accent: "#a7f3d0" },
-  { name: "Rare",      count: 18, key: "rare",      weight:  4,      color: "#3b82f6" , accent: "#67e8f9" },
-  { name: "Epic",      count: 11, key: "epic",      weight:  7,      color: "#a855f7" , accent: "#f0abfc" },
-  { name: "Legendary", count: 7,  key: "legendary", weight: 12, color: "#f59e0b" , accent: "#fde68a" },
-  { name: "Mythic",    count: 4,  key: "mythic",    weight: 20,    color: "#ef4444" , accent: "#fb923c" },
-  { name: "Entity",    count: 2,  key: "entity",    weight: 34,    color: "#a5f3fc" , accent: "#c4b5fd" },
-  { name: "God",       count: 1,  key: "god",       weight: 55,       color: "#fde68a" , accent: "#ffffff" }
+  { name: "Common",    key: "common",    perSector: 40, weight:   1, color: "#9ca3af", accent: "#e5e7eb" },
+  { name: "Uncommon",  key: "uncommon",  perSector: 28, weight:   2, color: "#34d399", accent: "#a7f3d0" },
+  { name: "Rare",      key: "rare",      perSector: 18, weight:   4, color: "#3b82f6", accent: "#67e8f9" },
+  { name: "Epic",      key: "epic",      perSector: 11, weight:   7, color: "#a855f7", accent: "#f0abfc" },
+  { name: "Legendary", key: "legendary", perSector:  7, weight:  12, color: "#f59e0b", accent: "#fde68a" },
+  { name: "Mythic",    key: "mythic",    perSector:  4, weight:  20, color: "#ef4444", accent: "#fb923c" },
+  { name: "Entity",    key: "entity",    perSector:  2, weight:  34, color: "#a5f3fc", accent: "#c4b5fd" },
+  { name: "God",       key: "god",       perSector:  1, weight:  55, color: "#fde68a", accent: "#ffffff" },
+
+  /* The 1,111th. One in the whole collection, in no sector and every
+     sector, and the only being that is not one of ten of its kind. */
+  { name: "Source",    key: "source",    perSector:  0, weight: 111, color: "#fff7d6", accent: "#ffffff",
+    only: EXTRA_IN_LAST }
 ];
+
+/* how many of a tier exist in the whole collection */
+TIERS.forEach(t => t.count = t.perSector * SECTOR_COUNT + (t.only || 0));
 
 /* ============================================================
    WHAT HOLDERS GET
 
-   When a round sells out, POOL_PERCENT of what it took is shared
-   among the people holding that round's beings. Rounds do not share.
+   When the mint closes, POOL_PERCENT of what it took is shared
+   among everybody holding a being.
 
    Your slice of it:
      (your beings' weights added up)
@@ -74,8 +107,17 @@ const TIERS = [
        x your pilgrim multiplier
    ============================================================ */
 
-const POOL_PERCENT = 75;          // of a round's mint, paid when it sells out
+const POOL_PERCENT = 75;
 const TOKEN_NAME   = "$DMT";
+
+/* every weight point in the collection, added up */
+const TOTAL_WEIGHT = TIERS.reduce((a, t) => a + t.count * t.weight, 0);
+
+/* what the pool comes to, in SOL, for a given number minted */
+function poolFrom(n) {
+  return Math.round(n * PRICE * POOL_PERCENT) / 100;
+}
+const POOL_FULL = poolFrom(TOTAL_BEINGS);
 
 /* how much the token multiplies your beings by */
 const TOKEN_BANDS = [
@@ -87,13 +129,16 @@ const TOKEN_BANDS = [
   { hold:  10000000, mult: 4.0 }    // the ceiling; it stops climbing here
 ];
 
-/* holding across sectors, once round two opens */
-const PILGRIM_STEP = 0.1;         // per extra sector
-const PILGRIM_MAX  = 1.5;
+/* Holding across sectors. Five beings is the most anyone may hold, so
+   five sectors is the most anyone can spread across — and the ceiling is
+   set to land exactly there. A ceiling nobody can reach is a lie told in
+   a table. */
+const PILGRIM_STEP = 0.1;
+const PILGRIM_MAX  = 1 + (MAX_PER_WALLET - 1) * PILGRIM_STEP;   // 1.4
 
-/* what a round's pool comes to, in SOL */
-function poolFor(round) {
-  return Math.round(supplyFor(round) * priceFor(round) * POOL_PERCENT) / 100;
+/* what holding beings across `n` different sectors multiplies by */
+function pilgrimFor(n) {
+  return Math.min(PILGRIM_MAX, 1 + (Math.max(1, n) - 1) * PILGRIM_STEP);
 }
 
 /* The ten sectors, in the order they open.
@@ -121,5 +166,15 @@ const SECTORS = [
     lore: "The centre. Light without a lamp, love without a condition, understanding without a question left to ask. There is nothing here to collect and nothing here to own. Everything you were carrying is set down at the door, and the realm finally shows you why it opened at all." }
 ];
 
-/* current round, clamped to something sane */
-const ROUND = Math.min(Math.max(CONFIG.currentRound, 1), 10);
+/* ============================================================
+   HOW MUCH OF THE STORY IS OPEN
+
+   The ten rounds used to unseal the lore one chapter at a time, and
+   that was the best thing about them. It survives: a chapter opens for
+   every tenth of the mint that goes. Nothing is gated behind a wallet
+   — it opens for everybody at once, as the drop fills.
+   ============================================================ */
+function chaptersOpen() {
+  const gone = Math.min(CONFIG.minted, TOTAL_BEINGS);
+  return Math.min(SECTOR_COUNT, Math.max(1, Math.ceil(gone / TOTAL_BEINGS * SECTOR_COUNT)));
+}

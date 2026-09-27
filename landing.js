@@ -3,6 +3,11 @@
 
    Fills the panels from data.js and opens them over the gate.
    Nothing here needs editing.
+
+   ONE DROP. There is no current round to read any more: the whole
+   collection mints at once, at one price. The ten sectors are still
+   here — they are what a being belongs to — but they are scenery
+   and story now, not a schedule.
    ============================================================ */
 
 (() => {
@@ -11,72 +16,80 @@
   const $  = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-  const round   = ROUND;
-  const current = SECTORS[round - 1];
-  const roundSupply = supplyFor(round);
-  const price       = priceFor(round);
+  const minted = Math.min(Math.max(CONFIG.minted, 0), TOTAL_BEINGS);
+  const left   = TOTAL_BEINGS - minted;
+  const soldOut = left === 0;
 
   /* ---------- fill in the numbers ---------- */
-  $$("[data-round]").forEach(n => n.textContent = round);
-  $$("[data-sector-name]").forEach(n => n.textContent = current.name);
-  $$("[data-supply]").forEach(n => n.textContent = roundSupply);
   $$("[data-total]").forEach(n => n.textContent = TOTAL_BEINGS.toLocaleString());
-  $$("[data-price]").forEach(n => n.textContent = price + " SOL");
+  $$("[data-supply]").forEach(n => n.textContent = TOTAL_BEINGS.toLocaleString());
+  $$("[data-price]").forEach(n => n.textContent = PRICE + " SOL");
   $$("[data-royalty]").forEach(n => n.textContent = ROYALTY_PERCENT + "%");
-  $$("[data-minted]").forEach(n => n.textContent = CONFIG.minted);
-  const rl = $("[data-round-label]");
-  if (rl) rl.textContent = `round ${round}`;
+  $$("[data-minted]").forEach(n => n.textContent = minted.toLocaleString());
+  $$("[data-max]").forEach(n => n.textContent = MAX_PER_WALLET);
+  $$("[data-sectors]").forEach(n => n.textContent = SECTOR_COUNT);
+
+  /* when the gate shuts whether or not it has sold out */
+  const closing = CONFIG.mintCloses
+    ? new Date(CONFIG.mintCloses + "T00:00:00Z").toLocaleDateString("en-GB",
+        { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+    : "";
+  $$("[data-closes]").forEach(n => n.textContent = closing || "to be announced");
 
   /* ---------- what is true right now, on the door ---------- */
   const chapter = $("#st-chapter");
-  if (chapter) chapter.textContent = `Round ${round} · ${current.name}`;
+  if (chapter) chapter.textContent = `${TOTAL_BEINGS.toLocaleString()} beings · one drop`;
 
   const supply = $("#st-supply");
   if (supply) {
-    supply.textContent = CONFIG.minted > 0
-      ? `${CONFIG.minted} of ${roundSupply}`
-      : `none of ${roundSupply} yet`;
+    supply.textContent = soldOut ? "all of them"
+      : minted > 0 ? `${minted.toLocaleString()} of ${TOTAL_BEINGS.toLocaleString()}`
+                   : `none of ${TOTAL_BEINGS.toLocaleString()} yet`;
   }
 
   const status = $("#st-status");
   if (status) {
-    const open = !!CONFIG.mintLink;
-    status.textContent = open ? "Open" : "Closed";
+    const open = !!CONFIG.mintLink && !soldOut;
+    status.textContent = soldOut ? "Gone" : open ? "Open" : "Closed";
     status.classList.toggle("shut", !open);
   }
 
   /* ---------- mint ---------- */
   const bar = $("[data-bar]");
   if (bar) {
-    const pct = Math.min(100, (CONFIG.minted / roundSupply) * 100);
+    const pct = Math.min(100, (minted / TOTAL_BEINGS) * 100);
     requestAnimationFrame(() => bar.style.width = pct + "%");
   }
 
   let qty = 1;
   const qtyEl = $("[data-qty]");
   $$(".step").forEach(btn => btn.addEventListener("click", () => {
-    qty = Math.min(3, Math.max(1, qty + Number(btn.dataset.step)));
-    qtyEl.textContent = qty;
+    qty = Math.min(MAX_PER_WALLET, Math.max(1, qty + Number(btn.dataset.step)));
+    if (qtyEl) qtyEl.textContent = qty;
   }));
 
   const mintBtn  = $("[data-mint-btn]");
   const mintNote = $("[data-mint-note]");
-  if (CONFIG.mintLink) {
-    mintBtn.href = CONFIG.mintLink;
-    mintBtn.target = "_blank";
-    mintBtn.rel = "noopener";
-    mintBtn.textContent = "Mint on the launchpad";
-    mintNote.textContent = "Opens the official mint page. Connect your Solana wallet there.";
-  } else {
-    /* nothing to choose while the gate is shut — offering a quantity
-       would suggest there is something to take */
-    const qtyBox = $(".qty"), limit = $(".limit");
-    if (qtyBox) qtyBox.hidden = true;
-    if (limit)  limit.hidden = true;
-    mintBtn.classList.add("disabled");
-    mintBtn.textContent = "The gate is shut";
-    mintNote.textContent = "The gate for this round has not been opened yet. "
-                         + "When it is, this becomes the only mint link — anything else is not us.";
+  if (mintBtn && mintNote) {
+    if (CONFIG.mintLink && !soldOut) {
+      mintBtn.href = CONFIG.mintLink;
+      mintBtn.target = "_blank";
+      mintBtn.rel = "noopener";
+      mintBtn.textContent = "Mint on the launchpad";
+      mintNote.textContent = "Opens the official mint page. Connect your Solana wallet there.";
+    } else {
+      /* nothing to choose while the gate is shut — offering a quantity
+         would suggest there is something to take */
+      const qtyBox = $(".qty"), limit = $(".limit");
+      if (qtyBox) qtyBox.hidden = true;
+      if (limit)  limit.hidden = true;
+      mintBtn.classList.add("disabled");
+      mintBtn.textContent = soldOut ? "Every being is taken" : "The gate is shut";
+      mintNote.textContent = soldOut
+        ? "The realm is complete. Nothing further will ever be minted here."
+        : "The gate has not been opened yet. When it is, this becomes the only "
+          + "mint link — anything else is not us.";
+    }
   }
 
   /* ---------- the top bar ----------
@@ -107,18 +120,17 @@
     else el.remove();
   });
 
-  /* ---------- the eight tiers ----------
+  /* ---------- the tiers ----------
      Each row shows a real being of that tier, rendered by the same pipeline
-     that makes the collection.
-
-     These are rendered from a seed that belongs to no round, so nothing on
-     this page is a token anybody will be minted. They show what a tier looks
-     like; they are not the thing being sold, and which being a mint holds
-     still is not known until the reveal. */
+     that makes the collection — but from a seed that belongs to nothing, so
+     nothing on this page is a token anybody will be minted. They show what a
+     tier looks like; they are not the thing being sold, and which being a
+     mint holds is not known until the reveal. */
   const tiersEl = $(".tiers");
-  TIERS.forEach((t, i) => {
+  if (tiersEl) TIERS.forEach(t => {
+    const top = t.key === "source";
     const el = document.createElement("div");
-    el.className = "tier" + (t.key === "god" ? " god" : "");
+    el.className = "tier" + (top ? " god" : "");
     el.style.setProperty("--c", t.color);
 
     const slot = document.createElement("span");
@@ -139,9 +151,9 @@
 
     const count = document.createElement("span");
     count.className = "count";
-    count.innerHTML = t.key === "god"
-      ? `<b>1</b>per sector`
-      : `<b>${t.count}</b>per round`;
+    count.innerHTML = top
+      ? `<b>1</b>ever`
+      : `<b>${t.count}</b>${t.perSector} per sector`;
     el.appendChild(count);
 
     tiersEl.appendChild(el);
@@ -152,28 +164,26 @@
      away from the mechanism the way prose does. */
   const rows = (el, pairs) => {
     if (!el) return;
-    pairs.forEach(([left, right, lit]) => {
+    pairs.forEach(([leftText, right, lit]) => {
       const r = document.createElement("div");
       r.className = "rw-row" + (lit ? " lit" : "");
-      r.innerHTML = `<span>${left}</span><b>${right}</b>`;
+      r.innerHTML = `<span>${leftText}</span><b>${right}</b>`;
       el.appendChild(r);
     });
   };
 
-  const roundWeight = TIERS.reduce((a, t) => a + t.count * t.weight, 0);
-  const pool = poolFor(round);
-
   const lede = $("[data-rw-lede]");
   if (lede) lede.textContent =
-    `When a round sells out, ${POOL_PERCENT}% of what it took is shared among the people `
-    + `holding that round's beings. Your slice is three things multiplied together: the `
-    + `beings you hold, the ${TOKEN_NAME} you hold, and how many sectors you hold across.`;
+    `When the mint closes, ${POOL_PERCENT}% of what it took is shared among the people `
+    + `holding beings. Your slice is three things multiplied together: the beings you `
+    + `hold, the ${TOKEN_NAME} you hold, and how many sectors you hold across.`;
 
   const poolEl = $("[data-rw-pool]");
   if (poolEl) poolEl.textContent =
-    `${POOL_PERCENT}% of every round's mint goes back to that round's holders. Round ${round} `
-    + `is ${roundSupply} beings at ${price} SOL, so its pool is ${pool} SOL. Rounds do not `
-    + `share — round ${round}'s money goes to round ${round}'s holders and nobody else.`;
+    `${POOL_PERCENT}% of the mint goes back to holders. All ${TOTAL_BEINGS.toLocaleString()} `
+    + `at ${PRICE} SOL is ${POOL_FULL} SOL. It is a share of what was actually taken, not a `
+    + `fixed sum — if the drop does not fill, the pool is smaller in the same proportion, `
+    + `and it pays on whatever sold by the closing date.`;
 
   const tokEl = $("[data-rw-token]");
   if (tokEl) tokEl.textContent =
@@ -182,7 +192,7 @@
     + `tokens with no being is nothing at all.`;
 
   rows($("[data-rw-weights]"), TIERS.map(t =>
-    [t.name, t.weight + (t.weight === 1 ? " point" : " points"), t.key === "god"]));
+    [t.name, t.weight + (t.weight === 1 ? " point" : " points"), t.key === "source"]));
 
   rows($("[data-rw-bands]"), TOKEN_BANDS.map((b, i) =>
     [b.hold === 0 ? `under ${TOKEN_BANDS[1].hold.toLocaleString()} ${TOKEN_NAME}`
@@ -190,47 +200,42 @@
                     + (i === TOKEN_BANDS.length - 1 ? " or more" : ""),
      b.mult.toFixed(1) + "×", i === TOKEN_BANDS.length - 1]));
 
-  const steps = Math.round((PILGRIM_MAX - 1) / PILGRIM_STEP);
-  rows($("[data-rw-pilgrim]"), [...Array(steps + 1)].map((_, i) =>
-    [i === steps ? `${i + 1} sectors or more` : (i ? `${i + 1} sectors` : "1 sector"),
-     (1 + i * PILGRIM_STEP).toFixed(2) + "×", i === steps]));
+  rows($("[data-rw-pilgrim]"), [...Array(MAX_PER_WALLET)].map((_, i) =>
+    [i ? `${i + 1} sectors` : "1 sector",
+     pilgrimFor(i + 1).toFixed(2) + "×", i === MAX_PER_WALLET - 1]));
 
-  /* ---------- the earnings chart ----------
-     Every holding a wallet can legally have, priced round by round.
+  /* ============================================================
+     THE EARNINGS CHART
 
-     Two figures per holding, because one on its own would be a lie. The
-     token and pilgrim multipliers scale YOUR weight, not the pool, so what
-     they are worth depends entirely on what everybody else is holding:
+     Two figures per holding, because one on its own would be a lie.
+     The token and pilgrim multipliers scale YOUR weight, not the pool,
+     so what they are worth depends on what everybody else is holding:
 
-       even field   every holder carrying the same multiplier as you. The
-                    multipliers cancel and your slice is your weight over
-                    the round's 532 points. This is the honest baseline.
-       best case    you at the top token band and the pilgrim ceiling with
-                    nobody else multiplied at all. A ceiling, not a forecast.
+       even field   every holder carrying the same multiplier as you.
+                    They cancel, and your slice is your weight over the
+                    collection's. This is the honest baseline.
+       best case    you at the top token band and the pilgrim ceiling
+                    with nobody else multiplied at all. A ceiling, not
+                    a forecast.
 
-     A real round sits between them, and nearer the first.
-
-     Nothing here is typed in. Change a weight, a price or a tier count in
-     the constants above and the whole chart follows. */
+     A real outcome sits between them, and nearer the first.
+     ============================================================ */
   const TOP_MULT = TOKEN_BANDS[TOKEN_BANDS.length - 1].mult;
 
-  /* You cannot hold across more sectors than have opened, so in the early
-     rounds the pilgrim bonus cannot reach the ceiling its own table shows. */
-  const pilgrimCap = n => Math.min(PILGRIM_MAX, 1 + (n - 1) * PILGRIM_STEP);
-
-  const evenPay = (n, w) => poolFor(n) * w / roundWeight;
-  const bestPay = (n, w) => {
-    const mine = w * TOP_MULT * pilgrimCap(n);
-    return poolFor(n) * mine / (roundWeight - w + mine);
+  const evenPay = (w, pool) => pool * w / TOTAL_WEIGHT;
+  const bestPay = (w, q, pool) => {
+    const mine = w * TOP_MULT * pilgrimFor(q);
+    return pool * mine / (TOTAL_WEIGHT - w + mine);
   };
 
-  /* what a holding has to weigh before it returns its own mint price */
-  const breakEven = n => roundWeight / (supplyFor(n) * POOL_PERCENT / 100);
+  /* what a holding has to weigh before it returns its own mint price.
+     The price cancels out of both sides, so this does not depend on it —
+     only on how much of the drop sells. */
+  const breakEven = sold => TOTAL_WEIGHT / (sold * POOL_PERCENT / 100);
 
   const n_  = v => `<span class="num">${v}</span>`;
   const net = v => `<i class="num ${v < 0 ? "ch-down" : "ch-up"}">`
                  + (v < 0 ? "−" : "+") + Math.abs(v).toFixed(3) + "</i>";
-  /* the figure, and under it what is left once the mint is paid */
   const takeaway = (got, cost) =>
     ({ h: `<b class="num">${got.toFixed(3)}</b>` + net(got - cost), cls: "ch-v" });
 
@@ -254,61 +259,65 @@
     }));
   }
 
-  /* ---- the ten rounds ---- */
+  /* ---- how big the pool is, depending on how much of it sells ----
+     One drop has one risk the ten rounds did not, which is that it does
+     not fill. Hiding that would be the wrong call: it is printed. */
+  const SHARES = [0.25, 0.5, 0.75, 1];
   const poolNote = $("[data-ch-poolnote]");
   if (poolNote) poolNote.innerHTML =
-    `A round's pool is ${n_(POOL_PERCENT)}% of what that round's mint took, paid when it `
-    + `sells out. Rounds never share. The last column is what a single weight point `
-    + `pays — a Common is ${n_(1)} point, a God is ${n_(TIERS[TIERS.length - 1].weight)}.`;
+    `The pool is ${n_(POOL_PERCENT)}% of what the mint actually takes, so it depends on how `
+    + `much of the drop goes. Everything further down assumes a full ${
+      n_(TOTAL_BEINGS.toLocaleString())} — if less sells, every figure scales down with it.`;
 
-  table($("[data-ch-pools]"), "1fr .8fr 1fr 1.1fr",
-    ["Round", "Mint", "Pool", "Per point"],
-    [...Array(10)].map((_, i) => {
-      const n = i + 1;
+  table($("[data-ch-pools]"), "1fr .9fr 1fr 1.1fr",
+    ["Minted", "Gross", "Pool", "Per point"],
+    SHARES.map(f => {
+      const sold = Math.round(TOTAL_BEINGS * f);
       return {
-        lit: n === round,
-        cells: [`Round ${n_(n)}`, n_(priceFor(n).toFixed(2)),
-                n_(poolFor(n).toFixed(2)), n_((poolFor(n) / roundWeight).toFixed(4))]
+        lit: f === 1,
+        cells: [`${n_(Math.round(f * 100))}%`,
+                n_((sold * PRICE).toFixed(2)),
+                n_(poolFrom(sold).toFixed(2)),
+                n_((poolFrom(sold) / TOTAL_WEIGHT).toFixed(5))]
       };
     }));
 
-  /* ---- every holding, for one round at a time ----
-     Ten rounds as ten columns would need sideways scrolling on a phone, and
-     anything you have to scroll sideways to reach does not get read. So the
-     round is chosen instead. */
+  /* ---- every holding ----
+     Nine tiers times five quantities is forty-five rows, which nobody
+     scrolls through on a phone. So the quantity is chosen and the table
+     stays nine rows long. */
   const lede2 = $("[data-ch-lede]");
   if (lede2) lede2.innerHTML =
-    `Three beings is the most one wallet may hold in a round — and no round holds `
-    + `three Entities or three Gods, so those stop where the round does. Tap a round.`;
+    `${n_(MAX_PER_WALLET)} beings is the most one wallet may mint. Choose how many you hold.`;
 
-  function detail(n) {
-    const price = priceFor(n);
-    const body  = [];
+  function detail(q) {
+    const pool = POOL_FULL;
+    const body = [];
 
-    /* the anchor: what three mints return on average, which is exactly the
-       75% coming back. Everything above this line is paid for by everything
-       below it. */
-    const avgW = 3 * roundWeight / supplyFor(n);
+    /* the anchor: what any holding returns on average, which is exactly
+       the 75% coming back. Everything that beats this line is paid for
+       by something that does not. */
+    const avgW = q * TOTAL_WEIGHT / TOTAL_BEINGS;
     body.push({
       lit: true,
-      cells: [`Any ${n_(3)} mints`,
-              n_((3 * price).toFixed(2)),
-              takeaway(evenPay(n, avgW), 3 * price),
-              n_(bestPay(n, avgW).toFixed(3))]
+      cells: [`Any ${n_(q)}`, n_((q * PRICE).toFixed(2)),
+              takeaway(evenPay(avgW, pool), q * PRICE),
+              n_(bestPay(avgW, q, pool).toFixed(3))]
     });
 
     TIERS.forEach(t => {
-      for (let q = 1; q <= Math.min(3, t.count); q++) {
-        const w = t.weight * q, cost = q * price;
-        body.push({
-          color: t.color,
-          lit: t.key === "god",
-          cells: [`${t.name} <span class="num">×${q}</span>`,
-                  n_(cost.toFixed(2)),
-                  takeaway(evenPay(n, w), cost),
-                  n_(bestPay(n, w).toFixed(3))]
-        });
-      }
+      /* only one Source exists, so a wallet cannot hold two however
+         many it mints */
+      const held = Math.min(q, t.count);
+      const w = t.weight * held, cost = held * PRICE;
+      body.push({
+        color: t.color,
+        lit: t.key === "source",
+        cells: [`${t.name} <span class="num">×${held}</span>`,
+                n_(cost.toFixed(2)),
+                takeaway(evenPay(w, pool), cost),
+                n_(bestPay(w, held, pool).toFixed(3))]
+      });
     });
 
     table($("[data-ch-table]"), "1.45fr .7fr 1fr .9fr",
@@ -316,91 +325,82 @@
 
     const foot = $("[data-ch-foot]");
     if (foot) foot.innerHTML =
-      `All figures in SOL. The first row is what any ${n_(3)} mints return on average — `
-      + `exactly the ${n_(POOL_PERCENT)}% coming back — and every holding that beats it is `
-      + `paid for by one that does not. `
-      + `<b>Even field</b> is what your weight alone earns, with every `
-      + `holder on the same multiplier as you — they cancel out, and this is the honest `
-      + `baseline. <b>Best case</b> is you at ${n_(TOP_MULT.toFixed(1))}× tokens and `
-      + `${n_(pilgrimCap(n).toFixed(2))}× pilgrim with nobody else multiplied at all; `
-      + `it falls the moment anyone else buys tokens, so it is a ceiling and not a forecast. `
-      + `The small figure is what is left once the mint is paid. A holding needs `
-      + `${n_(breakEven(n).toFixed(1))} points to return its own mint price, so `
-      + `<b>${TIERS.find(t => t.weight >= breakEven(n)).name}</b> is the first tier that pays `
-      + `for itself — in every round, because the price cancels. And you do not choose your `
-      + `tier: it is sealed until the reveal.`;
+      `All figures in SOL, assuming the drop fills. The first row is what any `
+      + `${n_(q)} being${q > 1 ? "s" : ""} return${q > 1 ? "" : "s"} on average — exactly the `
+      + `${n_(POOL_PERCENT)}% coming back — and every holding that beats it is paid for by one `
+      + `that does not. <b>Even field</b> is what your weight alone earns, with every holder on `
+      + `the same multiplier as you; they cancel out, and this is the honest baseline. `
+      + `<b>Best case</b> is you at ${n_(TOP_MULT.toFixed(1))}× tokens and `
+      + `${n_(pilgrimFor(q).toFixed(2))}× pilgrim — ${q > 1 ? `all ${n_(q)} from different `
+      + `sectors — ` : ""}with nobody else multiplied at all. It falls the moment anyone else `
+      + `buys tokens, so it is a ceiling and not a forecast. The small figure is what is left `
+      + `once the mint is paid. A holding needs ${n_(breakEven(TOTAL_BEINGS).toFixed(1))} points `
+      + `to return its own mint price, so <b>${
+        TIERS.find(t => t.weight >= breakEven(TOTAL_BEINGS)).name}</b> is the first tier that `
+      + `pays for itself. And you do not choose your tier: it is sealed until the reveal.`;
   }
 
-  const picker = $("[data-ch-rounds]");
+  const picker = $("[data-ch-qty]");
   if (picker) {
-    [...Array(10)].forEach((_, i) => {
-      const n = i + 1;
+    [...Array(MAX_PER_WALLET)].forEach((_, i) => {
+      const q = i + 1;
       const b = document.createElement("button");
       b.type = "button";
-      b.innerHTML = n_(n);
-      b.setAttribute("aria-pressed", String(n === round));
-      b.setAttribute("aria-label", "Round " + n);
+      b.innerHTML = n_(q);
+      b.setAttribute("aria-pressed", String(q === MAX_PER_WALLET));
+      b.setAttribute("aria-label", q + (q === 1 ? " being" : " beings"));
       b.addEventListener("click", () => {
         [...picker.children].forEach(c => c.setAttribute("aria-pressed", "false"));
         b.setAttribute("aria-pressed", "true");
-        detail(n);
+        detail(q);
       });
       picker.appendChild(b);
     });
   }
-  detail(round);
-
-  /* ---- one of a tier in every round ---- */
-  const allTen = [...Array(10)].map((_, i) => i + 1);
-  const tenCost = allTen.reduce((a, n) => a + priceFor(n), 0);
-  table($("[data-ch-ten]"), "1.2fr .8fr 1.05fr 1fr",
-    ["Tier", "Ten mints", "Even field", "Best case"],
-    TIERS.map(t => ({
-      color: t.color,
-      lit: t.key === "god",
-      cells: [t.name, n_(tenCost.toFixed(2)),
-              takeaway(allTen.reduce((a, n) => a + evenPay(n, t.weight), 0), tenCost),
-              n_(allTen.reduce((a, n) => a + bestPay(n, t.weight), 0).toFixed(2))]
-    })));
-
-  const tenFoot = $("[data-ch-tenfoot]");
-  if (tenFoot) tenFoot.innerHTML =
-    `One being in every round costs ${n_(tenCost.toFixed(2))} SOL in mints, and holding `
-    + `across all ten sectors is also what takes the pilgrim bonus to its ceiling. The `
-    + `bottom row means holding every God there will ever be, so treat it as the edge of `
-    + `what is possible rather than a plan.`;
+  detail(MAX_PER_WALLET);
 
   const fine = $("[data-rw-fine]");
   if (fine) fine.textContent =
-    `Most of a round's pool is that round's own mint money coming back, shared out unevenly. `
-    + `Across ${roundSupply} holders the average is ${POOL_PERCENT}% of what they paid, so most `
-    + `people receive less than they put in and a few receive a great deal more. The only new `
-    + `money is the ${ROYALTY_PERCENT}% royalty on resales, and that only exists if people trade. `
-    + `None of this is a promise of profit, and none of it is financial advice.`;
+    `Most of the pool is the mint's own money coming back, shared out unevenly. Across `
+    + `${TOTAL_BEINGS.toLocaleString()} beings the average is ${POOL_PERCENT}% of what was paid, `
+    + `so most people receive less than they put in and a few receive a great deal more. The `
+    + `only new money is the ${ROYALTY_PERCENT}% royalty on resales, and that only exists if `
+    + `people trade. None of this is a promise of profit, and none of it is financial advice.`;
 
-  /* ---------- lore ---------- */
+  /* ---------- lore ----------
+     The ten rounds used to unseal a chapter at a time, and that was the
+     best thing about them. It survives the drop: a chapter opens for
+     every tenth that mints, for everybody at once. */
+  const openChapters = chaptersOpen();
   const chaptersEl = $(".chapters");
-  SECTORS.forEach((sector, i) => {
-    const open = i < round;
+  if (chaptersEl) SECTORS.forEach((sector, i) => {
+    const open = i < openChapters;
     const el = document.createElement("article");
     el.className = "chapter" + (open ? "" : " sealed");
     el.innerHTML = `<p class="meta">Chapter ${i + 1}</p>
                     <h3>${open ? sector.name : "Sector " + (i + 1)}</h3>
-                    <p class="body">${sector.lore}</p>`;
+                    <p class="body">${open ? sector.lore
+                      : "Sealed. This chapter opens when the mint passes "
+                        + Math.round(i / SECTOR_COUNT * 100) + "%."}</p>`;
     chaptersEl.appendChild(el);
   });
 
-  /* ---------- rounds ---------- */
+  const loreNote = $("[data-lore-note]");
+  if (loreNote) loreNote.textContent = soldOut
+    ? "The realm is complete, and every chapter is open."
+    : `${openChapters} of ${SECTOR_COUNT} chapters are open. One more opens with every tenth `
+      + `of the drop that goes.`;
+
+  /* ---------- the sectors ---------- */
   const timeline = $(".timeline");
-  SECTORS.forEach((sector, i) => {
-    const state = i < round - 1 ? "done" : i === round - 1 ? "now" : "";
+  if (timeline) SECTORS.forEach((sector, i) => {
     const li = document.createElement("li");
-    li.className = state;
-    const n = supplyFor(i + 1);
-    li.innerHTML = `<span class="r">Round ${i + 1}${state === "now" ? " &middot; live" : ""}</span>
-                    <span class="s">${i < round ? sector.name : "Sealed sector"}</span>
-                    <span class="d">${n} beings &middot; ${priceFor(i + 1)} SOL${
-                      n > SUPPLY_PER_ROUND ? " &middot; the last one ever" : ""}</span>`;
+    li.className = i < openChapters ? "done" : "";
+    const n = sectorSize(i + 1);
+    li.innerHTML = `<span class="r">Sector ${i + 1}</span>
+                    <span class="s">${sector.name}</span>
+                    <span class="d">${n} beings &middot; ${TIERS[7].perSector} God${
+                      n > PER_SECTOR ? " &middot; and the Source" : ""}</span>`;
     timeline.appendChild(li);
   });
 
@@ -459,8 +459,6 @@
 
   // the journey opens these too
   window.RealmPanels = { show, hide };
-
-  // X is a link when one is configured, and a panel-free no-op otherwise
 
   $$(".panel-close").forEach(b => b.addEventListener("click", hide));
 
