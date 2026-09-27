@@ -142,8 +142,53 @@ def lattice(w, h, cx, cy, R, rng):
     return m
 
 
+def tree(w, h, cx, cy, R, rng):
+    """A branching thing, grown rather than drawn — each limb splits into two
+    shorter ones until they are a pixel long."""
+    m = _canvas(w, h)
+    # it grows from the floor of the picture, not from the centre it is
+    # nominally placed at — rooted at cy + R it ended up below the canvas and
+    # all you saw was its stem
+    root_y = h - 1
+
+    def limb(x, y, ang, length, depth):
+        if depth == 0 or length < 1.5:
+            return
+        x2, y2 = x + length*np.cos(ang), y + length*np.sin(ang)
+        _line(m, x, y, x2, y2)
+        if depth <= 3:
+            _ring(m, x2, y2, max(1, length*0.22))
+        spread = rng.uniform(0.34, 0.60)
+        for s_ in (-spread, spread):
+            limb(x2, y2, ang + s_, length*rng.uniform(0.62, 0.78), depth-1)
+
+    limb(cx, root_y, -np.pi/2, (h * 0.30), 8)
+    return m
+
+
+def weird(w, h, cx, cy, R, rng):
+    """Interference — two sets of rings crossing, which makes bands nobody
+    drew. The pattern comes out of the arithmetic, not a shape."""
+    m = _canvas(w, h)
+    y, x = np.mgrid[0:h, 0:w]
+    out = np.zeros((h, w), bool)
+    for k in range(3):
+        a = k * 2*np.pi/3
+        ox, oy = cx + R*0.42*np.cos(a), cy + R*0.42*np.sin(a)
+        d = np.sqrt((x-ox)**2 + (y-oy)**2)
+        out ^= (d // max(3, int(R*0.13))).astype(int) % 2 == 0
+    edge = np.zeros_like(out)
+    edge[1:,:] |= out[1:,:] ^ out[:-1,:]
+    edge[:,1:] |= out[:,1:] ^ out[:,:-1]
+    # kept inside a disc, or it covers the whole picture and the being
+    # disappears into it
+    m |= edge & (np.sqrt((x-cx)**2 + (y-cy)**2) < R*1.05)
+    return m
+
+
 SHAPES = {"Mandala": mandala, "Flower": flower, "Yantra": yantra,
-          "Metatron": metatron, "Rays": rays, "Lattice": lattice}
+          "Metatron": metatron, "Rays": rays, "Lattice": lattice,
+          "Tree": tree, "Weird": weird}
 
 
 def draw(w, h, kind, cx, cy, R, seed):

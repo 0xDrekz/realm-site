@@ -188,3 +188,95 @@ def place(being_png, pal, canvas, scale, seed, mode="stencil", eye_mode="holes",
     base = over(base, lay)
 
     return Image.fromarray(base, "RGBA").convert("RGB").resize((w*scale, h*scale), Image.NEAREST)
+
+
+# ---------------------------------------------------------------- the void
+
+def void(being_png, pal, canvas, scale, seed, mode="stencil", eye_mode="holes",
+         fill=0.82, sigil_kind="Mandala", regions=None):
+    """Black behind, geometry in front of it, the being in front of that.
+
+    No sky, no sun, no ground. The background is black and stays black; all
+    the colour is on the being and on the pattern.
+    """
+    w = h = canvas
+    rng = np.random.default_rng(seed)
+    base = np.zeros((h, w, 4), np.uint8)
+    base[:, :, 3] = 255
+
+    m = patterns.draw(w, h, sigil_kind, w/2, h*0.46, w*0.44, seed)
+
+    # the pattern glows: a wide dim pass, then a tight one, then the line
+    soft = ndimage.binary_dilation(m, iterations=3) & ~m
+    near = ndimage.binary_dilation(m, iterations=1) & ~m
+    base[soft] = list(pal["sigil_glow"]) + [255]
+    base[near] = list(pal["sigil_dark"]) + [255]
+    base[m]    = list(pal["sigil"]) + [255]
+
+    art = Image.open(being_png).convert("RGBA")
+    s = int(canvas * fill)
+    fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
+    art.resize((s, s), Image.NEAREST).save(tmp)
+    if regions is not None:
+        lay = paint(tmp, regions, pal["parts"],
+                    None if eye_mode == "drawn" else pal["eye"])
+    elif mode == "shade":
+        lay = shade(tmp, pal["shadow"], pal["mid"], pal["light"],
+                    None if eye_mode == "drawn" else pal["eye"])
+    else:
+        lay = tint(tmp, pal["being_top"], pal["being_bottom"],
+                   None if eye_mode == "drawn" else pal["eye"], solid=2.2)
+    os.unlink(tmp)
+    lay = outline(lay, pal["ink"])
+
+    nx, ny = w//2 - s//2, int(h * 1.02) - s
+    out = np.zeros((h, w, 4), np.uint8)
+    y0, x0, y1, x1 = max(0,ny), max(0,nx), min(h,ny+s), min(w,nx+s)
+    out[y0:y1, x0:x1] = lay[y0-ny:y1-ny, x0-nx:x1-nx]
+    base = over(base, out)
+
+    return Image.fromarray(base, "RGBA").convert("RGB").resize((w*scale, h*scale), Image.NEAREST)
+
+
+def paint(png_path, regions, parts, eye=None):
+    """Colour a being part by part, from a region map.
+
+    `regions` is one number per pixel saying which part it belongs to, and
+    `parts` gives each part a (shadow, light) pair. The drawn brightness still
+    does the shading inside each part, so an arm can be red and a chest gold
+    without either going flat.
+    """
+    im = Image.open(png_path).convert("RGBA")
+    a = np.asarray(im).astype(float)
+    drawn = a[:, :, 3]
+    h, w = drawn.shape
+
+    r = np.asarray(Image.fromarray(regions.astype(np.int16), "I;16")
+                   .resize((w, h), Image.NEAREST)).astype(int)
+
+    body = ndimage.binary_fill_holes(drawn > 20)
+    v = drawn.copy()
+    inside = v[body]
+    if inside.size:
+        lo, hi = np.percentile(inside, 2), np.percentile(inside, 98)
+        v = np.clip((v - lo) / max(hi - lo, 1e-6), 0, 1)
+
+    col = np.zeros((h, w, 3), float)
+    for k, (dark, light) in enumerate(parts):
+        m = (r == k) & body
+        if not m.any():
+            continue
+        dark, light = np.array(dark, float), np.array(light, float)
+        col[m] = dark[None, :] + (light - dark)[None, :] * v[m][:, None]
+    # anything the map does not cover falls back to the first part
+    miss = body & ~np.isin(r, range(len(parts)))
+    if miss.any():
+        dark, light = (np.array(c, float) for c in parts[0])
+        col[miss] = dark[None, :] + (light - dark)[None, :] * v[miss][:, None]
+
+    out = np.dstack([col, np.where(body, 255, 0)]).astype(np.uint8)
+    if eye is not None:
+        e = eyes(drawn)
+        if e.any():
+            out[e] = list(eye) + [255]
+    return out
