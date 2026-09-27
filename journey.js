@@ -19,8 +19,8 @@ window.RealmJourney = (() => {
     { key: "mint",    label: "MINT",       panel: "mint" },
     { key: "beings",  label: "THE BEINGS", panel: "nfts" },
     { key: "rewards", label: "REWARDS",    panel: "rewards" },
-    { key: "lore",    label: "LORE",       panel: "lore" },
-    { key: "sectors", label: "THE SECTORS", panel: "sectors" }
+    { key: "lore",    label: "LORE",       panel: "lore" }
+    
   ];
 
   return { OPTIONS };
@@ -370,8 +370,7 @@ window.RealmJourney = (() => {
       case "beings":  return all.toLocaleString() + " in all";
       case "rewards": return g_("POOL_PERCENT", 75) + "% of the mint";
       case "lore":    return g_("chaptersOpen", () => 1)() + " of "
-                           + g_("SECTOR_COUNT", 10) + " open";
-      case "sectors": return g_("SECTOR_COUNT", 10) + " sectors";
+                           + (g_("CHAPTERS", []).length || 10) + " open";
       default:        return "";
     }
   }

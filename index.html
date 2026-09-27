@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#03010a">
 <title>REALM</title>
-<meta name="description" content="10 sectors. 1,111 beings. The realm opens one sector at a time.">
+<meta name="description" content="1,111 beings. One drop. Nine tiers, ten Gods, and one Source.">
 
 <!-- the mark, in every size a browser or a phone asks for -->
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -17,7 +17,7 @@
 <meta property="og:url" content="https://dmt-realm.dev/">
 <meta property="og:site_name" content="REALM">
 <meta property="og:title" content="REALM">
-<meta property="og:description" content="10 sectors. 1,111 beings. The realm opens one sector at a time.">
+<meta property="og:description" content="1,111 beings. One drop. Nine tiers, ten Gods, and one Source.">
 <meta property="og:image" content="https://dmt-realm.dev/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -26,7 +26,7 @@
 <meta name="twitter:site" content="@dmt_realm">
 <meta name="twitter:creator" content="@dmt_realm">
 <meta name="twitter:title" content="REALM">
-<meta name="twitter:description" content="10 sectors. 1,111 beings. The realm opens one sector at a time.">
+<meta name="twitter:description" content="1,111 beings. One drop. Nine tiers, ten Gods, and one Source.">
 <meta name="twitter:image" content="https://dmt-realm.dev/og.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,7 +88,7 @@
   <button class="panel-close" aria-label="Close">&times;</button>
   <div class="panel-in">
     <h2>Mint</h2>
-    <p class="lede">All <span data-total></span> beings, at one price, in one go. Ten sectors open at once and every tier is in the draw from the first mint to the last.</p>
+    <p class="lede">All <span data-total></span> beings, at one price, in one go. Every tier is in the draw from the first mint to the last.</p>
     <div class="mint-card">
       <div class="mint-head">
         <span class="pill"><span data-total></span> beings</span>
@@ -113,7 +113,7 @@
   <button class="panel-close" aria-label="Close">&times;</button>
   <div class="panel-in">
     <h2>The Beings</h2>
-    <p class="lede">Nine tiers across <span data-sectors></span> sectors. Each sector holds 111 beings and one God, so ten Gods will ever exist — and above all of them, one Source.</p>
+    <p class="lede"><span data-tiers></span> tiers across <span data-total></span> beings. Ten Gods will ever exist, and above all of them, one Source — there is a single one and there will never be another.</p>
     <div class="tiers"></div>
     <p class="fine">Every being stays sealed until the mint closes. Nobody, including us, knows which tier a mint holds until the reveal.</p>
   </div>
@@ -133,7 +133,7 @@
       </article>
       <article class="card">
         <h3>Your beings</h3>
-        <p>Every being carries a weight, and yours add up. The Source is worth 111 Commons &mdash; but the 400 Commons of the collection together outweigh every God and the Source combined.</p>
+        <p>Every being carries a weight, and yours add up. The Source is worth 111 Commons &mdash; but the 400 Commons together outweigh every God and the Source combined.</p>
         <p class="who">Every tier counts for something</p>
       </article>
       <article class="card">
@@ -148,9 +148,6 @@
 
     <p class="eyebrow rw-label">What the token multiplies it by</p>
     <div class="rw-rows" data-rw-bands></div>
-
-    <p class="eyebrow rw-label">Walking the realm</p>
-    <div class="rw-rows" data-rw-pilgrim></div>
 
     <p class="eyebrow rw-label">How big the pool is</p>
     <p class="ch-note" data-ch-poolnote></p>
@@ -170,18 +167,9 @@
   <button class="panel-close" aria-label="Close">&times;</button>
   <div class="panel-in">
     <h2>Lore</h2>
-    <p class="lede">The story is told one sector at a time. A chapter opens for every tenth of the drop that goes &mdash; for everybody at once.</p>
+    <p class="lede">Ten chapters of the realm. One opens for every tenth of the drop that goes &mdash; for everybody at once. No being belongs to a chapter; this is the story, not a container.</p>
     <p class="fine" data-lore-note></p>
     <div class="chapters"></div>
-  </div>
-</section>
-
-<section class="panel" id="p-sectors" hidden>
-  <button class="panel-close" aria-label="Close">&times;</button>
-  <div class="panel-in">
-    <h2>The Sectors</h2>
-    <p class="lede">Ten sectors of the realm, and every being belongs to one of them. Nine hold 111 beings; the tenth holds 112, because the Source is counted there &mdash; and that is what makes 1,111. They all open together.</p>
-    <ol class="timeline"></ol>
   </div>
 </section>
 
@@ -190,11 +178,10 @@
   <div class="panel-in">
     <h2>FAQ</h2>
     <details><summary>How many are there in total?</summary>
-      <p><span data-total></span>, and that is all there will ever be. Ten sectors of 111, and
-      one more — the Source — counted in the tenth.</p></details>
+      <p><span data-total></span>, and that is all there will ever be.</p></details>
     <details><summary>Is this a staged release?</summary>
-      <p>No. Every being mints at once, at one price. The ten sectors are where a being comes
-      from and how the story is told; they are not a schedule.</p></details>
+      <p>No. Every being mints at once, at one price. There are no rounds, no phases and no
+      waves — when it is open it is open, and when it closes it is finished.</p></details>
     <details><summary>How many can I mint?</summary>
       <p><span data-max></span> per wallet.</p></details>
     <details><summary>What does it cost?</summary>
@@ -214,12 +201,12 @@
     <details><summary>Are the common ones worthless?</summary>
       <p>No, but be clear about what they are. A Common carries one weight point, and at the
       even field it returns less than it cost to mint — the rare tiers are paid for by the
-      common ones. What a Common does carry is its sector's story, and the same art quality as
-      everything else in the collection.</p></details>
+      common ones. What a Common does carry is the same art quality as everything else in
+      the collection — one grid, one pipeline, no cheap tier.</p></details>
     <details><summary>What is the Source?</summary>
       <p>The 1,111th being. There is exactly one, it carries 111 weight points, and there will
-      never be another. It is the only being in the collection that is not one of ten of its
-      kind.</p></details>
+      never be another. It is also the one picture in the collection that was composed by hand
+      rather than assembled from traits.</p></details>
     <details><summary>Is there a royalty on resales?</summary>
       <p><span data-royalty></span> on every secondary sale. It is separate from the holder
       pool, which is 75% of the mint and is paid once when the mint closes.</p></details>

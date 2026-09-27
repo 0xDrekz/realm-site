@@ -1,18 +1,21 @@
 # REALM
 
-10 sectors of the DMT realm. 1,111 beings, max 5 per wallet, on Solana.
+1,111 beings of the DMT realm, max 5 per wallet, on Solana.
 
-**One drop.** Every being mints at once, at one price. The ten sectors are
-still here — they are what a being belongs to and how the story is told —
-but they are not a release schedule. Nine hold 111 beings each; the tenth
-holds 112, because the Source is counted there.
+**One drop.** Every being mints at once, at one price. There are no rounds,
+no phases and no sectors: a being is its tier and its traits, and that is
+the whole of it.
 
-It used to be ten rounds of 111 at a rising price. That was abandoned for
-three reasons: ten cohorts with separate reward pools fragments the
-collection and its floor, ten sell-outs needs ten marketing pushes over a
-year or more, and stalling at round three would have left 800 unminted
-beings and no clean way out. One drop is worth less on paper if all ten
-rounds sell — and more than the first six of them combined if they do not.
+It was ten rounds of 111 at a rising price, then briefly ten sectors that
+beings were counted in. Both are gone. The rounds fragmented the collection
+into ten cohorts with separate pools and separate floors, and needed ten
+marketing pushes over a year to work. The sectors were what survived of
+them, and they earned nothing — they divided 1,111 beings into ten boxes
+that changed no payout, no rarity and no picture, and every line explaining
+them was a line a buyer had to read before understanding something that did
+not matter.
+
+The ten chapters of story survive, because they were never the counting.
 
 One page. No build step, no framework, nothing to install.
 
@@ -26,8 +29,8 @@ Everything happens on `index.html`, in three states:
 2. **The tunnel** — you are rushed through that doorway.
 3. **The chamber** — the room you come out into, with five ways on.
 
-Each of the five opens a panel over the room: Mint, The Beings, Rewards,
-Lore, The Sectors. Nothing navigates away.
+Each of the four opens a panel over the room: Mint, The Beings, Rewards
+and Lore. Nothing navigates away.
 
 ---
 
@@ -70,7 +73,6 @@ That single edit will:
 
 - move the mint bar and the count on the door
 - open lore chapters — one for every tenth of the drop that goes
-- light the sectors that have been reached
 
 Commit it, and Railway redeploys in about a minute.
 
@@ -93,22 +95,24 @@ next to MINT.
 
 ### Editing the story
 
-The `SECTORS` list holds each sector's name, lore and colour. Edit the text
-between the quotes. Keep all ten entries.
+The `CHAPTERS` list holds each chapter's name and text. Edit the text between
+the quotes. Keep all ten entries — a chapter opens for every tenth of the
+drop that mints, so ten chapters is what makes that come out even.
+
+They are lore and nothing else. No being belongs to a chapter and nothing is
+counted in them.
 
 ### Changing the rarity split
 
-The `TIERS` list holds the nine tiers. `perSector` is how many of that tier
-live in **each** of the ten sectors, and it is the old per-round table
-unchanged — the same 111 beings, ten times over. **The per-sector counts must
-add up to 111**, and the whole collection then lands on 1,110 plus the Source.
+The `TIERS` list holds the nine tiers, and `count` is how many exist in the
+whole collection. **The counts must add up to 1,111.** `TOTAL_BEINGS` is
+their sum rather than a number typed in, so it cannot disagree with them.
 
-### Why there are 1,111 and not 1,110
+### The Source
 
-Ten sectors of 111 is 1,110. The Source is the 1,111th: one in the whole
-collection, 111 weight points, and the only being that is not one of ten of
-its kind. It is the `only: 1` entry at the bottom of `TIERS`, and the tenth
-sector is counted as holding 112 because of it.
+The 1,111th being: one in the collection, 111 weight points, and the only
+being that is not one of a set. It is also the one picture that was composed
+by hand rather than assembled from traits — see `art/LADDER.md`.
 
 ### The top bar, and the X link
 
@@ -135,7 +139,7 @@ Telegram and a marketplace link appear the same way when they are real.
 
 | File | What it is |
 |------|------------|
-| **`data.js`** | **the only file you edit** — minted, mint link, sectors, rarity |
+| **`data.js`** | **the only file you edit** — minted, mint link, chapters, rarity |
 | `index.html` | the whole site |
 | `styles.css` | the shared look: black, gold hairline, pixel type |
 | `landing.css` | the door, the chamber and the panels |
@@ -151,7 +155,8 @@ Telegram and a marketplace link appear the same way when they are real.
 | `og.png` | the picture that shows when the link is posted |
 | `collection.png` | the collection avatar for the launchpad — not used by the site |
 | `preview/` | one being per tier, shown in the Beings panel |
-| `tools/drop.py` | generates the whole collection — 1,111 in one pass |
+| `tools/drop.py` | generates the whole collection — run this one |
+| `tools/round.py` | the machinery it calls; not run directly |
 | `art/source.png` | the Source, the one picture that is not generated |
 | `server.js` | the tiny server Railway runs |
 | `package.json` | tells Railway how to start it |
@@ -285,16 +290,15 @@ for somebody to discover, and the FAQ says the same thing in words.
 
 ### Why every holding has two figures
 
-The token and pilgrim multipliers scale **your weight, not the pool**. So
-what a multiplier is worth depends entirely on what everybody else is
+The token multiplier scales **your weight, not the pool**. So what it is worth depends entirely on what everybody else is
 holding, and a single number would be a lie whichever one was chosen.
 
 - **Even field** — every holder carrying the same multiplier as you. They
   cancel out and your slice is simply your weight over the collection's
   5,431 points. This is the honest baseline.
-- **Best case** — you at the top token band and the pilgrim ceiling with
-  nobody else multiplied at all. It falls the moment anyone else buys
-  tokens, so it is a ceiling and not a forecast.
+- **Best case** — you at the top token band with nobody else multiplied at
+  all. It falls the moment anyone else buys tokens, so it is a ceiling and
+  not a forecast.
 
 A real outcome lands between them, and nearer the first.
 
@@ -342,3 +346,19 @@ To remake them after the art changes:
 ```
 python3 tools/preview.py
 ```
+
+---
+
+## Why the pilgrim multiplier was removed
+
+A holder's slice used to be three things multiplied: their beings, their
+tokens, and a bonus for holding across sectors. When the sectors went there
+was nothing left to rebase that bonus on.
+
+The obvious replacement — a bonus for holding a spread of tiers — was not
+taken. Which tier a mint gives you is luck, so a bonus for holding several
+different ones is a bonus for being lucky twice. It would have read as a
+reward for a decision nobody actually gets to make.
+
+Two things multiplied is also simply easier to explain, and a mechanism that
+pays people money has to be explainable.

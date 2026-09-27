@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-REALM — generating one round.
+REALM — the machinery that makes the beings.
 
-111 beings, the tier counts exact rather than random, every combination
-unique, and the same seed always gives the same round.
+This is the library. `tools/drop.py` is what you run; it calls generate()
+once for the whole collection and then adds the Source.
 
-    python3 tools/round.py <round-number> [out-dir]
-
-Writes a PNG and a Metaplex JSON per being, then checks its own work and
-refuses to finish if anything is off.
+There are no rounds and no sectors. 1,110 beings are made in one pass with
+the tier counts exact rather than random, every combination unique, and the
+same seed always giving the same collection. The 1,111th, the Source, is not
+generated at all — it was composed by hand.
 """
 import json, os, sys
 import numpy as np
@@ -23,24 +23,18 @@ from weaves import WEAVES
 BEINGS = json.load(open(f"{ROOT}/art/beings.json"))
 
 
-def _sector_names():
-    """The ten names, read out of data.js so they are written down once."""
-    import re
-    src = open(f"{ROOT}/data.js").read()
-    block = src[src.index("const SECTORS = ["):]
-    return re.findall(r'\{ name: "([^"]+)"', block)[:10]
 
-
-SECTOR_NAMES = _sector_names()
 
 # which sky palette goes with which colour scheme
 PALETTE_FOR = {"Regalia": "Void", "Verdant": "Verdigris", "Furnace": "Ember",
                "Abyss": "Deep", "Ossuary": "Bone", "Auric": "Aurum",
                "Bloom": "Bloom", "Eclipse": "Eclipse"}
 
-# how many of each tier in a round — must total 111
-COUNTS = {"common": 40, "uncommon": 28, "rare": 18, "epic": 11,
-          "legendary": 7, "mythic": 4, "entity": 2, "god": 1}
+# How many of each tier in the whole collection. The Source is not here: it
+# is the 1,111th, it is not generated, and drop.py adds it afterwards.
+COUNTS = {"common": 400, "uncommon": 280, "rare": 180, "epic": 110,
+          "legendary": 70, "mythic": 40, "entity": 20, "god": 10}
+GENERATED = sum(COUNTS.values())       # 1,110
 
 # One canvas for every tier: 600 art pixels at scale 4, which lands on 2400,
 # with the drawing cut at 480 so it is never resampled by a fraction.
@@ -134,13 +128,8 @@ def tier_list():
     return out
 
 
-def beings_for(tier, round_no=None):
-    """Every drawing that belongs to this tier — and to this round.
-
-    A drawing may carry a "round" in beings.json. If it does, it appears only
-    in that round and nowhere else, which is how a God drawn for round four
-    stays the God of round four. A drawing with no round belongs to all of
-    them.
+def beings_for(tier):
+    """Every drawing that belongs to this tier.
 
     A tier used to hold exactly one, and the first match won — so forty
     Commons in a round were forty copies of one alien, and two drawings were
@@ -152,14 +141,14 @@ def beings_for(tier, round_no=None):
     return sorted(out)
 
 
-def deal_beings(tier, n, rng, round_no=None):
+def deal_beings(tier, n, rng):
     """Share a tier's count out among its drawings as evenly as it goes.
 
     Dealt rather than rolled, for the same reason the tiers themselves are:
     left to chance, forty Commons across two drawings comes out 25/15 often
     enough to look like a mistake.
     """
-    pool = beings_for(tier, round_no)
+    pool = beings_for(tier)
     per, rest = divmod(n, len(pool))
     out = []
     for i, name in enumerate(pool):
@@ -168,41 +157,29 @@ def deal_beings(tier, n, rng, round_no=None):
     return out
 
 
-def generate(round_no, out_dir, offset=0, seen=None):
-    """One sector of 111.
-
-    `offset` is how many beings were written before this one, so a
-    ten-sector drop numbers straight through 1..1,110 instead of
-    restarting at 1 ten times.
-
-    `seen` is the set of combinations already used. Passing one in makes
-    uniqueness hold across the WHOLE drop rather than only inside a
-    sector — without it, sector four could repeat sector one exactly and
-    every per-sector check would still pass.
-    """
+def generate(out_dir, seed=1111):
+    """The 1,110 generated beings, in one pass."""
     tiers = tier_list()
-    if len(tiers) != 111:
-        raise SystemExit(f"the tier counts add up to {len(tiers)}, not 111")
+    if len(tiers) != GENERATED:
+        raise SystemExit(f"the tier counts add up to {len(tiers)}, not {GENERATED}")
 
-    rng = np.random.default_rng(1110 + round_no)
+    rng = np.random.default_rng(seed)
     rng.shuffle(tiers)
     os.makedirs(f"{out_dir}/images", exist_ok=True)
     os.makedirs(f"{out_dir}/metadata", exist_ok=True)
 
     # At the top of the collection a unique combination is not enough — two
-    # Entities that differ only by a trait read as the same picture. For any
-    # tier with seven or fewer in a round the colourway is dealt without
-    # replacement.
-    SCARCE = {t for t, n in COUNTS.items() if n <= 7}
+    # Entities that differ only by a trait read as the same picture. For the
+    # scarce tiers the colourway is dealt without replacement, so the ten Gods
+    # wear as many different schemes as there are to wear.
+    SCARCE = {t for t, n in COUNTS.items() if n <= 20}
     used_cw = {t: set() for t in SCARCE}
 
     # each tier's drawings, dealt out and handed round in order
-    dealt = {t: deal_beings(t, n, rng, round_no) for t, n in COUNTS.items()}
+    dealt = {t: deal_beings(t, n, rng) for t, n in COUNTS.items()}
     used = {t: 0 for t in COUNTS}
 
-    if seen is None:
-        seen = set()
-    rows = []
+    seen, rows = set(), []
     for i, tier in enumerate(tiers, start=1):
         being = dealt[tier][used[tier]]
         used[tier] += 1
@@ -237,7 +214,7 @@ def generate(round_no, out_dir, offset=0, seen=None):
                      seed=int(rng.integers(0, 1 << 30)),
                      mode=info["mode"], eye_mode=info.get("eye_mode", "holes"),
                      fill=info["rung"] / canvas)
-        n = offset + i
+        n = i
         png = f"{out_dir}/images/{n}.png"
         img.save(png, optimize=True)
 
@@ -248,13 +225,9 @@ def generate(round_no, out_dir, offset=0, seen=None):
                   "Lightning", "Smoke", "Dust", "Trees", "Mushrooms",
                   "Spores", "Aura", "Eyes"):
             attrs.append({"trait_type": k, "value": t[k]})
-        attrs.append({"trait_type": "Sector", "value": SECTOR_NAMES[round_no - 1]})
-        attrs.append({"trait_type": "Sector number", "value": str(round_no)})
 
         json.dump({"name": f"REALM #{n}", "symbol": "REALM",
-                   "description": "One of 1,111 beings of the realm. "
-                                  f"{SECTOR_NAMES[round_no - 1]}, "
-                                  f"sector {round_no} of 10.",
+                   "description": "One of 1,111 beings of the realm.",
                    "image": f"{n}.png", "attributes": attrs,
                    "properties": {"files": [{"uri": f"{n}.png",
                                              "type": "image/png"}],
@@ -262,13 +235,13 @@ def generate(round_no, out_dir, offset=0, seen=None):
                   open(f"{out_dir}/metadata/{n}.json", "w"), indent=2)
 
         row = {"id": n, "tier": tier, "being": being, "colourway": wname,
-               "png": png, "loud": round(loud, 2), "sector": round_no}
+               "png": png, "loud": round(loud, 2)}
         row.update({k: t[k] for k in TRAITS})
         rows.append(row)
-        if i % 20 == 0:
-            print(f"  {i}/111")
+        if i % 50 == 0:
+            print(f"  {i}/{GENERATED}")
 
-    json.dump(rows, open(f"{out_dir}/sector-{round_no}.json", "w"), indent=2)
+    json.dump(rows, open(f"{out_dir}/generated.json", "w"), indent=2)
     return rows
 
 
@@ -390,15 +363,4 @@ def verify(rows, out_dir):
 
 
 if __name__ == "__main__":
-    rn = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-    out = sys.argv[2] if len(sys.argv) > 2 else f"{ROOT}/../round{rn}"
-    print(f"generating round {rn} into {out}")
-    rows = generate(rn, out)
-    problems = verify(rows, out)
-    if problems:
-        print("\nPROBLEMS:")
-        for b in problems:
-            print("  ⚠ ", b)
-        raise SystemExit(1)
-    print("\nall checks pass: 111 beings, counts exact, every combination "
-          "unique, and the rare end is louder than the common end")
+    raise SystemExit("This is the library. Run:  python3 tools/drop.py")

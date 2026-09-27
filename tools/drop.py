@@ -4,16 +4,12 @@ REALM — generating the whole drop.
 
     python3 tools/drop.py [out-dir]
 
-1,111 beings in one go: ten sectors of 111, numbered straight through, and
-then the 1,111th, which is the Source.
+1,111 beings in one go: 1,110 generated, and then the Source, which is not
+generated because it was composed by hand.
 
-This replaces generating a round at a time. The collection is no longer
-released in stages, so it is no longer made in stages either — and making it
-in one pass is what lets uniqueness be checked across the whole thing rather
-than inside each sector, which is the check that actually matters.
-
-`tools/round.py` still generates a single sector, and this calls it ten
-times with a running offset and a shared set of used combinations.
+There are no rounds and no sectors. The collection is made in one pass, which
+is what lets uniqueness be checked across the whole thing — the check that
+actually matters.
 """
 import json, os, sys
 import numpy as np
@@ -26,9 +22,8 @@ from render import render
 from palettes import BY_NAME
 from weaves import WEAVES
 
-SECTORS = 10
-PER_SECTOR = sum(R.COUNTS.values())          # 111
-TOTAL = PER_SECTOR * SECTORS + 1             # 1,111 — the Source is the last
+GENERATED = R.GENERATED                      # 1,110
+TOTAL = GENERATED + 1                        # the Source is the 1,111th
 
 # ---- the Source ----------------------------------------------------------
 # The 1,111th being. One in the collection, weight 111, and the only being
@@ -69,8 +64,6 @@ def make_source(out_dir, n, rng):
     for k in ("Geometry", "Stars", "Planets", "UFOs", "Explosions", "Lightning",
               "Smoke", "Dust", "Trees", "Mushrooms", "Spores", "Aura", "Eyes"):
         attrs.append({"trait_type": k, "value": SOURCE_TRAITS[k]})
-    attrs.append({"trait_type": "Sector", "value": "The Source"})
-    attrs.append({"trait_type": "Sector number", "value": "10"})
 
     json.dump({"name": f"REALM #{n} \u2014 The Source", "symbol": "REALM",
                "description": "The 1,111th being of the realm. There is one, "
@@ -81,7 +74,7 @@ def make_source(out_dir, n, rng):
               open(f"{out_dir}/metadata/{n}.json", "w"), indent=2)
 
     row = {"id": n, "tier": "source", "being": "source",
-           "colourway": "The Source", "png": png, "loud": 1.0, "sector": 10}
+           "colourway": "The Source", "png": png, "loud": 1.0}
     row.update({k: SOURCE_TRAITS[k] for k in R.TRAITS})
     return row
 
@@ -93,7 +86,7 @@ def verify(rows, out_dir):
     if len(rows) != TOTAL:
         bad.append(f"{len(rows)} beings, not {TOTAL}")
 
-    want = {t: n * SECTORS for t, n in R.COUNTS.items()}
+    want = dict(R.COUNTS)
     want["source"] = 1
     got = {}
     for r in rows:
@@ -102,22 +95,15 @@ def verify(rows, out_dir):
         if got.get(tier, 0) != n:
             bad.append(f"{got.get(tier, 0)} {tier}, not {n}")
 
-    # ten sectors of 111, and the Source counted in the tenth
-    for s in range(1, SECTORS + 1):
-        n = sum(1 for r in rows if r["sector"] == s)
-        expect = PER_SECTOR + (1 if s == SECTORS else 0)
-        if n != expect:
-            bad.append(f"sector {s} holds {n} beings, not {expect}")
-
     # numbered straight through with no gaps and no repeats
     ids = sorted(r["id"] for r in rows)
     if ids != list(range(1, TOTAL + 1)):
         bad.append("the ids are not 1.." + str(TOTAL) + " exactly once")
 
-    # every combination unique across the whole drop, not merely each sector
+    # every combination unique across the whole collection
     keys = [(r["being"], r["colourway"]) + tuple(r[k] for k in R.TRAITS) for r in rows]
     if len(set(keys)) != len(keys):
-        bad.append(f"{len(keys) - len(set(keys))} repeated combinations across the drop")
+        bad.append(f"{len(keys) - len(set(keys))} repeated combinations")
 
     # every picture there, the right size, and not blank
     for r in rows:
@@ -136,8 +122,8 @@ def verify(rows, out_dir):
             print("  - " + b)
         raise SystemExit(1)
 
-    print(f"\nall checks pass: {TOTAL} beings, tier counts exact, ten sectors, "
-          "every combination unique across the whole drop, every image present.")
+    print(f"\nall checks pass: {TOTAL} beings, tier counts exact, "
+          "every combination unique, every image present.")
 
 
 def main():
@@ -145,10 +131,8 @@ def main():
     os.makedirs(f"{out}/images", exist_ok=True)
     os.makedirs(f"{out}/metadata", exist_ok=True)
 
-    seen, rows = set(), []
-    for s in range(1, SECTORS + 1):
-        print(f"sector {s}/{SECTORS} — {R.SECTOR_NAMES[s - 1]}")
-        rows += R.generate(s, out, offset=(s - 1) * PER_SECTOR, seen=seen)
+    print(f"generating {GENERATED} beings")
+    rows = R.generate(out)
 
     print("the Source")
     rows.append(make_source(out, TOTAL, np.random.default_rng(1111)))

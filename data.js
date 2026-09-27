@@ -4,9 +4,10 @@
 
    ONE DROP. 1,111 beings, all at once, one price, one pool.
 
-   The realm still has ten sectors — they are what a being belongs
-   to and what the story is told in. They are not a release
-   schedule any more. Everything mints together.
+   There are no rounds and no sectors. A being is its tier and its
+   traits, and that is the whole of it. The ten chapters below are
+   the story of the realm — they are writing, not a container, and
+   nothing is counted in them.
    ============================================================ */
 
 const CONFIG = {
@@ -44,19 +45,7 @@ const CONFIG = {
    THE SHAPE OF IT
    ============================================================ */
 
-/* Ten sectors of 111, and the tenth holds one more — the Source, the
-   1,111th being, of which there is exactly one. */
-const SECTOR_COUNT   = 10;
-const PER_SECTOR     = 111;
-const EXTRA_IN_LAST  = 1;
-const TOTAL_BEINGS   = PER_SECTOR * SECTOR_COUNT + EXTRA_IN_LAST;   // 1,111
-
-/* how many beings sector i (1-10) holds */
-function sectorSize(i) {
-  return PER_SECTOR + (i === SECTOR_COUNT ? EXTRA_IN_LAST : 0);
-}
-
-/* One price for everything. No ladder, no rounds. */
+/* One price for everything. */
 const PRICE = 0.25;
 
 /* Nobody may hold more than this many from the mint. */
@@ -68,32 +57,26 @@ const ROYALTY_PERCENT = 5;
 /* ============================================================
    THE BEINGS
 
-   `perSector` is how many of that tier live in EACH of the ten
-   sectors, which is why the counts look like the old per-round
-   table — they are. The same 111 beings, ten times over, minted
-   in one go instead of ten.
-
-   `total` is the whole collection, and the eight tiers plus the
-   Source must add up to TOTAL_BEINGS.
+   Nine tiers. The counts are the whole collection — there is no
+   smaller unit they are divided into — and they must add up to
+   TOTAL_BEINGS.
    ============================================================ */
 const TIERS = [
-  { name: "Common",    key: "common",    perSector: 40, weight:   1, color: "#9ca3af", accent: "#e5e7eb" },
-  { name: "Uncommon",  key: "uncommon",  perSector: 28, weight:   2, color: "#34d399", accent: "#a7f3d0" },
-  { name: "Rare",      key: "rare",      perSector: 18, weight:   4, color: "#3b82f6", accent: "#67e8f9" },
-  { name: "Epic",      key: "epic",      perSector: 11, weight:   7, color: "#a855f7", accent: "#f0abfc" },
-  { name: "Legendary", key: "legendary", perSector:  7, weight:  12, color: "#f59e0b", accent: "#fde68a" },
-  { name: "Mythic",    key: "mythic",    perSector:  4, weight:  20, color: "#ef4444", accent: "#fb923c" },
-  { name: "Entity",    key: "entity",    perSector:  2, weight:  34, color: "#a5f3fc", accent: "#c4b5fd" },
-  { name: "God",       key: "god",       perSector:  1, weight:  55, color: "#fde68a", accent: "#ffffff" },
+  { name: "Common",    key: "common",    count: 400, weight:   1, color: "#9ca3af", accent: "#e5e7eb" },
+  { name: "Uncommon",  key: "uncommon",  count: 280, weight:   2, color: "#34d399", accent: "#a7f3d0" },
+  { name: "Rare",      key: "rare",      count: 180, weight:   4, color: "#3b82f6", accent: "#67e8f9" },
+  { name: "Epic",      key: "epic",      count: 110, weight:   7, color: "#a855f7", accent: "#f0abfc" },
+  { name: "Legendary", key: "legendary", count:  70, weight:  12, color: "#f59e0b", accent: "#fde68a" },
+  { name: "Mythic",    key: "mythic",    count:  40, weight:  20, color: "#ef4444", accent: "#fb923c" },
+  { name: "Entity",    key: "entity",    count:  20, weight:  34, color: "#a5f3fc", accent: "#c4b5fd" },
+  { name: "God",       key: "god",       count:  10, weight:  55, color: "#fde68a", accent: "#ffffff" },
 
-  /* The 1,111th. One in the whole collection, in no sector and every
-     sector, and the only being that is not one of ten of its kind. */
-  { name: "Source",    key: "source",    perSector:  0, weight: 111, color: "#fff7d6", accent: "#ffffff",
-    only: EXTRA_IN_LAST }
+  /* The 1,111th. One in the whole collection, and the only being that is
+     not one of a set. */
+  { name: "Source",    key: "source",    count:   1, weight: 111, color: "#fff7d6", accent: "#ffffff" }
 ];
 
-/* how many of a tier exist in the whole collection */
-TIERS.forEach(t => t.count = t.perSector * SECTOR_COUNT + (t.only || 0));
+const TOTAL_BEINGS = TIERS.reduce((a, t) => a + t.count, 0);   // 1,111
 
 /* ============================================================
    WHAT HOLDERS GET
@@ -104,7 +87,14 @@ TIERS.forEach(t => t.count = t.perSector * SECTOR_COUNT + (t.only || 0));
    Your slice of it:
      (your beings' weights added up)
        x your token multiplier
-       x your pilgrim multiplier
+
+   It used to be three things multiplied, the third being a bonus
+   for holding across sectors. Sectors are gone, and there is no
+   honest way to rebase that bonus on anything a holder actually
+   chooses — which tier a mint gives you is luck, so a bonus for
+   holding a spread of them would only be a bonus for being lucky
+   twice. Two things multiplied is also simply easier to explain,
+   and this mechanism has to be explainable.
    ============================================================ */
 
 const POOL_PERCENT = 75;
@@ -129,21 +119,14 @@ const TOKEN_BANDS = [
   { hold:  10000000, mult: 4.0 }    // the ceiling; it stops climbing here
 ];
 
-/* Holding across sectors. Five beings is the most anyone may hold, so
-   five sectors is the most anyone can spread across — and the ceiling is
-   set to land exactly there. A ceiling nobody can reach is a lie told in
-   a table. */
-const PILGRIM_STEP = 0.1;
-const PILGRIM_MAX  = 1 + (MAX_PER_WALLET - 1) * PILGRIM_STEP;   // 1.4
+/* ============================================================
+   THE STORY
 
-/* what holding beings across `n` different sectors multiplies by */
-function pilgrimFor(n) {
-  return Math.min(PILGRIM_MAX, 1 + (Math.max(1, n) - 1) * PILGRIM_STEP);
-}
-
-/* The ten sectors, in the order they open.
-   `hue` tints that sector's sky in the immersive realm (0-360). */
-const SECTORS = [
+   Ten chapters of the realm. They are lore and nothing else: no
+   being belongs to one, nothing is counted in them, and holding
+   a particular being does not get you a particular chapter.
+   ============================================================ */
+const CHAPTERS = [
   { name: "The Threshold", hue: 270,
     lore: "You do not arrive here. You are delivered. The Threshold is the held breath between the room you left and everything after it — a curtain of moving light that recognises you before you recognise yourself. The first beings wait at the edge, and they have been expecting you for longer than you have existed." },
   { name: "The Chrysanthemum", hue: 320,
@@ -169,12 +152,12 @@ const SECTORS = [
 /* ============================================================
    HOW MUCH OF THE STORY IS OPEN
 
-   The ten rounds used to unseal the lore one chapter at a time, and
-   that was the best thing about them. It survives: a chapter opens for
-   every tenth of the mint that goes. Nothing is gated behind a wallet
-   — it opens for everybody at once, as the drop fills.
+   A chapter opens for every tenth of the mint that goes. Nothing is
+   gated behind a wallet — it opens for everybody at once, as the drop
+   fills.
    ============================================================ */
 function chaptersOpen() {
-  const gone = Math.min(CONFIG.minted, TOTAL_BEINGS);
-  return Math.min(SECTOR_COUNT, Math.max(1, Math.ceil(gone / TOTAL_BEINGS * SECTOR_COUNT)));
+  const gone = Math.min(Math.max(CONFIG.minted, 0), TOTAL_BEINGS);
+  return Math.min(CHAPTERS.length,
+                  Math.max(1, Math.ceil(gone / TOTAL_BEINGS * CHAPTERS.length)));
 }

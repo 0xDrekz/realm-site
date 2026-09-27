@@ -116,23 +116,21 @@ what gets measured.
 
     python3 tools/drop.py [out-dir]
 
-1,111 beings in one pass: ten sectors of 111, numbered straight through, and
-then the 1,111th, which is the Source. It checks its own work and refuses to
-finish if anything is off.
+1,111 beings in one pass: 1,110 generated, then the Source, which is not
+generated. It checks its own work and refuses to finish if anything is off.
 
-`tools/round.py` still makes a single sector of 111 — `drop.py` calls it ten
-times with a running offset and a **shared set of used combinations**. That
-shared set is the point: without it, sector four could repeat sector one
-exactly and every per-sector check would still pass.
+`tools/round.py` is the machinery and is not run directly. It keeps its old
+name because everything in it still applies; only the shape of the release
+changed.
 
 Every image is 2400 x 2400. A whole drop is about 75 MB.
 
 ## The tier counts are dealt, not rolled
 
-Per sector: 40 Common, 28 Uncommon, 18 Rare, 11 Epic, 7 Legendary, 4 Mythic,
-2 Entity, 1 God. The list is built to those exact counts and shuffled, so a
-sector cannot come out with two Gods or none. Ten sectors gives 400/280/180/
-110/70/40/20/10, and the Source is the 1,111th.
+400 Common, 280 Uncommon, 180 Rare, 110 Epic, 70 Legendary, 40 Mythic,
+20 Entity, 10 God — and the Source is the 1,111th. The list is built to those
+exact counts and shuffled, so the collection cannot come out with nine Gods
+or eleven.
 
 ## Whole-number scaling
 
@@ -141,18 +139,18 @@ with the drawing cut at 480 so it is never resampled by a fraction.
 
 ## A unique combination is not enough at the top
 
-The first round generated had two Entities that were both Deep, two Mythics
-both Void, and two Legendaries both Bone. Every one was a unique combination
-and every one read as the same picture as its twin. So for any tier with
-seven or fewer in a sector the colourway is dealt without replacement.
+An early run had two Entities that were both Deep, two Mythics both Void,
+and two Legendaries both Bone. Every one was a unique combination and every
+one read as the same picture as its twin. So for the scarce tiers — 20 or
+fewer, which is Entity and God — the colourway is dealt without replacement,
+and the ten Gods wear as many different schemes as there are to wear.
 
 ## What is checked before it will finish
 
 - 1,111 beings, and the tier counts exactly as above
-- ten sectors of 111, with the Source counted in the tenth
 - ids 1 to 1,111, each exactly once, no gaps
-- every combination of being, colourway and trait unique **across the whole
-  drop**, not merely within a sector
+- every combination of being, colourway and trait unique across the whole
+  collection
 - every image present, 2400 x 2400, and not blank
 
 It prints the problems and exits rather than writing a drop that is wrong.
