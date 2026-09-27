@@ -193,14 +193,24 @@ The fanged one's third eye is a marking, not an opening, so nothing that
 looks for holes will ever find it. Those are named by hand in `beings.json`:
 
 ```json
-"extra_eyes": [[0.405, 0.316, 0.032, 0.047]]
+"extra_eyes": [[0.405, 0.316]]
 ```
 
-across and down, then half-width and half-height — all fractions of the
-picture. Three numbers instead of four makes a circle; four makes an
-ellipse, which real eyes usually are. The fanged one's outer eye is half
-again as tall as it is wide, and a circle either misses it or spills past
-it.
+**Two numbers names a point, and the dark shape that point lands in is taken
+whole.** The eye keeps the almond it was drawn as, with its lit slit left
+showing through, exactly like the eyes the finder gets on its own.
+
+Stamping a shape over it instead — a circle, then an ellipse sized from the
+art — gives a flat blob with a dot in it. It is the right size and the wrong
+thing: the artist drew an eye and it painted a lozenge.
+
+One wrinkle. An eye's own middle is usually its brightest part, because
+these have a lit slit down the centre, so a point placed at the eye's centre
+lands on the slit and finds nothing dark. The search works outward from the
+point until it meets the shape it belongs to.
+
+Three or four numbers still make a circle or an ellipse, for a marking that
+is painted rather than open and so has no shape of its own to take.
 
 The fanged one has **three** eyes: two inner ones the finder gets on its own,
 and one outer on its left which is not enclosed — it opens into the shadow

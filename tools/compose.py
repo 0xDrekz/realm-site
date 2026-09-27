@@ -114,11 +114,50 @@ def eyes(alpha, thresh=96, head=0.42, extra=None):
     # the fanged one's third eye is a marking, not an opening. Those are
     # named by hand in beings.json as (across, down, radius), all fractions.
     if extra:
+        # Two numbers is a POINT, and that is the right way to name an eye:
+        # the dark shape the point lands in is taken whole, so the eye keeps
+        # the almond it was drawn as, with its bright slit inside. Painting a
+        # circle or an ellipse over it instead gives a flat blob with a dot
+        # in it, which is not what the artist drew.
+        #
+        # Three or four numbers still make a circle or an ellipse, for a
+        # marking that is painted rather than open and so has no shape to
+        # take.
+        body = ndimage.binary_fill_holes(alpha > 20)
+        dark = body & (alpha <= thresh)
+        dlab, _ = ndimage.label(dark)
+        cap = body.sum() * 0.06          # a whole wing shadow is not an eye
         yy, xx = np.mgrid[0:h, 0:w]
+
         for e in extra:
-            # three numbers is a circle; four is an ellipse, which real eyes
-            # usually are — the fanged one's outer eye is half again as tall
-            # as it is wide, and a circle either misses it or spills past it
+            if len(e) == 2:
+                ex, ey_ = e
+                px, py = int(ex * w), int(ey_ * h)
+
+                # The point names an eye, not a pixel. An eye's own middle is
+                # usually its brightest part — these have a lit slit down the
+                # centre — so landing exactly on it finds nothing dark. Look
+                # outward from the point for the shape it belongs to.
+                hit = 0
+                if 0 <= px < w and 0 <= py < h:
+                    reach = max(4, int(min(h, w) * 0.04))
+                    for rad in range(0, reach):
+                        ys_ = slice(max(0, py-rad), min(h, py+rad+1))
+                        xs_ = slice(max(0, px-rad), min(w, px+rad+1))
+                        near = dlab[ys_, xs_]
+                        vals = near[near > 0]
+                        if vals.size:
+                            hit = int(np.bincount(vals).argmax())
+                            break
+                if hit:
+                    region = dlab == hit
+                    if region.sum() <= cap:
+                        mask |= region
+                        continue
+                # nothing dark there, or it ran into the wing: a small mark
+                r = max(3, int(min(h, w) * 0.02))
+                mask |= ((xx - px) ** 2 + (yy - py) ** 2) <= r * r
+                continue
             if len(e) == 4:
                 ex, ey_, rx, ry = e
             else:
