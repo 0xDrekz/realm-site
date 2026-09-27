@@ -195,6 +195,181 @@
     [i === steps ? `${i + 1} sectors or more` : (i ? `${i + 1} sectors` : "1 sector"),
      (1 + i * PILGRIM_STEP).toFixed(2) + "×", i === steps]));
 
+  /* ---------- the earnings chart ----------
+     Every holding a wallet can legally have, priced round by round.
+
+     Two figures per holding, because one on its own would be a lie. The
+     token and pilgrim multipliers scale YOUR weight, not the pool, so what
+     they are worth depends entirely on what everybody else is holding:
+
+       even field   every holder carrying the same multiplier as you. The
+                    multipliers cancel and your slice is your weight over
+                    the round's 532 points. This is the honest baseline.
+       best case    you at the top token band and the pilgrim ceiling with
+                    nobody else multiplied at all. A ceiling, not a forecast.
+
+     A real round sits between them, and nearer the first.
+
+     Nothing here is typed in. Change a weight, a price or a tier count in
+     the constants above and the whole chart follows. */
+  const TOP_MULT = TOKEN_BANDS[TOKEN_BANDS.length - 1].mult;
+
+  /* You cannot hold across more sectors than have opened, so in the early
+     rounds the pilgrim bonus cannot reach the ceiling its own table shows. */
+  const pilgrimCap = n => Math.min(PILGRIM_MAX, 1 + (n - 1) * PILGRIM_STEP);
+
+  const evenPay = (n, w) => poolFor(n) * w / roundWeight;
+  const bestPay = (n, w) => {
+    const mine = w * TOP_MULT * pilgrimCap(n);
+    return poolFor(n) * mine / (roundWeight - w + mine);
+  };
+
+  /* what a holding has to weigh before it returns its own mint price */
+  const breakEven = n => roundWeight / (supplyFor(n) * POOL_PERCENT / 100);
+
+  const n_  = v => `<span class="num">${v}</span>`;
+  const net = v => `<i class="num ${v < 0 ? "ch-down" : "ch-up"}">`
+                 + (v < 0 ? "−" : "+") + Math.abs(v).toFixed(3) + "</i>";
+  /* the figure, and under it what is left once the mint is paid */
+  const takeaway = (got, cost) =>
+    ({ h: `<b class="num">${got.toFixed(3)}</b>` + net(got - cost), cls: "ch-v" });
+
+  function table(el, cols, head, body) {
+    if (!el) return;
+    el.innerHTML = "";
+    el.style.setProperty("--cols", cols);
+    const cell = (html, cls) => {
+      const d = document.createElement("div");
+      d.className = cls;
+      d.innerHTML = html;
+      return d;
+    };
+    head.forEach(h => el.appendChild(cell(h, "ch-h")));
+    body.forEach(row => row.cells.forEach((c, i) => {
+      const o = typeof c === "object" ? c : { h: c };
+      const d = cell(o.h, [i === 0 ? "ch-lab" : "", row.lit ? "ch-in" : "", o.cls || ""]
+        .filter(Boolean).join(" "));
+      if (i === 0 && row.color) d.style.color = row.color;
+      el.appendChild(d);
+    }));
+  }
+
+  /* ---- the ten rounds ---- */
+  const poolNote = $("[data-ch-poolnote]");
+  if (poolNote) poolNote.innerHTML =
+    `A round's pool is ${n_(POOL_PERCENT)}% of what that round's mint took, paid when it `
+    + `sells out. Rounds never share. The last column is what a single weight point `
+    + `pays — a Common is ${n_(1)} point, a God is ${n_(TIERS[TIERS.length - 1].weight)}.`;
+
+  table($("[data-ch-pools]"), "1fr .8fr 1fr 1.1fr",
+    ["Round", "Mint", "Pool", "Per point"],
+    [...Array(10)].map((_, i) => {
+      const n = i + 1;
+      return {
+        lit: n === round,
+        cells: [`Round ${n_(n)}`, n_(priceFor(n).toFixed(2)),
+                n_(poolFor(n).toFixed(2)), n_((poolFor(n) / roundWeight).toFixed(4))]
+      };
+    }));
+
+  /* ---- every holding, for one round at a time ----
+     Ten rounds as ten columns would need sideways scrolling on a phone, and
+     anything you have to scroll sideways to reach does not get read. So the
+     round is chosen instead. */
+  const lede2 = $("[data-ch-lede]");
+  if (lede2) lede2.innerHTML =
+    `Three beings is the most one wallet may hold in a round — and no round holds `
+    + `three Entities or three Gods, so those stop where the round does. Tap a round.`;
+
+  function detail(n) {
+    const price = priceFor(n);
+    const body  = [];
+
+    /* the anchor: what three mints return on average, which is exactly the
+       75% coming back. Everything above this line is paid for by everything
+       below it. */
+    const avgW = 3 * roundWeight / supplyFor(n);
+    body.push({
+      lit: true,
+      cells: [`Any ${n_(3)} mints`,
+              n_((3 * price).toFixed(2)),
+              takeaway(evenPay(n, avgW), 3 * price),
+              n_(bestPay(n, avgW).toFixed(3))]
+    });
+
+    TIERS.forEach(t => {
+      for (let q = 1; q <= Math.min(3, t.count); q++) {
+        const w = t.weight * q, cost = q * price;
+        body.push({
+          color: t.color,
+          lit: t.key === "god",
+          cells: [`${t.name} <span class="num">×${q}</span>`,
+                  n_(cost.toFixed(2)),
+                  takeaway(evenPay(n, w), cost),
+                  n_(bestPay(n, w).toFixed(3))]
+        });
+      }
+    });
+
+    table($("[data-ch-table]"), "1.45fr .7fr 1fr .9fr",
+      ["Holding", "Mint cost", "Even field", "Best case"], body);
+
+    const foot = $("[data-ch-foot]");
+    if (foot) foot.innerHTML =
+      `All figures in SOL. The first row is what any ${n_(3)} mints return on average — `
+      + `exactly the ${n_(POOL_PERCENT)}% coming back — and every holding that beats it is `
+      + `paid for by one that does not. `
+      + `<b>Even field</b> is what your weight alone earns, with every `
+      + `holder on the same multiplier as you — they cancel out, and this is the honest `
+      + `baseline. <b>Best case</b> is you at ${n_(TOP_MULT.toFixed(1))}× tokens and `
+      + `${n_(pilgrimCap(n).toFixed(2))}× pilgrim with nobody else multiplied at all; `
+      + `it falls the moment anyone else buys tokens, so it is a ceiling and not a forecast. `
+      + `The small figure is what is left once the mint is paid. A holding needs `
+      + `${n_(breakEven(n).toFixed(1))} points to return its own mint price, so `
+      + `<b>${TIERS.find(t => t.weight >= breakEven(n)).name}</b> is the first tier that pays `
+      + `for itself — in every round, because the price cancels. And you do not choose your `
+      + `tier: it is sealed until the reveal.`;
+  }
+
+  const picker = $("[data-ch-rounds]");
+  if (picker) {
+    [...Array(10)].forEach((_, i) => {
+      const n = i + 1;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = n_(n);
+      b.setAttribute("aria-pressed", String(n === round));
+      b.setAttribute("aria-label", "Round " + n);
+      b.addEventListener("click", () => {
+        [...picker.children].forEach(c => c.setAttribute("aria-pressed", "false"));
+        b.setAttribute("aria-pressed", "true");
+        detail(n);
+      });
+      picker.appendChild(b);
+    });
+  }
+  detail(round);
+
+  /* ---- one of a tier in every round ---- */
+  const allTen = [...Array(10)].map((_, i) => i + 1);
+  const tenCost = allTen.reduce((a, n) => a + priceFor(n), 0);
+  table($("[data-ch-ten]"), "1.2fr .8fr 1.05fr 1fr",
+    ["Tier", "Ten mints", "Even field", "Best case"],
+    TIERS.map(t => ({
+      color: t.color,
+      lit: t.key === "god",
+      cells: [t.name, n_(tenCost.toFixed(2)),
+              takeaway(allTen.reduce((a, n) => a + evenPay(n, t.weight), 0), tenCost),
+              n_(allTen.reduce((a, n) => a + bestPay(n, t.weight), 0).toFixed(2))]
+    })));
+
+  const tenFoot = $("[data-ch-tenfoot]");
+  if (tenFoot) tenFoot.innerHTML =
+    `One being in every round costs ${n_(tenCost.toFixed(2))} SOL in mints, and holding `
+    + `across all ten sectors is also what takes the pilgrim bonus to its ceiling. The `
+    + `bottom row means holding every God there will ever be, so treat it as the edge of `
+    + `what is possible rather than a plan.`;
+
   const fine = $("[data-rw-fine]");
   if (fine) fine.textContent =
     `Most of a round's pool is that round's own mint money coming back, shared out unevenly. `

@@ -247,6 +247,54 @@ paste the link into `mintLink`.
 
 ---
 
+## The earnings chart
+
+The bottom of the Rewards panel holds three tables: the ten rounds and what
+each one's pool comes to, every holding a wallet can legally have priced for
+a chosen round, and what one being of each tier in all ten rounds adds up to.
+
+**Not a single number in it is typed in.** They are all worked out from the
+constants in `data.js` when the page loads, so changing a price, a weight, a
+tier count or `POOL_PERCENT` moves the whole chart with it. There is nothing
+to keep in step by hand and nothing that can quietly go stale.
+
+### Why every holding has two figures
+
+The token and pilgrim multipliers scale **your weight, not the pool**. So
+what a multiplier is worth depends entirely on what everybody else is
+holding, and a single number would be a lie whichever one was chosen.
+
+- **Even field** — every holder carrying the same multiplier as you. They
+  cancel out and your slice is simply your weight over the round's 532
+  points. This is the honest baseline.
+- **Best case** — you at the top token band and the pilgrim ceiling with
+  nobody else multiplied at all. It falls the moment anyone else buys
+  tokens, so it is a ceiling and not a forecast.
+
+A real round lands between them, and nearer the first.
+
+### The line the chart is built around
+
+The first row is what any three mints return **on average**, which is exactly
+the 75% coming back. Every holding that beats that line is paid for by one
+that does not.
+
+A holding has to weigh 6.4 points to return its own mint price, so Epic is
+the first tier that pays for itself — and that is true in every round,
+because the mint price cancels out of both sides. Everything below Epic
+loses money at the even field. The chart says so in green and red rather
+than hiding it, which is the only defensible way to publish it.
+
+### Checking it
+
+`tools/chart-check` is not in the repo — it lives in the scratchpad — but the
+method is worth keeping: open the page, read the numbers back out of the
+DOM, and compare them to the same sums done again from scratch. 220 holding
+figures, 10 pool rows and 8 ten-round rows were checked that way, and the
+panel was measured for sideways overflow at phone width.
+
+---
+
 ## The beings shown on the site
 
 `preview/<tier>.png` — eight pictures, one per tier, shown beside the tier
