@@ -362,3 +362,52 @@ reward for a decision nobody actually gets to make.
 
 Two things multiplied is also simply easier to explain, and a mechanism that
 pays people money has to be explainable.
+
+---
+
+## The reveal, and the provenance hash
+
+**There is no delayed reveal.** You see what you minted the moment you mint it.
+
+The site used to say the beings were sealed until the mint closed, and that
+"nobody, including us, knows which tier a mint holds." That second sentence
+was not true. `drop.py` makes all 1,111 beings before anyone mints — every
+tier is decided and sitting in a folder. It has been removed.
+
+Delayed reveal is not what makes a mint honest. A delay without a published
+hash is the *less* trustworthy arrangement, because during the gap the people
+running it know the assignment and the buyers do not. That gap is where
+insider sniping happens, and it is why people distrust delayed reveals.
+
+Instant reveal also suits this collection specifically: the pool pays on
+weight, and weight is public. Somebody who can see what they hold can work
+out their slice and decide whether to mint again or buy $DMT. Hiding it
+blinds exactly the decision the token depends on.
+
+### The hash
+
+`python3 tools/drop.py` prints it, and writes `provenance.json` with every
+image's own hash beside it. Each image is hashed, the hashes are joined in
+token order, and that string is hashed again.
+
+Put it in `data.js`:
+
+```js
+provenance: "b4be1f3a…",
+```
+
+**Publish it before the gate opens** — in `data.js`, on X, anywhere
+time-stamped. It is worth nothing published afterwards, because the entire
+point is that it existed before anybody could see what they were buying.
+While it is `""` the Beings panel says so plainly rather than showing nothing.
+
+### Say only what it proves
+
+It proves **the collection handed out is the collection that was hashed** —
+unaltered, unreordered. Change one pixel of one being, or swap two of them
+over, and it will not match.
+
+It does **not** prove how mint order was assigned to token number. That is
+the launchpad's shuffle, not ours. The site says both halves of this, in the
+FAQ and beside the hash itself, and the checker fails if the page shows a
+hash without stating the second half.

@@ -27,6 +27,19 @@ const CONFIG = {
      than pretending there is one. */
   mintCloses: "",
 
+  /* The provenance hash, printed by `python3 tools/drop.py` when the
+     collection is generated.
+
+     PUBLISH IT BEFORE THE MINT OPENS — here, on X, anywhere time-stamped.
+     It is worth nothing published afterwards, because the whole point is
+     that it existed before anybody could see what they were buying.
+
+     What it proves: the collection handed out is the collection that was
+     hashed, unaltered and unreordered. What it does NOT prove: how mint
+     order was assigned to token number — that is the launchpad's shuffle.
+     Say only the first thing. */
+  provenance: "",
+
   // Social + marketplace links.
   links: {
     x: "https://x.com/dmt_realm",

@@ -11,7 +11,7 @@ There are no rounds and no sectors. The collection is made in one pass, which
 is what lets uniqueness be checked across the whole thing — the check that
 actually matters.
 """
-import json, os, sys
+import hashlib, json, os, sys
 import numpy as np
 from PIL import Image
 
@@ -79,6 +79,38 @@ def make_source(out_dir, n, rng):
     return row
 
 
+# ---- provenance ----------------------------------------------------------
+# A record, published BEFORE the mint opens, that proves afterwards that the
+# collection nobody had seen is the collection that was handed out.
+#
+# Each image is hashed, the hashes are joined in token order, and that string
+# is hashed again. Change one pixel of one being, or swap two of them around,
+# and the final hash changes completely.
+#
+# BE HONEST ABOUT WHAT THIS PROVES. It proves the collection was not altered
+# after the hash was published. It does NOT prove that the mapping from mint
+# order to token number was fair — that is the launchpad's shuffle, not ours,
+# and it needs its own answer. Saying more than this is the thing the hash
+# exists to stop.
+def provenance(rows, out_dir):
+    each = []
+    for r in sorted(rows, key=lambda r: r["id"]):
+        h = hashlib.sha256(open(r["png"], "rb").read()).hexdigest()
+        each.append({"id": r["id"], "sha256": h})
+    joined = "".join(e["sha256"] for e in each)
+    final = hashlib.sha256(joined.encode()).hexdigest()
+
+    json.dump({"hash": final, "count": len(each),
+               "how": ("sha256 of each image, concatenated in token order, "
+                       "sha256 of the result"),
+               "proves": ("that the collection was not altered after this hash "
+                          "was published. It does not prove how mint order was "
+                          "assigned to token number."),
+               "images": each},
+              open(f"{out_dir}/provenance.json", "w"), indent=2)
+    return final
+
+
 # ---- checking the whole drop --------------------------------------------
 def verify(rows, out_dir):
     bad = []
@@ -139,6 +171,11 @@ def main():
 
     json.dump(rows, open(f"{out}/drop.json", "w"), indent=2)
     verify(rows, out)
+
+    h = provenance(rows, out)
+    print(f"\nprovenance hash\n  {h}\n"
+          "\nPublish this BEFORE the mint opens — in data.js, on X, anywhere\n"
+          "time-stamped. It is worth nothing published afterwards.")
 
 
 if __name__ == "__main__":

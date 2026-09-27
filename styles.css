@@ -251,6 +251,18 @@ canvas{
 /* the chart sets its own size on numbers; the site-wide bump is for prose */
 .ch-table .num{font-size:inherit}
 
+/* ---------- the provenance hash ----------
+   64 hex characters on a phone can only be read if it wraps anywhere and
+   the figures line up, so it breaks mid-word on purpose. */
+.prov{
+  padding:12px 14px;background:var(--ink);border:1px solid var(--line);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  font-size:.74rem;line-height:1.7;letter-spacing:.04em;color:var(--gold);
+  word-break:break-all;overflow-wrap:anywhere;
+}
+.prov.waiting{color:var(--faint);letter-spacing:.14em;text-transform:uppercase;
+  font-family:'Pixelify Sans',system-ui,sans-serif;font-size:.72rem}
+
 /* ---------- the story ---------- */
 .chapters{display:grid;gap:14px}
 .chapter{padding:20px;border:1px solid var(--line);background:var(--ink)}

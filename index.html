@@ -64,7 +64,7 @@
       <div><dt>Taken</dt><dd id="st-supply"></dd></div>
       <div><dt>Mint</dt><dd id="st-status"></dd></div>
     </dl>
-    <p class="terms">Solana &middot; <span data-max></span> per wallet &middot; sealed until reveal</p>
+    <p class="terms">Solana &middot; <span data-max></span> per wallet &middot; revealed the moment you mint</p>
   </div>
 </main>
 
@@ -92,7 +92,7 @@
     <div class="mint-card">
       <div class="mint-head">
         <span class="pill"><span data-total></span> beings</span>
-        <span class="pill soft">Sealed until reveal</span>
+        <span class="pill soft">Revealed instantly</span>
       </div>
       <p class="price"><b data-price></b><i>to mint &middot; max <span data-max></span> per wallet</i></p>
       <div class="bar"><div class="bar-fill" data-bar></div></div>
@@ -115,7 +115,11 @@
     <h2>The Beings</h2>
     <p class="lede"><span data-tiers></span> tiers across <span data-total></span> beings. Ten Gods will ever exist, and above all of them, one Source — there is a single one and there will never be another.</p>
     <div class="tiers"></div>
-    <p class="fine">Every being stays sealed until the mint closes. Nobody, including us, knows which tier a mint holds until the reveal.</p>
+    <p class="fine">You see what you minted straight away. The collection is made before the mint opens and its provenance hash is published first, so it can be checked afterwards that nothing was altered or reordered.</p>
+
+    <p class="eyebrow rw-label">Provenance</p>
+    <div class="prov" data-prov></div>
+    <p class="ch-foot" data-prov-note></p>
   </div>
 </section>
 
@@ -190,9 +194,20 @@
     <details><summary>What chain is REALM on?</summary>
       <p>Solana. You'll need a Solana wallet such as Phantom, Solflare or Backpack, and some SOL
       for the mint and network fees.</p></details>
-    <details><summary>Do I know which tier I'm getting?</summary>
-      <p>No. Every being stays sealed until the mint closes and the reveal happens. That keeps
-      the rare tiers fair.</p></details>
+    <details><summary>When do I find out what I got?</summary>
+      <p>Immediately. There is no delayed reveal — you see your being the moment it is minted.
+      You cannot choose your tier, but you are not kept waiting to learn it either, and you can
+      decide whether to mint again knowing what you already hold.</p></details>
+    <details><summary>How do I know it isn't rigged?</summary>
+      <p>The whole collection is made before the mint opens, and a <b>provenance hash</b> of it
+      is published before anyone can buy. Every image is hashed, the hashes are joined in token
+      order, and that is hashed again. Afterwards anyone can repeat it on the finished
+      collection: if a single being had been altered, or two swapped around, the hash would not
+      match.</p>
+      <p>Be clear about what that does and does not prove. It proves the collection handed out
+      is the collection that was hashed. It does not by itself prove how mint order was assigned
+      to token number — that is the launchpad&rsquo;s shuffle, and its fairness rests on the
+      launchpad, not on us.</p></details>
     <details><summary>What if it doesn't sell out?</summary>
       <p>The gate shuts on <span data-closes></span> whether or not every being is taken, and
       the pool pays on what was actually minted. The pool is a share of the money that came in,

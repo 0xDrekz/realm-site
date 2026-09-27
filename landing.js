@@ -158,6 +158,28 @@
     tiersEl.appendChild(el);
   });
 
+  /* ---------- provenance ----------
+     The hash is the whole of the honesty claim, so the panel states plainly
+     which of the two things it proves, and says so even while it is empty
+     rather than quietly showing nothing. */
+  const provEl = $("[data-prov]");
+  if (provEl) {
+    const hash = (CONFIG.provenance || "").trim();
+    provEl.textContent = hash || "not published yet";
+    provEl.classList.toggle("waiting", !hash);
+  }
+  const provNote = $("[data-prov-note]");
+  if (provNote) provNote.innerHTML = (CONFIG.provenance || "").trim()
+    ? "Every image was hashed, the hashes joined in token order, and that hashed again. "
+      + "Repeat it on the finished collection and it must come out the same — if one being "
+      + "had been altered, or two swapped over, it would not. <b>What this proves:</b> the "
+      + "collection handed out is the collection that was hashed. <b>What it does not "
+      + "prove:</b> how mint order was assigned to token number, which is the launchpad's "
+      + "shuffle rather than ours."
+    : "This is published before the gate opens, never after — the whole point of it is that "
+      + "it existed before anybody could see what they were buying. Until it is here, take "
+      + "nothing on this page as proof of anything.";
+
   /* ---------- rewards ----------
      Every number here comes out of data.js, so the panel cannot drift
      away from the mechanism the way prose does. */
@@ -330,7 +352,7 @@
       + `once the mint is paid. A holding needs ${n_(breakEven(TOTAL_BEINGS).toFixed(1))} points `
       + `to return its own mint price, so <b>${
         TIERS.find(t => t.weight >= breakEven(TOTAL_BEINGS)).name}</b> is the first tier that `
-      + `pays for itself. And you do not choose your tier: it is sealed until the reveal.`;
+      + `pays for itself. And you do not choose your tier — it is whatever the mint hands you.`;
   }
 
   const picker = $("[data-ch-qty]");
