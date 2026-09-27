@@ -200,3 +200,51 @@ Wandering a little every step with a branch always possible made a fine web
 that read as cracks in glass. A bolt is mostly straight; it is the sudden
 angles that make it read as one. The bolts are also drawn thick with a wide
 dim halo, because a one-pixel bolt at any distance is a gold thread.
+
+
+---
+
+# Rarity decides how loud a picture is
+
+Every tier carries a loudness from 0 to 1 — a Common at 0, the God at 1 —
+and it does three things.
+
+**It tilts every trait roll toward its louder values.** Each trait's values
+are listed quiet first and loud last, and loudness multiplies the odds the
+further down that list a value sits. A God lands on Barrage and Tempest
+often; a Common almost never does.
+
+**It pushes the colour harder.** The vibrancy figure on a colour scheme rises
+with loudness, so the same scheme is richer on a rarer being.
+
+**It makes the being larger.** A Common fills 70% of its frame, the God 85%.
+
+Measured over a generated round, counting how many of explosions, lightning,
+UFOs and planets are present:
+
+| Tier | Loud traits, on average |
+|------|------------------------|
+| Common | 1.00 |
+| Uncommon | 1.86 |
+| Rare | 2.11 |
+| Epic | 2.64 |
+| Legendary | 2.57 |
+| Mythic | 2.50 |
+| Entity | 3.50 |
+| God | 4.00 |
+
+The generator refuses to finish if the rare end is not louder than the
+common end, because a ladder nobody checked is a ladder that quietly breaks.
+
+## The rarest tiers do not draw from the whole set
+
+Weighting the odds toward rare colourways was tried twice and both times a
+God came out in a common colour. At 72% odds of a rare one, a miss is not
+unlikely — it is expected once in four. Whether a God wears a rare colour is
+a rule, not a probability, so the rarest tiers draw from a restricted pool:
+God and Entity from the three rarest colourways, Mythic from four, Legendary
+from five.
+
+That has a consequence worth stating: seven Legendaries drawing from five
+colourways must repeat twice. The check allows exactly that many and no more.
+It failed the first time for measuring against all eight.

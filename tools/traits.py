@@ -317,12 +317,64 @@ def explosions(w, h, kind, pal, seed):
 
 
 def lightning(w, h, kind, pal, seed):
-    """Forked bolts. Each one walks downward, wandering, and throws off
-    branches that wander less far."""
+    """Forked bolts that fall.
+
+    Two things were wrong before. The heading was free to accumulate, so a
+    bolt would curve away sideways and read as a contrail rather than a
+    strike — the heading is clamped near straight down now, and it is the
+    sharp angles inside that cone that make it read. And it was drawn at one
+    thickness the whole way, where a bolt is thick where it starts and thin
+    where it ends, and a fork is always thinner than what it left.
+    """
     r = np.random.default_rng(seed + 307)
     out = _rgba(h, w)
     if kind == "None":
         return out
+    n = {"Strike": 1, "Storm": 2, "Tempest": 4}[kind]
+    core, glow = pal["bolt"], pal["bolt_glow"]
+    DOWN = np.pi / 2
+    CONE = 0.62                     # never more than this far from straight down
+
+    def stroke(x0, y0, x1, y1, thick, alpha_core=255):
+        steps = int(max(abs(x1-x0), abs(y1-y0))) + 1
+        for i in range(steps + 1):
+            t = i / max(steps, 1)
+            ix, iy = int(round(x0 + (x1-x0)*t)), int(round(y0 + (y1-y0)*t))
+            g = thick + 3
+            for dx in range(-g, g+1):
+                for dy in range(-g, g+1):
+                    if dx*dx + dy*dy > g*g:
+                        continue
+                    X, Y = ix+dx, iy+dy
+                    if 0 <= X < w and 0 <= Y < h and out[Y, X, 3] < 120:
+                        out[Y, X] = list(glow) + [90]
+            for dx in range(-thick, thick+1):
+                for dy in range(-thick, thick+1):
+                    X, Y = ix+dx, iy+dy
+                    if 0 <= X < w and 0 <= Y < h:
+                        out[Y, X] = list(core) + [alpha_core]
+
+    def bolt(px, py, length, thick, depth):
+        gone = 0.0
+        while gone < length and 0 <= px < w and py < h:
+            ang = DOWN + r.uniform(-CONE, CONE)     # always downward
+            run = length * r.uniform(0.10, 0.22)
+            nx_ = px + np.cos(ang) * run
+            ny_ = py + np.sin(ang) * run
+            t = gone / max(length, 1)
+            stroke(px, py, nx_, ny_, max(0, int(round(thick * (1 - t*0.72)))))
+            px, py = nx_, ny_
+            gone += run
+            if depth > 0 and r.random() < 0.40:     # a fork, always thinner
+                bolt(px, py, length * r.uniform(0.22, 0.45),
+                     max(0, thick - 1), depth - 1)
+
+    for i in range(n):
+        side = -1 if i % 2 == 0 else 1
+        sx = w/2 + side * r.uniform(w*0.16, w*0.46)
+        bolt(float(np.clip(sx, 6, w-7)), r.uniform(-h*0.02, h*0.06),
+             h * r.uniform(0.55, 0.95), 2, 3)
+    return out
     n = {"Strike": 1, "Storm": 2, "Tempest": 4}[kind]
     core, glow = pal["bolt"], pal["bolt_glow"]
 

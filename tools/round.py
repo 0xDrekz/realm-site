@@ -10,71 +10,96 @@ unique, and the same seed always gives the same round.
 Writes a PNG and a Metaplex JSON per being, then checks its own work and
 refuses to finish if anything is off.
 """
-import json, os, sys, hashlib
+import json, os, sys
 import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, f"{ROOT}/tools")
-from compose import build_on
+from render import render
+from palettes import BY_NAME
+from weaves import WEAVES
 
 BEINGS = json.load(open(f"{ROOT}/art/beings.json"))
 
+# which sky palette goes with which colour scheme
+PALETTE_FOR = {"Regalia": "Void", "Verdant": "Verdigris", "Furnace": "Ember",
+               "Abyss": "Deep", "Ossuary": "Bone", "Auric": "Aurum",
+               "Bloom": "Bloom", "Eclipse": "Eclipse"}
+
 # how many of each tier in a round — must total 111
-COUNTS = {"common":40, "uncommon":28, "rare":18, "epic":11,
-          "legendary":7, "mythic":4, "entity":2, "god":1}
+COUNTS = {"common": 40, "uncommon": 28, "rare": 18, "epic": 11,
+          "legendary": 7, "mythic": 4, "entity": 2, "god": 1}
 
-# canvas in art pixels, and how many screen pixels each becomes.
-# every pair multiplies to 1200 so the scale is always a whole number.
-CANVAS = {"common":(80,15), "uncommon":(100,12), "rare":(150,8), "epic":(240,5),
-          "legendary":(300,4), "mythic":(400,3), "entity":(600,2), "god":(600,2)}
+# Canvas in art pixels, and how many screen pixels each becomes. Every pair
+# multiplies to 2400, so the scale is always a whole number; and each canvas
+# is the tier's rung divided by how much of the frame that tier should fill,
+# so the drawing is never resampled by a fraction either.
+#
+# A rarer being sits on a canvas closer to its own size, so it looms larger:
+# a Common fills 70% of its frame, the God 85%.
+CANVAS = {"common": (120, 20), "uncommon": (160, 15), "rare": (200, 12),
+          "epic": (240, 10), "legendary": (300, 8), "mythic": (400, 6),
+          "entity": (600, 4), "god": (800, 3)}
 
-# ---- the traits ----------------------------------------------------------
-# a field is a whole colourway: the sky, the being, and the eye together, so
-# nothing ever clashes
-FIELDS = [
- ("Void",      18, dict(sky_top=(18,9,42),   sky_bottom=(3,1,10),
-                        being_top=(238,228,255), being_bottom=(126,84,210),
-                        shadow=(26,12,52),  mid=(132,92,196), light_col=(246,236,255),
-                        eye=(255,200,90))),
- ("Ember",     18, dict(sky_top=(52,10,28),  sky_bottom=(12,4,16),
-                        being_top=(255,226,180), being_bottom=(214,86,48),
-                        shadow=(46,18,34),  mid=(196,96,64),  light_col=(255,232,190),
-                        eye=(120,255,230))),
- ("Deep",      18, dict(sky_top=(8,14,54),   sky_bottom=(2,3,14),
-                        being_top=(226,236,255), being_bottom=(70,92,220),
-                        shadow=(14,20,58),  mid=(80,104,200), light_col=(236,242,255),
-                        eye=(255,214,120))),
- ("Verdigris", 16, dict(sky_top=(6,34,38),   sky_bottom=(3,10,18),
-                        being_top=(198,255,236), being_bottom=(46,178,150),
-                        shadow=(8,34,38),   mid=(56,158,138), light_col=(214,255,242),
-                        eye=(255,150,200))),
- ("Bone",      10, dict(sky_top=(30,28,34),  sky_bottom=(6,6,9),
-                        being_top=(255,255,255), being_bottom=(168,166,178),
-                        shadow=(32,30,38),  mid=(150,148,162), light_col=(255,255,255),
-                        eye=(230,60,60))),
- ("Aurum",      6, dict(sky_top=(34,24,6),   sky_bottom=(8,5,3),
-                        being_top=(255,246,214), being_bottom=(227,186,92),
-                        shadow=(40,28,10),  mid=(196,154,72),  light_col=(255,250,228),
-                        eye=(255,255,255))),
-]
+# How loud a tier's picture is allowed to be, 0 to 1. It tilts the trait rolls
+# toward their louder values, pushes the colour harder, and makes the rarer
+# colourways likelier.
+LOUD = {"common": 0.00, "uncommon": 0.14, "rare": 0.28, "epic": 0.42,
+        "legendary": 0.56, "mythic": 0.70, "entity": 0.85, "god": 1.00}
 
-GEOMETRIES = [("None",30,None), ("Diamond",20,0), ("Circle",18,1),
-              ("Square",14,2), ("Halo",12,3), ("Star",6,4)]
-
-LIGHTS = [("Zenith",30,dict(cy=0.35,power=0.8)), ("Dawn",26,dict(cy=0.18,power=0.9)),
-          ("Underlight",20,dict(cy=0.78,power=0.7)), ("Eclipse",16,dict(cy=0.35,power=0.35)),
-          ("Blaze",8,dict(cy=0.42,power=1.3))]
-
-FRAMES = [("None",40,None), ("Hairline",32,dict(inset=2,thick=1)),
-          ("Double",20,dict(inset=4,thick=1)), ("Heavy",8,dict(inset=2,thick=2))]
+# Each trait's values, quiet first and loud last, with how common each is at
+# loudness zero.
+TRAITS = {
+ "Stars":        [("None", 8), ("Sparse", 34), ("Field", 40), ("Dense", 18)],
+ "Geometry":     [("None", 30), ("Lattice", 8), ("Rays", 9), ("Yantra", 9),
+                  ("Mandala", 10), ("Flower", 9), ("Metatron", 8), ("Tree", 7),
+                  ("Gatefold", 6), ("Rosette", 5), ("Spiral", 5), ("Weird", 4)],
+ "GeometryUnder":[("None", 70), ("Flower", 10), ("Mandala", 8), ("Rosette", 7),
+                  ("Lattice", 5)],
+ "Smoke":        [("None", 42), ("Wisp", 30), ("Rising", 20), ("Shroud", 8)],
+ "Dust":         [("None", 44), ("Faint", 28), ("Drifting", 20), ("Heavy", 8)],
+ "UFOs":         [("None", 70), ("One", 16), ("Few", 10), ("Fleet", 4)],
+ "Planets":      [("None", 58), ("One", 22), ("Two", 12), ("Ringed", 6),
+                  ("Cluster", 2)],
+ "Explosions":   [("None", 78), ("One", 13), ("Two", 7), ("Barrage", 2)],
+ "Lightning":    [("None", 76), ("Strike", 14), ("Storm", 7), ("Tempest", 3)],
+ "Eyes":         [("Plain", 40), ("Ringed", 20), ("Slit", 16),
+                  ("Starburst", 12), ("Spiral", 8), ("Void", 4)],
+}
 
 
-def pick(table, rng):
-    names = [t[0] for t in table]
-    w = np.array([t[1] for t in table], float)
-    i = rng.choice(len(table), p=w/w.sum())
-    return names[i], table[i][2]
+def roll(trait, loud, rng):
+    """Pick a value, with loudness tilting the odds toward the far end.
+
+    At loudness 0 the printed weights stand. At 1 each value's weight is
+    multiplied by how far down the list it sits, so a God lands on Barrage
+    and Tempest often and a Common almost never does.
+    """
+    vals = TRAITS[trait]
+    n = len(vals)
+    w = np.array([v[1] for v in vals], float)
+    w = w * np.array([(1.0 + 3.0 * loud) ** (i / max(n - 1, 1) * 3.0)
+                      for i in range(n)])
+    return vals[rng.choice(n, p=w / w.sum())][0]
+
+
+# The rarest tiers do not draw from the whole set. Weighting the odds was
+# tried twice and both times a God came out in a common colourway — at 72%
+# odds of a rare one, a miss is not unlikely, it is expected. Whether a God
+# wears a rare colour is a rule, not a probability.
+POOL = {"god": 3, "entity": 3, "mythic": 4, "legendary": 5}
+
+
+def colourway(tier, loud, rng):
+    """Rarer beings wear rarer colourways."""
+    names = list(WEAVES)                       # common first, rarest last
+    if tier in POOL:
+        names = names[-POOL[tier]:]
+    w = np.array([WEAVES[k]["weight"] for k in names], float)
+    w = w * np.array([(1.0 + 3.0 * loud) ** (i / max(len(names) - 1, 1) * 3.0)
+                      for i in range(len(names))])
+    return names[rng.choice(len(names), p=w / w.sum())]
 
 
 def tier_list():
@@ -94,87 +119,75 @@ def being_for(tier):
 
 def generate(round_no, out_dir):
     tiers = tier_list()
-    total = len(tiers)
-    if total != 111:
-        raise SystemExit(f"the tier counts add up to {total}, not 111")
+    if len(tiers) != 111:
+        raise SystemExit(f"the tier counts add up to {len(tiers)}, not 111")
 
     rng = np.random.default_rng(1110 + round_no)
     rng.shuffle(tiers)
-
     os.makedirs(f"{out_dir}/images", exist_ok=True)
     os.makedirs(f"{out_dir}/metadata", exist_ok=True)
 
-    # At the top of the collection a unique COMBINATION is not enough. Two
-    # Entities that differ only by their frame read as the same picture, and
-    # these are the pieces that are meant to feel singular. So for any tier
-    # with seven or fewer in a round, the colourway is dealt without
-    # replacement: no two share a field until the fields run out.
+    # At the top of the collection a unique combination is not enough — two
+    # Entities that differ only by a trait read as the same picture. For any
+    # tier with seven or fewer in a round the colourway is dealt without
+    # replacement.
     SCARCE = {t for t, n in COUNTS.items() if n <= 7}
-    used_field = {t: set() for t in SCARCE}
+    used = {t: set() for t in SCARCE}
 
     seen, rows = set(), []
     for i, tier in enumerate(tiers, start=1):
         being = being_for(tier)
         info = BEINGS[being]
+        loud = LOUD[tier]
 
-        for _ in range(64):                       # redraw on a collision
-            fname, f = pick(FIELDS, rng)
-            if tier in SCARCE and fname in used_field[tier] \
-               and len(used_field[tier]) < len(FIELDS):
+        for _ in range(120):
+            wname = colourway(tier, loud, rng)
+            pool_n = POOL.get(tier, len(WEAVES))
+            if tier in SCARCE and wname in used[tier] and len(used[tier]) < pool_n:
                 continue
-            gname, gkind = pick(GEOMETRIES, rng)
-            lname, lset = pick(LIGHTS, rng)
-            frname, frset = pick(FRAMES, rng)
-            key = (being, fname, gname, lname, frname)
+            t = {k: roll(k, loud, rng) for k in TRAITS}
+            key = (being, wname) + tuple(t[k] for k in TRAITS)
             if key not in seen:
                 if tier in SCARCE:
-                    used_field[tier].add(fname)
+                    used[tier].add(wname)
                 break
         else:
             raise SystemExit(f"#{i}: could not find an unused combination")
         seen.add(key)
 
         canvas, scale = CANVAS[tier]
-        rec = dict(f)
-        rec["seed"] = int(rng.integers(0, 1 << 30))
-        rec["mode"] = info["mode"]
-        rec["eye_mode"] = info.get("eye_mode", "holes")
-        rec["geometry"] = None if gkind is None else tuple(
-            int(c*0.55) for c in f["being_bottom"])
-        rec["geo_kind"] = gkind or 0
-        rec["light"] = f["light_col"] if lset else None
-        rec["light_power"] = lset["power"]
-        rec["frame"] = tuple(f["being_bottom"]) if frset else None
-        if frset:
-            rec["frame_inset"], rec["frame_thick"] = frset["inset"], frset["thick"]
+        pal = dict(BY_NAME[PALETTE_FOR[wname]])
+        pal["weave"] = dict(WEAVES[wname])
+        pal["weave"]["vivid"] = pal["weave"].get("vivid", 1.0) + loud * 0.30
 
-        img = build_on(f"{ROOT}/art/beings/{being}.png", rec, canvas, scale)
+        img = render(f"{ROOT}/art/beings/{being}.png", pal, t, canvas, scale,
+                     seed=int(rng.integers(0, 1 << 30)),
+                     mode=info["mode"], eye_mode=info.get("eye_mode", "holes"),
+                     fill=info["rung"] / canvas)
         png = f"{out_dir}/images/{i}.png"
         img.save(png, optimize=True)
 
-        meta = {
-            "name": f"REALM #{i}",
-            "symbol": "REALM",
-            "description": "One of 1,111 beings of the realm. "
-                           f"Round {round_no} of 10.",
-            "image": f"{i}.png",
-            "attributes": [
-                {"trait_type": "Tier",     "value": tier.capitalize()},
-                {"trait_type": "Being",    "value": being},
-                {"trait_type": "Field",    "value": fname},
-                {"trait_type": "Geometry", "value": gname},
-                {"trait_type": "Light",    "value": lname},
-                {"trait_type": "Frame",    "value": frname},
-                {"trait_type": "Round",    "value": str(round_no)},
-            ],
-            "properties": {"files": [{"uri": f"{i}.png", "type": "image/png"}],
-                           "category": "image"},
-        }
-        json.dump(meta, open(f"{out_dir}/metadata/{i}.json", "w"), indent=2)
-        rows.append({"id": i, "tier": tier, "being": being, "field": fname,
-                     "geometry": gname, "light": lname, "frame": frname,
-                     "png": png})
+        attrs = [{"trait_type": "Tier", "value": tier.capitalize()},
+                 {"trait_type": "Being", "value": being},
+                 {"trait_type": "Colourway", "value": wname}]
+        for k in ("Geometry", "Stars", "Planets", "UFOs", "Explosions",
+                  "Lightning", "Smoke", "Dust", "Eyes"):
+            attrs.append({"trait_type": k, "value": t[k]})
+        attrs.append({"trait_type": "Round", "value": str(round_no)})
 
+        json.dump({"name": f"REALM #{i}", "symbol": "REALM",
+                   "description": "One of 1,111 beings of the realm. "
+                                  f"Round {round_no} of 10.",
+                   "image": f"{i}.png", "attributes": attrs,
+                   "properties": {"files": [{"uri": f"{i}.png",
+                                             "type": "image/png"}],
+                                  "category": "image"}},
+                  open(f"{out_dir}/metadata/{i}.json", "w"), indent=2)
+
+        row = {"id": i, "tier": tier, "being": being, "colourway": wname,
+               "png": png, "loud": round(loud, 2)}
+        row.update({k: t[k] for k in TRAITS})
+        rows.append(row)
         if i % 20 == 0:
             print(f"  {i}/111")
 
@@ -184,51 +197,64 @@ def generate(round_no, out_dir):
 
 def verify(rows, out_dir):
     """Check the round rather than trust it."""
-    problems = []
+    bad = []
 
     if len(rows) != 111:
-        problems.append(f"{len(rows)} beings, not 111")
+        bad.append(f"{len(rows)} beings, not 111")
 
     got = {}
     for r in rows:
         got[r["tier"]] = got.get(r["tier"], 0) + 1
     for tier, want in COUNTS.items():
         if got.get(tier, 0) != want:
-            problems.append(f"{tier}: {got.get(tier,0)}, wanted {want}")
+            bad.append(f"{tier}: {got.get(tier,0)}, wanted {want}")
 
-    combos = {(r["being"], r["field"], r["geometry"], r["light"], r["frame"])
-              for r in rows}
-    if len(combos) != len(rows):
-        problems.append(f"only {len(combos)} unique combinations for {len(rows)} beings")
+    keys = {(r["being"], r["colourway"]) + tuple(r[k] for k in TRAITS) for r in rows}
+    if len(keys) != len(rows):
+        bad.append(f"only {len(keys)} unique combinations for {len(rows)} beings")
 
-    # every picture must exist, be the right size, and not be flat
-    for r in rows:
-        if not os.path.exists(r["png"]):
-            problems.append(f"#{r['id']}: no image"); continue
-        im = Image.open(r["png"])
-        if im.size != (1200, 1200):
-            problems.append(f"#{r['id']}: {im.size[0]}x{im.size[1]}, not 1200x1200")
-        a = np.asarray(im.convert("L")).astype(float)
-        if a.std() < 4:
-            problems.append(f"#{r['id']}: the picture is nearly blank")
-
-    # no two of a scarce tier may share a colourway while others are free
     for tier, n in COUNTS.items():
         if n > 7:
             continue
-        fs = [r["field"] for r in rows if r["tier"] == tier]
-        dupes = len(fs) - len(set(fs))
-        allowed = max(0, len(fs) - len(FIELDS))
+        cs = [r["colourway"] for r in rows if r["tier"] == tier]
+        dupes = len(cs) - len(set(cs))
+        # against the pool that tier actually draws from, not all eight:
+        # seven Legendaries out of a pool of five must repeat twice
+        allowed = max(0, len(cs) - POOL.get(tier, len(WEAVES)))
         if dupes > allowed:
-            problems.append(f"{tier}: {dupes} repeated colourways, only "
-                            f"{allowed} unavoidable")
+            bad.append(f"{tier}: {dupes} repeated colourways, "
+                       f"only {allowed} unavoidable")
 
-    # every tier's being must be the one assigned to it
     for r in rows:
+        if not os.path.exists(r["png"]):
+            bad.append(f"#{r['id']}: no image"); continue
+        im = Image.open(r["png"])
+        if im.size != (2400, 2400):
+            bad.append(f"#{r['id']}: {im.size[0]}x{im.size[1]}, not 2400x2400")
+        a = np.asarray(im.convert("L")).astype(float)
+        if a.std() < 4:
+            bad.append(f"#{r['id']}: the picture is nearly blank")
         if BEINGS[r["being"]]["tier"] != r["tier"]:
-            problems.append(f"#{r['id']}: {r['being']} is not a {r['tier']}")
+            bad.append(f"#{r['id']}: {r['being']} is not a {r['tier']}")
 
-    return problems
+    # the very top must wear a rare colour, not just a random one
+    RARE_CW = set(list(WEAVES)[-3:])
+    for r in rows:
+        if r["tier"] in ("god", "entity") and r["colourway"] not in RARE_CW:
+            bad.append(f"#{r['id']}: a {r['tier']} in {r['colourway']}, "
+                       f"which is not one of the three rarest colourways")
+
+    # loudness must actually rise with rarity, or the whole idea is decorative
+    def loudscore(r):
+        return sum(1 for k in ("Explosions", "Lightning", "UFOs", "Planets")
+                   if r[k] != "None")
+    commons = [loudscore(r) for r in rows if r["tier"] == "common"]
+    rare_up = [loudscore(r) for r in rows
+               if r["tier"] in ("mythic", "entity", "god")]
+    if commons and rare_up and np.mean(rare_up) <= np.mean(commons):
+        bad.append(f"the rare end is not louder than the common end "
+                   f"({np.mean(rare_up):.2f} vs {np.mean(commons):.2f})")
+    return bad
 
 
 if __name__ == "__main__":
@@ -236,9 +262,11 @@ if __name__ == "__main__":
     out = sys.argv[2] if len(sys.argv) > 2 else f"{ROOT}/../round{rn}"
     print(f"generating round {rn} into {out}")
     rows = generate(rn, out)
-    bad = verify(rows, out)
-    if bad:
+    problems = verify(rows, out)
+    if problems:
         print("\nPROBLEMS:")
-        for b in bad: print("  ⚠ ", b)
+        for b in problems:
+            print("  ⚠ ", b)
         raise SystemExit(1)
-    print("\nall checks pass: 111 beings, tier counts exact, every combination unique")
+    print("\nall checks pass: 111 beings, counts exact, every combination "
+          "unique, and the rare end is louder than the common end")
