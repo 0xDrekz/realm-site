@@ -14,6 +14,9 @@ being, so the being is never competed with:
     explosions
     smoke            out of the mouth, rising behind the head
     moon dust
+    the floor        a dithered hint, only when something grows on it
+    trees            rooted on it, far ones first
+    mushrooms        in front of the trees
     the being        last, on top of all of it
 
 Smoke and dust used to sit in front. It made them read as weather happening
@@ -213,6 +216,11 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     base = over(base, traits.breath(w, h, t["Smoke"], pal, seed,
                                     nx + mx, ny + my))
     base = over(base, traits.moondust(w, h, t["Dust"], pal, seed))
+    # the floor and what grows on it, far to near
+    grows = t.get("Trees", "None") != "None" or t.get("Mushrooms", "None") != "None"
+    base = over(base, traits.ground(w, h, "Floor" if grows else "None", pal, seed))
+    base = over(base, traits.trees(w, h, t.get("Trees", "None"), pal, seed))
+    base = over(base, traits.mushrooms(w, h, t.get("Mushrooms", "None"), pal, seed))
 
     # and the being last, over everything
     hold = np.zeros((h, w, 4), np.uint8)

@@ -14,6 +14,8 @@ either appears or does not, and a collector can point at it and name it.
 | Planets | None, One, Two, Ringed, Cluster |
 | Explosions | None, One, Two, Barrage |
 | Lightning | None, Strike, Storm, Tempest |
+| Trees | None, One, Copse, Forest |
+| Mushrooms | None, Few, Cluster, Grove |
 
 Hands, moths and moons were built and removed. They were never asked for and
 they do not belong in this realm — a background of drifting body parts is a
@@ -248,3 +250,21 @@ from five.
 That has a consequence worth stating: seven Legendaries drawing from five
 colourways must repeat twice. The check allows exactly that many and no more.
 It failed the first time for measuring against all eight.
+
+
+---
+
+# The floor
+
+Trees and mushrooms need something to be rooted in, so a floor appears —
+but only when something grows on it, and only as a dithered band fading
+upward. There is no hard line anywhere and nothing reads as a stage. The
+background stays black.
+
+Both are placed far-to-near and pushed out to the sides, because the being
+owns the middle of the ground and anything planted there is never seen.
+
+Two passes on the mushrooms. The first crop was too small to make out and
+all of it was clumped around one point, which put the whole lot behind the
+being. Enlarged, they overshot — a near mushroom stood taller than the trees
+and buried them. Mushrooms are ankle height; trees are not.

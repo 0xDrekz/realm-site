@@ -415,3 +415,156 @@ def lightning(w, h, kind, pal, seed):
         walk(float(np.clip(sx, 4, w-5)), r.uniform(0, h*0.08),
              np.pi/2 + r.uniform(-0.45, 0.45), h * r.uniform(0.45, 0.85), 2, 2)
     return out
+
+
+# ---------------------------------------------------------------- the floor
+
+FLOOR = 0.80                 # where the ground is, as a fraction of height
+
+
+def ground(w, h, kind, pal, seed):
+    """A hint of floor, not a painted one.
+
+    Enough for something to be rooted in. The background stays black — this
+    is a dithered band that fades out upward, so there is no hard line
+    anywhere and nothing reads as a stage.
+    """
+    out = _rgba(h, w)
+    if kind == "None":
+        return out
+    y, x = np.mgrid[0:h, 0:w]
+    f = h * FLOOR
+    depth = np.clip((y - f) / max(h - f, 1), 0, 1)
+    _put(out, _dither(depth * 0.30, seed + 71) & (y >= f), pal["ground"], 200)
+    _put(out, _dither(depth * 0.12, seed + 72) & (y >= f), pal["ground_lit"], 150)
+    return out
+
+
+def trees(w, h, kind, pal, seed):
+    """Trees rooted on the floor.
+
+    Grown, not drawn: a trunk that tapers, splitting into thinner limbs until
+    they are a pixel, with dithered foliage gathered at the ends. Far ones are
+    smaller, dimmer and drawn first.
+    """
+    r = np.random.default_rng(seed + 811)
+    out = _rgba(h, w)
+    if kind == "None":
+        return out
+    n = {"One": 1, "Copse": 3, "Forest": 6}[kind]
+    y, x = np.mgrid[0:h, 0:w]
+    f = h * FLOOR
+
+    stand = []
+    for i in range(n):
+        near = r.random() ** 0.8
+        # pushed out to the sides: the being owns the middle of the floor
+        side = -1 if i % 2 == 0 else 1
+        cx = w/2 + side * r.uniform(w*0.18, w*0.50)
+        stand.append((near, float(np.clip(cx, 4, w-5))))
+    stand.sort()
+
+    for near, cx in stand:
+        H = h * (0.14 + near * 0.30) * r.uniform(0.85, 1.2)
+        base = f + (h - f) * near * r.uniform(0.2, 0.9)
+        dim = 0.45 + near * 0.55
+        bark = tuple(int(c * dim) for c in pal["tree_bark"])
+        leaf = tuple(int(c * dim) for c in pal["tree_leaf"])
+        leaf_lit = tuple(int(c * dim) for c in pal["tree_leaf_lit"])
+
+        def limb(px, py, ang, length, thick, depth):
+            if depth == 0 or length < 2:
+                # foliage gathers where the twigs end
+                rad = max(2.0, H * 0.055)
+                blob = np.exp(-(((x - px) / rad) ** 2 + ((y - py) / rad) ** 2))
+                _put(out, _dither(blob * 0.95, seed + int(px) + int(py)), leaf)
+                _put(out, _dither(blob * 0.42, seed + int(px) * 3), leaf_lit)
+                return
+            steps = int(length)
+            for t in range(steps):
+                nx_ = px + np.cos(ang) * 1.0
+                ny_ = py + np.sin(ang) * 1.0
+                ix, iy = int(nx_), int(ny_)
+                for d in range(-thick, thick + 1):
+                    for e in range(-thick, thick + 1):
+                        X, Y = ix + d, iy + e
+                        if 0 <= X < w and 0 <= Y < h:
+                            out[Y, X] = list(bark) + [255]
+                px, py = nx_, ny_
+                ang += r.uniform(-0.05, 0.05)
+            for s_ in (-1, 1):
+                limb(px, py, ang + s_ * r.uniform(0.35, 0.72),
+                     length * r.uniform(0.58, 0.76),
+                     max(0, thick - 1), depth - 1)
+
+        limb(cx, base, -np.pi/2, H * 0.34, max(1, int(H * 0.018)), 5)
+    return out
+
+
+def mushrooms(w, h, kind, pal, seed, horizon=FLOOR):
+    """Growing along the bottom of the frame.
+
+    Clustered rather than evenly spread, because things that grow do. Caps
+    get spots, stems get a ring, and the nearer ones are larger and lower —
+    which is the only depth cue a flat band of ground has.
+    """
+    r = np.random.default_rng(seed + 613)
+    out = _rgba(h, w)
+    if kind == "None":
+        return out
+    n = {"Few": 5, "Cluster": 11, "Grove": 22}[kind]
+    y, x = np.mgrid[0:h, 0:w]
+    floor = h * horizon
+
+    # Clumps spread right across the floor, and biased outward. All of them
+    # near one point put the whole crop behind the being, where nothing is
+    # visible — the being's base owns the middle of the ground.
+    clumps = []
+    for k in range(max(3, n // 3)):
+        side = -1 if k % 2 == 0 else 1
+        clumps.append(float(np.clip(w/2 + side * r.uniform(w*0.14, w*0.52), 4, w-5)))
+
+    order = []
+    for i in range(n):
+        near = r.random() ** 0.7                    # 0 far, 1 near
+        cx = float(np.clip(r.choice(clumps) + r.normal(0, w * 0.07), 2, w - 3))
+        base = floor + (h - floor) * near * r.uniform(0.35, 1.0)
+        # Enlarged once because they were invisible, and that overshot — at
+        # this width a near mushroom stood taller than the trees and buried
+        # them. Mushrooms are ankle height; trees are not.
+        size = w * (0.022 + near * 0.042) * r.uniform(0.8, 1.25)
+        order.append((near, cx, base, size))
+    order.sort()                                     # far ones first
+
+    for near, cx, base, size in order:
+        stem_h = size * r.uniform(1.3, 2.2)
+        stem_w = max(1, size * 0.17)
+        top = base - stem_h
+
+        stem = (np.abs(x - cx) <= stem_w) & (y <= base) & (y >= top)
+        _put(out, stem, pal["shroom_stem"])
+        _put(out, stem & (x > cx + stem_w * 0.2), pal["shroom_stem_dark"])
+
+        cap_w, cap_h = size, size * 0.62
+        cap = (((x - cx) / cap_w) ** 2 + ((y - top) / cap_h) ** 2 <= 1) & (y <= top)
+        _put(out, cap, pal["shroom_cap"])
+        _put(out, cap & (y < top - cap_h * 0.45), pal["shroom_cap_light"])
+
+        rim = cap & (y >= top - max(1, cap_h * 0.12))
+        _put(out, rim, pal["shroom_gill"])
+
+        for _ in range(int(r.integers(2, 6))):       # spots
+            sx = cx + r.uniform(-cap_w * 0.72, cap_w * 0.72)
+            sy = top - r.uniform(cap_h * 0.15, cap_h * 0.80)
+            sr = max(1, size * r.uniform(0.07, 0.14))
+            spot = ((x - sx) ** 2 + (y - sy) ** 2 <= sr * sr) & cap
+            _put(out, spot, pal["shroom_spot"])
+
+        ring = (np.abs(x - cx) <= stem_w * 2.2) & (np.abs(y - (top + stem_h * 0.30)) <= 0.7)
+        _put(out, ring & (y > top), pal["shroom_gill"])
+
+        # what it throws onto the ground under it
+        glow = np.exp(-(((x - cx) / (size * 2.2)) ** 2 + ((y - base) / (size * 0.7)) ** 2))
+        _put(out, _dither(glow * 0.45, seed + int(cx)) & (y > base - 1),
+             pal["shroom_cap_light"], 110)
+    return out

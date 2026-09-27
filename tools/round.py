@@ -64,6 +64,8 @@ TRAITS = {
                   ("Cluster", 2)],
  "Explosions":   [("None", 78), ("One", 13), ("Two", 7), ("Barrage", 2)],
  "Lightning":    [("None", 76), ("Strike", 14), ("Storm", 7), ("Tempest", 3)],
+ "Trees":        [("None", 64), ("One", 20), ("Copse", 11), ("Forest", 5)],
+ "Mushrooms":    [("None", 58), ("Few", 24), ("Cluster", 13), ("Grove", 5)],
  "Eyes":         [("Plain", 40), ("Ringed", 20), ("Slit", 16),
                   ("Starburst", 12), ("Spiral", 8), ("Void", 4)],
 }
@@ -171,7 +173,7 @@ def generate(round_no, out_dir):
                  {"trait_type": "Being", "value": being},
                  {"trait_type": "Colourway", "value": wname}]
         for k in ("Geometry", "Stars", "Planets", "UFOs", "Explosions",
-                  "Lightning", "Smoke", "Dust", "Eyes"):
+                  "Lightning", "Smoke", "Dust", "Trees", "Mushrooms", "Eyes"):
             attrs.append({"trait_type": k, "value": t[k]})
         attrs.append({"trait_type": "Round", "value": str(round_no)})
 
