@@ -26,6 +26,7 @@ different collection. The list above is the list.
 | Trait | Values |
 |-------|--------|
 | Colourway | Regalia, Verdant, Furnace, Abyss, Ossuary, Auric, Bloom, Eclipse |
+| Aura | Opposed, Acid, Cold, Warm, Rose — the geometry's own colour |
 | Eyes | Plain, Slit, Ringed, Spiral, Starburst, Void |
 
 | Moon dust | None, Faint, Drifting, Heavy |
@@ -375,3 +376,33 @@ picture was the figure called "Tree".
 
 A check that fires on almost everything is not a strict check. It is a
 broken one, and it hides the thing it was built to find.
+
+
+---
+
+# The figure behind is never the colour of the character
+
+The geometry used to be drawn from the same palette as the being. Measured
+across all eight colourways, the gap between the figure's colour and the
+being's ran from 0 to 20 degrees of hue — **on Regalia and Bloom it was
+exactly zero**, the same hue behind as in front, which is why those pictures
+had no pop in them at all.
+
+The Aura trait turns the figure off the character's hue, and none of its
+five values is zero:
+
+| Aura | The turn |
+|------|----------|
+| Opposed | opposite |
+| Acid | a third of the way round |
+| Cold | back past green |
+| Warm | a nudge toward gold |
+| Rose | a nudge the other way |
+
+The planets and the domes of the UFOs take the same turn, so everything
+behind the character shares a colour and the character owns its own.
+
+Measured again afterwards, the smallest gap anywhere is 48 degrees. The
+generator refuses to finish if any picture falls under 36 — and that check
+was proved by measuring the untreated case, not by assuming, because a check
+that has never fired is a check nobody has tested.

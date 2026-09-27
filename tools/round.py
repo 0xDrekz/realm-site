@@ -70,6 +70,8 @@ TRAITS = {
  "Mushrooms":    [("None", 76), ("Few", 13), ("Cluster", 8), ("Grove", 3)],
  "Spores":       [("Matching", 40), ("Golden", 20), ("Complementary", 18),
                   ("Opposed", 14), ("Cold", 8)],
+ "Aura":         [("Opposed", 26), ("Acid", 22), ("Cold", 20), ("Warm", 18),
+                  ("Rose", 14)],
  "Eyes":         [("Plain", 40), ("Ringed", 20), ("Slit", 16),
                   ("Starburst", 12), ("Spiral", 8), ("Void", 4)],
 }
@@ -153,7 +155,7 @@ def generate(round_no, out_dir):
                 continue
             # Pose and Spores are choices, not intensities — tilting them by
             # loudness would just make every God a close crop.
-            FLAT = {"Spores", "Eyes"}
+            FLAT = {"Spores", "Eyes", "Aura"}
             t = {k: roll(k, 0.0 if k in FLAT else loud, rng) for k in TRAITS}
             key = (being, wname) + tuple(t[k] for k in TRAITS)
             if key not in seen:
@@ -181,7 +183,7 @@ def generate(round_no, out_dir):
                  {"trait_type": "Colourway", "value": wname}]
         for k in ("Geometry", "Stars", "Planets", "UFOs", "Explosions",
                   "Lightning", "Smoke", "Dust", "Trees", "Mushrooms",
-                  "Spores", "Eyes"):
+                  "Spores", "Aura", "Eyes"):
             attrs.append({"trait_type": k, "value": t[k]})
         attrs.append({"trait_type": "Round", "value": str(round_no)})
 
@@ -246,6 +248,20 @@ def verify(rows, out_dir):
             bad.append(f"#{r['id']}: the picture is nearly blank")
         if BEINGS[r["being"]]["tier"] != r["tier"]:
             bad.append(f"#{r['id']}: {r['being']} is not a {r['tier']}")
+
+    # the figure behind must never be the colour of the being in front
+    from render import _aura_palette, _hue_gap
+    for r in rows:
+        if r["Geometry"] == "None":
+            continue
+        base = BY_NAME[PALETTE_FOR[r["colourway"]]]
+        lit = _aura_palette(base, r["Aura"])
+        being = WEAVES[r["colourway"]]["Body"]
+        being = being["b"][-2] if isinstance(being, dict) else being[-2]
+        gap = _hue_gap(lit["sigil"], being)
+        if gap < 36:
+            bad.append(f"#{r['id']}: the geometry is {gap:.0f} degrees from the "
+                       f"being's own colour — too close to tell apart")
 
     # the very top must wear a rare colour, not just a random one
     RARE_CW = set(list(WEAVES)[-3:])

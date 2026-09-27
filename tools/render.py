@@ -187,6 +187,41 @@ def _hue_shift(rgb, deg):
 SPORES = {"Matching": 0, "Golden": 40, "Complementary": 180,
           "Opposed": 120, "Cold": -110}
 
+# The geometry's own colour, as a turn away from the character's.
+#
+# It used to be drawn from the same palette as the being, so a violet being
+# stood in front of a violet figure and the whole picture was one hue. None
+# of these is zero: the figure behind is never the colour of the thing in
+# front of it.
+# Measured across all eight colourways: with no turn the gap ran 0 to 20
+# degrees — on Regalia and Bloom the figure behind was the character's exact
+# hue. Warm was the tightest turn at 30 degrees on Eclipse, so it is widened.
+AURAS = {"Opposed": 180, "Acid": 120, "Cold": -105, "Warm": 68, "Rose": -72}
+
+
+def _hue_of(rgb):
+    import colorsys
+    return colorsys.rgb_to_hls(*[c / 255.0 for c in rgb])[0] * 360.0
+
+
+def _hue_gap(a, b):
+    d = abs(_hue_of(a) - _hue_of(b)) % 360.0
+    return min(d, 360.0 - d)
+
+
+def _aura_palette(pal, aura):
+    """Turn the geometry — and the things that share its colour — off the
+    character's hue."""
+    deg = AURAS.get(aura)
+    if deg is None:
+        return pal
+    out = dict(pal)
+    for k in ("sigil", "sigil_alt", "sigil_glow", "sigil_dark",
+              "planet_lit", "planet_dark", "planet_band", "ufo_dome"):
+        if k in out:
+            out[k] = _hue_shift(out[k], deg)
+    return out
+
 
 def _flora_palette(pal, spore):
     """Mushrooms need not match the ground they grow out of.
@@ -228,6 +263,7 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
            eye_mode="holes", fill=0.82, colours=32, phase=None):
     w = h = canvas
     rng = np.random.default_rng(seed ^ 0x5EED)
+    pal = _aura_palette(pal, t.get("Aura", "Opposed"))
     pal = _flora_palette(pal, t.get("Spores", "Matching"))
     base = np.zeros((h, w, 4), np.uint8); base[:, :, 3] = 255
 
