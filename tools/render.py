@@ -20,9 +20,37 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-import patterns, traits
+import patterns, traits, parts as bodyparts
 from compose import over, tint, shade, eyes
 from scene import outline
+
+
+def dress(drawn, weave):
+    """Colour a being part by part.
+
+    The parts are read off the art itself — see tools/parts.py. Inside each
+    part the drawn brightness still does the shading, so an arm can be red and
+    a face gold without either going flat.
+    """
+    h, w = drawn.shape
+    reg = bodyparts.split(drawn)
+    body = reg >= 0
+
+    v = drawn.astype(float)
+    inside = v[body]
+    if inside.size:
+        lo, hi = np.percentile(inside, 3), np.percentile(inside, 97)
+        v = np.clip((v - lo) / max(hi - lo, 1e-6), 0, 1)
+
+    col = np.zeros((h, w, 3), float)
+    for k, name in enumerate(bodyparts.NAMES):
+        m = reg == k
+        if not m.any():
+            continue
+        dark, light = (np.array(c, float) for c in weave[name])
+        col[m] = dark[None, :] + (light - dark)[None, :] * v[m][:, None]
+
+    return np.dstack([col, np.where(body, 255, 0)]).astype(np.uint8)
 
 
 def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
@@ -50,11 +78,13 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     s = int(canvas * fill)
     fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
     art.resize((s, s), Image.NEAREST).save(tmp)
-    if mode == "shade":
+    drawn = np.asarray(Image.open(tmp).convert("RGBA"))[:, :, 3]
+    if pal.get("weave"):
+        lay = dress(drawn, pal["weave"])
+    elif mode == "shade":
         lay = shade(tmp, pal["shadow"], pal["mid"], pal["light"], None)
     else:
         lay = tint(tmp, pal["being_top"], pal["being_bottom"], None, solid=2.2)
-    drawn = np.asarray(Image.open(tmp).convert("RGBA"))[:, :, 3]
     os.unlink(tmp)
 
     if eye_mode != "drawn":
@@ -67,7 +97,9 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     hold[y0:y1, x0:x1] = lay[y0-ny:y1-ny, x0-nx:x1-nx]
     base = over(base, hold)
 
-    base = over(base, traits.smoke(w, h, t["Smoke"], pal, seed))
+    mx, my = bodyparts.mouth(drawn)
+    base = over(base, traits.breath(w, h, t["Smoke"], pal, seed,
+                                    nx + mx, ny + my))
     base = over(base, traits.moondust(w, h, t["Dust"], pal, seed))
 
     return Image.fromarray(base, "RGBA").convert("RGB").resize((w*scale, h*scale), Image.NEAREST)

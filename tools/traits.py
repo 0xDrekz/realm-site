@@ -129,6 +129,38 @@ def ufos(w, h, kind, pal, seed):
 
 # ---------------------------------------------------------------- the air
 
+def breath(w, h, kind, pal, seed, mx, my):
+    """Smoke leaving the mouth.
+
+    It starts small and tight at the mouth and opens out as it climbs, which
+    is the difference between smoke being breathed and smoke drifting past.
+    """
+    r = np.random.default_rng(seed + 91)
+    out = _rgba(h, w)
+    if kind == "None":
+        return out
+    puffs = {"Wisp": 9, "Rising": 16, "Shroud": 26}[kind]
+    reach = {"Wisp": 0.34, "Rising": 0.58, "Shroud": 0.86}[kind]
+    y, x = np.mgrid[0:h, 0:w]
+    field = np.zeros((h, w))
+
+    lean = r.uniform(-1, 1)
+    top = my - h * reach
+    for k in range(puffs):
+        t = k / max(puffs - 1, 1)               # 0 at the mouth, 1 at the top
+        py = my - t * (my - top)
+        px = mx + lean * w * 0.16 * (t ** 1.6) + np.sin(t*7 + seed) * w * 0.02 * t
+        # the first puffs were three pixels across and vanished, so the plume
+        # looked like it began somewhere above the head
+        rad = w * (0.026 + (t ** 0.85) * 0.080) * r.uniform(0.85, 1.15)
+        d2 = ((x - px)**2 + (y - py)**2) / max(rad*rad, 1)
+        field = np.maximum(field, np.exp(-d2) * (0.95 - t*0.45))
+
+    _put(out, _dither(field, seed), pal["smoke"], 200)
+    _put(out, _dither(field * 0.5, seed + 3), pal["dust_bright"], 130)
+    return out
+
+
 def smoke(w, h, kind, pal, seed):
     """Puffs climbing and spreading.
 
