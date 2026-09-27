@@ -194,3 +194,68 @@ SHAPES = {"Mandala": mandala, "Flower": flower, "Yantra": yantra,
 def draw(w, h, kind, cx, cy, R, seed):
     rng = np.random.default_rng(seed)
     return SHAPES[kind](w, h, cx, cy, R, rng)
+
+
+# ---------------------------------------------------------------- layered
+
+def rosette(w, h, cx, cy, R, rng):
+    """Rings of circles inside rings of circles."""
+    m = _canvas(w, h)
+    _ring(m, cx, cy, R); _ring(m, cx, cy, R*0.97)
+    for n, rr, cr in ((12, 0.78, 0.20), (18, 0.52, 0.13), (8, 0.28, 0.11)):
+        for k in range(n):
+            a = k * 2*np.pi/n + (0.3 if n == 18 else 0)
+            _ring(m, cx + R*rr*np.cos(a), cy + R*rr*np.sin(a), R*cr)
+    _poly(m, cx, cy, R*0.90, 12, rot=-np.pi/2)
+    return m
+
+
+def gatefold(w, h, cx, cy, R, rng):
+    """Nested arches, like a doorway seen from straight on."""
+    m = _canvas(w, h)
+    for k, s in enumerate((1.0, 0.82, 0.64, 0.46, 0.28)):
+        rr = R * s
+        _ring(m, cx, cy, rr)
+        _line(m, cx - rr, cy, cx - rr, cy + R*1.3)
+        _line(m, cx + rr, cy, cx + rr, cy + R*1.3)
+    for k in range(24):
+        a = np.pi + k * np.pi/23
+        _line(m, cx + R*np.cos(a), cy + R*np.sin(a),
+                 cx + R*1.18*np.cos(a), cy + R*1.18*np.sin(a))
+    return m
+
+
+def spiral(w, h, cx, cy, R, rng):
+    """Arms winding out from the middle."""
+    m = _canvas(w, h)
+    arms = int(rng.choice([3, 5, 6]))
+    for a0 in range(arms):
+        base = a0 * 2*np.pi/arms
+        px, py = cx, cy
+        for i in range(1, 260):
+            t = i / 260
+            ang = base + t * 5.6
+            rr = R * t
+            nx_, ny_ = cx + rr*np.cos(ang), cy + rr*np.sin(ang)
+            _line(m, px, py, nx_, ny_)
+            px, py = nx_, ny_
+    for k in (0.34, 0.66, 1.0):
+        _ring(m, cx, cy, R*k)
+    return m
+
+
+SHAPES.update({"Rosette": rosette, "Gatefold": gatefold, "Spiral": spiral})
+
+
+def layered(w, h, kinds, cx, cy, R, seed):
+    """Two or three patterns at different sizes, returned separately so each
+    can be given its own colour. One thin outline on black is a diagram; a
+    stack with colour running through it is a background."""
+    out = []
+    for i, (kind, scale) in enumerate(kinds):
+        out.append(patterns_draw(w, h, kind, cx, cy, R*scale, seed + i*13))
+    return out
+
+
+def patterns_draw(w, h, kind, cx, cy, R, seed):
+    return draw(w, h, kind, cx, cy, R, seed)

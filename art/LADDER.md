@@ -7,14 +7,20 @@ actually be seen.
 
 | Tier | Across | What the step does |
 |------|--------|--------------------|
-| Common | 64 | blocks, plainly |
-| Uncommon | 89 | blocks, a little finer |
-| Rare | 128 | detail starts to hold |
-| Epic | 200 | ornament becomes readable |
-| Legendary | 300 | fine linework survives |
-| Mythic | 380 | — |
-| Entity | 480 | — |
-| God | 600 | — |
+| Common | 96 | blocks, plainly |
+| Uncommon | 128 | blocks, a little finer |
+| Rare | 180 | detail starts to hold |
+| Epic | 260 | ornament becomes readable |
+| Legendary | 380 | fine linework survives |
+| Mythic | 500 | — |
+| Entity | 640 | — |
+| God | 800 | — |
+
+**Raised once already.** The first ladder topped out at 600 and the masters
+are 1,408 across, so scales, feathers and filigree were being thrown away
+before anything was coloured. Everything moved up; the God gained a third.
+The Mythic now warns that it carries almost nothing at 500 — it is the
+softest piece in the cast and genuinely has less to give.
 
 ## Where the ladder stops working, and what carries it after that
 

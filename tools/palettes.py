@@ -11,6 +11,7 @@ def _p(name, weight, sigil, glow, star, being, eyec, iris_c, **kw):
     d = dict(
         name=name, weight=weight,
         sigil=sigil, sigil_glow=tuple(int(c*0.22) for c in sigil), sigil_dark=dark,
+        sigil_alt=tuple(min(255, int(c)) for c in (sigil[2], sigil[0], sigil[1])),
         star=star, star_dim=tuple(int(c*0.42) for c in star),
         planet_lit=tuple(int(c*0.80) for c in sigil),
         planet_dark=tuple(int(c*0.22) for c in sigil),

@@ -25,26 +25,70 @@ from compose import over, tint, shade, eyes
 from scene import outline
 
 
-def _ramp(dark, light, stops=5):
-    """A ramp from dark to light that bends the way paint does.
+def _ramp(stops, n=17, vivid=1.0):
+    """Build a shading ramp from a list of colours, shadow first.
 
-    A straight line between two colours goes through mud in the middle.
-    Real shading is cooler and more saturated in shadow and warmer and less
-    saturated in light, so the ramp is pushed that way as it climbs.
+    Two colours per part could only ever fade one hue into itself. A list
+    lets a wing run green through red the way a painted one does, which is
+    the single biggest thing separating this from hand-painted work.
+
+    The ramp still bends the way paint bends — cooler and richer in shadow,
+    warmer and washed in light — and `vivid` pushes saturation past where a
+    straight interpolation would leave it.
     """
-    dark, light = np.array(dark, float), np.array(light, float)
+    stops = [np.array(c, float) for c in stops]
+    if len(stops) == 1:
+        stops = [stops[0] * 0.25, stops[0]]
     out = []
-    for i in range(stops):
-        t = i / (stops - 1)
-        c = dark + (light - dark) * t
-        # shadows cool and rich, highlights warm and washed
-        cool = np.array([-16, -6, 22], float) * (1 - t) ** 2
-        warm = np.array([20, 10, -10], float) * (t ** 2)
+    for i in range(n):
+        t = i / (n - 1)
+        pos = t * (len(stops) - 1)
+        a = int(np.floor(pos)); b = min(a + 1, len(stops) - 1)
+        c = stops[a] + (stops[b] - stops[a]) * (pos - a)
+        cool = np.array([-18, -7, 26], float) * (1 - t) ** 2
+        warm = np.array([26, 13, -12], float) * (t ** 2)
         grey = c.mean()
-        sat = 1.22 - 0.42 * t                 # let the colour go in the dark
-        c = grey + (c - grey) * sat + cool + warm
-        out.append(np.clip(c, 0, 255))
+        sat = (1.34 - 0.40 * t) * vivid
+        out.append(np.clip(grey + (c - grey) * sat + cool + warm, 0, 255))
     return np.array(out)
+
+
+def sigilry(w, h, kind, pal, seed, under="None"):
+    """The geometry, in layers, with colour running along it.
+
+    A single one-pixel outline on black is a diagram. What makes a background
+    is depth: a large faint figure behind, a bright one in front, each with
+    its own glow, and the colour shifting across the picture rather than being
+    one flat line colour everywhere.
+    """
+    out = np.zeros((h, w, 4), np.uint8)
+    cx, cy = w/2, h*0.46
+
+    def lay(m, bright, dim, glow_px, alpha=255):
+        halo = ndimage.binary_dilation(m, iterations=glow_px) & ~m
+        near = ndimage.binary_dilation(m, iterations=1) & ~m
+        g = np.zeros((h, w, 4), np.uint8)
+        g[halo] = list(dim) + [150]
+        g[near] = list(dim) + [230]
+        g[m] = list(bright) + [alpha]
+        return g
+
+    if under != "None":
+        m0 = patterns.draw(w, h, under, cx, cy, w*0.62, seed + 5)
+        out = over(out, lay(m0, pal["sigil_dark"], pal["sigil_glow"], 2, 170))
+
+    m = patterns.draw(w, h, kind, cx, cy, w*0.44, seed)
+
+    # colour swept across the figure rather than one flat line colour
+    yy, xx = np.mgrid[0:h, 0:w]
+    t = np.clip((xx / w) * 0.6 + (yy / h) * 0.4, 0, 1)
+    a = np.array(pal["sigil"], float)
+    b = np.array(pal.get("sigil_alt", pal["sigil"]), float)
+    swept = (a[None, None, :] * (1 - t)[:, :, None] + b[None, None, :] * t[:, :, None])
+
+    g = lay(m, pal["sigil"], pal["sigil_glow"], 3)
+    g[m, :3] = swept[m]
+    return over(out, g)
 
 
 def dress(drawn, weave, rim=True):
@@ -76,13 +120,15 @@ def dress(drawn, weave, rim=True):
         m = reg == k
         if not m.any():
             continue
-        ramp = _ramp(*weave[name])
+        spec = weave[name]
+        ramp = _ramp(spec if isinstance(spec[0], (list, tuple)) else [spec],
+                     vivid=weave.get("vivid", 1.0))
         idx = v[m] * (len(ramp) - 1)
         lo_i = np.floor(idx).astype(int)
         hi_i = np.minimum(lo_i + 1, len(ramp) - 1)
         f = (idx - lo_i)[:, None]
         base = ramp[lo_i] * (1 - f) + ramp[hi_i] * f
-        col[m] = base + detail[m][:, None] * 190      # put the drawing back
+        col[m] = base + detail[m][:, None] * 210      # put the drawing back
 
     if rim:
         # lift the lit edge, which is what stops a flat fill reading as flat
@@ -102,14 +148,8 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     base = over(base, traits.planets(w, h, t["Planets"], pal, seed))
 
     if t["Geometry"] != "None":
-        m = patterns.draw(w, h, t["Geometry"], w/2, h*0.46, w*0.44, seed)
-        halo = ndimage.binary_dilation(m, iterations=3) & ~m
-        near = ndimage.binary_dilation(m, iterations=1) & ~m
-        g = np.zeros((h, w, 4), np.uint8)
-        g[halo] = list(pal["sigil_glow"]) + [190]
-        g[near] = list(pal["sigil_dark"]) + [255]
-        g[m]    = list(pal["sigil"]) + [255]
-        base = over(base, g)
+        base = over(base, sigilry(w, h, t["Geometry"], pal, seed,
+                                  t.get("GeometryUnder", "None")))
 
     base = over(base, traits.ufos(w, h, t["UFOs"], pal, seed))
 
