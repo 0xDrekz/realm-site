@@ -306,6 +306,18 @@ Trees and mushrooms go to the sides of it, on the floor. Planets, UFOs,
 explosions and lightning go to the sides **or high above the head**, which is
 the only part of the middle anything may occupy.
 
+**Nothing in the geometry may run straight down the middle either.** Radial
+figures threw a spoke at six o'clock, which left the figure, passed the
+character's waist and ended on the floor looking like something planted
+between its legs. Mandala, Rays and Yantra now skip any spoke within about
+25 degrees of straight down, Gatefold drops legs only from its outer arches,
+and Spiral starts its arms off the vertical.
+
+The geometry figure called "Tree" is withdrawn entirely. It grew from the
+bottom centre, so its trunk came up between the character's legs and its
+canopy spread across the middle — and the flora layer now grows real trees,
+at the sides, where they belong.
+
 **Placing a thing outside the column is a wish; erasing what strays in is
 the guarantee.** A tree rooted at the side still threw branches back across
 the middle and its trunk came up between the character's legs. Two things
@@ -346,3 +358,20 @@ itself with nothing jumping. Every frame is quantised against the FIRST
 frame's palette rather than its own, or the colours crawl between frames.
 
 Nothing else in a marketplace grid moves, so a God that does is seen first.
+
+
+---
+
+# A note on measuring
+
+The stripe between the character's legs was hunted with a check that
+compared the middle of the frame against its sides, below the waist. It
+reported 101 of 111 pictures as faulty, which was nonsense: the character's
+own legs and robe are in that band, so it was measuring the subject.
+
+What found it was turning one layer off at a time and re-measuring. The
+stripe survived every layer but the geometry, and the geometry in that
+picture was the figure called "Tree".
+
+A check that fires on almost everything is not a strict check. It is a
+broken one, and it hides the thing it was built to find.

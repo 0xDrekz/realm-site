@@ -54,6 +54,17 @@ def _poly(m, cx, cy, r, sides, rot=0.0, close=True):
 
 # ---------------------------------------------------------------- the shapes
 
+def _downward(a, guard=0.44):
+    """True if this direction points near enough straight down.
+
+    A spoke that does is a spoke that runs out of the figure, past the
+    character's waist and between its legs, and ends on the floor looking
+    like something planted there.
+    """
+    d = (a - np.pi / 2 + np.pi) % (2 * np.pi) - np.pi
+    return abs(d) < guard
+
+
 def mandala(w, h, cx, cy, R, rng):
     m = _canvas(w, h)
     for k in (1.0, 0.82, 0.60, 0.34, 0.16):
@@ -61,6 +72,8 @@ def mandala(w, h, cx, cy, R, rng):
     spokes = int(rng.choice([8, 12, 16, 24]))
     for k in range(spokes):
         a = k * 2*np.pi/spokes
+        if _downward(a):
+            continue
         _line(m, cx + R*0.16*np.cos(a), cy + R*0.16*np.sin(a),
                  cx + R*np.cos(a),      cy + R*np.sin(a))
     for k in range(spokes):
@@ -96,6 +109,8 @@ def yantra(w, h, cx, cy, R, rng):
         _poly(m, cx, cy, R*0.80*s, 3, rot=np.pi/2)
     for k in range(12):
         a = k * 2*np.pi/12
+        if _downward(a, 0.30):
+            continue
         _line(m, cx + R*np.cos(a), cy + R*np.sin(a),
                  cx + R*1.10*np.cos(a), cy + R*1.10*np.sin(a))
     return m
@@ -123,6 +138,8 @@ def rays(w, h, cx, cy, R, rng):
     n = int(rng.choice([16, 24, 32]))
     for k in range(n):
         a = k * 2*np.pi/n
+        if _downward(a):
+            continue
         _line(m, cx + R*0.18*np.cos(a), cy + R*0.18*np.sin(a),
                  cx + R*1.5*np.cos(a),  cy + R*1.5*np.sin(a))
     _ring(m, cx, cy, R*0.18)
@@ -216,8 +233,12 @@ def gatefold(w, h, cx, cy, R, rng):
     for k, s in enumerate((1.0, 0.82, 0.64, 0.46, 0.28)):
         rr = R * s
         _ring(m, cx, cy, rr)
-        _line(m, cx - rr, cy, cx - rr, cy + R*1.3)
-        _line(m, cx + rr, cy, cx + rr, cy + R*1.3)
+        # only the outer arches drop legs. The inner ones stood at a fifth of
+        # the width from the middle, which put two posts through the
+        # character's legs.
+        if s >= 0.64:
+            _line(m, cx - rr, cy, cx - rr, cy + R*1.3)
+            _line(m, cx + rr, cy, cx + rr, cy + R*1.3)
     for k in range(24):
         a = np.pi + k * np.pi/23
         _line(m, cx + R*np.cos(a), cy + R*np.sin(a),
@@ -230,7 +251,7 @@ def spiral(w, h, cx, cy, R, rng):
     m = _canvas(w, h)
     arms = int(rng.choice([3, 5, 6]))
     for a0 in range(arms):
-        base = a0 * 2*np.pi/arms
+        base = a0 * 2*np.pi/arms + 0.35
         px, py = cx, cy
         for i in range(1, 260):
             t = i / 260
@@ -244,7 +265,12 @@ def spiral(w, h, cx, cy, R, rng):
     return m
 
 
+# "Tree" is deliberately NOT offered as a background figure any more. It grew
+# from the bottom centre, so its trunk came up between the character's legs
+# and its canopy spread across the middle — and the flora layer now grows real
+# trees, at the sides, where they belong. The function stays for reference.
 SHAPES.update({"Rosette": rosette, "Gatefold": gatefold, "Spiral": spiral})
+SHAPES.pop("Tree", None)
 
 
 def layered(w, h, kinds, cx, cy, R, seed):
