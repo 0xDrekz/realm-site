@@ -1,93 +1,46 @@
-# The ladder
+# One quality for everything
 
-Rarity is carried by how finely a being is drawn. A Common is a chunky
-sprite you can count the pixels on. A God is dense. Every rung is about
-half again as fine as the one below, which is the smallest step that can
-actually be seen.
+Every tier's drawing is cut at **480 pixels**, onto a **600-pixel canvas at
+scale 4**, landing on 2400. Every picture in the collection is made the same
+way at the same resolution.
 
-| Tier | Across | What the step does |
-|------|--------|--------------------|
-| Common | 96 | blocks, plainly |
-| Uncommon | 128 | blocks, a little finer |
-| Rare | 180 | detail starts to hold |
-| Epic | 260 | ornament becomes readable |
-| Legendary | 380 | fine linework survives |
-| Mythic | 500 | — |
-| Entity | 640 | — |
-| God | 800 | — |
+## Rarity is carried by the traits, not by the resolution
 
-**Raised once already.** The first ladder topped out at 600 and the masters
-are 1,408 across, so scales, feathers and filigree were being thrown away
-before anything was coloured. Everything moved up; the God gained a third.
-The Mythic now warns that it carries almost nothing at 500 — it is the
-softest piece in the cast and genuinely has less to give.
+| Tier | Traits firing, on average |
+|------|---------------------------|
+| Common | 4.5 |
+| Uncommon | 6.0 |
+| Rare | 6.8 |
+| Epic | 8.0 |
+| Legendary | 8.6 |
+| Mythic | 9.0 |
+| Entity | 9.0 |
+| God | 11.0 |
 
-## Where the ladder stops working, and what carries it after that
+Plus which colourway is worn — the rarest tiers draw from a restricted pool —
+and how elaborate the drawing itself is, which is the artist's doing and
+needs no help from the renderer.
 
-Tested on the crowned Epic at every rung: **above about 300 pixels the
-steps stop being visible.** 300, 440, 640 and 900 look the same at any size
-anyone will view them. Density does real work from Common to Legendary and
-then it saturates.
+## Why the density ladder was wrong
 
-So the top four tiers do not get their rank from resolution. They get it
-from what is drawn — more ornament, a bigger presence in the frame, rarer
-fields and lights behind them, a frame only they wear. The numbers above
-still climb past Legendary, but gently, and mostly so the files hold up
-when someone zooms in rather than to signal anything.
+Rarity used to be carried by how finely a being was drawn: a Common cut at 84
+pixels, the God at 680. The idea was that a Common should look like a chunky
+sprite and a God should not.
 
-If a Mythic and a Legendary end up looking equally fine, that is correct.
-The Mythic should be recognisable as rarer because of what it *is*.
+What it actually did was **draw the Common's whole picture at a fifth of the
+resolution.** The canvas is shared: at 120 art pixels the mandala behind the
+Common had 120 pixels to live in, and so did its stars, its mushrooms and its
+floor. The character was never the problem. The two tiers looked like two
+different collections, one of them badly made.
 
-## You never draw anything twice
+It also never worked on its own terms. Tested early on, the steps stopped
+being visible above about 300 pixels — 300, 440, 640 and 900 were the same
+picture at any size anyone would view them at. Half the ladder was doing
+nothing even then.
 
-Draw every piece as large and as detailed as you like. It is cut to its
-rung here, by box-averaging, which is why the Epic came down from 1,244
-pixels to 200 without falling apart.
-
-- `masters/` — exactly as drawn, untouched. Everything is cut from these.
-- `beings/` — cut to the rung, black keyed to transparent, squared.
-
-Nothing is ever upscaled, because coming down is reversible and inventing
-detail is not. That means a piece can be re-cut to a different rung at any
-time if a being changes tier, and nothing is lost.
-
-## Files are named for what they are, not what rank they hold
-
-`grey-winged.png`, not `rare-winged.png`. Ranks move; drawings do not. Which
-being holds which rank lives in `tiers.json`, one line each, and changing a
-line there plus a re-cut is the whole job.
-
-## Keying
-
-All of them sit on pure black with nothing bleeding, so black is keyed to
-transparent and each one is squared on its own centre. Soft edges survive
-as partial transparency: the Epic's starfield haze blends over whatever
-field is behind it rather than sitting in a black box.
-
-## The cast, and why it is ordered this way
-
-| Rank | Drawing | What it gains |
-|------|---------|---------------|
-| Common | `grey-plain` | — |
-| Uncommon | `grey-fourarm` | a third eye, four arms |
-| Rare | `grey-winged` | and wings |
-| Epic | `crowned` | a cloak and a crown |
-| Legendary | `crowned-flame` | a crown of flame, and an aura |
-| Mythic | `dread-winged` | opens the third eye, and sits in cloud |
-| Entity | `crowned-entity` | a crown, thorn hands, and rises out of the rock |
-| God | `god-serpent` | one eye, bone wings, and a serpent coiled beneath |
-
-All eight tiers are drawn.
-
-It is one being ascending, which is why the order is what it is rather than
-what each piece was called when it arrived. Three of them moved down a rank
-to make room: the plain grey was an Uncommon, the crowned one a Rare, the
-flame-crowned one an Epic.
-
-The two crowned ones still share a body below the neck. The crown and the
-aura are the tells. Now that they sit a rank apart rather than adjacent,
-that matters less than it did — but it is still the pair most likely to be
-mistaken for each other.
+A Common is still plainly a Common: it is a simpler drawing, it wears a
+commoner colour, and four or five things happen in its picture instead of
+eleven. None of that needs the picture to be worse.
 
 ## Two ways to colour a being
 

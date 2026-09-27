@@ -31,16 +31,21 @@ PALETTE_FOR = {"Regalia": "Void", "Verdant": "Verdigris", "Furnace": "Ember",
 COUNTS = {"common": 40, "uncommon": 28, "rare": 18, "epic": 11,
           "legendary": 7, "mythic": 4, "entity": 2, "god": 1}
 
-# Canvas in art pixels, and how many screen pixels each becomes. Every pair
-# multiplies to 2400, so the scale is always a whole number; and each canvas
-# is the tier's rung divided by how much of the frame that tier should fill,
-# so the drawing is never resampled by a fraction either.
+# One canvas for every tier: 600 art pixels at scale 4, which lands on 2400,
+# with the drawing cut at 480 so it is never resampled by a fraction.
 #
-# A rarer being sits on a canvas closer to its own size, so it looms larger:
-# a Common fills 70% of its frame, the God 85%.
-CANVAS = {"common": (120, 20), "uncommon": (160, 15), "rare": (200, 12),
-          "epic": (240, 10), "legendary": (300, 8), "mythic": (400, 6),
-          "entity": (600, 4), "god": (800, 3)}
+# It used to vary — a Common was drawn on 120 art pixels and the God on 800 —
+# on the theory that rarity could be carried by how finely a being was drawn.
+# It cannot. What that actually did was draw the COMMON'S WHOLE PICTURE at a
+# fifth of the resolution: its mandala had 120 pixels to live in, its
+# mushrooms and stars likewise. The two tiers looked like two different
+# collections, one of them badly made.
+#
+# Rarity is carried by how many traits fire, which colourway is worn, and how
+# elaborate the drawing itself is. None of those needs the picture to be
+# worse.
+CANVAS = {t: (600, 4) for t in ("common", "uncommon", "rare", "epic",
+                                "legendary", "mythic", "entity", "god")}
 
 # How loud a tier's picture is allowed to be, 0 to 1. It tilts the trait rolls
 # toward their louder values, pushes the colour harder, and makes the rarer

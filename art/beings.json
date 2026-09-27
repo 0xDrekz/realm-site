@@ -1,8 +1,8 @@
 {
   "crowned": {
     "tier": "epic",
-    "rung": 180,
-    "detail": 0.218,
+    "rung": 480,
+    "detail": 0.121,
     "mode": "stencil",
     "mid_grey": 0.155,
     "eyes": 2,
@@ -11,8 +11,8 @@
   },
   "crowned-entity": {
     "tier": "entity",
-    "rung": 492,
-    "detail": 0.103,
+    "rung": 480,
+    "detail": 0.109,
     "mode": "shade",
     "mid_grey": 0.523,
     "eyes": 2,
@@ -21,8 +21,8 @@
   },
   "crowned-flame": {
     "tier": "legendary",
-    "rung": 234,
-    "detail": 0.211,
+    "rung": 480,
+    "detail": 0.144,
     "mode": "stencil",
     "mid_grey": 0.25,
     "eyes": 2,
@@ -31,8 +31,8 @@
   },
   "dread-winged": {
     "tier": "mythic",
-    "rung": 320,
-    "detail": 0.078,
+    "rung": 480,
+    "detail": 0.06,
     "mode": "shade",
     "mid_grey": 0.497,
     "eyes": 2,
@@ -41,8 +41,8 @@
   },
   "god-serpent": {
     "tier": "god",
-    "rung": 680,
-    "detail": 0.139,
+    "rung": 480,
+    "detail": 0.166,
     "mode": "shade",
     "mid_grey": 0.489,
     "eyes": 2,
@@ -51,8 +51,8 @@
   },
   "grey-fourarm": {
     "tier": "uncommon",
-    "rung": 116,
-    "detail": 0.103,
+    "rung": 480,
+    "detail": 0.029,
     "mode": "stencil",
     "mid_grey": 0.039,
     "eyes": 2,
@@ -61,8 +61,8 @@
   },
   "grey-plain": {
     "tier": "common",
-    "rung": 84,
-    "detail": 0.094,
+    "rung": 480,
+    "detail": 0.026,
     "mode": "stencil",
     "mid_grey": 0.036,
     "eyes": 2,
@@ -71,8 +71,8 @@
   },
   "grey-winged": {
     "tier": "rare",
-    "rung": 150,
-    "detail": 0.105,
+    "rung": 480,
+    "detail": 0.041,
     "mode": "stencil",
     "mid_grey": 0.155,
     "eyes": 2,
