@@ -36,8 +36,11 @@
   $$("[data-closes]").forEach(n => n.textContent = closing || "to be announced");
 
   /* ---------- what is true right now, on the door ---------- */
+  /* The creed directly above this already says "1,111 beings · one drop",
+     so this carried the same sentence twice. It carries the price now,
+     which is the other thing a stranger wants before deciding anything. */
   const chapter = $("#st-chapter");
-  if (chapter) chapter.textContent = `${TOTAL_BEINGS.toLocaleString()} beings · one drop`;
+  if (chapter) chapter.textContent = `${PRICE} SOL each`;
 
   const supply = $("#st-supply");
   if (supply) {
@@ -118,6 +121,32 @@
     if (url) { el.href = url; el.target = "_blank"; el.rel = "noopener"; }
     else el.remove();
   });
+
+  /* ---------- a look at what is behind the door ----------
+     The first screen used to be a button, a creed and a definition list.
+     The collection is not a mood — it is 1,111 drawn beings, and they were
+     two taps away under The Beings. Five of them stand on the door now,
+     quiet to loud, so a stranger can see what this actually is before
+     deciding whether to go in.
+
+     They are the same preview pictures the Beings panel uses, so this
+     costs no extra download. */
+  const peek = $("[data-peek]");
+  if (peek) {
+    ["common", "rare", "legendary", "god", "source"].forEach(key => {
+      const t = TIERS.find(x => x.key === key);
+      if (!t) return;
+      const img = document.createElement("img");
+      img.className = "peek-art";
+      img.src = "preview/" + key + ".png";
+      img.alt = "";
+      img.loading = "lazy";
+      img.width = 360; img.height = 360;
+      img.style.setProperty("--c", t.color);
+      peek.appendChild(img);
+    });
+    peek.addEventListener("click", () => show("nfts"));
+  }
 
   /* ---------- the tiers ----------
      Each row shows a real being of that tier, rendered by the same pipeline

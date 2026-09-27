@@ -358,12 +358,32 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   font-size:.70rem;letter-spacing:.2em;text-transform:uppercase;color:#6d6192;
 }
 
+/* ---------- what is behind the door ----------
+   Five beings, quiet to loud. Small enough not to fight the tree, big
+   enough to read as drawings rather than as icons. */
+.peek{
+  display:flex;gap:6px;justify-content:center;align-items:center;
+  cursor:pointer;margin-top:2px;
+}
+.peek-art{
+  width:clamp(40px,12vw,56px);height:auto;
+  image-rendering:pixelated;
+  border:1px solid rgba(227,186,92,.3);
+  opacity:.9;transition:opacity .2s,border-color .2s,transform .2s;
+}
+.peek:hover .peek-art{opacity:1}
+.peek-art:hover{border-color:var(--c,#e3ba5c);transform:translateY(-2px)}
+
 /* on a short screen the words tighten before any of them are dropped */
 @media (max-height:700px){
   .gate-in{gap:clamp(3px,.9vh,9px)}
+  .peek-art{width:clamp(36px,10vw,46px)}
 }
 @media (max-height:600px){
   .terms{display:none}
+}
+@media (max-height:520px){
+  .peek{display:none}
 }
 
 /* ---------- the rest of the chamber's chrome ---------- */
