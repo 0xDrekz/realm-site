@@ -101,7 +101,47 @@ def sigilry(w, h, kind, pal, seed, under="None"):
     return over(out, g)
 
 
-def dress(drawn, weave, rim=True):
+def _volume(drawn, body, strength=1.0):
+    """Give a flat drawing form, without touching one that already has it.
+
+    The simple beings are drawn as flat blocks: a silhouette, a couple of
+    lines, no modelling. The elaborate ones are shaded in every scale. Put
+    side by side at the same resolution, the flat ones look unfinished next
+    to them.
+
+    The silhouette itself carries enough to fix that. Distance from the edge
+    is a height field: high in the middle of a limb, zero at its outline.
+    Light that height field and a flat arm becomes a round one.
+
+    Applied in proportion to how flat each place already is, measured as
+    local variation in the drawing, so it builds up the plain beings and
+    leaves the modelled ones alone.
+    """
+    h, w = drawn.shape
+    dist = ndimage.distance_transform_edt(body)
+    if dist.max() <= 0:
+        return np.zeros_like(dist)
+
+    height = np.sqrt(dist / dist.max())
+    height = ndimage.gaussian_filter(height, sigma=max(1.0, min(h, w) * 0.006))
+    gy, gx = np.gradient(height)
+
+    # a normal from that height, lit from up and to the left
+    nz = 0.16
+    norm = np.sqrt(gx*gx + gy*gy + nz*nz) + 1e-6
+    lx, ly, lz = -0.52, -0.62, 0.59
+    lam = (-gx*lx + -gy*ly + nz*lz) / norm
+    lam = np.clip(lam, -1, 1)
+
+    # how flat is it here already?
+    v = drawn.astype(float) / 255.0
+    local = ndimage.uniform_filter(v*v, size=max(3, int(min(h, w)*0.035)))           - ndimage.uniform_filter(v, size=max(3, int(min(h, w)*0.035))) ** 2
+    flat = np.clip(1.0 - np.sqrt(np.clip(local, 0, None)) * 7.0, 0, 1)
+
+    return lam * flat * strength * body
+
+
+def dress(drawn, weave, rim=True, volume=1.0):
     """Colour a being part by part, keeping the drawing's own shading.
 
     The parts come from tools/parts.py. Two colours per part was not enough:
@@ -165,6 +205,10 @@ def dress(drawn, weave, rim=True):
             base = pick(ramp, v[m])
 
         col[m] = base + detail[m][:, None] * 210      # put the drawing back
+
+    if volume:
+        vol = _volume(drawn, body, volume)
+        col += vol[:, :, None] * 66
 
     if rim:
         # lift the lit edge, which is what stops a flat fill reading as flat
@@ -251,6 +295,11 @@ def _limit(img, colours):
 
     Done at the art grid, before anything is blown up, so the bands land on
     pixel edges.
+
+    Set to 48 rather than 32. Thirty-two was chosen by testing on the God,
+    which is drawn with shading in every scale and so has plenty of its own
+    colours to keep. On a flat drawing it was clipping away the very
+    modelling that makes a plain being look finished.
     """
     if not colours:
         return img
@@ -260,7 +309,7 @@ def _limit(img, colours):
 
 
 def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
-           eye_mode="holes", fill=0.82, colours=32, phase=None):
+           eye_mode="holes", fill=0.82, colours=48, phase=None):
     w = h = canvas
     rng = np.random.default_rng(seed ^ 0x5EED)
     pal = _aura_palette(pal, t.get("Aura", "Opposed"))
@@ -297,7 +346,7 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     art.resize((s, s), Image.NEAREST).save(tmp)
     drawn = np.asarray(Image.open(tmp).convert("RGBA"))[:, :, 3]
     if pal.get("weave"):
-        lay = dress(drawn, pal["weave"])
+        lay = dress(drawn, pal["weave"], volume=t.get("Volume", 1.6))
     elif mode == "shade":
         lay = shade(tmp, pal["shadow"], pal["mid"], pal["light"], None)
     else:

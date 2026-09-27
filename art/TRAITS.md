@@ -276,7 +276,7 @@ and buried them. Mushrooms are ankle height; trees are not.
 
 ## The palette is limited
 
-Every finished picture is cut down to 32 colours, at the art grid, before
+Every finished picture is cut down to 48 colours, at the art grid, before
 anything is blown up — so the bands land on pixel edges.
 
 This is the difference between pixel art and a smooth render with large
@@ -284,6 +284,12 @@ pixels. Gradients and dithering invent thousands of colours; real pixel art
 picks a few dozen and stays inside them, and the banding that leaves behind
 is the look, not a fault. Tested at 48, 32 and 20: 20 flattens the being,
 48 barely differs from unlimited.
+
+**It was 32, and 32 was wrong.** That number came from testing on the God,
+which is drawn with shading in every scale and has plenty of colours of its
+own to keep. On a flat drawing — the plain aliens — it was clipping away
+exactly the modelling that makes a being look finished. Testing a limit on
+your most detailed subject tells you nothing about your least detailed one.
 
 ## The being is lit by what is behind it
 
@@ -406,3 +412,25 @@ Measured again afterwards, the smallest gap anywhere is 48 degrees. The
 generator refuses to finish if any picture falls under 36 — and that check
 was proved by measuring the untreated case, not by assuming, because a check
 that has never fired is a check nobody has tested.
+
+
+---
+
+# Form, added where the drawing has none
+
+The simple beings are drawn as flat blocks: a silhouette, a couple of lines,
+no modelling. The elaborate ones are shaded everywhere. Side by side at the
+same resolution, the flat ones looked unfinished rather than simple.
+
+The silhouette itself carries enough to fix that. Distance from the edge is
+a height field — high in the middle of a limb, zero at its outline. Light
+that height field and a flat arm becomes a round one.
+
+It is applied in proportion to how flat each place already is, measured as
+local variation in the drawing, so it builds up the plain beings and leaves
+the modelled ones almost untouched. The God is barely changed by it; the
+Common gains a rounded skull and shaded limbs.
+
+None of this makes a Common into a God. It makes a Common look like a
+deliberately simple drawing rather than an unfinished one, which is the
+difference that was actually showing.
