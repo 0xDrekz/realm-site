@@ -251,6 +251,19 @@ canvas{
 /* the chart sets its own size on numbers; the site-wide bump is for prose */
 .ch-table .num{font-size:inherit}
 
+/* what each row of buttons is choosing */
+.pick-for{
+  margin:0 0 7px;font-size:.70rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);
+}
+.ch-picker + .pick-for{margin-top:15px}
+.ch-chosen{
+  margin:2px 0 11px;padding:9px 12px;background:#130b28;
+  border:1px solid rgba(227,186,92,.2);
+  font-size:.78rem;line-height:1.6;color:var(--dim);
+}
+.ch-chosen b{color:var(--gold);font-weight:700}
+
 /* ---------- the provenance hash ----------
    64 hex characters on a phone can only be read if it wraps anywhere and
    the figures line up, so it breaks mid-word on purpose. */

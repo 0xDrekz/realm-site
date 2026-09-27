@@ -230,19 +230,15 @@
 
        even field   every holder carrying the same multiplier as you.
                     They cancel, and your slice is your weight over the
-                    collection's. This is the honest baseline.
-       best case    you at the top token band with nobody else
-                    multiplied at all. A ceiling, not a forecast.
+                    collection's. This is the honest baseline, and it is
+                    the same at every band.
+       with N x     you in the chosen band with nobody else holding any
+                    token at all. A ceiling, not a forecast.
 
-     A real outcome sits between them, and nearer the first.
-     ============================================================ */
-  const TOP_MULT = TOKEN_BANDS[TOKEN_BANDS.length - 1].mult;
-
+     A real outcome sits between them, and nearer the first. Anything
+     that showed one number here would be picking an assumption about
+     everybody else's wallet and not saying so. */
   const evenPay = (w, pool) => pool * w / TOTAL_WEIGHT;
-  const bestPay = (w, pool) => {
-    const mine = w * TOP_MULT;
-    return pool * mine / (TOTAL_WEIGHT - w + mine);
-  };
 
   /* what a holding has to weigh before it returns its own mint price.
      The price cancels out of both sides, so this does not depend on it —
@@ -298,16 +294,40 @@
       };
     }));
 
-  /* ---- every holding ----
-     Nine tiers times five quantities is forty-five rows, which nobody
-     scrolls through on a phone. So the quantity is chosen and the table
-     stays nine rows long. */
+  /* ---- every holding, at a chosen size and a chosen token band ----
+     Nine tiers times five quantities times six bands is 270 rows, which
+     nobody scrolls through on a phone. Both are chosen instead, and the
+     table stays ten rows long.
+
+     Moving the band deliberately does NOT move the even-field column, and
+     that is the most useful thing on the page rather than a flaw in it:
+     the token scales your weight, not the pool, so if everybody buys the
+     same band it cancels out completely and nobody has gained anything. */
   const lede2 = $("[data-ch-lede]");
   if (lede2) lede2.innerHTML =
-    `${n_(MAX_PER_WALLET)} beings is the most one wallet may mint. Choose how many you hold.`;
+    `${n_(MAX_PER_WALLET)} beings is the most one wallet may mint. Choose what you hold and `
+    + `how much ${TOKEN_NAME} you hold with it.`;
 
-  function detail(q) {
+  const bandLabel = $("[data-ch-bandlabel]");
+  if (bandLabel) bandLabel.textContent = TOKEN_NAME + " you hold";
+
+  /* short enough to sit on a button */
+  const shortHold = v =>
+    v === 0 ? "none" :
+    v >= 1e6 ? (v / 1e6) + "M" :
+    v >= 1e3 ? (v / 1e3) + "k" : String(v);
+
+  /* what your beings earn when YOU carry a multiplier and the rest of the
+     field carries none. The multiplier is applied to your weight, so the
+     denominator moves with it. */
+  const bandPay = (w, mult, pool) => {
+    const mine = w * mult;
+    return pool * mine / (TOTAL_WEIGHT - w + mine);
+  };
+
+  function detail(q, bandIndex) {
     const pool = POOL_FULL;
+    const band = TOKEN_BANDS[bandIndex];
     const body = [];
 
     /* the anchor: what any holding returns on average, which is exactly
@@ -318,7 +338,7 @@
       lit: true,
       cells: [`Any ${n_(q)}`, n_((q * PRICE).toFixed(2)),
               takeaway(evenPay(avgW, pool), q * PRICE),
-              n_(bestPay(avgW, pool).toFixed(3))]
+              takeaway(bandPay(avgW, band.mult, pool), q * PRICE)]
     });
 
     TIERS.forEach(t => {
@@ -329,50 +349,84 @@
       body.push({
         color: t.color,
         lit: t.key === "source",
-        cells: [`${t.name} <span class="num">×${held}</span>`,
+        cells: [`${t.name} <span class="num">\u00d7${held}</span>`,
                 n_(cost.toFixed(2)),
                 takeaway(evenPay(w, pool), cost),
-                n_(bestPay(w, pool).toFixed(3))]
+                takeaway(bandPay(w, band.mult, pool), cost)]
       });
     });
 
-    table($("[data-ch-table]"), "1.45fr .7fr 1fr .9fr",
-      ["Holding", "Mint cost", "Even field", "Best case"], body);
+    table($("[data-ch-table]"), "1.3fr .62fr 1fr 1fr",
+      ["Holding", "Mint cost", "Even field",
+       `With ${band.mult.toFixed(1)}\u00d7`], body);
+
+    const chosen = $("[data-ch-chosen]");
+    if (chosen) chosen.innerHTML = band.hold === 0
+      ? `Holding no ${TOKEN_NAME}, your multiplier is <b>1.0×</b> — the last column is the `
+        + `same as the first, because there is nothing multiplying it.`
+      : `Holding <b>${band.hold.toLocaleString()} ${TOKEN_NAME}</b> puts you in the `
+        + `<b>${band.mult.toFixed(1)}×</b> band.`;
 
     const foot = $("[data-ch-foot]");
     if (foot) foot.innerHTML =
       `All figures in SOL, assuming the drop fills. The first row is what any `
       + `${n_(q)} being${q > 1 ? "s" : ""} return${q > 1 ? "" : "s"} on average — exactly the `
       + `${n_(POOL_PERCENT)}% coming back — and every holding that beats it is paid for by one `
-      + `that does not. <b>Even field</b> is what your weight alone earns, with every holder on `
-      + `the same multiplier as you; they cancel out, and this is the honest baseline. `
-      + `<b>Best case</b> is you at ${n_(TOP_MULT.toFixed(1))}× tokens with nobody else `
-      + `multiplied at all. It falls the moment anyone else buys tokens, so it is a ceiling `
-      + `and not a forecast. The small figure is what is left `
-      + `once the mint is paid. A holding needs ${n_(breakEven(TOTAL_BEINGS).toFixed(1))} points `
-      + `to return its own mint price, so <b>${
-        TIERS.find(t => t.weight >= breakEven(TOTAL_BEINGS)).name}</b> is the first tier that `
-      + `pays for itself. And you do not choose your tier — it is whatever the mint hands you.`;
+      + `that does not. The small figure under each is what is left once the mint is paid.`
+      + `<br><br>`
+      + `<b>Even field</b> is what your weight earns when every holder carries the same `
+      + `multiplier as you. <b>Notice it does not move when you change the band above.</b> `
+      + `That is the mechanism being honest with you: ${TOKEN_NAME} multiplies your weight, `
+      + `not the pool, so if everybody buys the same amount it cancels out and nobody has `
+      + `gained a thing.`
+      + `<br><br>`
+      + `<b>With ${band.mult.toFixed(1)}×</b> is the other end: you in this band with nobody `
+      + `else holding any ${TOKEN_NAME} at all. It is a ceiling, not a forecast, and it falls `
+      + `as other people buy in. What you actually get lands between the two columns — the `
+      + `token is worth something only to the degree you hold more of it than the people `
+      + `you are sharing the pool with.`
+      + `<br><br>`
+      + `A holding needs ${n_(breakEven(TOTAL_BEINGS).toFixed(1))} points to return its own `
+      + `mint price, so <b>${TIERS.find(t => t.weight >= breakEven(TOTAL_BEINGS)).name}</b> is `
+      + `the first tier that pays for itself on weight alone. And you do not choose your tier — `
+      + `it is whatever the mint hands you.`;
   }
 
-  const picker = $("[data-ch-qty]");
-  if (picker) {
-    [...Array(MAX_PER_WALLET)].forEach((_, i) => {
-      const q = i + 1;
+  /* the two pickers */
+  let pickQty = MAX_PER_WALLET, pickBand = TOKEN_BANDS.length - 1;
+
+  function picker(el, items, initial, onPick) {
+    if (!el) return;
+    items.forEach((it, i) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.innerHTML = n_(q);
-      b.setAttribute("aria-pressed", String(q === MAX_PER_WALLET));
-      b.setAttribute("aria-label", q + (q === 1 ? " being" : " beings"));
+      b.innerHTML = it.html;
+      b.setAttribute("aria-pressed", String(i === initial));
+      b.setAttribute("aria-label", it.label);
       b.addEventListener("click", () => {
-        [...picker.children].forEach(c => c.setAttribute("aria-pressed", "false"));
+        [...el.children].forEach(c => c.setAttribute("aria-pressed", "false"));
         b.setAttribute("aria-pressed", "true");
-        detail(q);
+        onPick(i);
+        detail(pickQty, pickBand);
       });
-      picker.appendChild(b);
+      el.appendChild(b);
     });
   }
-  detail(MAX_PER_WALLET);
+
+  picker($("[data-ch-qty]"),
+    [...Array(MAX_PER_WALLET)].map((_, i) => ({
+      html: n_(i + 1), label: (i + 1) + (i ? " beings" : " being")
+    })), MAX_PER_WALLET - 1, i => pickQty = i + 1);
+
+  picker($("[data-ch-band]"),
+    TOKEN_BANDS.map(b => ({
+      html: b.hold === 0 ? "none" : n_(shortHold(b.hold)),
+      label: (b.hold === 0 ? "no " + TOKEN_NAME
+                           : b.hold.toLocaleString() + " " + TOKEN_NAME)
+             + ", " + b.mult.toFixed(1) + " times"
+    })), TOKEN_BANDS.length - 1, i => pickBand = i);
+
+  detail(pickQty, pickBand);
 
   const fine = $("[data-rw-fine]");
   if (fine) fine.textContent =
