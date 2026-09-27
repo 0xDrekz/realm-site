@@ -61,7 +61,13 @@ def eyes(alpha, thresh=96, head=0.34):
     lab, n = ndimage.label(gap)
     border = set(lab[0].tolist()) | set(lab[-1].tolist()) \
            | set(lab[:, 0].tolist()) | set(lab[:, -1].tolist())
-    h = alpha.shape[0]
+    h, w = alpha.shape
+    ink_ys, ink_xs = np.where(ink)
+    if not len(ink_xs):
+        return np.zeros_like(ink)
+    mid = (ink_xs.min() + ink_xs.max()) / 2
+    span = max(ink_xs.max() - ink_xs.min(), 1)
+
     found = []
     for i in range(1, n + 1):
         if i in border:
@@ -69,11 +75,24 @@ def eyes(alpha, thresh=96, head=0.34):
         ys, xs = np.where(lab == i)
         if ys.mean() > h * head:          # below the head — not an eye
             continue
+        # Eyes sit near the middle. The fairy's wings carry big pale patches
+        # in the top third, and without this they counted as seven more eyes.
+        if abs(xs.mean() - mid) / span > 0.26:
+            continue
         found.append((len(ys), i))
     found.sort(reverse=True)
     mask = np.zeros_like(ink)
-    for _, i in found[:2]:
-        mask |= (lab == i)
+    if not found:
+        return mask
+
+    # Every eye, not the two biggest. A being with six of them was having two
+    # of them lit and four left dark, which is worse than leaving all six
+    # alone. Anything at least a third the size of the largest hole in the
+    # head counts as one of the set.
+    biggest = found[0][0]
+    for size, i in found:
+        if size >= biggest * 0.33:
+            mask |= (lab == i)
     return mask
 
 

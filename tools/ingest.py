@@ -129,8 +129,10 @@ def ingest(src, name, tier):
     flags = []
     if detail < 0.06:       flags.append(f"almost nothing at this rung (detail {detail:.3f}) — "
                                         f"it would look the same cut to {rung//2}")
-    if book[name]["eye_mode"] == "holes" and n_eyes != 2:
-        flags.append(f"found {n_eyes} eye holes, not 2 — look at art/checks/{name}-eyes.png")
+    # Two is no longer the only right answer. Several beings have a third eye
+    # and one has six, and the finder was quietly truncating them to two.
+    if book[name]["eye_mode"] == "holes" and not (1 <= n_eyes <= 8):
+        flags.append(f"found {n_eyes} eye holes — look at art/checks/{name}-eyes.png")
     if err > 2:             flags.append(f"keying is off by {err}")
     print(f"{name:16s} {tier:10s} rung {rung:3d}  detail {detail:.3f}  {mode:8s} "
           f"({mid*100:.0f}% mid)  eyes {n_eyes}")

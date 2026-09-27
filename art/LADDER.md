@@ -158,3 +158,26 @@ repeat is forced, and the check allows exactly that many and no more.
 - every being matched to the tier it was assigned
 
 It prints the problems and exits rather than writing a round that is wrong.
+
+
+---
+
+# Eyes: two was never the right answer
+
+The finder took the two largest holes in the head. Several beings have a
+third eye in the forehead — the crowned pair, the Entity, the winged grey,
+the four-armed grey — and all of them were having it quietly left dark. Then
+a being arrived with six.
+
+It takes every hole in the head at least a third the size of the largest one
+now, which gives two where there are two, three where there is a third eye,
+and six where there are six.
+
+That needed one more rule. The fairy's wings carry big pale patches in the
+top third of the picture, and without it they counted as seven more eyes —
+nine in total. Eyes sit near the middle of a face, so a hole far off the
+centre line is not one.
+
+The ingest check no longer demands two. It flags none, or more than eight,
+and every being still gets an overlay to be looked at — which is what
+caught the fairy.

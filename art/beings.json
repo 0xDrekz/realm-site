@@ -5,7 +5,7 @@
     "detail": 0.121,
     "mode": "stencil",
     "mid_grey": 0.155,
-    "eyes": 2,
+    "eyes": 3,
     "key_error": 1.0,
     "eye_mode": "holes"
   },
@@ -15,7 +15,7 @@
     "detail": 0.109,
     "mode": "shade",
     "mid_grey": 0.523,
-    "eyes": 2,
+    "eyes": 3,
     "key_error": 1.0,
     "eye_mode": "holes"
   },
@@ -25,7 +25,7 @@
     "detail": 0.144,
     "mode": "stencil",
     "mid_grey": 0.25,
-    "eyes": 2,
+    "eyes": 3,
     "key_error": 1.0,
     "eye_mode": "holes"
   },
@@ -35,7 +35,7 @@
     "detail": 0.059,
     "mode": "shade",
     "mid_grey": 0.623,
-    "eyes": 0,
+    "eyes": 3,
     "key_error": 1.0,
     "eye_mode": "drawn"
   },
@@ -45,7 +45,7 @@
     "detail": 0.06,
     "mode": "shade",
     "mid_grey": 0.497,
-    "eyes": 2,
+    "eyes": 3,
     "key_error": 1.0,
     "eye_mode": "holes"
   },
@@ -75,7 +75,7 @@
     "detail": 0.166,
     "mode": "shade",
     "mid_grey": 0.489,
-    "eyes": 2,
+    "eyes": 1,
     "key_error": 1.0,
     "eye_mode": "drawn"
   },
@@ -85,7 +85,7 @@
     "detail": 0.029,
     "mode": "stencil",
     "mid_grey": 0.039,
-    "eyes": 2,
+    "eyes": 3,
     "key_error": 1.0,
     "eye_mode": "holes"
   },
@@ -115,7 +115,7 @@
     "detail": 0.041,
     "mode": "stencil",
     "mid_grey": 0.155,
-    "eyes": 2,
+    "eyes": 3,
     "key_error": 1.0,
     "eye_mode": "holes"
   },
@@ -125,8 +125,18 @@
     "detail": 0.035,
     "mode": "stencil",
     "mid_grey": 0.204,
-    "eyes": 0,
+    "eyes": 3,
     "key_error": 1.0,
     "eye_mode": "drawn"
+  },
+  "six-eyed": {
+    "tier": "mythic",
+    "rung": 480,
+    "detail": 0.12,
+    "mode": "shade",
+    "mid_grey": 0.523,
+    "eyes": 6,
+    "key_error": 1.0,
+    "eye_mode": "holes"
   }
 }

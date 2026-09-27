@@ -123,8 +123,13 @@ def tier_list():
     return out
 
 
-def beings_for(tier):
-    """Every drawing that belongs to this tier.
+def beings_for(tier, round_no=None):
+    """Every drawing that belongs to this tier — and to this round.
+
+    A drawing may carry a "round" in beings.json. If it does, it appears only
+    in that round and nowhere else, which is how a God drawn for round four
+    stays the God of round four. A drawing with no round belongs to all of
+    them.
 
     A tier used to hold exactly one, and the first match won — so forty
     Commons in a round were forty copies of one alien, and two drawings were
@@ -136,14 +141,14 @@ def beings_for(tier):
     return sorted(out)
 
 
-def deal_beings(tier, n, rng):
+def deal_beings(tier, n, rng, round_no=None):
     """Share a tier's count out among its drawings as evenly as it goes.
 
     Dealt rather than rolled, for the same reason the tiers themselves are:
     left to chance, forty Commons across two drawings comes out 25/15 often
     enough to look like a mistake.
     """
-    pool = beings_for(tier)
+    pool = beings_for(tier, round_no)
     per, rest = divmod(n, len(pool))
     out = []
     for i, name in enumerate(pool):
@@ -170,7 +175,7 @@ def generate(round_no, out_dir):
     used_cw = {t: set() for t in SCARCE}
 
     # each tier's drawings, dealt out and handed round in order
-    dealt = {t: deal_beings(t, n, rng) for t, n in COUNTS.items()}
+    dealt = {t: deal_beings(t, n, rng, round_no) for t, n in COUNTS.items()}
     used = {t: 0 for t in COUNTS}
 
     seen, rows = set(), []
@@ -229,7 +234,7 @@ def generate(round_no, out_dir):
                   open(f"{out_dir}/metadata/{i}.json", "w"), indent=2)
 
         row = {"id": i, "tier": tier, "being": being, "colourway": wname,
-               "png": png, "loud": round(loud, 2)}
+               "png": png, "loud": round(loud, 2), "round": round_no}
         row.update({k: t[k] for k in TRAITS})
         rows.append(row)
         if i % 20 == 0:
@@ -283,7 +288,7 @@ def verify(rows, out_dir):
 
     # no drawing may take more than its share of a tier that has alternatives
     for tier, n in COUNTS.items():
-        pool = beings_for(tier)
+        pool = beings_for(tier, rows[0].get("round"))
         if len(pool) < 2:
             continue
         got = {}
@@ -298,7 +303,7 @@ def verify(rows, out_dir):
 
     # no drawing may take more than its share of a tier that has alternatives
     for tier, n in COUNTS.items():
-        pool = beings_for(tier)
+        pool = beings_for(tier, rows[0].get("round"))
         if len(pool) < 2:
             continue
         got = {}
