@@ -129,7 +129,7 @@ def ufos(w, h, kind, pal, seed):
 
 # ---------------------------------------------------------------- the air
 
-def breath(w, h, kind, pal, seed, mx, my):
+def breath(w, h, kind, pal, seed, mx, my, phase=0.0):
     """Smoke leaving the mouth.
 
     It starts small and tight at the mouth and opens out as it climbs, which
@@ -147,7 +147,9 @@ def breath(w, h, kind, pal, seed, mx, my):
     lean = r.uniform(-1, 1)
     top = my - h * reach
     for k in range(puffs):
-        t = k / max(puffs - 1, 1)               # 0 at the mouth, 1 at the top
+        # phase slides every puff along its path and wraps, so a loop joins
+        # back to itself with nothing jumping
+        t = ((k + phase * 1.0) % puffs) / max(puffs - 1, 1)
         py = my - t * (my - top)
         px = mx + lean * w * 0.16 * (t ** 1.6) + np.sin(t*7 + seed) * w * 0.02 * t
         # the first puffs were three pixels across and vanished, so the plume
@@ -196,7 +198,7 @@ def smoke(w, h, kind, pal, seed):
     return out
 
 
-def moondust(w, h, kind, pal, seed):
+def moondust(w, h, kind, pal, seed, phase=0.0):
     """Fine motes hanging in the air, thicker low down, drifting sideways."""
     r = np.random.default_rng(seed + 55)
     out = _rgba(h, w)
@@ -207,6 +209,8 @@ def moondust(w, h, kind, pal, seed):
 
     low = np.clip(y / h, 0, 1) ** 1.4
     field = (r.random((h, w)) < dens * (0.35 + low))
+    if phase:
+        field = np.roll(field, int(phase * h) % h, axis=0)
     _put(out, field, pal["dust"], 190)
 
     for _ in range(int(dens * 300)):              # a few brighter, with a tail

@@ -268,3 +268,64 @@ Two passes on the mushrooms. The first crop was too small to make out and
 all of it was clumped around one point, which put the whole lot behind the
 being. Enlarged, they overshot — a near mushroom stood taller than the trees
 and buried them. Mushrooms are ankle height; trees are not.
+
+---
+
+# Four things that make it read as pixel art rather than a render
+
+## The palette is limited
+
+Every finished picture is cut down to 32 colours, at the art grid, before
+anything is blown up — so the bands land on pixel edges.
+
+This is the difference between pixel art and a smooth render with large
+pixels. Gradients and dithering invent thousands of colours; real pixel art
+picks a few dozen and stays inside them, and the banding that leaves behind
+is the look, not a fault. Tested at 48, 32 and 20: 20 flattens the being,
+48 barely differs from unlimited.
+
+## The being is lit by what is behind it
+
+The edge of a being now catches the colour of whatever it stands in front
+of. Lit the same whatever was behind, it read as pasted over the picture
+rather than standing in it.
+
+## It does not always stand in the middle
+
+| Pose | |
+|------|--|
+| Centred | as before |
+| Left / Right | shifted off the axis |
+| Close | cropped in, head higher in the frame |
+
+Dead centre every time made a round look like one template with the
+variables changed. Pose is not tilted by rarity — nor are Spores or Eyes —
+because those are choices, not intensities, and tilting them would make
+every God a close crop.
+
+## Mushrooms need not match the ground
+
+| Spores | |
+|--------|--|
+| Matching | the floor's own hue |
+| Golden | warmed |
+| Complementary | opposite |
+| Opposed | a third of the way round |
+| Cold | rotated back |
+
+Everything took its colour from one place, so a purple floor grew purple
+mushrooms and the whole lower third was a single hue.
+
+---
+
+# The rarest ones move
+
+`tools/animate.py` renders a loop: the smoke climbs, the dust drifts, and
+the lightning flashes and goes dark between, which is what lightning does
+and what a still picture can never show.
+
+One phase runs 0 to 1 and every layer wraps on it, so the loop joins back to
+itself with nothing jumping. Every frame is quantised against the FIRST
+frame's palette rather than its own, or the colours crawl between frames.
+
+Nothing else in a marketplace grid moves, so a God that does is seen first.

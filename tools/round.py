@@ -64,8 +64,13 @@ TRAITS = {
                   ("Cluster", 2)],
  "Explosions":   [("None", 78), ("One", 13), ("Two", 7), ("Barrage", 2)],
  "Lightning":    [("None", 76), ("Strike", 14), ("Storm", 7), ("Tempest", 3)],
- "Trees":        [("None", 64), ("One", 20), ("Copse", 11), ("Forest", 5)],
- "Mushrooms":    [("None", 58), ("Few", 24), ("Cluster", 13), ("Grove", 5)],
+ # halved from the first run, where 80 of 111 had something growing and it
+ # stopped feeling found
+ "Trees":        [("None", 80), ("One", 11), ("Copse", 6), ("Forest", 3)],
+ "Mushrooms":    [("None", 76), ("Few", 13), ("Cluster", 8), ("Grove", 3)],
+ "Spores":       [("Matching", 40), ("Golden", 20), ("Complementary", 18),
+                  ("Opposed", 14), ("Cold", 8)],
+ "Pose":         [("Centred", 58), ("Left", 16), ("Right", 16), ("Close", 10)],
  "Eyes":         [("Plain", 40), ("Ringed", 20), ("Slit", 16),
                   ("Starburst", 12), ("Spiral", 8), ("Void", 4)],
 }
@@ -147,7 +152,10 @@ def generate(round_no, out_dir):
             pool_n = POOL.get(tier, len(WEAVES))
             if tier in SCARCE and wname in used[tier] and len(used[tier]) < pool_n:
                 continue
-            t = {k: roll(k, loud, rng) for k in TRAITS}
+            # Pose and Spores are choices, not intensities — tilting them by
+            # loudness would just make every God a close crop.
+            FLAT = {"Pose", "Spores", "Eyes"}
+            t = {k: roll(k, 0.0 if k in FLAT else loud, rng) for k in TRAITS}
             key = (being, wname) + tuple(t[k] for k in TRAITS)
             if key not in seen:
                 if tier in SCARCE:
@@ -173,7 +181,8 @@ def generate(round_no, out_dir):
                  {"trait_type": "Being", "value": being},
                  {"trait_type": "Colourway", "value": wname}]
         for k in ("Geometry", "Stars", "Planets", "UFOs", "Explosions",
-                  "Lightning", "Smoke", "Dust", "Trees", "Mushrooms", "Eyes"):
+                  "Lightning", "Smoke", "Dust", "Trees", "Mushrooms",
+                  "Spores", "Pose", "Eyes"):
             attrs.append({"trait_type": k, "value": t[k]})
         attrs.append({"trait_type": "Round", "value": str(round_no)})
 

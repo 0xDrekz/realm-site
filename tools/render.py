@@ -175,9 +175,60 @@ def dress(drawn, weave, rim=True):
     return np.dstack([np.clip(col, 0, 255), np.where(body, 255, 0)]).astype(np.uint8)
 
 
+def _hue_shift(rgb, deg):
+    """Rotate a colour's hue, keeping how light and how saturated it is."""
+    import colorsys
+    r, g, b = [c / 255.0 for c in rgb]
+    hh, ll, ss = colorsys.rgb_to_hls(r, g, b)
+    r, g, b = colorsys.hls_to_rgb((hh + deg / 360.0) % 1.0, ll, ss)
+    return (int(r * 255), int(g * 255), int(b * 255))
+
+
+SPORES = {"Matching": 0, "Golden": 40, "Complementary": 180,
+          "Opposed": 120, "Cold": -110}
+
+
+def _flora_palette(pal, spore):
+    """Mushrooms need not match the ground they grow out of.
+
+    Everything took its colour from the same place, so a purple floor grew
+    purple mushrooms and the whole lower third was one hue. Their caps are
+    rotated away from it here.
+    """
+    deg = SPORES.get(spore, 0)
+    if deg == 0:
+        return pal
+    out = dict(pal)
+    for k in ("shroom_cap", "shroom_cap_light", "shroom_spot",
+              "shroom_gill", "tree_leaf", "tree_leaf_lit"):
+        if k in out:
+            out[k] = _hue_shift(out[k], deg)
+    return out
+
+
+def _limit(img, colours):
+    """Cut the picture down to a small palette.
+
+    This is the difference between pixel art and a smooth render with large
+    pixels. Gradients and dithering invent thousands of colours; real pixel
+    art picks a few dozen and stays inside them, and the banding that leaves
+    behind is the look, not a fault.
+
+    Done at the art grid, before anything is blown up, so the bands land on
+    pixel edges.
+    """
+    if not colours:
+        return img
+    q = img.convert("RGB").quantize(colors=colours, method=Image.MEDIANCUT,
+                                    dither=Image.Dither.NONE)
+    return q.convert("RGB")
+
+
 def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
-           eye_mode="holes", fill=0.82):
+           eye_mode="holes", fill=0.82, colours=32, phase=None):
     w = h = canvas
+    rng = np.random.default_rng(seed ^ 0x5EED)
+    pal = _flora_palette(pal, t.get("Spores", "Matching"))
     base = np.zeros((h, w, 4), np.uint8); base[:, :, 3] = 255
 
     base = over(base, traits.stars(w, h, t["Stars"], pal, seed))
@@ -187,12 +238,27 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
         base = over(base, sigilry(w, h, t["Geometry"], pal, seed,
                                   t.get("GeometryUnder", "None")))
 
-    base = over(base, traits.lightning(w, h, t["Lightning"], pal, seed))
+    # a still picture always has its bolt; a moving one flashes and is dark
+    # between, which is what lightning does
+    bolt_kind = t["Lightning"]
+    bolt_seed = seed
+    if phase is not None and bolt_kind != "None":
+        fire = (phase * 4.0) % 1.0 < 0.34
+        bolt_seed = seed + int(phase * 4.0) * 17
+        if not fire:
+            bolt_kind = "None"
+    base = over(base, traits.lightning(w, h, bolt_kind, pal, bolt_seed))
     base = over(base, traits.ufos(w, h, t["UFOs"], pal, seed))
     base = over(base, traits.explosions(w, h, t["Explosions"], pal, seed))
 
     # ---- the being, prepared but not laid down yet
     art = Image.open(being_png).convert("RGBA")
+    # Close crops in on the being. It is applied here, before the art is
+    # resized, so the whole figure is still drawn — it simply runs off the
+    # bottom and sides of the frame the way a portrait does.
+    pose_now = t.get("Pose", "Centred")
+    if pose_now == "Close":
+        fill = min(1.55, fill * 1.45)
     s = int(canvas * fill)
     fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
     art.resize((s, s), Image.NEAREST).save(tmp)
@@ -209,13 +275,19 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
         lay = traits.iris(lay, eyes(drawn), t["Eyes"], pal, seed)
     lay = outline(lay, pal["ink"])
 
-    nx, ny = w//2 - s//2, int(h * 1.02) - s
+    # where it stands. Dead centre every time made a round look like one
+    # template with the variables changed.
+    pose = t.get("Pose", "Centred")
+    off = {"Centred": 0.0, "Left": -0.14, "Right": 0.14, "Close": 0.0}[pose]
+    nx = int(w/2 - s/2 + off * w)
+    # a close crop sits the head higher in the frame, not the feet lower
+    ny = int(h * (1.20 if pose == "Close" else 1.02)) - s
 
     # the air, still born at the being's mouth but laid down before it
     mx, my = bodyparts.mouth(drawn)
     base = over(base, traits.breath(w, h, t["Smoke"], pal, seed,
-                                    nx + mx, ny + my))
-    base = over(base, traits.moondust(w, h, t["Dust"], pal, seed))
+                                    nx + mx, ny + my, phase or 0.0))
+    base = over(base, traits.moondust(w, h, t["Dust"], pal, seed, phase or 0.0))
     # the floor and what grows on it, far to near
     grows = t.get("Trees", "None") != "None" or t.get("Mushrooms", "None") != "None"
     base = over(base, traits.ground(w, h, "Floor" if grows else "None", pal, seed))
@@ -225,7 +297,22 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     # and the being last, over everything
     hold = np.zeros((h, w, 4), np.uint8)
     y0, x0, y1, x1 = max(0,ny), max(0,nx), min(h,ny+s), min(w,nx+s)
-    hold[y0:y1, x0:x1] = lay[y0-ny:y1-ny, x0-nx:x1-nx]
+    if y1 > y0 and x1 > x0:
+        hold[y0:y1, x0:x1] = lay[y0-ny:y1-ny, x0-nx:x1-nx]
+
+    # Lit by what is behind it. A being in front of a purple mandala should
+    # catch purple down its edge; lit the same whatever was behind, it read
+    # as pasted on rather than standing there.
+    skin = hold[:, :, 3] > 40
+    if skin.any():
+        halo = ndimage.binary_dilation(skin, iterations=6) & ~skin
+        if halo.any():
+            behind = base[:, :, :3][halo].astype(float).mean(axis=0)
+            edge = skin & ~ndimage.binary_erosion(skin, iterations=2)
+            k = np.clip(behind / max(behind.max(), 1), 0, 1) * 96
+            hold[edge, :3] = np.clip(hold[edge, :3].astype(float) + k[None, :],
+                                     0, 255).astype(np.uint8)
     base = over(base, hold)
 
-    return Image.fromarray(base, "RGBA").convert("RGB").resize((w*scale, h*scale), Image.NEAREST)
+    flat = _limit(Image.fromarray(base, "RGBA").convert("RGB"), colours)
+    return flat.resize((w*scale, h*scale), Image.NEAREST)
