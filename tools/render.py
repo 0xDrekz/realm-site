@@ -2,16 +2,23 @@
 """
 REALM — one being, one set of traits, one picture.
 
-The order the layers go down in is the whole job:
+The order the layers go down in is the whole job. EVERYTHING goes behind the
+being, so the being is never competed with:
 
     black
     stars            far off
     planets          far off
-    geometry         behind the being, glowing
-    UFOs             between the geometry and the being
-    the being        outlined, with its eyes drawn into
-    smoke            in front of the being's feet
-    moon dust        in front of everything, thin
+    geometry         in layers, glowing
+    lightning
+    UFOs
+    explosions
+    smoke            out of the mouth, rising behind the head
+    moon dust
+    the being        last, on top of all of it
+
+Smoke and dust used to sit in front. It made them read as weather happening
+to the picture, and it put haze over the face — the one part of a being
+anybody looks at.
 
 Everything is drawn at the art grid and blown up by a whole number at the end.
 """
@@ -181,7 +188,7 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     base = over(base, traits.ufos(w, h, t["UFOs"], pal, seed))
     base = over(base, traits.explosions(w, h, t["Explosions"], pal, seed))
 
-    # ---- the being
+    # ---- the being, prepared but not laid down yet
     art = Image.open(being_png).convert("RGBA")
     s = int(canvas * fill)
     fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
@@ -200,14 +207,17 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     lay = outline(lay, pal["ink"])
 
     nx, ny = w//2 - s//2, int(h * 1.02) - s
-    hold = np.zeros((h, w, 4), np.uint8)
-    y0, x0, y1, x1 = max(0,ny), max(0,nx), min(h,ny+s), min(w,nx+s)
-    hold[y0:y1, x0:x1] = lay[y0-ny:y1-ny, x0-nx:x1-nx]
-    base = over(base, hold)
 
+    # the air, still born at the being's mouth but laid down before it
     mx, my = bodyparts.mouth(drawn)
     base = over(base, traits.breath(w, h, t["Smoke"], pal, seed,
                                     nx + mx, ny + my))
     base = over(base, traits.moondust(w, h, t["Dust"], pal, seed))
+
+    # and the being last, over everything
+    hold = np.zeros((h, w, 4), np.uint8)
+    y0, x0, y1, x1 = max(0,ny), max(0,nx), min(h,ny+s), min(w,nx+s)
+    hold[y0:y1, x0:x1] = lay[y0-ny:y1-ny, x0-nx:x1-nx]
+    base = over(base, hold)
 
     return Image.fromarray(base, "RGBA").convert("RGB").resize((w*scale, h*scale), Image.NEAREST)

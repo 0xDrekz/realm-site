@@ -26,25 +26,29 @@ different collection. The list above is the list.
 | Colourway | Regalia, Verdant, Furnace, Abyss, Ossuary, Auric, Bloom, Eclipse |
 | Eyes | Plain, Slit, Ringed, Spiral, Starburst, Void |
 
-Moon dust also exists — fine motes hanging in the air, None through Heavy.
-It sits in front of the being rather than behind it, so it is not a
-background trait, and it can be cut if it is not wanted.
+| Moon dust | None, Faint, Drifting, Heavy |
+
+Moon dust sits behind the being with everything else.
 
 ## The order they go down in
 
     black
     stars            far off
     planets          far off
-    geometry         behind the being, in layers, glowing
-    lightning        in front of the geometry, behind everything else
-    UFOs             between the lightning and the being
-    explosions       in front of the UFOs
-    the being        outlined, with its eyes drawn into
-    smoke            out of its mouth
-    moon dust        in front of everything, thin
+    geometry         in layers, glowing
+    lightning
+    UFOs
+    explosions
+    smoke            out of the mouth, rising behind the head
+    moon dust
+    the being        last, on top of all of it
 
-That order is the job. Smoke behind the being is wallpaper; in front of its
-feet it is smoke.
+EVERYTHING goes behind the being. Smoke and dust used to sit in front, which
+made them read as weather happening to the picture rather than in it, and put
+haze over the face — the one part of a being anybody looks at.
+
+The smoke is still born at the mouth; it is only drawn earlier, so it climbs
+from behind the head rather than across the face.
 
 ## Colour carries rarity on its own
 
