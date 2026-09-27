@@ -17,6 +17,7 @@ from PIL import Image
 from scipy import ndimage
 
 from compose import _bayer, _dither, eyes, over, tint, shade
+import patterns
 
 
 # ---------------------------------------------------------------- the sky
@@ -98,31 +99,24 @@ def ground(w, h, horizon, pal, seed):
 
 # ---------------------------------------------------------------- the gate
 
-def gate(w, h, horizon, pal, seed, scale=1.0):
-    """A way through, standing behind the being: two pillars, a lintel, a roof."""
+def sigil(w, h, horizon, pal, kind, seed, scale=1.0):
+    """The geometry standing behind the being.
+
+    Drawn on the art grid a pixel wide, and laid in twice — once dim and
+    offset by one pixel as a shadow, once bright — so it does not vanish
+    against a light sky.
+    """
     out = np.zeros((h, w, 4), np.uint8)
-    col = list(pal["stone"]) + [255]
-    roof = list(pal["roof"]) + [255]
-    dark = list(pal["stone_dark"]) + [255]
+    if kind is None:
+        return out
+    cx, cy = w / 2, horizon * 0.72
+    R = w * 0.40 * scale
+    m = patterns.draw(w, h, kind, cx, cy, R, seed)
 
-    gh = int(h * 0.34 * scale)
-    gw = int(w * 0.40 * scale)
-    cx = w // 2
-    base = horizon + int(h * 0.02)
-    top = base - gh
-    pw = max(2, int(gw * 0.11))
-
-    def box(x0, y0, x1, y1, c):
-        x0, x1 = max(0, x0), min(w, x1); y0, y1 = max(0, y0), min(h, y1)
-        if x1 > x0 and y1 > y0: out[y0:y1, x0:x1] = c
-
-    box(cx-gw//2, top, cx+gw//2, base, [0,0,0,255])          # the dark way through
-    box(cx-gw//2, top, cx-gw//2+pw, base, col)               # pillars
-    box(cx+gw//2-pw, top, cx+gw//2, base, col)
-    box(cx-gw//2, top, cx+gw//2, top+max(2,int(gh*0.10)), col)   # lintel
-    lip = max(2, int(gh * 0.09))
-    box(cx-gw//2-int(gw*0.10), top-lip, cx+gw//2+int(gw*0.10), top, roof)  # roof
-    box(cx-gw//2, base-max(1,int(gh*0.04)), cx+gw//2, base, dark)          # step
+    shadow = np.zeros_like(m)
+    shadow[1:, 1:] = m[:-1, :-1]
+    out[shadow & ~m] = list(pal["sigil_dark"]) + [255]
+    out[m] = list(pal["sigil"]) + [255]
     return out
 
 
@@ -145,14 +139,14 @@ def outline(layer, colour=(10, 6, 16), width=1):
 # ---------------------------------------------------------------- assembly
 
 def place(being_png, pal, canvas, scale, seed, mode="stencil", eye_mode="holes",
-          fill=0.80, echo=True):
+          fill=0.80, echo=True, sigil_kind="Mandala"):
     """Put one being in a place and return the picture."""
     w = h = canvas
     horizon = int(h * 0.56)
     rng = np.random.default_rng(seed)
 
     base = np.dstack([sky(w, h, horizon, pal, seed), np.full((h, w, 1), 255, np.uint8)])
-    base = over(base, gate(w, h, horizon, pal, seed))
+    base = over(base, sigil(w, h, horizon, pal, sigil_kind, seed))
     base = over(base, ground(w, h, horizon, pal, seed))
 
     art = Image.open(being_png).convert("RGBA")
@@ -176,7 +170,7 @@ def place(being_png, pal, canvas, scale, seed, mode="stencil", eye_mode="holes",
     if echo:
         s = max(12, int(canvas * 0.30))
         far = dressed(s, smooth=True)
-        fx, fy = w//2 - s//2, horizon - s + int(h*0.02)
+        fx, fy = w//2 - s//2 + int(rng.integers(-w//5, w//5 + 1)), horizon - s + int(h*0.015)
         lay = np.zeros((h, w, 4), np.uint8)
         lay[max(0,fy):fy+s, max(0,fx):fx+s] = far[:h-max(0,fy), :w-max(0,fx)]
         lay[:, :, 3] = (lay[:, :, 3].astype(float) * 0.9).astype(np.uint8)
