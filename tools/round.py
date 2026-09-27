@@ -120,6 +120,24 @@ def colourway(tier, loud, rng):
     return names[rng.choice(len(names), p=w / w.sum())]
 
 
+def _usable(png):
+    """Is there already a finished picture here?
+
+    Checked properly rather than by existence: a run killed mid-save leaves a
+    truncated file, and resuming onto one would put a corrupt being into the
+    collection and pass every count check on the way out.
+    """
+    if not os.path.exists(png):
+        return False
+    try:
+        im = Image.open(png)
+        im.verify()                      # catches a truncated file
+        im = Image.open(png)             # verify() leaves the handle unusable
+        return im.size == (2400, 2400)
+    except Exception:
+        return False
+
+
 def tier_list():
     """The exact deal — counts, not chance."""
     out = []
@@ -179,7 +197,7 @@ def generate(out_dir, seed=1111):
     dealt = {t: deal_beings(t, n, rng) for t, n in COUNTS.items()}
     used = {t: 0 for t in COUNTS}
 
-    seen, rows = set(), []
+    seen, rows, kept = set(), [], 0
     for i, tier in enumerate(tiers, start=1):
         being = dealt[tier][used[tier]]
         used[tier] += 1
@@ -210,13 +228,28 @@ def generate(out_dir, seed=1111):
         pal["weave"] = dict(WEAVES[wname])
         pal["weave"]["vivid"] = pal["weave"].get("vivid", 1.0) + loud * 0.30
 
-        img = render(f"{ROOT}/art/beings/{being}.png", pal, t, canvas, scale,
-                     seed=int(rng.integers(0, 1 << 30)),
-                     mode=info["mode"], eye_mode=info.get("eye_mode", "holes"),
-                     fill=info["rung"] / canvas)
+        # The seed is drawn whether or not the picture gets made, because the
+        # generator has to stay deterministic: skipping a draw would shift
+        # every being after it onto different random numbers and quietly make
+        # a different collection.
+        img_seed = int(rng.integers(0, 1 << 30))
+
         n = i
         png = f"{out_dir}/images/{n}.png"
-        img.save(png, optimize=True)
+
+        # Resume. A whole run is nearly an hour and this machine can be
+        # restarted out from under it -- which happened, at 738 of 1,110.
+        # An image already on disk at the right size is kept, so a second run
+        # picks up where the first stopped instead of starting again. The same
+        # seed gives the same collection either way.
+        if _usable(png):
+            kept += 1
+        else:
+            img = render(f"{ROOT}/art/beings/{being}.png", pal, t, canvas, scale,
+                         seed=img_seed,
+                         mode=info["mode"], eye_mode=info.get("eye_mode", "holes"),
+                         fill=info["rung"] / canvas)
+            img.save(png, optimize=True)
 
         attrs = [{"trait_type": "Tier", "value": tier.capitalize()},
                  {"trait_type": "Being", "value": being},
@@ -241,6 +274,8 @@ def generate(out_dir, seed=1111):
         if i % 50 == 0:
             print(f"  {i}/{GENERATED}")
 
+    if kept:
+        print(f"  kept {kept} already on disk, made {len(rows) - kept}")
     json.dump(rows, open(f"{out_dir}/generated.json", "w"), indent=2)
     return rows
 
