@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-import patterns, traits, motifs, parts as bodyparts
+import patterns, traits, parts as bodyparts
 from compose import over, tint, shade, eyes
 from scene import outline
 
@@ -172,15 +172,14 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
 
     base = over(base, traits.stars(w, h, t["Stars"], pal, seed))
     base = over(base, traits.planets(w, h, t["Planets"], pal, seed))
-    # things that live there, behind the geometry
-    base = over(base, motifs.scatter(w, h, t.get("Motif", "None"),
-                                     t.get("MotifCount", 0), pal, seed))
 
     if t["Geometry"] != "None":
         base = over(base, sigilry(w, h, t["Geometry"], pal, seed,
                                   t.get("GeometryUnder", "None")))
 
+    base = over(base, traits.lightning(w, h, t["Lightning"], pal, seed))
     base = over(base, traits.ufos(w, h, t["UFOs"], pal, seed))
+    base = over(base, traits.explosions(w, h, t["Explosions"], pal, seed))
 
     # ---- the being
     art = Image.open(being_png).convert("RGBA")

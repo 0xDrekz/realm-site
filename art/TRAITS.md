@@ -3,26 +3,44 @@
 Not tints over a finished picture. Each of these is a layer of its own that
 either appears or does not, and a collector can point at it and name it.
 
-| Trait | Values | Rarest |
-|-------|--------|--------|
-| Colourway | Void, Ember, Deep, Verdigris, Bone, Aurum, Bloom, Eclipse | Eclipse |
-| Geometry | None, Mandala, Flower, Yantra, Metatron, Rays, Lattice, Tree, Weird | — |
-| Stars | None, Sparse, Field, Dense | Dense |
-| Planets | None, One, Two, Ringed, Cluster | Ringed |
-| UFOs | None, One, Few, Fleet | Fleet |
-| Smoke | None, Wisp, Rising, Shroud | Shroud |
-| Moon dust | None, Faint, Drifting, Heavy | Heavy |
-| Eyes | Plain, Slit, Ringed, Spiral, Starburst, Void | Void |
+## The background — seven, and only these seven
+
+| Trait | Values |
+|-------|--------|
+| Stars | None, Sparse, Field, Dense |
+| Geometry | None, Mandala, Flower, Yantra, Metatron, Rays, Lattice, Tree, Weird, Rosette, Gatefold, Spiral |
+| Smoke | None, Wisp, Rising, Shroud |
+| UFOs | None, One, Few, Fleet |
+| Planets | None, One, Two, Ringed, Cluster |
+| Explosions | None, One, Two, Barrage |
+| Lightning | None, Strike, Storm, Tempest |
+
+Hands, moths and moons were built and removed. They were never asked for and
+they do not belong in this realm — a background of drifting body parts is a
+different collection. The list above is the list.
+
+## On the being itself
+
+| Trait | Values |
+|-------|--------|
+| Colourway | Regalia, Verdant, Furnace, Abyss, Ossuary, Auric, Bloom, Eclipse |
+| Eyes | Plain, Slit, Ringed, Spiral, Starburst, Void |
+
+Moon dust also exists — fine motes hanging in the air, None through Heavy.
+It sits in front of the being rather than behind it, so it is not a
+background trait, and it can be cut if it is not wanted.
 
 ## The order they go down in
 
     black
     stars            far off
     planets          far off
-    geometry         behind the being, glowing in three passes
-    UFOs             between the geometry and the being
+    geometry         behind the being, in layers, glowing
+    lightning        in front of the geometry, behind everything else
+    UFOs             between the lightning and the being
+    explosions       in front of the UFOs
     the being        outlined, with its eyes drawn into
-    smoke            in front of the being's feet
+    smoke            out of its mouth
     moon dust        in front of everything, thin
 
 That order is the job. Smoke behind the being is wallpaper; in front of its
@@ -156,3 +174,25 @@ Three passes to get them right:
   above 82% brightness.
 - **The hand was a blob.** Its fingers started in the middle of the palm and
   were shorter than the palm was wide, so they never emerged.
+
+
+---
+
+# Explosions and lightning
+
+**Explosions** are a white core, a hot shell cooling outward, a dithered
+shockwave thrown out to twice the fireball's width, and shards with trails
+behind them.
+
+Fire is hot whatever the colourway is. Keying the colours off the palette's
+accent made the Ember explosions come out **cyan**, which is not a thing an
+explosion does. Only the outermost ring — the part that is really lit smoke —
+takes the palette's colour now.
+
+**Lightning** walks downward in long straight runs with a sharp kink between
+them, and forks once per run rather than always.
+
+Wandering a little every step with a branch always possible made a fine web
+that read as cracks in glass. A bolt is mostly straight; it is the sudden
+angles that make it read as one. The bolts are also drawn thick with a wide
+dim halo, because a one-pixel bolt at any distance is a gold thread.

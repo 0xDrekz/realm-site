@@ -269,3 +269,97 @@ def iris(layer, eye_mask, kind, pal, seed):
         if 0 <= gy < h and 0 <= gx < w and blob[gy, gx]:
             layer[gy, gx] = list(pal["glint"]) + [255]
     return layer
+
+
+# ---------------------------------------------------------------- violence
+
+def explosions(w, h, kind, pal, seed):
+    """A burst: white core, a hot shell, a dithered shockwave ring, and
+    shards thrown outward with trails behind them."""
+    r = np.random.default_rng(seed + 211)
+    out = _rgba(h, w)
+    if kind == "None":
+        return out
+    n = {"One": 1, "Two": 2, "Barrage": 4}[kind]
+    y, x = np.mgrid[0:h, 0:w]
+
+    for i in range(n):
+        R = w * r.uniform(0.07, 0.15)
+        side = -1 if i % 2 == 0 else 1
+        cx = float(np.clip(w/2 + side * r.uniform(w*0.22, w*0.44), R, w-R))
+        cy = r.uniform(h*0.08, h*0.55)
+        d = np.sqrt((x-cx)**2 + (y-cy)**2)
+
+        # the shockwave, thrown out well past the fireball
+        wave = np.abs(d - R*2.1) < R*0.30
+        _put(out, wave & _dither(np.clip(1 - np.abs(d - R*2.1)/(R*0.30), 0, 1)*0.55, seed+i),
+             pal["burst_far"], 150)
+
+        # the body of it, hot in the middle and cooling outward
+        for k, (frac, col) in enumerate(((1.00, "burst_far"), (0.72, "burst_mid"),
+                                         (0.44, "burst_hot"), (0.20, "burst_core"))):
+            shell = d <= R*frac
+            if k < 3:
+                _put(out, shell & _dither(np.clip(1 - d/(R*frac), 0, 1) ** 0.6, seed+i+k),
+                     pal[col])
+            else:
+                _put(out, shell, pal[col])
+
+        for _ in range(int(r.integers(10, 20))):      # shards, with trails
+            a = r.uniform(0, 6.28)
+            reach = R * r.uniform(1.4, 3.0)
+            for t in np.linspace(R*0.7, reach, int(reach)):
+                px, py = int(cx + np.cos(a)*t), int(cy + np.sin(a)*t)
+                if 0 <= px < w and 0 <= py < h:
+                    hot = t < reach*0.55
+                    out[py, px] = list(pal["burst_hot" if hot else "burst_far"]) + [255]
+    return out
+
+
+def lightning(w, h, kind, pal, seed):
+    """Forked bolts. Each one walks downward, wandering, and throws off
+    branches that wander less far."""
+    r = np.random.default_rng(seed + 307)
+    out = _rgba(h, w)
+    if kind == "None":
+        return out
+    n = {"Strike": 1, "Storm": 2, "Tempest": 4}[kind]
+    core, glow = pal["bolt"], pal["bolt_glow"]
+
+    def walk(px, py, ang, length, depth, thick):
+        """Long straight runs with sharp kinks between them.
+
+        Wandering a little every step, with a branch always possible, made a
+        fine web that read as cracks in glass rather than lightning. A bolt is
+        mostly straight; it is the sudden angles that make it read.
+        """
+        travelled = 0.0
+        while travelled < length:
+            ang += r.uniform(-0.55, 0.55)             # one sharp kink
+            run = r.uniform(length * 0.12, length * 0.30)
+            for t in np.arange(0, run, 1.0):
+                px += np.cos(ang); py += np.sin(ang)
+                ix, iy = int(px), int(py)
+                if not (0 <= ix < w and 0 <= iy < h):
+                    return
+                for dx in range(-thick-3, thick+4):
+                    for dy in range(-thick-3, thick+4):
+                        X, Y = ix+dx, iy+dy
+                        if 0 <= X < w and 0 <= Y < h and out[Y, X, 3] == 0:
+                            out[Y, X] = list(glow) + [100]
+                for dx in range(-thick, thick+1):
+                    for dy in range(-thick, thick+1):
+                        X, Y = ix+dx, iy+dy
+                        if 0 <= X < w and 0 <= Y < h:
+                            out[Y, X] = list(core) + [255]
+            travelled += run
+            if depth > 0 and r.random() < 0.55:       # one fork, not a web
+                walk(px, py, ang + r.choice([-1, 1]) * r.uniform(0.6, 1.2),
+                     length * r.uniform(0.30, 0.55), depth-1, max(0, thick-1))
+
+    for i in range(n):
+        side = -1 if i % 2 == 0 else 1
+        sx = w/2 + side * r.uniform(w*0.18, w*0.48)
+        walk(float(np.clip(sx, 4, w-5)), r.uniform(0, h*0.08),
+             np.pi/2 + r.uniform(-0.45, 0.45), h * r.uniform(0.45, 0.85), 2, 2)
+    return out

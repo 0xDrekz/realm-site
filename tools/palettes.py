@@ -26,14 +26,18 @@ def _p(name, weight, sigil, glow, star, being, eyec, iris_c, **kw):
         shadow=tuple(int(c*0.22) for c in being), mid=being,
         light=tuple(min(255, int(c*1.45)) for c in being),
         eye=eyec, iris=iris_c, pupil=(10, 6, 14), glint=(255, 255, 255),
-        # for the things living in the background
-        sclera=(250, 244, 236),
-        vein=(196, 52, 46),
-        iris_dark=tuple(int(c*0.42) for c in iris_c),
-        wing=sigil, wing_in=tuple(min(255, int(c*1.35)) for c in sigil),
-        body=tuple(int(c*0.22) for c in sigil),
-        skin=star,
-        moon=(238, 236, 244), moon_dark=(150, 148, 166),
+        # explosions run white-hot in the middle out to the palette's own
+        # colour at the edge, so a blast still belongs to its colourway
+        # Fire is hot whatever the colourway is. Keying these off the
+        # palette's accent made the Ember explosions come out cyan, which is
+        # not a thing an explosion does. Only the outermost ring, the part
+        # that is really lit smoke, takes the palette's colour.
+        burst_core=(255, 255, 248),
+        burst_hot=(255, 232, 150),
+        burst_mid=(255, 132, 36),
+        burst_far=tuple(min(255, int(c*0.55 + 60)) for c in sigil),
+        bolt=(255, 255, 248),
+        bolt_glow=tuple(min(255, int(c*1.15)) for c in sigil),
     )
     d.update(kw)
     return d
