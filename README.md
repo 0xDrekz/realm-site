@@ -256,10 +256,12 @@ announces itself now, so one piece of code finds Phantom, Solflare,
 Backpack and MetaMask alike, and there is no list of wallets to keep up to
 date as new ones appear.
 
-Right now connecting shows the address and says plainly that there is
-nothing to read. Once the collection exists, put its address and a Helius
-key into `data.js` and that panel becomes where a holder sees their beings
-and the weight they carry.
+**The button does not appear at all until `collectionAddress` is set**, because
+until then it can only report that it has nothing to report, and a crypto site
+asking for a wallet connection it does not need is a small tax on trust for no
+return. Set the address and it comes back, as a place to look at your beings.
+
+**Connecting is not how anybody gets paid.** See below.
 
 ---
 
@@ -451,3 +453,50 @@ drop that no longer existed.
 shape of the collection at all** — just the emblem and four beings. Wording
 that can go stale belongs in the meta description, where it is text and can
 be checked. An image cannot be.
+
+---
+
+## Paying the pool out: the snapshot
+
+    python3 tools/snapshot.py --demo        # prove the arithmetic
+    python3 tools/snapshot.py --out payout  # the real list
+
+Nobody connects anything and nobody claims anything. The chain is read at one
+moment, every wallet's beings and $DMT are counted, and the list of who gets
+how much is written out. A holder who never opens the site again still
+receives theirs.
+
+It needs `HELIUS_KEY`, `COLLECTION` and `TOKEN_MINT` **in the environment**.
+Never in `data.js` — every visitor downloads that file.
+
+### It pays out to the lamport
+
+Dividing a pool by weight in floating point leaves dust: a few thousand
+lamports belonging to nobody. Each wallet takes its floor and the remainder
+goes to the largest fractions left over, biggest first, wallet address
+breaking ties — so the total paid is exactly the pool and the same snapshot
+always gives the same list. `--demo` builds 371 synthetic holders and checks
+it: the payouts summed to 208.312500000 SOL, to the lamport.
+
+It also refuses to write a list where a wallet has the wrong multiplier, or
+where more weight earns less.
+
+### Two things to settle before you take the snapshot, not after
+
+**A being listed for sale is not held by its owner.** It sits in the
+marketplace's escrow, so a naive snapshot pays Magic Eden rather than the
+person who listed it. The known escrow programs are in `ESCROW` in the script
+and it warns when it sees one — but you have to decide the policy: does a
+listed being earn, or not? Publish the answer before the snapshot.
+
+**Announcing the exact moment invites people to borrow tokens for it.**
+Somebody can buy 10,000,000 $DMT an hour before, collect the 4x, and sell.
+Options: say only the day and not the hour, or take several snapshots across
+a window and use the lowest balance. Either is fine. Deciding afterwards is
+not, so it goes on the site with everything else.
+
+### What cannot be tested from here
+
+The RPC half. No collection exists yet and this machine cannot reach Helius,
+so the chain-reading code is written carefully and unproven. Run it against
+the real collection well before you need the list, not on payout day.

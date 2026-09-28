@@ -47,7 +47,19 @@
   });
   window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: api }));
 
-  /* ---------- the control in the bar ---------- */
+  /* ---------- the control in the bar ----------
+     It stays away until there is something for it to show.
+
+     Connecting is not how anybody gets paid — the pool is worked out from a
+     snapshot of the chain and sent out, so a holder who never opens this
+     site again still receives theirs. Until the collection exists this
+     button can only report that it has nothing to report, and a crypto site
+     asking for a wallet connection it does not need is a small tax on
+     trust for no return. */
+  const liveCollection = (typeof CONFIG !== "undefined"
+                          && CONFIG.collectionAddress) || "";
+  if (!liveCollection) return;
+
   const btn = document.createElement("button");
   btn.className = "wal";
   btn.type = "button";
@@ -139,14 +151,10 @@
     const cfg = g_("CONFIG", {});
     const box = document.createElement("div");
     box.className = "wal-hold";
-    if (!cfg.collectionAddress) {
-      box.innerHTML = "<b>Nothing to show yet</b>"
-        + "<i>No being has been minted. Once the collection exists, this is where "
-        + "yours will be listed, with the weight they carry.</i>";
-    } else {
-      box.innerHTML = "<b>Reading your beings…</b>"
-        + "<i>This needs the collection address and a Helius key in data.js.</i>";
-    }
+    box.innerHTML = "<b>Reading your beings…</b>"
+      + "<i>Your beings and the weight they carry. This is for looking at — "
+      + "rewards are sent from a snapshot of the chain, so you do not need to "
+      + "connect here to receive anything.</i>";
     sheet.appendChild(box);
 
     const d = document.createElement("button");
