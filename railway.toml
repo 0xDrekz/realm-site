@@ -1,0 +1,13 @@
+# Railway deploys this repo when main moves.
+# Connect the service to 6tmv47v6fq-collab/realm-site, branch main,
+# with auto-deploy on. Every push after that rebuilds and restarts.
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "node server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
