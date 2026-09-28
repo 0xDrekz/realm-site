@@ -149,246 +149,112 @@
   tree.after(portal);
   const pc = portal.getContext("2d");
 
-  let openCv = null, edgeCv = null;
-  const layer = document.createElement("canvas");
-  const lg = layer.getContext("2d");
+  function buildPortal() { /* the door and the gap are drawn as paths */ }
 
-  const GEO = ["#ff2ec4", "#22f0ff", "#ffe14a", "#9b6bff", "#ffffff", "#ff4d2e"];
+  /* The ajar door, traced off the picture. A stroke, not a box. */
+  const DOOR = [
+    [0.434, 0.648],
+    [0.496, 0.638],
+    [0.502, 0.670],
+    [0.498, 0.808],
+    [0.468, 0.830],
+    [0.438, 0.814],
+    [0.428, 0.710]
+  ];
 
-  function isOpening(r, g, b) {
-    const s = r + g + b;
-    if (s > 400 && Math.min(r, g, b) > 110) return true;
-    if (b > 70 && r > 60 && (b + r) > g * 2.05 && s > 160 && b > g - 10) return true;
-    if (b > 90 && g > 70 && (b + g) > r * 2.15 && s > 200 && g > r) return true;
-    return false;
-  }
+  /* The opening you see past that door: the arch of light, and the
+     pool of it along the threshold. Not the carved slab. */
+  const GAP = [
+    [0.506, 0.655],
+    [0.532, 0.588],
+    [0.562, 0.574],
+    [0.586, 0.628],
+    [0.598, 0.710],
+    [0.594, 0.800],
+    [0.574, 0.875],
+    [0.528, 0.918],
+    [0.448, 0.908],
+    [0.422, 0.868],
+    [0.498, 0.836],
+    [0.504, 0.690]
+  ];
 
-  function buildPortal() {
-    const AW = art.width, AH = art.height;
-    const probe = document.createElement("canvas");
-    probe.width = AW; probe.height = AH;
-    const pg = probe.getContext("2d", { willReadFrequently: true });
-    pg.drawImage(art, 0, 0);
-    let img;
-    try { img = pg.getImageData(0, 0, AW, AH); }
-    catch (e) { return; }
-    const d = img.data;
-
-    const open = new Uint8Array(AW * AH);
-    const door = new Uint8Array(AW * AH);
-    const ox0 = (0.40 * AW) | 0, ox1 = (0.63 * AW) | 0;
-    const oy0 = (0.55 * AH) | 0, oy1 = (0.94 * AH) | 0;
-    for (let y = oy0; y < oy1; y++) {
-      for (let x = ox0; x < ox1; x++) {
-        const i = (y * AW + x) * 4;
-        if (isOpening(d[i], d[i + 1], d[i + 2])) open[y * AW + x] = 1;
-      }
+  function poly(g, x, y, w, h, pts) {
+    g.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const px = x + w * pts[i][0], py = y + h * pts[i][1];
+      i ? g.lineTo(px, py) : g.moveTo(px, py);
     }
-
-    /* The slab: dark wood and the gold cut into it, left of the crack,
-       and only as far down as the door is still a door. Below that the
-       light has already swallowed it, and an outline there turns into
-       a scribble. */
-    const dx0 = (0.428 * AW) | 0, dx1 = (0.512 * AW) | 0;
-    const dy0 = (0.578 * AH) | 0, dy1 = (0.845 * AH) | 0;
-    for (let y = dy0; y < dy1; y++) {
-      for (let x = dx0; x < dx1; x++) {
-        const p = y * AW + x;
-        if (open[p]) continue;
-        const i = p * 4;
-        const r = d[i], g = d[i + 1], b = d[i + 2], s = r + g + b;
-        const gold = r > 110 && g > 80 && b < 120 && r > b + 20;
-        if (s < 150 || gold) door[p] = 1;
-      }
-    }
-
-    const n = AW > 300 ? 2 : 1;
-    const n2 = n * n;
-    const dil = new Uint8Array(AW * AH);
-    for (let y = 0; y < AH; y++) {
-      for (let x = 0; x < AW; x++) {
-        if (!door[y * AW + x]) continue;
-        for (let dy = -n; dy <= n; dy++) {
-          const yy = y + dy;
-          if (yy < 0 || yy >= AH) continue;
-          for (let dx = -n; dx <= n; dx++) {
-            if (dx * dx + dy * dy > n2) continue;
-            const xx = x + dx;
-            if (xx < 0 || xx >= AW) continue;
-            dil[yy * AW + xx] = 1;
-          }
-        }
-      }
-    }
-    const closed = new Uint8Array(AW * AH);
-    for (let y = n; y < AH - n; y++) {
-      for (let x = n; x < AW - n; x++) {
-        let ok = 1;
-        for (let dy = -n; dy <= n && ok; dy++) {
-          for (let dx = -n; dx <= n; dx++) {
-            if (dx * dx + dy * dy > n2) continue;
-            if (!dil[(y + dy) * AW + (x + dx)]) { ok = 0; break; }
-          }
-        }
-        if (ok) closed[y * AW + x] = 1;
-      }
-    }
-    for (let y = 0; y < AH; y++) {
-      for (let x = 0; x < AW; x++) {
-        if (x < dx0 - 1 || x > dx1 + 3 || y < dy0 || y > dy1) closed[y * AW + x] = 0;
-      }
-    }
-
-    const oc = document.createElement("canvas");
-    oc.width = AW; oc.height = AH;
-    const oi = oc.getContext("2d").createImageData(AW, AH);
-    const od = oi.data;
-    let found = 0;
-    for (let p = 0; p < open.length; p++) {
-      if (!open[p]) continue;
-      const i = p * 4;
-      od[i] = od[i + 1] = od[i + 2] = od[i + 3] = 255;
-      found++;
-    }
-    if (found < 80) return;
-    oc.getContext("2d").putImageData(oi, 0, 0);
-    openCv = oc;
-
-    const ec = document.createElement("canvas");
-    ec.width = AW; ec.height = AH;
-    const ei = ec.getContext("2d").createImageData(AW, AH);
-    const ed = ei.data;
-    for (let y = 1; y < AH - 1; y++) {
-      for (let x = 1; x < AW - 1; x++) {
-        const p = y * AW + x;
-        if (!closed[p]) continue;
-        if (closed[p - 1] && closed[p + 1] && closed[p - AW] && closed[p + AW]) continue;
-        const crack = x >= dx1 - (AW > 300 ? 7 : 4);
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const i = ((y + dy) * AW + (x + dx)) * 4;
-            ed[i]     = 255;
-            ed[i + 1] = crack ? 236 : 186;
-            ed[i + 2] = crack ? 140 : 48;
-            ed[i + 3] = 255;
-          }
-        }
-      }
-    }
-    ec.getContext("2d").putImageData(ei, 0, 0);
-    edgeCv = ec;
+    g.closePath();
   }
 
   function diamond(g, x, y, r) {
     g.beginPath();
     g.moveTo(x, y - r);
-    g.lineTo(x + r, y);
+    g.lineTo(x + r * 0.72, y);
     g.lineTo(x, y + r);
-    g.lineTo(x - r, y);
+    g.lineTo(x - r * 0.72, y);
     g.closePath();
-    g.stroke();
   }
 
-  /* Flat colour and hard lines, in the gap. Clipped afterwards, so
-     anything that would land on the door or the tree is thrown away. */
+  /* Big flat shapes, sized to the opening. The clip throws away
+     whatever would land on the door or the tree. */
   function drawGeo(g, t, x, y, w, h) {
-    const tt = still ? 1.2 : t;
-    const fx = x + w * 0.548;
-    const fy = y + h * 0.735;
-    const reach = Math.min(w, h) * 0.2;
+    const tt = still ? 0.6 : t;
+    const grd = g.createLinearGradient(0, y + h * 0.56, 0, y + h * 0.93);
+    grd.addColorStop(0,   `hsl(${268 + Math.sin(tt * 0.6) * 18}, 100%, 60%)`);
+    grd.addColorStop(0.42, `hsl(${318 + Math.sin(tt * 0.4) * 12}, 100%, 62%)`);
+    grd.addColorStop(1,   `hsl(${176 + Math.sin(tt * 0.5) * 16}, 100%, 58%)`);
+    g.fillStyle = grd;
+    g.fillRect(x, y + h * 0.5, w * 0.7, h * 0.5);
 
-    g.fillStyle = "#070012";
-    g.fillRect(x + w * 0.40, y + h * 0.54, w * 0.24, h * 0.42);
-
-    g.save();
-    g.translate(fx, fy);
-    g.rotate(tt * 0.07);
-    const wedges = [[0.1, "#ff2ec4"], [1.7, "#22f0ff"], [3.3, "#ffe14a"], [4.8, "#7a3cff"]];
-    for (let i = 0; i < wedges.length; i++) {
-      g.fillStyle = wedges[i][1];
-      g.beginPath();
-      g.moveTo(0, 0);
-      g.arc(0, 0, reach * 1.45, wedges[i][0] + tt * 0.15, wedges[i][0] + 1.05 + tt * 0.15);
-      g.closePath();
-      g.fill();
-    }
-    g.restore();
-
-    const step = Math.max(13, reach * 0.18);
-    const shift = still ? 0 : (tt * 18) % (step * 2);
-    g.lineWidth = 1.4;
-    g.lineJoin = "miter";
-    const x0 = x + w * 0.43, x1 = x + w * 0.64;
-    const y0 = y + h * 0.56, y1 = y + h * 0.94;
-    let row = 0;
-    for (let py = y0; py < y1 + step; py += step, row++) {
-      let col = 0;
-      for (let px = x0; px < x1 + step; px += step, col++) {
-        g.strokeStyle = GEO[(row * 2 + col + (tt * 0.6 | 0)) % GEO.length];
-        diamond(g, px + ((row & 1) ? step * 0.5 : 0), py - shift, step * 0.40);
-      }
-    }
-
-    const rings = [
-      [3, 1.08,  0.25, 0, 2.5],
-      [3, 0.74, -0.42, 1, 2.1],
-      [6, 0.90,  0.16, 2, 1.8],
-      [6, 0.54, -0.30, 3, 1.6],
-      [4, 0.34,  0.55, 4, 1.5],
-      [8, 1.22, -0.10, 1, 1.25]
+    const fx = x + w * 0.548, fy = y + h * 0.745;
+    const reach = w * 0.085;
+    const shapes = [
+      [3, 1.25,  0.18, "#ffe14a", 0.95],
+      [4, 0.92, -0.14, "#ffffff", 0.9],
+      [3, 0.7,   0.28, "#22f0ff", 0.95],
+      [6, 1.05,  0.07, "#ff2ec4", 0.5]
     ];
-    for (let r = 0; r < rings.length; r++) {
-      const n = rings[r][0], rad = rings[r][1], sp = rings[r][2], ci = rings[r][3], lw = rings[r][4];
+    for (let i = 0; i < shapes.length; i++) {
+      const n = shapes[i][0], rad = shapes[i][1], sp = shapes[i][2];
+      const col = shapes[i][3], a = shapes[i][4];
       g.save();
       g.translate(fx, fy);
-      g.rotate(tt * sp);
-      g.strokeStyle = GEO[ci % GEO.length];
-      g.lineWidth = lw;
+      g.rotate(tt * sp + i);
       g.beginPath();
-      const rr = reach * rad;
-      for (let i = 0; i <= n; i++) {
-        const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-        const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
-        i ? g.lineTo(px, py) : g.moveTo(px, py);
+      for (let k = 0; k <= n; k++) {
+        const ang = (k / n) * Math.PI * 2 - Math.PI / 2;
+        const px = Math.cos(ang) * reach * rad;
+        const py = Math.sin(ang) * reach * rad * 1.4;
+        k ? g.lineTo(px, py) : g.moveTo(px, py);
       }
-      g.stroke();
-      g.restore();
-    }
-
-    g.save();
-    g.translate(fx, fy);
-    g.rotate(tt * 0.1);
-    g.lineWidth = 1.3;
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      g.strokeStyle = i % 2 ? "#22f0ff" : "#ff2ec4";
-      g.beginPath();
-      g.moveTo(Math.cos(a) * reach * 0.1, Math.sin(a) * reach * 0.1);
-      g.lineTo(Math.cos(a) * reach * 1.3, Math.sin(a) * reach * 1.3);
-      g.stroke();
-    }
-    g.restore();
-
-    for (let i = 0; i < 8; i++) {
-      const a = tt * (0.32 + i * 0.035) + i * 0.9;
-      const rad = reach * (0.3 + (i % 4) * 0.2);
-      g.save();
-      g.translate(fx + Math.cos(a) * rad, fy + Math.sin(a) * rad * 0.72);
-      g.rotate(tt * 0.7 + i);
-      g.fillStyle = GEO[i % GEO.length];
-      g.beginPath();
-      const s = 5 + (i % 3);
-      g.moveTo(0, -s);
-      g.lineTo(s * 0.86, s * 0.7);
-      g.lineTo(-s * 0.86, s * 0.7);
       g.closePath();
+      g.globalAlpha = a;
+      g.fillStyle = col;
       g.fill();
+      g.globalAlpha = 0.95;
+      g.lineWidth = 1.6;
+      g.strokeStyle = "#ffffff";
+      g.stroke();
       g.restore();
     }
+
+    g.globalAlpha = 1;
+    g.lineWidth = 1.7;
+    const step = reach * 0.95;
+    const shift = still ? 0 : (tt * 16) % step;
+    for (let i = -1; i < 6; i++) {
+      const py = y + h * 0.60 + i * step - shift;
+      const px = fx + Math.sin(i * 1.3 + tt * 0.35) * reach * 0.35;
+      g.strokeStyle = i % 2 ? "#22f0ff" : "#ffe14a";
+      diamond(g, px, py, step * 0.34);
+      g.stroke();
+    }
+    g.globalAlpha = 1;
   }
 
   function paintPortal(t, pull, x, y, w, h) {
-    if (!openCv) return;
     const dpr = portal.width / Math.max(1, W);
     if (layer.width !== portal.width || layer.height !== portal.height) {
       layer.width = portal.width;
@@ -400,24 +266,33 @@
     if (fade > 0.01) {
       const ax = x + w * AIM.x, ay = y + h * AIM.y;
       const rush = 1 + 17 * pull * pull * pull;
+      const place = () => {
+        if (pull > 0) {
+          lg.translate(ax, ay);
+          lg.scale(rush, rush);
+          lg.translate(-ax, -ay);
+        }
+      };
+
       lg.save();
-      if (pull > 0) {
-        lg.translate(ax, ay);
-        lg.scale(rush, rush);
-        lg.translate(-ax, -ay);
-      }
-      lg.globalAlpha = 1;
-      lg.globalCompositeOperation = "source-over";
+      place();
+      poly(lg, x, y, w, h, GAP);
+      lg.clip();
       drawGeo(lg, t, x, y, w, h);
+      lg.restore();
 
-      lg.globalCompositeOperation = "destination-in";
-      lg.imageSmoothingEnabled = false;
-      lg.drawImage(openCv, x, y, w, h);
-
-      lg.globalCompositeOperation = "source-over";
-      lg.imageSmoothingEnabled = false;
-      lg.globalAlpha = 0.82 + 0.18 * Math.sin(t * 1.35);
-      if (edgeCv) lg.drawImage(edgeCv, x, y, w, h);
+      lg.save();
+      place();
+      lg.lineJoin = "round";
+      lg.lineCap = "round";
+      poly(lg, x, y, w, h, DOOR);
+      lg.globalAlpha = 0.92;
+      lg.strokeStyle = "#ffe14a";
+      lg.lineWidth = 2.25;
+      lg.stroke();
+      lg.strokeStyle = "rgba(255,255,255,0.9)";
+      lg.lineWidth = 1;
+      lg.stroke();
       lg.restore();
     }
 
