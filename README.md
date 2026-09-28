@@ -245,6 +245,59 @@ violet centroid of the actual artwork is 0.503 — nineteen pixels out, which is
 why the first pass put the glow off to one side of the arch. Measured now,
 in `tools/scene.py` and in `gate.js`, rather than guessed.
 
+### Detail where you are going, not everywhere
+
+The doorway gets its own pass. Away from it the picture is six hard bands
+and darkened, which is what makes a light a light — but the same treatment
+over the doorway flattened the violets and cyans that were the best thing in
+it. Measured: saturation fell from 0.379 to 0.318 and the violet started
+losing to the green around it.
+
+So inside a focus region the picture is **22 bands rather than 6**, barely
+darkened, almost undithered, and its colour is pushed back out — it now
+reads more saturated than the original, not less. The boundary between the
+two is dithered rather than faded, so it is made of pixels like everything
+else. The chamber does the same around its far door and both eyes.
+
+The effect is that the place you are travelling into carries visibly more
+detail than the wood around it, which is the point of a doorway.
+
+### The lamp goes where the light already is
+
+Not on the arch centre. The artwork has its own glow painted into the
+doorway, and dropping a lamp on the geometric middle put a white ball above
+it that read as a sticker. The centroid of the doorway's brightest 2% is at
+(0.535, 0.834); the arch centre is (0.503, 0.745). They are different points
+and should be — `AIM` aims the tunnel zoom at the arch, `GLOW` puts the lamp
+on the light.
+
+The core's edge is dithered rather than round, too. A clean white circle
+reads as a sticker; a ragged one reads as something too bright to look at.
+
+### PX went from 3 to 2
+
+The canvases draw at 1/PX of the screen. At 3, a phone's canvas was about
+390 pixels across — **narrower than the 460-pixel artwork**, so the site was
+throwing away detail the picture already had, and the result looked like an
+old console rather than like pixel art. At 2 the canvas is wider than the
+source and everything in it survives. It costs a quarter of the drawing work
+rather than a ninth, which is still cheap.
+
+### Keeping the file small enough for a phone
+
+Stamping white into an RGB image cost 274 KB a picture. Quantising to one
+short of the budget and putting white in the spare palette slot costs 94 KB
+for the same result. The small versions used on narrow screens get their
+cores stamped as well — shrinking had been throwing every white pixel away,
+losing the whole point of the picture on exactly the devices most likely to
+see it.
+
+### The pass never reads its own output
+
+The source images live in `art/scenes/`. The pass ran over a published
+`tree.png` once and deepened an already-deepened picture to a mean of 30.
+It reads from the source every time now.
+
 ### The redraw that did not work
 
 The first attempt drew both scenes from scratch, procedurally. It was worse

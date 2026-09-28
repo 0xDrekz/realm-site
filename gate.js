@@ -54,7 +54,16 @@
      pixel art together, rather than each needing its own treatment. Three
      screen pixels to one drawn pixel, so it reads the same on a phone as
      on a desk. */
-  const PX = 3;
+  /* How chunky the pixels are: the canvas is drawn at 1/PX of the screen
+     and blown back up with hard edges.
+
+     It was 3. On a phone that made the canvas about 390 pixels across --
+     NARROWER THAN THE 460-PIXEL ARTWORK, so the site was throwing away
+     detail the picture already had and the result read as old console
+     graphics rather than as pixel art. At 2 the canvas is wider than the
+     source, so everything drawn in it survives. It costs a quarter of the
+     drawing work instead of a ninth, which is still cheap. */
+  const PX = 2;
 
   function resize() {
     W = window.innerWidth;

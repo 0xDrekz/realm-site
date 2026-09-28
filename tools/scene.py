@@ -23,6 +23,10 @@ Three rules hold the whole thing together.
   3. The dark has to be dark. The old pictures averaged 80 out of 255; a
      light cannot stand out against that. These sit near 40, so the door
      glows rather than merely being present.
+The originals live in art/scenes/. The pass NEVER reads the published
+tree.png or chamber.png -- it did once, ran over its own output, and
+deepened an already-deepened picture down to a mean of 30. Always from
+the source, every time.
 """
 import os
 import numpy as np
@@ -36,6 +40,12 @@ CHAMBER = (460, 667)
 # where the site aims. gate.js zooms at the doorway and puts its glow at the
 # canopy burst; journey.js lights the eyes and the far door. These are the
 # same fractions the old pictures used, so nothing in the JS has to move.
+GLOW = (0.535, 0.834)      # where the artwork's OWN light already is,
+                           # measured as the centroid of its brightest 2%.
+                           # Not the same point as the arch centre, and it
+                           # should not be: a lamp dropped on the middle of
+                           # the doorway sat above the glow already painted
+                           # there and read as a ball stuck on the picture.
 AIM  = (0.503, 0.745)      # the doorway in the trunk — MEASURED off the
                            # art (the violet centroid), not guessed. It had
                            # been 0.545, nineteen pixels to the right of the
@@ -177,20 +187,50 @@ def save(a, path, small_path, colours=44, cores=()):
     picture is about.
     """
     im = Image.fromarray(a.astype(np.uint8))
+
+    # Quantise to one short of the budget, then put white in the spare slot
+    # and point the cores at it. Stamping white into an RGB image instead
+    # cost 274 KB a picture rather than 90 -- a paletted PNG is a third the
+    # size, and a phone pays for every one of those bytes.
     q = im.quantize(colors=colours - 1, method=Image.MEDIANCUT,
-                    dither=Image.Dither.NONE).convert("RGB")
-    out = np.asarray(q).astype(np.uint8).copy()
-    h, w = out.shape[:2]
+                    dither=Image.Dither.NONE)
+    pal = q.getpalette()[: (colours - 1) * 3]
+    white = colours - 1
+    pal += [255, 255, 255]
+    idx = np.asarray(q).copy()
+
+    h, w = idx.shape
     yy, xx = np.mgrid[0:h, 0:w]
+    tiled = tile((h, w))
     for (cx, cy, r) in cores:
-        out[((xx - cx) ** 2 + (yy - cy) ** 2) <= r * r] = 255
-    im = Image.fromarray(out)
-    im.save(path, optimize=True)
-    q = im
+        d = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2) / max(r, 1e-6)
+        idx[(d + (tiled - 0.5) * 0.9) < 1.0] = white
+
+    q = Image.fromarray(idx, mode="P")
+    q.putpalette(pal)
+    q.save(path, optimize=True)
+    out = np.asarray(q.convert("RGB"))
+    im = q
+    # The small version is what a narrow phone loads, and shrinking threw
+    # every white pixel away -- the whole point of the picture, gone on the
+    # devices most likely to see it. Its cores are stamped too.
     w, h = im.size
-    (q.convert("RGB").resize((240, round(240 * h / w)), Image.LANCZOS)
-       .quantize(colors=40, method=Image.MEDIANCUT, dither=Image.Dither.NONE)
-       .save(small_path, optimize=True))
+    sw = 240
+    sh = round(sw * h / w)
+    small = (q.convert("RGB").resize((sw, sh), Image.LANCZOS)
+               .quantize(colors=39, method=Image.MEDIANCUT,
+                         dither=Image.Dither.NONE))
+    spal = small.getpalette()[:39 * 3] + [255, 255, 255]
+    sidx = np.asarray(small).copy()
+    syy, sxx = np.mgrid[0:sh, 0:sw]
+    stile = tile((sh, sw))
+    k = sw / w
+    for (cx, cy, r) in cores:
+        d = np.sqrt((sxx - cx * k) ** 2 + (syy - cy * k) ** 2) / max(r * k, 1e-6)
+        sidx[(d + (stile - 0.5) * 0.9) < 1.0] = 39
+    small = Image.fromarray(sidx, mode="P")
+    small.putpalette(spal)
+    small.save(small_path, optimize=True)
     arr = out
     print(f"  {os.path.basename(path)}  {im.size}  "
           f"mean {arr.mean():.0f}  brightest {arr.max()}  "
@@ -226,6 +266,19 @@ def deepen(a, gamma=1.55, floor=0.0):
     """
     f = np.clip(a.astype(float) / 255.0, 0, 1)
     return (np.clip(f ** gamma - floor, 0, 1) * 255.0)
+
+
+def saturate(a, k):
+    """Push colour away from grey.
+
+    Banding and a light both pull toward grey and white, and measuring the
+    doorway after the first pass showed exactly that: saturation 0.379 down
+    to 0.318, and the violet losing to the green around it. The detailed
+    region gets its colour pushed back out deliberately rather than merely
+    being damaged less.
+    """
+    g = a.mean(axis=2, keepdims=True)
+    return np.clip(g + (a - g) * k, 0, 255)
 
 
 def add_light(a, glow, colour):
@@ -269,18 +322,58 @@ def lamp(a, cx, cy, r, colour, rays=0, ray_len=2.2, seed=0, aspect=1.0,
     """Put an actual light into the picture: hot white core, hard steps out."""
     glow, d = beam(a.shape[:2], cx, cy, r, rays, ray_len, seed, aspect, spread)
     out = add_light(a, glow, colour)
-    hot = d < r
+
+    # The core's edge is dithered rather than round. A clean circle of white
+    # reads as a sticker; a ragged one reads as something too bright to
+    # look at, which is what a light is.
+    edge = (tile(d.shape) - 0.5) * 0.9
+    hot = (d / max(r, 1e-6) + edge) < 1.0
     out[hot] = core
-    ring = (d >= r) & (d < r * 1.7)
-    out[ring] = np.clip(np.array(colour, dtype=float) * 1.12, 0, 255)
     return out
 
 
-def pass_over(src, lights, gamma, bands, out_name):
+def focus(shape, cx, cy, r, aspect=1.0, soft=0.5):
+    """A hard-edged region of extra detail.
+
+    The edge is dithered rather than faded, so the boundary between the
+    detailed part and the chunky part is itself made of pixels — a soft
+    vignette would look like a mistake next to everything else here.
+    """
+    h, w = shape
+    x, y = grid((h, w))
+    d = np.sqrt(((x - cx) / aspect) ** 2 + (y - cy) ** 2) / r
+    t = np.clip(1 - (d - 1) / max(soft, 1e-6), 0, 1)
+    return (t + (tile((h, w)) - 0.5) * 0.55) > 0.5
+
+
+def pass_over(src, lights, gamma, bands, out_name,
+              fine=None, fine_bands=20, fine_gamma=1.0, fine_sat=1.0):
+    """Two passes, and a region that keeps the finer one.
+
+    Away from the light the picture is cut into a few hard bands and
+    darkened, which is what makes a light a light. But the same treatment
+    over the doorway flattened the violets and cyans that were the best
+    thing in it.
+
+    So the doorway gets its own pass: many more bands, barely darkened,
+    almost no dither. Its colour survives and it carries visibly more
+    detail than the wood around it — which is the point. You are meant to
+    be looking at somewhere you could travel into, not at a hole.
+    """
     a = np.asarray(Image.open(f"{ROOT}/{src}").convert("RGB")).astype(float)
     before = a.copy()
-    a = deepen(a, gamma)
-    a = posterise(a, bands)
+
+    coarse = posterise(deepen(a, gamma), bands)
+    out = coarse
+
+    if fine:
+        detailed = posterise(saturate(deepen(a, fine_gamma), fine_sat),
+                             fine_bands, dither=0.12)
+        for spec in fine:
+            m = focus(a.shape[:2], **spec)
+            out = np.where(m[..., None], detailed, out)
+
+    a = out
     for L in lights:
         a = lamp(a, **L)
     a = np.clip(a, 0, 255)
@@ -293,20 +386,25 @@ def pass_over(src, lights, gamma, bands, out_name):
 def main():
     W, H = TREE
     print("the door in the tree:")
-    t = pass_over("tree.png", [
+    t = pass_over("art/scenes/tree-source.png", [
         dict(cx=SUN[0] * W, cy=SUN[1] * H, r=W * 0.017,
              colour=(255, 238, 186), rays=10, ray_len=3.0, seed=5, spread=7.5),
-        dict(cx=AIM[0] * W, cy=AIM[1] * H, r=W * 0.013,
-             colour=(186, 146, 255), rays=6, ray_len=1.8, seed=9,
-             aspect=0.55, spread=6.5),
-    ], gamma=1.55, bands=6, out_name="tree.png")
+        dict(cx=GLOW[0] * W, cy=GLOW[1] * H, r=W * 0.0085,
+             colour=(150, 100, 244), rays=6, ray_len=1.25, seed=9,
+             aspect=0.62, spread=4.6),
+    ], gamma=1.55, bands=6, out_name="tree.png",
+        # the doorway keeps its own colours and carries three times the
+        # gradation of the bark around it
+        fine=[dict(cx=AIM[0] * W, cy=(AIM[1] + 0.035) * H, r=H * 0.135,
+                   aspect=0.55, soft=0.40)],
+        fine_bands=22, fine_gamma=0.92, fine_sat=1.45)
     save(t, f"{ROOT}/tree.png", f"{ROOT}/tree-small.png",
          cores=[(SUN[0] * W, SUN[1] * H, W * 0.017),
-                (AIM[0] * W, AIM[1] * H, W * 0.013)])
+                (GLOW[0] * W, GLOW[1] * H, W * 0.0085)])
 
     W, H = CHAMBER
     print("the chamber:")
-    c = pass_over("chamber.png", [
+    c = pass_over("art/scenes/chamber-source.png", [
         dict(cx=DOOR[0] * W, cy=DOOR[1] * H, r=W * 0.014,
              colour=(196, 158, 255), rays=5, ray_len=1.7, seed=17,
              aspect=0.6, spread=7.0),
@@ -314,7 +412,13 @@ def main():
              colour=(255, 226, 150), rays=0, spread=5.0),
         dict(cx=EYE_HIGH[0] * W, cy=EYE_HIGH[1] * H, r=W * 0.009,
              colour=(224, 204, 255), rays=8, ray_len=3.4, seed=2, spread=6.0),
-    ], gamma=1.45, bands=6, out_name="chamber.png")
+    ], gamma=1.45, bands=9, out_name="chamber.png",
+        # the far door and both eyes are what you look at, so they keep
+        # their detail; the walls stay chunky
+        fine=[dict(cx=DOOR[0] * W, cy=DOOR[1] * H, r=H * 0.115, aspect=0.75),
+              dict(cx=EYE_BIG[0] * W, cy=EYE_BIG[1] * H, r=H * 0.105, aspect=1.5),
+              dict(cx=EYE_HIGH[0] * W, cy=EYE_HIGH[1] * H, r=H * 0.055, aspect=1.5)],
+        fine_bands=20, fine_gamma=1.0, fine_sat=1.30)
     save(c, f"{ROOT}/chamber.png", f"{ROOT}/chamber-small.png",
          cores=[(DOOR[0] * W, DOOR[1] * H, W * 0.014),
                 (EYE_BIG[0] * W, EYE_BIG[1] * H, W * 0.010),

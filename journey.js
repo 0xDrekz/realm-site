@@ -58,7 +58,16 @@ window.RealmJourney = (() => {
 
   /* Drawn small and blown up hard, the same grid the door uses, so the
      room and everything living in it are pixel art too. */
-  const PX = 3;
+  /* How chunky the pixels are: the canvas is drawn at 1/PX of the screen
+     and blown back up with hard edges.
+
+     It was 3. On a phone that made the canvas about 390 pixels across --
+     NARROWER THAN THE 460-PIXEL ARTWORK, so the site was throwing away
+     detail the picture already had and the result read as old console
+     graphics rather than as pixel art. At 2 the canvas is wider than the
+     source, so everything drawn in it survives. It costs a quarter of the
+     drawing work instead of a ninth, which is still cheap. */
+  const PX = 2;
 
   const rand = (a, b) => a + Math.random() * (b - a);
 
