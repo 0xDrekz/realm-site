@@ -102,7 +102,7 @@
   let quality = 0.55;          // climbs on fast devices, falls on slow ones
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const TUNNEL_MS  = 3800;
+  const TUNNEL_MS  = 6400;
   const SWALLOW_MS = 1250;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -197,108 +197,84 @@
     g.fillRect(x - r, y - r, r * 2, r * 2);
   }
 
-  /* A crystal standing in that place: a lit face and a shaded one,
-     so it reads as a thing with volume, not an outline. */
-  function crystal(g, cx, cy, s, hue) {
-    g.beginPath();
-    g.moveTo(cx, cy - s * 1.7);
-    g.lineTo(cx - s * 0.46, cy + s * 0.15);
-    g.lineTo(cx, cy + s * 0.02);
-    g.closePath();
-    g.fillStyle = `hsl(${hue}, 85%, 72%)`;
-    g.fill();
-    g.beginPath();
-    g.moveTo(cx, cy - s * 1.7);
-    g.lineTo(cx + s * 0.46, cy + s * 0.15);
-    g.lineTo(cx, cy + s * 0.02);
-    g.closePath();
-    g.fillStyle = `hsl(${hue}, 70%, 38%)`;
-    g.fill();
+  /* The other side of the door: a nebula, not a diagram.
+     Soft colour, a bright heart, and stars. The same painter
+     fills the crack while you wait and the whole screen once
+     you step through. */
+  function nebula(g, t, cx, cy, reach, rush) {
+    const tt = still ? 0.4 : t;
+    const spin = tt * (0.12 + rush * 0.35);
+
+    g.globalCompositeOperation = "source-over";
+    g.globalAlpha = 1;
+    const sky = g.createRadialGradient(cx, cy, reach * 0.05, cx, cy, reach * 1.7);
+    sky.addColorStop(0,    "#f3e9ff");
+    sky.addColorStop(0.12, "#d7b4ff");
+    sky.addColorStop(0.34, "#7a2ec4");
+    sky.addColorStop(0.58, "#2a1468");
+    sky.addColorStop(0.78, "#0e4e58");
+    sky.addColorStop(1,    "#070612");
+    g.fillStyle = sky;
+    g.fillRect(cx - reach * 2, cy - reach * 2, reach * 4, reach * 4);
+
+    g.globalCompositeOperation = "lighter";
+    const clouds = [
+      [0.0, 0.22, 0.95, 292, 68, 0.50],
+      [1.3, 0.38, 0.80, 168, 62, 0.38],
+      [2.5, 0.12, 0.70, 318, 70, 0.46],
+      [3.7, 0.48, 0.88, 200, 64, 0.32],
+      [5.0, 0.28, 0.55,  46, 74, 0.22]
+    ];
+    for (let i = 0; i < clouds.length; i++) {
+      const c = clouds[i];
+      const a = c[0] + spin * (i % 2 ? 1 : -1);
+      const rad = reach * c[1] * (1 + rush * 0.35);
+      blob(g,
+        cx + Math.cos(a) * rad,
+        cy + Math.sin(a) * rad * 0.82,
+        reach * c[2],
+        c[3], 100, c[4], c[5]);
+    }
+
+    /* filaments — the long curls of the cloud, the way the clip shows them */
+    for (let wisp = 0; wisp < 3; wisp++) {
+      const hue = [286, 168, 312][wisp];
+      const dir = wisp % 2 ? 1 : -1;
+      for (let i = 0; i < 6; i++) {
+        const u = i / 5;
+        const ang = spin * dir + wisp * 2.1 + u * 2.2;
+        const rad = reach * (0.08 + u * 0.85);
+        blob(g,
+          cx + Math.cos(ang) * rad,
+          cy + Math.sin(ang * 0.85 + wisp) * rad * 0.62,
+          reach * (0.16 + u * 0.2),
+          hue, 100, 72, 0.18);
+      }
+    }
+
+    blob(g, cx, cy, reach * (0.42 + rush * 0.25), 274, 70, 90, 0.55);
+    blob(g, cx, cy, reach * 0.16, 40, 30, 98, 0.8);
+
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = "source-over";
   }
 
-  /* The world past the door. Depth, a sun, air, and solid forms —
-     not lines sitting on black. */
   function drawGeo(g, t, x, y, w, h) {
-    const tt = still ? 1.2 : t;
-    const vx = x + w * 0.552;
-    const vy = y + h * 0.70;
-    const reach = Math.min(w * 0.16, h * 0.2);
-
-    g.globalAlpha = 1;
-    g.globalCompositeOperation = "source-over";
-    const sky = g.createLinearGradient(vx, vy - reach * 1.3, vx, vy + reach * 1.6);
-    sky.addColorStop(0,    "#12061f");
-    sky.addColorStop(0.38, "#3a1460");
-    sky.addColorStop(0.62, "#c45a8a");
-    sky.addColorStop(0.78, "#1a6e86");
-    sky.addColorStop(1,    "#071820");
-    g.fillStyle = sky;
-    g.fillRect(x, y + h * 0.5, w, h * 0.5);
-
+    nebula(g, t, x + w * 0.552, y + h * 0.71, Math.min(w, h) * 0.22, 0);
+    /* a few stars in the crack, so it already reads as a sky */
     g.globalCompositeOperation = "lighter";
-    const drift = still ? 0 : tt;
-    blob(g, vx + Math.sin(drift * 0.17) * w * 0.008,
-            vy - reach * 0.08,
-            reach * (1.15 + Math.sin(drift * 0.4) * 0.06),
-            36, 90, 78, 0.9);
-    blob(g, vx - reach * 0.25 + Math.sin(drift * 0.13) * w * 0.01,
-            vy + reach * 0.05, reach * 1.5, 320, 100, 62, 0.42);
-    blob(g, vx + reach * 0.3, vy + reach * 0.55, reach * 1.6, 176, 100, 60, 0.38);
-    blob(g, vx, vy + reach * 0.02, reach * 0.42, 48, 40, 96, 0.85);
-
-    g.globalAlpha = 0.34;
-    for (let i = 0; i < 9; i++) {
-      const a = drift * 0.07 + i * (Math.PI * 2 / 9);
-      const spread = 0.07;
-      g.fillStyle = i % 2 ? "rgba(255,214,140,0.95)" : "rgba(150,255,245,0.75)";
+    const cx = x + w * 0.552, cy = y + h * 0.71;
+    const reach = Math.min(w, h) * 0.2;
+    const tt = still ? 0 : t;
+    for (let i = 0; i < 14; i++) {
+      const ang = i * 2.399 + tt * 0.05;
+      const dist = reach * (0.15 + (i % 5) * 0.16);
+      const tw = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(tt * 1.7 + i));
+      g.fillStyle = `rgba(255,255,255,${0.35 + tw * 0.55})`;
       g.beginPath();
-      g.moveTo(vx, vy - reach * 0.02);
-      g.lineTo(vx + Math.cos(a) * reach * 2.6, vy + Math.sin(a) * reach * 2.8);
-      g.lineTo(vx + Math.cos(a + spread) * reach * 2.6, vy + Math.sin(a + spread) * reach * 2.8);
-      g.closePath();
+      g.arc(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist, 0.8 + (i % 3) * 0.45, 0, Math.PI * 2);
       g.fill();
     }
-
-    g.globalCompositeOperation = "source-over";
-    g.globalAlpha = 1;
-    const floor = g.createLinearGradient(vx, vy + reach * 0.15, vx, vy + reach * 1.5);
-    floor.addColorStop(0,    "rgba(255,206,150,0)");
-    floor.addColorStop(0.18, "rgba(255,176,110,0.55)");
-    floor.addColorStop(0.5,  "rgba(16,78,98,0.45)");
-    floor.addColorStop(1,    "rgba(4,14,22,0.2)");
-    g.fillStyle = floor;
-    g.beginPath();
-    g.ellipse(vx, vy + reach * 0.72, reach * 1.5, reach * 0.62, 0, 0, Math.PI * 2);
-    g.fill();
-
-    /* spires standing on that ground, small and pale far away,
-       larger and deeper in colour up close */
-    const spires = [
-      [-0.020, 0.55, 0.7,  268],
-      [ 0.004, 0.62, 0.9,   36],
-      [ 0.016, 0.70, 1.05, 174],
-      [-0.010, 0.78, 1.25, 328],
-      [ 0.012, 0.88, 1.5,  198],
-      [-0.004, 0.98, 1.7,   48]
-    ];
-    for (let i = 0; i < spires.length; i++) {
-      const sx = spires[i][0], depth = spires[i][1], sc = spires[i][2], hue = spires[i][3];
-      const bob = still ? 0 : Math.sin(tt * 0.6 + i) * h * 0.002;
-      crystal(g,
-        vx + w * sx + Math.sin(tt * 0.2 + i) * w * 0.003,
-        vy + h * 0.02 + reach * depth * 0.55 + bob,
-        w * 0.011 * sc,
-        hue);
-    }
-
-    g.globalCompositeOperation = "lighter";
-    for (let i = 0; i < 10; i++) {
-      const u = (tt * 0.04 + i / 10) % 1;
-      const px = vx + Math.sin(i * 2.1 + tt * 0.3) * reach * (0.15 + u * 0.7);
-      const py = vy + reach * (0.9 - u * 1.5);
-      blob(g, px, py, 2.2 + u * 3.5, i % 2 ? 48 : 180, 100, 86, 0.55 * (1 - u));
-    }
-    g.globalAlpha = 1;
     g.globalCompositeOperation = "source-over";
   }
 
@@ -646,129 +622,85 @@
      THE TUNNEL
      ============================================================ */
 
-  function polygon(g, rr, sides, rot) {
-    g.beginPath();
-    for (let i = 0; i <= sides; i++) {
-      const ang = (i / sides) * Math.PI * 2 + rot;
-      const x = Math.cos(ang) * rr, y = Math.sin(ang) * rr;
-      i ? g.lineTo(x, y) : g.moveTo(x, y);
-    }
-  }
+  const STARS = Array.from({ length: 80 }, () => ({
+    ang: Math.random() * Math.PI * 2,
+    z: Math.random(),
+    big: Math.random() < 0.12
+  }));
 
-  /* One ring of the tunnel, with its own nested detail. */
-  function ringAt(g, f, k, t, hue, intensity, detail) {
-    const rr = Math.pow(f, 2.0) * R * 1.65;
-    if (rr < 1.5) return;
-
-    const fade = Math.min(1, f * 4) * (1 - f) * 2.1 * intensity;
-    if (fade <= 0.01) return;
-    const sides = 3 + (k % 10);
-    const rot   = t * 0.22 * (k % 2 ? 1 : -1) + k * 0.37;
-
-    g.strokeStyle = `hsla(${hue + k * 23},100%,${52 + (k % 3) * 6}%,${0.5 * fade})`;
-    g.lineWidth = 0.8 + f * 5;
-    polygon(g, rr, sides, rot);
-    g.stroke();
-
-    if (detail < 1) return;
-
-    g.strokeStyle = `hsla(${hue + k * 23 + 150},100%,64%,${0.4 * fade})`;
-    g.lineWidth = 0.6 + f * 2.4;
-    polygon(g, rr * 0.72, sides + 2, -rot * 1.5);
-    g.stroke();
-
-    if (detail < 2) return;
-
-    g.beginPath();
-    for (let i = 0; i < sides; i++) {
-      const ang = (i / sides) * Math.PI * 2 + rot;
-      g.moveTo(Math.cos(ang) * rr * 0.72, Math.sin(ang) * rr * 0.72);
-      g.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
-    }
-    g.strokeStyle = `hsla(${hue + k * 23 + 60},100%,68%,${0.26 * fade})`;
-    g.lineWidth = 0.6;
-    g.stroke();
-
-    if (detail < 3) return;
-
-    g.beginPath();
-    for (let i = 0; i < sides; i++) {
-      const ang = (i / sides) * Math.PI * 2 + rot;
-      const x = Math.cos(ang) * rr, y = Math.sin(ang) * rr;
-      const nr = Math.max(0.8, rr * 0.035);
-      g.moveTo(x + nr, y);
-      g.arc(x, y, nr, 0, Math.PI * 2);
-    }
-    g.strokeStyle = `hsla(${hue + k * 23 + 210},100%,72%,${0.32 * fade})`;
-    g.lineWidth = 0.7;
-    g.stroke();
-  }
-
-  function paintTunnel(t) {
-    const g = fc;
+  /* Through the door, and then the light. The picture in the clip:
+     the nebula rushes at you, the stars come past, and it opens
+     into a white burst. */
+  function paintTunnel(t, dt) {
     const rush = Math.min(1, (performance.now() - phaseAt) / TUNNEL_MS);
-    const intensity = 0.75 + rush * 0.9;
-    const speed = 0.28 + rush * rush * 2.6;
-    const hue   = t * (70 + rush * 190);
-
-    // feedback: last frame, scaled up, underneath everything
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, front.width, front.height);
-    g.globalAlpha = 0.66 + rush * 0.12;
-    const zoom = 1 + 0.028 + rush * 0.05;
-    const dw = front.width * zoom, dh = front.height * zoom;
-    g.drawImage(back, (front.width - dw) / 2, (front.height - dh) / 2, dw, dh);
+    const dpr = portal.width / Math.max(1, W);
+    const g = pc;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.globalAlpha = 1;
-    g.setTransform(SC, 0, 0, SC, 0, 0);
-
-    // darken what carried over, so trails decay instead of smearing white
-    g.fillStyle = "rgba(0,0,0,0.26)";
+    g.globalCompositeOperation = "source-over";
+    g.fillStyle = "#070412";
     g.fillRect(0, 0, W, H);
 
-    g.globalCompositeOperation = "lighter";
-    g.lineCap = "round";
-
-    const RINGS  = Math.round(46 * quality);
-    const SYM    = Math.round(2 + 5 * quality);
-    const detail = quality > 0.85 ? 3 : quality > 0.6 ? 2 : quality > 0.4 ? 1 : 0;
-    const z = (t * speed) % 1;
-
+    const zoom = 1 + Math.pow(rush, 1.35) * 1.7;
     g.save();
-    g.translate(cx, cy);
-    for (let m = 0; m < SYM; m++) {
-      g.save();
-      g.rotate((m / SYM) * Math.PI * 2 + t * 0.05 * (m % 2 ? 1 : -1));
-      for (let k = 0; k < RINGS; k++) {
-        ringAt(g, ((k / RINGS) + z) % 1, k, t, hue + m * 31, intensity, detail);
-      }
-      g.restore();
-    }
+    g.translate(W / 2, H / 2);
+    g.scale(zoom, zoom);
+    g.translate(-W / 2, -H / 2);
+    nebula(g, t, W / 2, H / 2, Math.max(W, H) * 0.48, rush);
     g.restore();
 
-    // the light you are heading into
-    const core = g.createRadialGradient(cx, cy, 0, cx, cy, R * (0.3 + rush * 0.7));
-    const blow = Math.pow(rush, 2.2);          // the whiteout arrives late
-    core.addColorStop(0,    `hsla(${hue + 50},100%,${70 + blow * 30}%,${0.2 + blow * 0.78})`);
-    core.addColorStop(0.2,  `hsla(${hue},100%,62%,${0.14 + blow * 0.5})`);
-    core.addColorStop(0.62, `hsla(${hue + 170},100%,54%,${0.05 + blow * 0.25})`);
-    core.addColorStop(1,    "hsla(0,0%,0%,0)");
-    g.fillStyle = core;
-    g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = "lighter";
+    const speed = 0.15 + rush * rush * 1.15;
+    const span = Math.hypot(W, H) * 0.62;
+    for (let i = 0; i < STARS.length; i++) {
+      const s = STARS[i];
+      if (!still) {
+        s.z -= speed * dt;
+        if (s.z <= 0.02) { s.z = 1; s.ang = Math.random() * Math.PI * 2; }
+      }
+      const dist = (1 - s.z) * span;
+      const x = W / 2 + Math.cos(s.ang) * dist;
+      const y = H / 2 + Math.sin(s.ang) * dist;
+      const rad = (s.big ? 2.2 : 0.7) * (0.35 + (1 - s.z) * 2.4);
+      const a = 0.25 + (1 - s.z) * 0.7;
+      g.fillStyle = s.big ? `rgba(255,244,220,${a})` : `rgba(255,255,255,${a})`;
+      g.beginPath();
+      g.arc(x, y, rad, 0, Math.PI * 2);
+      g.fill();
+    }
 
+    const blow = Math.max(0, (rush - 0.62) / 0.38);
+    const eased = blow * blow * (3 - 2 * blow);
+    if (eased > 0.001) {
+      g.save();
+      g.translate(W / 2, H / 2);
+      g.rotate(t * 0.08);
+      g.globalAlpha = eased * 0.72;
+      for (let i = 0; i < 28; i++) {
+        const a = i * (Math.PI * 2 / 28);
+        const spread = 0.045 + (i % 3) * 0.012;
+        g.fillStyle = i % 2 ? "rgba(255,255,255,0.95)" : "rgba(214,188,255,0.8)";
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.lineTo(Math.cos(a) * R * 2.4, Math.sin(a) * R * 2.4);
+        g.lineTo(Math.cos(a + spread) * R * 2.4, Math.sin(a + spread) * R * 2.4);
+        g.closePath();
+        g.fill();
+      }
+      g.restore();
+
+      const flash = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, R * 1.05);
+      flash.addColorStop(0,    `rgba(255,255,255,${0.55 + eased * 0.45})`);
+      flash.addColorStop(0.28, `rgba(236,224,255,${0.35 + eased * 0.55})`);
+      flash.addColorStop(0.62, `rgba(186,150,255,${eased * 0.85})`);
+      flash.addColorStop(1,    `rgba(120,70,190,${eased * 0.95})`);
+      g.globalCompositeOperation = "source-over";
+      g.globalAlpha = Math.min(1, eased * 1.15);
+      g.fillStyle = flash;
+      g.fillRect(0, 0, W, H);
+    }
+    g.globalAlpha = 1;
     g.globalCompositeOperation = "source-over";
-
-    const vig = g.createRadialGradient(cx, cy, Math.min(W, H) * 0.12, cx, cy, R);
-    vig.addColorStop(0,   "rgba(0,0,0,0)");
-    vig.addColorStop(0.6, "rgba(0,0,0,0.37)");
-    vig.addColorStop(1,   "rgba(0,0,0,0.88)");
-    g.fillStyle = vig;
-    g.fillRect(0, 0, W, H);
-
-    // blit and swap
-    ctx.drawImage(front, 0, 0, W, H);
-    const tf = front, tcx = fc;
-    front = back; fc = bc;
-    back = tf;   bc = tcx;
   }
 
 
@@ -785,14 +717,11 @@
     last = now;
     const t = now * 0.001;
 
-    if (phase === "tunnel" || phase === "options") paintTunnel(t);
-    if (phase !== "options") {
-      if (pullFrom) pull = Math.min(1, (now - pullFrom) / SWALLOW_MS);
+    if (pullFrom && phase !== "options") pull = Math.min(1, (now - pullFrom) / SWALLOW_MS);
+    if (phase === "tunnel") paintTunnel(t, dt);
+    else if (phase !== "options") {
       paintTree(t, dt, pull);
-      if (pull >= 1 && tree.style.display !== "none") {
-        tree.style.display = "none";
-        portal.style.display = "none";
-      }
+      if (pull >= 1 && tree.style.display !== "none") tree.style.display = "none";
     }
 
     /* Push the detail up while frames are cheap, back off when they are
@@ -831,13 +760,22 @@
     gate.classList.add("gone");
     if (still) { land(); return; }
     pullFrom = performance.now();
-    setTimeout(() => go("tunnel"), SWALLOW_MS * 0.58);
+    /* lift the portal out of the gate, or it fades away with the
+       button and the passage goes with it */
+    portal.style.position = "fixed";
+    portal.style.zIndex = "6";
+    portal.style.inset = "0";
+    document.body.appendChild(portal);
+    setTimeout(() => go("tunnel"), SWALLOW_MS * 0.9);
     setTimeout(land, SWALLOW_MS + TUNNEL_MS);
   }
 
   function land() {
     go("options");
     if (gate) gate.style.display = "none";
+    portal.style.zIndex = "1";
+    portal.style.transition = "opacity .9s ease";
+    portal.style.opacity = "0";
     if (!journey) return;
     journey.hidden = false;
     if (window.RealmJourney && RealmJourney.start) RealmJourney.start();
