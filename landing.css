@@ -65,138 +65,87 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 
 /* ---------- the wallet ---------- */
 .wal{
-  font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
-  font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;
-  padding:7px 13px;cursor:pointer;white-space:nowrap;
-  background:#000;border:1px solid rgba(227,186,92,.45);color:#f4efe4;
-  transition:border-color .25s,color .25s;
+  padding:7px 12px;cursor:pointer;white-space:nowrap;
+  font-family:'Pixelify Sans',system-ui,sans-serif;
+  font-size:.70rem;letter-spacing:.16em;text-transform:uppercase;
+  color:#9d8fc4;background:#07040f;border:1px solid rgba(227,186,92,.3);
 }
 .wal:hover{border-color:#e3ba5c;color:#e3ba5c}
-.wal.on{border-color:rgba(157,143,196,.5);color:#9d8fc4;text-transform:none}
 
 .wal-sheet{
-  position:fixed;z-index:60;left:50%;transform:translateX(-50%) translateY(10px);
-  top:calc(56px + env(safe-area-inset-top));
-  width:min(92vw,340px);padding:18px 18px 14px;
-  background:#000;border:1px solid rgba(227,186,92,.42);
-  opacity:0;transition:opacity .2s ease,transform .2s ease;
+  position:fixed;top:56px;left:50%;z-index:60;
+  width:min(420px,calc(100vw - 24px));
+  transform:translateX(-50%) translateY(-8px);
+  opacity:0;transition:opacity .18s ease-out,transform .18s ease-out;
+  padding:18px;background:#07040f;border:1px solid rgba(227,186,92,.3);
+  max-height:min(76vh,720px);overflow-y:auto;
 }
 .wal-sheet.here{opacity:1;transform:translateX(-50%) translateY(0)}
 .wal-sheet[hidden]{display:none}
 .wal-sheet h3{
-  margin:0 0 8px;font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
-  font-size:1rem;letter-spacing:.14em;text-transform:uppercase;color:#f4efe4;
+  margin:0 0 9px;font-family:'Pixelify Sans',system-ui,sans-serif;
+  font-size:.86rem;letter-spacing:.18em;text-transform:uppercase;color:#f4efe4;
 }
-.wal-note{margin:0 0 14px;font-size:.72rem;line-height:1.6;color:#6d6192}
+.wal-note{margin:0 0 14px;font-size:.72rem;line-height:1.65;color:#6d6192}
 
-.wal-row{
-  display:flex;align-items:center;gap:11px;width:100%;
-  padding:11px 13px;margin-bottom:7px;cursor:pointer;text-align:left;
-  background:#07040f;border:1px solid rgba(227,186,92,.2);color:#f4efe4;
+/* the address and the button that reads it */
+.wal-find{display:flex;gap:6px;margin-bottom:13px}
+.wal-find input{
+  flex:1;min-width:0;padding:10px 11px;
+  font-family:'Space Grotesk',system-ui,sans-serif;font-size:.78rem;
+  color:#f4efe4;background:#03010a;border:1px solid rgba(227,186,92,.26);
 }
-.wal-row:hover:not(:disabled){border-color:#e3ba5c}
-.wal-row:disabled{cursor:default;color:#6d6192}
-.wal-row img{display:block;flex:none;image-rendering:auto}
-.wal-row b{display:block;font-family:'Pixelify Sans',system-ui,sans-serif;
-  font-weight:700;font-size:.86rem;letter-spacing:.08em}
-.wal-row i{display:block;font-style:normal;font-size:.68rem;color:#6d6192}
-
-.wal-hold{
-  padding:13px;margin-bottom:12px;background:#07040f;
-  border:1px solid rgba(227,186,92,.2);
+.wal-find input:focus{outline:none;border-color:#e3ba5c}
+.wal-find input::placeholder{color:#6d6192}
+.wal-go{
+  padding:10px 15px;cursor:pointer;white-space:nowrap;
+  font-family:'Pixelify Sans',system-ui,sans-serif;
+  font-size:.70rem;letter-spacing:.14em;text-transform:uppercase;
+  color:#03010a;background:#e3ba5c;border:1px solid #e3ba5c;
 }
-.wal-hold b{display:block;font-family:'Pixelify Sans',system-ui,sans-serif;
-  font-weight:700;font-size:.84rem;letter-spacing:.08em;color:#e3ba5c;margin-bottom:5px}
-.wal-hold i{display:block;font-style:normal;font-size:.72rem;line-height:1.6;color:#9d8fc4}
+.wal-go:hover{background:#f0cd7a}
+.wal-go:disabled{opacity:.5;cursor:default}
 
-.wal-close{
-  width:100%;padding:10px;cursor:pointer;margin-top:4px;
+.wal-wait,.wal-bad,.wal-none{margin:0;font-size:.78rem;line-height:1.6}
+.wal-wait{color:#9d8fc4}
+.wal-bad{color:#c4838b}
+.wal-none{color:#f4efe4}
+
+/* what the address holds */
+.wal-holds{
+  display:grid;gap:1px;background:rgba(227,186,92,.26);
+  border:1px solid rgba(227,186,92,.26);margin-bottom:11px;
+}
+.wal-hold-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:8px 11px;background:#07040f;
+}
+.wal-hold-row span{
   font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
-  font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;
-  background:#000;border:1px solid rgba(227,186,92,.3);color:#f4efe4;
+  font-size:.82rem;color:var(--c,#9d8fc4);
 }
-.wal-close:hover{border-color:#e3ba5c;color:#e3ba5c}
-.wal-close.ghost{border-color:rgba(157,143,196,.22);color:#6d6192}
-
-/* ---------- the door in the tree ---------- */
-.gate{
-  position:absolute;inset:0;
-  transition:opacity .7s ease-in;
-}
-.gate.gone{opacity:0;pointer-events:none;transition:opacity .5s ease-in 1s}
-
-/* the tree fills the screen; everything else stands on it */
-#tree{
-  position:absolute;inset:0;width:100%;height:100%;
-  display:block;pointer-events:none;
-  opacity:0;transition:opacity 1.1s ease-out;
-}
-#tree.ready{opacity:1}
-
-.gate-in{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-  gap:clamp(6px,1.4vh,14px);text-align:center;
-  padding:0 14px calc(22px + env(safe-area-inset-bottom));
-}
-.gate.gone .gate-in{opacity:0;transition:opacity .3s;pointer-events:none}
-
-/* the one way in.
-   A clip-path cuts a border off at the angled ends, so the rim is a
-   second layer: a gold shape with a slightly smaller black one sitting
-   on it, both cut to the same outline. */
-.enter{
-  position:relative;cursor:pointer;border:0;padding:17px 30px;
-  width:min(88vw,400px);
-  background:rgba(227,186,92,.55);
-  clip-path:polygon(5% 0%,95% 0%,100% 50%,95% 100%,5% 100%,0% 50%);
-  transition:background .25s,transform .2s;
-}
-.enter::after{
-  content:'';position:absolute;inset:0;transform:scale(.988);
-  background:#000;
-  clip-path:polygon(5% 0%,95% 0%,100% 50%,95% 100%,5% 100%,0% 50%);
-}
-.enter:hover{background:#e3ba5c}
-.enter:active{transform:scale(.97)}
-.enter-in{
-  position:relative;z-index:2;display:block;
-  font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
-  font-size:clamp(.94rem,4.3vw,1.26rem);letter-spacing:.11em;line-height:1;
-  text-transform:uppercase;white-space:nowrap;color:#f4efe4;
+.wal-hold-row span i{font-style:normal;color:#6d6192;font-size:.74rem}
+.wal-hold-row b{
+  font-family:'Space Grotesk',system-ui,sans-serif;font-variant-numeric:tabular-nums;
+  font-size:.82rem;color:#f4efe4;
 }
 
-.creed{
-  margin:0;color:#b5a6d8;display:flex;flex-wrap:wrap;justify-content:center;font-size:.88rem;letter-spacing:.2em;line-height:1.9;
-  text-transform:uppercase;
-  text-shadow:0 0 14px #03010a,0 0 30px #03010a;
+.wal-sum,.wal-pay{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:rgba(227,186,92,.26);border:1px solid rgba(227,186,92,.26);
+  margin-bottom:11px}
+.wal-pay{grid-template-columns:repeat(2,1fr)}
+.wal-sum div,.wal-pay div{
+  padding:9px 10px;background:#07040f;display:flex;flex-direction:column;gap:3px;
 }
-
-/* ---------- overlay panels ---------- */
-.panel{
-  position:fixed;inset:0;z-index:40;overflow-y:auto;
-  background:rgba(3,1,10,.93);backdrop-filter:blur(18px);
-  padding:max(58px,calc(env(safe-area-inset-top) + 58px)) 16px
-          max(40px,calc(env(safe-area-inset-bottom) + 40px));
-  animation:rise .26s ease-out;
+.wal-sum span,.wal-pay span{
+  font-family:'Pixelify Sans',system-ui,sans-serif;
+  font-size:.62rem;letter-spacing:.13em;text-transform:uppercase;color:#6d6192;
 }
-.panel[hidden]{display:none}
-@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-
-.panel-in{max-width:620px;margin:0 auto}
-.panel h2{
-  font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
-  font-size:1.35rem;margin:0 0 6px;letter-spacing:.2em;text-transform:uppercase;
-  color:#f4efe4;
+.wal-sum b,.wal-pay b{
+  font-family:'Space Grotesk',system-ui,sans-serif;font-variant-numeric:tabular-nums;
+  font-size:.88rem;color:#f4efe4;
 }
-.panel-close{
-  position:fixed;top:max(14px,env(safe-area-inset-top));right:14px;z-index:41;
-  width:44px;height:44px;cursor:pointer;
-  font-size:1.5rem;line-height:1;color:#f4efe4;
-  background:#000;border:1px solid rgba(227,186,92,.42);
-}
-.panel-close:hover{border-color:#e3ba5c;color:#e3ba5c}
-
+.wal-pay div:last-child b{color:#e3ba5c}
 
 /* ============================================================
    THE DOOR'S OWN LETTERING

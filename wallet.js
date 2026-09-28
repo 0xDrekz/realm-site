@@ -1,69 +1,49 @@
 /* ============================================================
-   REALM — connecting a wallet.
+   REALM — the wallet checker.
 
-   Read only. This site never asks anyone to sign a transaction or
-   approve spending, and it never will — the mint happens on the
-   launchpad, not here. Connecting shows an address and, once the
-   collection exists, what that address holds.
+   Nobody is asked to connect anything. You paste an address and it says
+   what that address holds: which beings, what they weigh, what $DMT sits
+   with them, and what that comes to.
 
-   Wallets are found through the Wallet Standard rather than by
-   reaching for window.phantom or window.solana. That is how every
-   Solana wallet announces itself now — Phantom, Solflare, Backpack,
-   and MetaMask when its Solana support is present — so one piece of
-   code finds all of them and there is no list to keep up to date.
+   Why this rather than a connect button. Connecting is a permission
+   prompt for something the site does not need — rewards are paid from a
+   snapshot of the chain, so a holder who never opens this page still
+   gets theirs. A checker costs the visitor nothing, works on a phone
+   with no wallet extension installed, and lets anybody check anybody.
+   That last part is the point: a mechanism that claims to be checkable
+   should be checkable by people who have not bought in.
+
+   The chain is read by the server, because reading it needs an RPC key,
+   and a key in this file is a key handed to every visitor.
    ============================================================ */
 
 (() => {
   "use strict";
 
-  const bar = document.querySelector(".topbar");
+  const bar = document.querySelector(".top-links");
   if (!bar) return;
 
-  const short = a => a.slice(0, 4) + "…" + a.slice(-4);
+  const TIERS_ = typeof TIERS        !== "undefined" ? TIERS        : [];
+  const BANDS  = typeof TOKEN_BANDS  !== "undefined" ? TOKEN_BANDS  : [{ hold: 0, mult: 1 }];
+  const TOKEN  = typeof TOKEN_NAME   !== "undefined" ? TOKEN_NAME   : "$DMT";
+  const WEIGHT = typeof TOTAL_WEIGHT !== "undefined" ? TOTAL_WEIGHT : 0;
+  const POOL   = typeof POOL_FULL    !== "undefined" ? POOL_FULL    : 0;
 
-  /* ---------- finding what is installed ----------
-     A wallet either fires register-wallet when it loads, or is already
-     waiting when we announce ourselves. Both have to be handled or the
-     one that loaded first is missed. */
-  const wallets = [];
-  const seen = new Set();
+  const tierOf  = name => TIERS_.find(t => t.name === name || t.key === name);
+  const multFor = bal => BANDS.reduce((m, b) => bal >= b.hold ? b.mult : m, 1);
 
-  function take(list) {
-    for (const w of list) {
-      if (!w || seen.has(w.name)) continue;
-      const f = w.features || {};
-      if (!f["standard:connect"]) continue;          // cannot be connected to
-      const chains = w.chains || [];
-      if (chains.length && !chains.some(c => String(c).startsWith("solana:"))) continue;
-      seen.add(w.name);
-      wallets.push(w);
-    }
-    return () => {};
-  }
+  /* base58 has no 0, O, I or l, and a Solana address is 32 bytes, which
+     lands between 32 and 44 characters. Checked here so an obvious typo
+     costs nobody a round trip, and again on the server, which is the
+     side that matters. */
+  const ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
-  const api = { register: (...ws) => take(ws) };
-  window.addEventListener("wallet-standard:register-wallet", e => {
-    try { e.detail(api); } catch (err) { /* a wallet that will not play */ }
-  });
-  window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: api }));
-
-  /* ---------- the control in the bar ----------
-     It stays away until there is something for it to show.
-
-     Connecting is not how anybody gets paid — the pool is worked out from a
-     snapshot of the chain and sent out, so a holder who never opens this
-     site again still receives theirs. Until the collection exists this
-     button can only report that it has nothing to report, and a crypto site
-     asking for a wallet connection it does not need is a small tax on
-     trust for no return. */
-  const liveCollection = (typeof CONFIG !== "undefined"
-                          && CONFIG.collectionAddress) || "";
-  if (!liveCollection) return;
-
+  /* ---------- the control in the bar ---------- */
   const btn = document.createElement("button");
   btn.className = "wal";
   btn.type = "button";
-  btn.textContent = "Connect";
+  btn.textContent = "Check";
+  btn.setAttribute("aria-label", "Check what a wallet holds");
   bar.appendChild(btn);
 
   const sheet = document.createElement("div");
@@ -71,169 +51,131 @@
   sheet.hidden = true;
   document.body.appendChild(sheet);
 
-  let account = null, active = null;
-
-  const g_ = (name, fallback) => {
-    try { return eval(name); } catch (e) { return fallback; }
-  };
-
-  function open() {
-    sheet.hidden = false;
-    requestAnimationFrame(() => sheet.classList.add("here"));
-  }
+  let open = false;
   function close() {
+    open = false;
     sheet.classList.remove("here");
-    setTimeout(() => { sheet.hidden = true; }, 200);
+    setTimeout(() => { if (!open) sheet.hidden = true; }, 180);
   }
 
-  function row(label, sub, onClick, icon) {
-    const b = document.createElement("button");
-    b.className = "wal-row";
-    b.type = "button";
-    if (icon) {
-      const im = document.createElement("img");
-      im.src = icon; im.alt = ""; im.width = 22; im.height = 22;
-      b.appendChild(im);
-    }
-    const t = document.createElement("span");
-    t.innerHTML = `<b>${label}</b>${sub ? `<i>${sub}</i>` : ""}`;
-    b.appendChild(t);
-    if (onClick) b.addEventListener("click", onClick);
-    else b.disabled = true;
-    return b;
-  }
-
-  function note(text) {
-    const p = document.createElement("p");
-    p.className = "wal-note";
-    p.textContent = text;
-    return p;
-  }
-
-  /* ---------- choosing one ---------- */
-  function chooser() {
-    sheet.innerHTML = "";
-    const h = document.createElement("h3");
-    h.textContent = "Connect a wallet";
-    sheet.appendChild(h);
-    sheet.appendChild(note(
-      "REALM never asks you to sign a transaction or approve spending. "
-      + "Connecting only shows your address."));
-
-    if (!wallets.length) {
-      sheet.appendChild(row("No wallet found", "on this browser", null));
-      sheet.appendChild(note(
-        "On a phone, open dmt-realm.dev inside your wallet's own browser. "
-        + "On a computer, install Phantom, Solflare, Backpack or MetaMask and reload."));
-    } else {
-      for (const w of wallets) {
-        sheet.appendChild(row(w.name, "", () => connect(w), w.icon));
-      }
-    }
-
-    const x = document.createElement("button");
-    x.className = "wal-close";
-    x.type = "button";
-    x.textContent = "Close";
-    x.addEventListener("click", close);
-    sheet.appendChild(x);
-    open();
-  }
-
-  /* ---------- connected ---------- */
-  function connected() {
-    sheet.innerHTML = "";
-    const h = document.createElement("h3");
-    h.textContent = short(account);
-    sheet.appendChild(h);
-    sheet.appendChild(note(active ? "Connected with " + active.name : "Connected"));
-
-    const cfg = g_("CONFIG", {});
-    const box = document.createElement("div");
-    box.className = "wal-hold";
-    box.innerHTML = "<b>Reading your beings…</b>"
-      + "<i>Your beings and the weight they carry. This is for looking at — "
-      + "rewards are sent from a snapshot of the chain, so you do not need to "
-      + "connect here to receive anything.</i>";
-    sheet.appendChild(box);
-
-    const d = document.createElement("button");
-    d.className = "wal-close";
-    d.type = "button";
-    d.textContent = "Disconnect";
-    d.addEventListener("click", () => { disconnect(); close(); });
-    sheet.appendChild(d);
-
-    const x = document.createElement("button");
-    x.className = "wal-close ghost";
-    x.type = "button";
-    x.textContent = "Close";
-    x.addEventListener("click", close);
-    sheet.appendChild(x);
-    open();
-  }
-
-  async function connect(w) {
-    try {
-      btn.textContent = "…";
-      const res = await w.features["standard:connect"].connect();
-      const acc = (res && res.accounts && res.accounts[0]) || null;
-      if (!acc) throw new Error("no account");
-      account = acc.address;
-      active = w;
-      btn.textContent = short(account);
-      btn.classList.add("on");
-      connected();
-
-      // follow the wallet if the person switches account or signs out
-      const ev = w.features["standard:events"];
-      if (ev && ev.on) {
-        ev.on("change", props => {
-          if (!props || !props.accounts) return;
-          if (!props.accounts.length) { disconnect(); return; }
-          account = props.accounts[0].address;
-          btn.textContent = short(account);
-        });
-      }
-    } catch (err) {
-      btn.textContent = account ? short(account) : "Connect";
-      sheet.innerHTML = "";
-      const h = document.createElement("h3");
-      h.textContent = "Not connected";
-      sheet.appendChild(h);
-      sheet.appendChild(note(
-        "The wallet turned the request down, or the window was closed. "
-        + "Nothing was sent and nothing was signed."));
-      const x = document.createElement("button");
-      x.className = "wal-close"; x.type = "button"; x.textContent = "Close";
-      x.addEventListener("click", close);
-      sheet.appendChild(x);
-      open();
-    }
-  }
-
-  function disconnect() {
-    try {
-      const f = active && active.features["standard:disconnect"];
-      if (f && f.disconnect) f.disconnect();
-    } catch (err) { /* some wallets have no way to be told */ }
-    account = null; active = null;
-    btn.textContent = "Connect";
-    btn.classList.remove("on");
-  }
-
-  btn.addEventListener("click", () => {
-    if (!sheet.hidden) { close(); return; }
-    account ? connected() : chooser();
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    if (open) return close();
+    build();
+    sheet.hidden = false;
+    open = true;
+    requestAnimationFrame(() => sheet.classList.add("here"));
+    const f = sheet.querySelector("input");
+    if (f) f.focus();
   });
 
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !sheet.hidden) close();
+  document.addEventListener("click", e => {
+    if (open && !sheet.contains(e.target) && e.target !== btn) close();
   });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && open) close(); });
 
-  window.RealmWallet = {
-    get address() { return account; },
-    get wallets() { return wallets.map(w => w.name); },
-    disconnect
-  };
+  /* ---------- the sheet ---------- */
+  function build() {
+    if (sheet.dataset.built) return;
+    sheet.dataset.built = "1";
+
+    sheet.innerHTML =
+      '<h3>Check a wallet</h3>' +
+      '<p class="wal-note">Paste any Solana address. Nothing is connected and nothing ' +
+      'is signed, and it does not have to be yours. Rewards are paid from a snapshot ' +
+      'of the chain, so nobody needs to come here to receive them.</p>' +
+      '<div class="wal-find">' +
+        '<input type="text" inputmode="text" autocomplete="off" autocapitalize="off" ' +
+               'spellcheck="false" placeholder="Solana address" aria-label="Solana address">' +
+        '<button type="button" class="wal-go">Check</button>' +
+      '</div>' +
+      '<div class="wal-out" aria-live="polite"></div>';
+
+    const input = sheet.querySelector("input");
+    const go    = sheet.querySelector(".wal-go");
+    const out   = sheet.querySelector(".wal-out");
+    const say   = html => { out.innerHTML = html; };
+
+    async function check() {
+      const address = input.value.trim();
+      if (!ADDRESS.test(address)) {
+        say('<p class="wal-bad">That does not look like a Solana address.</p>');
+        return;
+      }
+      go.disabled = true;
+      say('<p class="wal-wait">Reading the chain…</p>');
+      try {
+        const r = await fetch("/api/holdings?address=" + encodeURIComponent(address));
+        const d = await r.json();
+        if (r.status === 503 || d.ready === false) {
+          say('<p class="wal-wait">Nothing has been minted yet, so there is nothing to ' +
+              'read. This works the moment the collection exists.</p>');
+        } else if (!r.ok) {
+          say('<p class="wal-bad">' + (d.error || "Could not read the chain just now.")
+              + '</p>');
+        } else {
+          say(render(d));
+        }
+      } catch {
+        say('<p class="wal-bad">Could not reach the chain. Try again in a moment.</p>');
+      }
+      go.disabled = false;
+    }
+
+    go.addEventListener("click", check);
+    input.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+  }
+
+  /* ---------- what it found ----------
+     Two figures, the same two the Rewards chart gives. A holder reading
+     one number here and two there would rightly wonder which is real. */
+  function render(d) {
+    const beings = d.beings || [];
+    const tokens = d.tokens || 0;
+
+    if (!beings.length) {
+      return '<p class="wal-none">No beings at this address.</p>'
+        + (tokens
+            ? '<p class="wal-note">It holds ' + tokens.toLocaleString() + ' ' + TOKEN
+              + ', which on its own earns nothing — the token multiplies beings, '
+              + 'and there are none here to multiply.</p>'
+            : "");
+    }
+
+    const w    = beings.reduce((a, b) => a + ((tierOf(b.tier) || {}).weight || 0), 0);
+    const mult = multFor(tokens);
+    const even = WEIGHT ? POOL * w / WEIGHT : 0;
+    const mine = w * mult;
+    const best = WEIGHT ? POOL * mine / (WEIGHT - w + mine) : 0;
+
+    const counts = {};
+    beings.forEach(b => counts[b.tier] = (counts[b.tier] || 0) + 1);
+
+    const order = TIERS_.map(t => t.name);
+    const list = Object.entries(counts)
+      .sort((a, b) => order.indexOf(b[0]) - order.indexOf(a[0]))
+      .map(([tier, n]) => {
+        const t = tierOf(tier) || {};
+        return '<div class="wal-hold-row" style="--c:' + (t.color || "#9d8fc4") + '">'
+             + '<span>' + tier + (n > 1 ? ' <i>×' + n + '</i>' : "") + '</span>'
+             + '<b>' + ((t.weight || 0) * n) + '</b></div>';
+      }).join("");
+
+    return '<div class="wal-holds">' + list + '</div>'
+      + '<div class="wal-sum">'
+        + '<div><span>Weight</span><b>' + w + '</b></div>'
+        + '<div><span>' + TOKEN + '</span><b>' + tokens.toLocaleString() + '</b></div>'
+        + '<div><span>Multiplier</span><b>' + mult.toFixed(1) + '×</b></div>'
+      + '</div>'
+      + '<div class="wal-pay">'
+        + '<div><span>Even field</span><b>' + even.toFixed(3) + ' SOL</b></div>'
+        + '<div><span>At ' + mult.toFixed(1) + '×</span><b>'
+          + best.toFixed(3) + ' SOL</b></div>'
+      + '</div>'
+      + '<p class="wal-note">Even field is what this weight earns if everybody carries '
+      + 'the same multiplier — they cancel, so it is the same at every band. The '
+      + 'second is this wallet at ' + mult.toFixed(1) + '× with nobody else '
+      + 'multiplied at all, which is a ceiling and falls as others buy in. What it '
+      + 'actually gets sits between them, and both assume the drop fills.</p>';
+  }
 })();

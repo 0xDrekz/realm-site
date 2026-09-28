@@ -244,26 +244,48 @@ launchpad, where the collection needs an avatar.
 
 ---
 
-## Connecting a wallet
+## The wallet checker
 
-`wallet.js`. It is **read only**. The site never asks anyone to sign a
-transaction or approve spending, and the sheet says so before they connect.
-The mint happens on the launchpad, not here.
+`wallet.js`, and `/api/holdings` in `server.js`.
 
-Wallets are found through the **Wallet Standard**, not by reaching for
-`window.phantom` or `window.solana`. That is how every Solana wallet
-announces itself now, so one piece of code finds Phantom, Solflare,
-Backpack and MetaMask alike, and there is no list of wallets to keep up to
-date as new ones appear.
+**The site never asks anyone to connect a wallet.** You paste an address and
+it says what that address holds: which beings, what they weigh, what $DMT sits
+with them, and what that comes to — the same two figures the Rewards chart
+gives, because a holder reading one number here and two there would rightly
+wonder which is real.
 
-**The button does not appear at all until `collectionAddress` is set**, because
-until then it can only report that it has nothing to report, and a crypto site
-asking for a wallet connection it does not need is a small tax on trust for no
-return. Set the address and it comes back, as a place to look at your beings.
+It used to be a connect button, using the Wallet Standard. The checker is
+better in every direction that matters:
 
-**Connecting is not how anybody gets paid.** See below.
+- **No permission prompt** for something the site does not need. Rewards are
+  paid from a snapshot, so a holder who never opens this page still gets
+  theirs — connecting was never load-bearing.
+- **It works on a phone** with no wallet extension installed.
+- **Anybody can check anybody.** A mechanism that claims to be checkable
+  should be checkable by people who have not bought in.
 
----
+### The key lives on the server
+
+Reading the chain needs an RPC key, and a key in a file the site serves is a
+key handed to every visitor. `/api/holdings` reads `HELIUS_KEY`, `COLLECTION`
+and `TOKEN_MINT` from the environment — set them in **Railway's variables**.
+
+Until `HELIUS_KEY` and `COLLECTION` are set the endpoint answers
+`{"ready": false}` and the sheet says there is nothing minted yet, which is
+true rather than broken.
+
+### What guards it
+
+| | |
+|---|---|
+| address shape | base58, 32–44 characters, checked in the browser **and** on the server |
+| rate limit | 30 checks a minute per caller, then 429 |
+| cache | one answer per address for 30 seconds |
+| both maps | cleared if they ever grow past a sane size, so neither leaks memory |
+
+Tested: a bad address never leaves the browser; with a key set it is rejected
+before any RPC call; 30 requests pass and the 31st is refused; the rendered
+figures match the chart's own sums for the same holding.
 
 ## Note on the mint
 
