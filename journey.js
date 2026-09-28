@@ -204,6 +204,12 @@ window.RealmJourney = (() => {
     ctx.fillRect(0, 0, W, H);
     if (!art) return;
 
+    /* Nearest, not smoothed. The canvas is a third of the screen, so the
+       picture is always scaled DOWN to be drawn, and smoothing averages
+       it — which is what softened the eyes and the far door into blobs.
+       Off, the pixels survive the downscale. */
+    ctx.imageSmoothingEnabled = false;
+
     /* the room breathes: a slow push in and out, so standing here
        never feels like looking at a photograph */
     const zoom = 1 + 0.035 * (0.5 + 0.5 * Math.sin(t * 0.12));

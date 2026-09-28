@@ -23,7 +23,10 @@
   /* ---------- the picture, and the two places that matter in it ----------
      Both are fractions: how far across, how far down. If the artwork is
      ever replaced, these two lines are what to re-measure. */
-  const AIM = { x: 0.545, y: 0.738 };   // the doorway — where the zoom goes
+  const AIM = { x: 0.503, y: 0.745 };   // the doorway — where the zoom goes.
+                                      // Measured off the art rather than
+                                      // guessed: the old value was 19px to
+                                      // the right of the actual arch.
   const SUN = { x: 0.513, y: 0.436 };   // the burst of light in the canopy
 
   const FULL = "tree.png";
@@ -275,6 +278,18 @@
   const BANDS = 48;
 
   function drawTree(t, pull, x, y, w, h) {
+    /* Nearest, not smoothed.
+
+       The canvas is a third of the screen, so the 460-pixel picture is
+       always being scaled DOWN to be drawn — and with smoothing on, the
+       browser averages it. That is what turned a light with a hot white
+       core and hard rays into a soft blob: the art was defined and the
+       drawing threw the definition away.
+
+       Off, the pixels survive the downscale and the blow-up puts them
+       back as hard blocks, which is the look the whole site is built on. */
+    tc.imageSmoothingEnabled = false;
+
     const ease = Math.max(0, 1 - pull / 0.3);
     if (ease <= 0) { tc.drawImage(art, x, y, w, h); return; }
 

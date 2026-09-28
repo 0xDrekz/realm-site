@@ -202,6 +202,57 @@ down the tree, so what you see is a bend travelling up through the branches;
 a slow envelope on top makes it arrive in gusts. Bands never move up or
 down — that tears a gap above them.
 
+## The light, and why the pictures were soft
+
+Both scenes were mush, and the complaint — "more light bulb and better
+defined" — was exactly right. Three things were wrong, and only one of them
+was the artwork.
+
+**Nothing in either picture was a light.** The brightest pixel in the tree was
+240 and there was no white anywhere. Eighteen thousand pixels were *quite
+bright* and none of them was a source. A light in pixel art is a hot core and
+a few hard steps out of it — it is read by its steps, the way a woodcut is.
+
+**The middle was too bright to have anything stand out from.** The tree
+averaged 80 out of 255. It sits near 50 now, so the doorway glows instead of
+merely being present.
+
+**And the site was throwing the definition away.** This is the big one. Every
+canvas is a third of the screen, so a 460-pixel picture is always being scaled
+*down* to be drawn — and both canvases had image smoothing on, so the browser
+averaged it. However sharp the art, it arrived soft. `drawTree` in `gate.js`
+and `paint` in `journey.js` set `imageSmoothingEnabled = false` now, and the
+pixels survive the downscale.
+
+`tools/scene.py` does the first two:
+
+    python3 tools/scene.py
+
+It bands the value into six hard steps with hue kept, deepens the middle, and
+puts real lamps at the doorway, the canopy burst, the two eyes and the far
+door — each a pure white core with stepped falloff and hard narrow rays.
+
+### Two things it had to be taught
+
+**The palette was eating the light.** Quantising a dark picture to 44 colours
+throws pure white away: median cut spends its entries where the pixels are,
+and a few hundred white ones do not earn a slot. The first run produced 2,612
+white pixels and saved none of them. The cores are stamped back after
+quantising now — one palette entry, and it is the entry the picture is about.
+
+**The doorway was not where the site thought it was.** `AIM.x` was 0.545. The
+violet centroid of the actual artwork is 0.503 — nineteen pixels out, which is
+why the first pass put the glow off to one side of the arch. Measured now,
+in `tools/scene.py` and in `gate.js`, rather than guessed.
+
+### The redraw that did not work
+
+The first attempt drew both scenes from scratch, procedurally. It was worse
+than what it replaced: the canopy came out a flat green blob and the light's
+rays rendered as fat brown petals — a flower, not a burst. The existing art
+has real structure that is not worth losing to prove a point. What it lacked
+was contrast, hard edges and an actual light, and those can be added to it.
+
 ## The pixel grid
 
 Every canvas on the site is drawn at a third of the screen's size and blown

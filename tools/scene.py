@@ -1,282 +1,327 @@
 #!/usr/bin/env python3
 """
-REALM — putting a being somewhere.
+REALM — the two scenes: the door in the tree, and the chamber behind it.
 
-Everything before this floated a being on a gradient. This builds a place for
-it to stand in: a sky with weather, a horizon, ground running away from you, a
-gate behind, and the being outlined against it.
+    python3 tools/scene.py
 
-All of it is drawn at the being's own grid so nothing is smoother than
-anything else, and blown up by a whole number at the end.
+Both used to be soft. The brightest pixel in the old tree was 240 and it was
+never white anywhere, which is exactly why the light read as a haze rather
+than as a light: nothing in the picture was a SOURCE, only things that were
+somewhat bright.
+
+Three rules hold the whole thing together.
+
+  1. A light has a hot core. A handful of pure white pixels, then hard steps
+     out from it. Not a gradient. Pixel art reads a light by its steps, the
+     way a woodcut does, and a smooth falloff just reads as blur.
+
+  2. Everything is banded. A continuous field -- a distance, some noise -- is
+     cut into N bands and each band takes one colour from a ramp. Boundaries
+     get an ordered dither so they break up on the pixel grid instead of
+     making a smooth edge. Nothing here is ever anti-aliased.
+
+  3. The dark has to be dark. The old pictures averaged 80 out of 255; a
+     light cannot stand out against that. These sit near 40, so the door
+     glows rather than merely being present.
 """
 import os
-import tempfile
-
 import numpy as np
 from PIL import Image
-from scipy import ndimage
 
-from compose import _bayer, _dither, eyes, over, tint, shade
-import patterns
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+TREE    = (460, 680)
+CHAMBER = (460, 667)
+
+# where the site aims. gate.js zooms at the doorway and puts its glow at the
+# canopy burst; journey.js lights the eyes and the far door. These are the
+# same fractions the old pictures used, so nothing in the JS has to move.
+AIM  = (0.503, 0.745)      # the doorway in the trunk — MEASURED off the
+                           # art (the violet centroid), not guessed. It had
+                           # been 0.545, nineteen pixels to the right of the
+                           # real arch, which is why the glow sat off-centre.
+SUN  = (0.513, 0.436)      # the burst through the canopy
+EYE_HIGH = (0.500, 0.094)
+EYE_BIG  = (0.500, 0.358)
+DOOR     = (0.500, 0.655)
+FLOOR    = 0.735
 
 
-# ---------------------------------------------------------------- the sky
+# ---------------------------------------------------------------- the grid
+def bayer(n=8):
+    """Ordered dither. Boundaries between bands break up on this rather than
+    fading, which is what keeps every edge on the pixel grid."""
+    m = np.array([[0]])
+    while m.shape[0] < n:
+        m = np.block([[4 * m, 4 * m + 2], [4 * m + 3, 4 * m + 1]])
+    return m / m.size
 
-def sky(w, h, horizon, pal, seed):
-    r = np.random.default_rng(seed)
-    out = np.zeros((h, w, 3), np.uint8)
-    top, low = np.array(pal["sky_top"], float), np.array(pal["sky_low"], float)
 
-    for y in range(h):
-        t = min(1.0, y / max(horizon, 1))
-        out[y, :] = top * (1 - t) + low * t
+def tile(mask_shape, n=8):
+    b = bayer(n)
+    return np.tile(b, (mask_shape[0] // n + 1, mask_shape[1] // n + 1))[
+        :mask_shape[0], :mask_shape[1]]
 
-    # banded, not a smooth ramp — bands are what make it read as drawn
-    band = (np.arange(h)[:, None] / max(horizon, 1) * 7) % 1.0
-    out = np.clip(out + _dither(np.tile(band, (1, w)), seed)[:, :, None] * 10, 0, 255)
 
-    # a low sun, and cloud bars lying across it
-    sx, sy = int(w * r.uniform(0.2, 0.8)), int(horizon * r.uniform(0.25, 0.55))
+def band(field, ramp, lo=0.0, hi=1.0, dither=0.5):
+    """Cut a continuous field into len(ramp) hard bands.
+
+    `dither` is how much of one band's width the ordered pattern can pull a
+    pixel across the boundary. 0 gives a clean hard edge, 1 gives a fully
+    broken one. Somewhere near a half is what looks hand-placed.
+    """
+    n = len(ramp)
+    t = np.clip((field - lo) / max(hi - lo, 1e-9), 0, 1)
+    t = t + (tile(field.shape) - 0.5) * (dither / n)
+    idx = np.clip((t * n).astype(int), 0, n - 1)
+    return np.array(ramp, dtype=np.uint8)[idx]
+
+
+def ramp(*stops, steps=6):
+    """A few colours, spread into `steps` hard ones."""
+    stops = np.array(stops, dtype=float)
+    out = []
+    for i in range(steps):
+        p = i / max(steps - 1, 1) * (len(stops) - 1)
+        a, b = int(p), min(int(p) + 1, len(stops) - 1)
+        out.append(tuple((stops[a] + (stops[b] - stops[a]) * (p - a)).astype(int)))
+    return out
+
+
+def grid(shape):
+    h, w = shape
+    y, x = np.mgrid[0:h, 0:w]
+    return x.astype(float), y.astype(float)
+
+
+def fbm(shape, octaves=5, seed=0, lac=2.0):
+    """Value noise, for bark grain and leaf clumping. Built from small
+    integer grids blown up with nearest so it stays chunky."""
+    rng = np.random.default_rng(seed)
+    h, w = shape
+    out = np.zeros(shape)
+    amp, size = 1.0, 4
+    total = 0.0
+    for _ in range(octaves):
+        g = rng.random((max(2, int(size)), max(2, int(size * w / h))))
+        up = np.asarray(Image.fromarray((g * 255).astype(np.uint8))
+                        .resize((w, h), Image.BILINEAR)) / 255.0
+        out += up * amp
+        total += amp
+        amp *= 0.5
+        size *= lac
+    return out / total
+
+
+# ------------------------------------------------------------- the light
+def source(canvas, cx, cy, r, core, mid, far, rays=0, ray_len=2.4,
+           seed=0, aspect=1.0):
+    """A light with a hot core and hard steps out of it.
+
+    This is the piece the old pictures were missing. The centre is pure
+    white -- actually white, not nearly -- and the falloff is a handful of
+    discrete rings, so the eye reads a bulb rather than a smudge.
+    """
+    h, w = canvas.shape[:2]
+    x, y = grid((h, w))
+    dx, dy = (x - cx) / aspect, y - cy
+    d = np.sqrt(dx * dx + dy * dy)
+
+    glow = np.clip(1 - d / (r * 6.0), 0, 1) ** 2.2
+
+    if rays:
+        ang = np.arctan2(dy, dx)
+        rng = np.random.default_rng(seed)
+        spin = rng.random() * 6.283
+        lengths = 0.55 + rng.random(rays) * 0.9
+        spoke = np.zeros_like(d)
+        for i in range(rays):
+            a = spin + i * 6.283 / rays
+            # a hard-edged wedge, narrowing as it goes out
+            da = np.abs(((ang - a + np.pi) % 6.283) - np.pi)
+            width = 0.055 + 0.16 * np.clip(d / (r * 6), 0, 1)
+            reach = r * 6 * ray_len * lengths[i]
+            spoke = np.maximum(spoke,
+                               np.clip(1 - da / width, 0, 1)
+                               * np.clip(1 - d / reach, 0, 1) ** 1.5)
+        glow = np.maximum(glow, spoke * 0.92)
+
+    pal = [far, far, mid, mid, core, (255, 255, 255)]
+    lit = band(glow, pal, 0.06, 1.0, dither=0.65)
+
+    # the core is placed rather than banded, so it is certainly white and
+    # certainly small -- that is the whole difference between a lamp and a mist
+    hot = d < r * 0.85
+    lit[hot] = (255, 255, 255)
+
+    take = glow > 0.06
+    canvas[take] = lit[take]
+    return glow
+
+
+def over(canvas, colour, mask):
+    canvas[mask] = colour
+
+
+def save(a, path, small_path, colours=44, cores=()):
+    """Write the picture, and make sure the light survives the palette.
+
+    Quantising a mostly-dark picture to 44 colours throws pure white away --
+    median cut spends its entries where the pixels are, and a few hundred
+    white ones do not earn a slot. The first pass here produced 2,612 white
+    pixels and saved 0 of them, which would have made the whole exercise
+    pointless and looked exactly like the soft version it replaced.
+
+    So the cores are stamped back after quantising. Each is a couple of
+    dozen pixels; it costs one palette entry and it is the entry the
+    picture is about.
+    """
+    im = Image.fromarray(a.astype(np.uint8))
+    q = im.quantize(colors=colours - 1, method=Image.MEDIANCUT,
+                    dither=Image.Dither.NONE).convert("RGB")
+    out = np.asarray(q).astype(np.uint8).copy()
+    h, w = out.shape[:2]
     yy, xx = np.mgrid[0:h, 0:w]
-    d = np.sqrt(((xx - sx) / (w * 0.09)) ** 2 + ((yy - sy) / (w * 0.09)) ** 2)
-    out[d < 1] = pal["sun"]
-    glow = np.clip(1 - d / 3.2, 0, 1) ** 2
-    out = np.clip(out + _dither(glow, seed + 1)[:, :, None] * np.array(pal["sun"]) * 0.30, 0, 255)
+    for (cx, cy, r) in cores:
+        out[((xx - cx) ** 2 + (yy - cy) ** 2) <= r * r] = 255
+    im = Image.fromarray(out)
+    im.save(path, optimize=True)
+    q = im
+    w, h = im.size
+    (q.convert("RGB").resize((240, round(240 * h / w)), Image.LANCZOS)
+       .quantize(colors=40, method=Image.MEDIANCUT, dither=Image.Dither.NONE)
+       .save(small_path, optimize=True))
+    arr = out
+    print(f"  {os.path.basename(path)}  {im.size}  "
+          f"mean {arr.mean():.0f}  brightest {arr.max()}  "
+          f"white pixels {(arr.min(axis=2) > 250).sum()}")
 
-    for _ in range(r.integers(3, 7)):
-        cy = int(r.uniform(0.15, 0.9) * horizon)
-        ch = max(1, int(r.integers(1, 4)))
-        x0 = int(r.uniform(-0.2, 0.9) * w); cw = int(r.uniform(0.25, 0.7) * w)
-        band_col = np.array(pal["cloud"], float)
-        seg = out[cy:cy+ch, max(0,x0):min(w,x0+cw)].astype(float)
-        if seg.size:
-            out[cy:cy+ch, max(0,x0):min(w,x0+cw)] = np.clip(seg*0.35 + band_col*0.65, 0, 255)
-    return out.astype(np.uint8)
+
+# ============================================ making a picture defined
+def posterise(a, bands=6, dither=0.30):
+    """Hard value steps, hue kept.
+
+    The complaint was that the pictures were soft, and softness in a picture
+    like this is a value problem rather than a colour one: everything sits
+    at a slightly different brightness from everything next to it, so no
+    edge is anywhere. So the VALUE is cut into a few hard steps and the hue
+    and saturation ride along unchanged. Colour survives; mush does not.
+    """
+    f = a.astype(float)
+    v = f.max(axis=2)
+    keep = v > 2
+    t = np.clip(v / 255.0, 0, 1)
+    t = t + (tile(v.shape) - 0.5) * (dither / bands)
+    step = np.clip(np.round(t * bands) / bands, 0, 1) * 255.0
+    scale = np.where(keep, step / np.maximum(v, 1), 1.0)[..., None]
+    return np.clip(f * scale, 0, 255)
 
 
-# ---------------------------------------------------------------- the ground
+def deepen(a, gamma=1.55, floor=0.0):
+    """Push the middle down so a light has somewhere to stand out from.
 
-def ground(w, h, horizon, pal, seed):
-    r = np.random.default_rng(seed + 7)
-    out = np.zeros((h, w, 4), np.uint8)
-    near, far = np.array(pal["ground_near"], float), np.array(pal["ground_far"], float)
-    depth = max(h - horizon, 1)
+    The old tree averaged 80 out of 255 with nothing above 240 — 18,000
+    pixels were "quite bright" and none of them was a source. Darkening the
+    middle is most of what makes the light read.
+    """
+    f = np.clip(a.astype(float) / 255.0, 0, 1)
+    return (np.clip(f ** gamma - floor, 0, 1) * 255.0)
 
-    for y in range(horizon, h):
-        t = (y - horizon) / depth
-        out[y, :, :3] = far * (1 - t) + near * t
-        out[y, :, 3] = 255
 
-    # tiles, spaced further apart the nearer they are — that is the whole
-    # illusion of depth, and it costs nothing
-    line = np.array(pal["ground_line"], float)
-    y = horizon + 1
-    gap = 1.0
-    while y < h:
-        out[y, :, :3] = np.clip(out[y, :, :3] * 0.45 + line * 0.55, 0, 255)
-        gap *= 1.34
-        y += max(1, int(gap))
+def add_light(a, glow, colour):
+    """Screen a glow over the picture, so it lightens without washing out."""
+    g = glow[..., None]
+    c = np.array(colour, dtype=float)
+    return 255.0 - (255.0 - a) * (255.0 - c * g) / 255.0
 
-    # and lines running away to a point, which is what actually sells it
-    vx = w // 2
-    for k in range(-9, 10):
-        if k == 0: continue
-        for yy in range(horizon + 1, h):
-            t = (yy - horizon) / max(h - horizon, 1)
-            xx = int(vx + k * (w * 0.055) * (t ** 1.7) * 6)
-            if 0 <= xx < w:
-                out[yy, xx, :3] = np.clip(out[yy, xx, :3] * 0.55 + line * 0.45, 0, 255)
 
-    # scatter, thinning toward the horizon
-    for _ in range(int(w * 0.5)):
-        t = r.random() ** 0.5
-        gy = horizon + int(t * depth)
-        gx = int(r.random() * w)
-        if gy < h:
-            out[gy, gx, :3] = np.clip(out[gy, gx, :3].astype(float) * 1.35 + 20, 0, 255)
+def beam(shape, cx, cy, r, rays, ray_len, seed, aspect=1.0, spread=6.0):
+    """The shape of a light: a tight falloff, and hard narrow spokes."""
+    h, w = shape
+    x, y = grid((h, w))
+    dx, dy = (x - cx) / aspect, y - cy
+    d = np.sqrt(dx * dx + dy * dy)
+
+    glow = np.clip(1 - d / (r * spread), 0, 1) ** 2.4
+
+    if rays:
+        ang = np.arctan2(dy, dx)
+        rng = np.random.default_rng(seed)
+        spin = rng.random() * 6.283
+        lens = 0.5 + rng.random(rays) * 1.0
+        spoke = np.zeros_like(d)
+        for i in range(rays):
+            aa = spin + i * 6.283 / rays
+            da = np.abs(((ang - aa + np.pi) % 6.283) - np.pi)
+            width = 0.012 + 0.030 * np.clip(d / (r * spread), 0, 1)
+            reach = r * spread * ray_len * lens[i]
+            spoke = np.maximum(spoke, np.clip(1 - da / width, 0, 1) ** 0.7
+                                      * np.clip(1 - d / reach, 0, 1) ** 1.7)
+        glow = np.maximum(glow, spoke * 0.85)
+
+    # banded, so the falloff is steps rather than a smear
+    glow = np.round(glow * 7) / 7
+    return glow, d
+
+
+def lamp(a, cx, cy, r, colour, rays=0, ray_len=2.2, seed=0, aspect=1.0,
+         spread=6.0, core=(255, 255, 255)):
+    """Put an actual light into the picture: hot white core, hard steps out."""
+    glow, d = beam(a.shape[:2], cx, cy, r, rays, ray_len, seed, aspect, spread)
+    out = add_light(a, glow, colour)
+    hot = d < r
+    out[hot] = core
+    ring = (d >= r) & (d < r * 1.7)
+    out[ring] = np.clip(np.array(colour, dtype=float) * 1.12, 0, 255)
     return out
 
 
-# ---------------------------------------------------------------- the gate
-
-def sigil(w, h, horizon, pal, kind, seed, scale=1.0):
-    """The geometry standing behind the being.
-
-    Drawn on the art grid a pixel wide, and laid in twice — once dim and
-    offset by one pixel as a shadow, once bright — so it does not vanish
-    against a light sky.
-    """
-    out = np.zeros((h, w, 4), np.uint8)
-    if kind is None:
-        return out
-    cx, cy = w / 2, horizon * 0.72
-    R = w * 0.40 * scale
-    m = patterns.draw(w, h, kind, cx, cy, R, seed)
-
-    shadow = np.zeros_like(m)
-    shadow[1:, 1:] = m[:-1, :-1]
-    out[shadow & ~m] = list(pal["sigil_dark"]) + [255]
-    out[m] = list(pal["sigil"]) + [255]
-    return out
+def pass_over(src, lights, gamma, bands, out_name):
+    a = np.asarray(Image.open(f"{ROOT}/{src}").convert("RGB")).astype(float)
+    before = a.copy()
+    a = deepen(a, gamma)
+    a = posterise(a, bands)
+    for L in lights:
+        a = lamp(a, **L)
+    a = np.clip(a, 0, 255)
+    print(f"  {out_name}: mean {before.mean():.0f} -> {a.mean():.0f}, "
+          f"brightest {int(before.max())} -> {int(a.max())}, "
+          f"white pixels {(a.min(axis=2) > 250).sum()}")
+    return a
 
 
-# ---------------------------------------------------------------- outlining
+def main():
+    W, H = TREE
+    print("the door in the tree:")
+    t = pass_over("tree.png", [
+        dict(cx=SUN[0] * W, cy=SUN[1] * H, r=W * 0.017,
+             colour=(255, 238, 186), rays=10, ray_len=3.0, seed=5, spread=7.5),
+        dict(cx=AIM[0] * W, cy=AIM[1] * H, r=W * 0.013,
+             colour=(186, 146, 255), rays=6, ray_len=1.8, seed=9,
+             aspect=0.55, spread=6.5),
+    ], gamma=1.55, bands=6, out_name="tree.png")
+    save(t, f"{ROOT}/tree.png", f"{ROOT}/tree-small.png",
+         cores=[(SUN[0] * W, SUN[1] * H, W * 0.017),
+                (AIM[0] * W, AIM[1] * H, W * 0.013)])
 
-def outline(layer, colour=(10, 6, 16), width=1):
-    """A dark edge round whatever is in this layer.
+    W, H = CHAMBER
+    print("the chamber:")
+    c = pass_over("chamber.png", [
+        dict(cx=DOOR[0] * W, cy=DOOR[1] * H, r=W * 0.014,
+             colour=(196, 158, 255), rays=5, ray_len=1.7, seed=17,
+             aspect=0.6, spread=7.0),
+        dict(cx=EYE_BIG[0] * W, cy=EYE_BIG[1] * H, r=W * 0.010,
+             colour=(255, 226, 150), rays=0, spread=5.0),
+        dict(cx=EYE_HIGH[0] * W, cy=EYE_HIGH[1] * H, r=W * 0.009,
+             colour=(224, 204, 255), rays=8, ray_len=3.4, seed=2, spread=6.0),
+    ], gamma=1.45, bands=6, out_name="chamber.png")
+    save(c, f"{ROOT}/chamber.png", f"{ROOT}/chamber-small.png",
+         cores=[(DOOR[0] * W, DOOR[1] * H, W * 0.014),
+                (EYE_BIG[0] * W, EYE_BIG[1] * H, W * 0.010),
+                (EYE_HIGH[0] * W, EYE_HIGH[1] * H, W * 0.009)])
 
-    The reference style has one on everything, and it is what stops a
-    character dissolving into a busy background.
-    """
-    a = layer[:, :, 3] > 40
-    grown = ndimage.binary_dilation(a, iterations=width)
-    ring = grown & ~a
-    out = layer.copy()
-    out[ring] = list(colour) + [255]
-    return out
-
-
-# ---------------------------------------------------------------- assembly
-
-def place(being_png, pal, canvas, scale, seed, mode="stencil", eye_mode="holes",
-          fill=0.80, echo=True, sigil_kind="Mandala"):
-    """Put one being in a place and return the picture."""
-    w = h = canvas
-    horizon = int(h * 0.56)
-    rng = np.random.default_rng(seed)
-
-    base = np.dstack([sky(w, h, horizon, pal, seed), np.full((h, w, 1), 255, np.uint8)])
-    base = over(base, sigil(w, h, horizon, pal, sigil_kind, seed))
-    base = over(base, ground(w, h, horizon, pal, seed))
-
-    art = Image.open(being_png).convert("RGBA")
-
-    def dressed(size, smooth=False):
-        # BOX going down, NEAREST going up — shrinking a sprite with NEAREST
-        # throws pixels away and the far one dissolves into noise
-        small = art.resize((size, size), Image.BOX if smooth else Image.NEAREST)
-        fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
-        small.save(tmp)
-        if mode == "shade":
-            lay = shade(tmp, pal["shadow"], pal["mid"], pal["light"],
-                        None if eye_mode == "drawn" else pal["eye"])
-        else:
-            lay = tint(tmp, pal["being_top"], pal["being_bottom"],
-                       None if eye_mode == "drawn" else pal["eye"], solid=2.2)
-        os.unlink(tmp)
-        return outline(lay, pal["ink"])
-
-    # a far-off one, standing in the gate
-    if echo:
-        s = max(12, int(canvas * 0.30))
-        far = dressed(s, smooth=True)
-        fx, fy = w//2 - s//2 + int(rng.integers(-w//5, w//5 + 1)), horizon - s + int(h*0.015)
-        lay = np.zeros((h, w, 4), np.uint8)
-        lay[max(0,fy):fy+s, max(0,fx):fx+s] = far[:h-max(0,fy), :w-max(0,fx)]
-        lay[:, :, 3] = (lay[:, :, 3].astype(float) * 0.9).astype(np.uint8)
-        base = over(base, lay)
-
-    # the one you are looking at, standing on the ground and cropped at the edge
-    s = int(canvas * fill)
-    near = dressed(s)
-    nx = w//2 - s//2 + int(rng.integers(-canvas//14, canvas//14 + 1))
-    ny = int(h * 1.06) - s          # runs off the bottom edge, as the style does
-    lay = np.zeros((h, w, 4), np.uint8)
-    y0, x0 = max(0, ny), max(0, nx)
-    y1, x1 = min(h, ny+s), min(w, nx+s)
-    lay[y0:y1, x0:x1] = near[y0-ny:y1-ny, x0-nx:x1-nx]
-    base = over(base, lay)
-
-    return Image.fromarray(base, "RGBA").convert("RGB").resize((w*scale, h*scale), Image.NEAREST)
+    print("\ngate.js and journey.js aim at the same fractions, so nothing moves.")
 
 
-# ---------------------------------------------------------------- the void
-
-def void(being_png, pal, canvas, scale, seed, mode="stencil", eye_mode="holes",
-         fill=0.82, sigil_kind="Mandala", regions=None):
-    """Black behind, geometry in front of it, the being in front of that.
-
-    No sky, no sun, no ground. The background is black and stays black; all
-    the colour is on the being and on the pattern.
-    """
-    w = h = canvas
-    rng = np.random.default_rng(seed)
-    base = np.zeros((h, w, 4), np.uint8)
-    base[:, :, 3] = 255
-
-    m = patterns.draw(w, h, sigil_kind, w/2, h*0.46, w*0.44, seed)
-
-    # the pattern glows: a wide dim pass, then a tight one, then the line
-    soft = ndimage.binary_dilation(m, iterations=3) & ~m
-    near = ndimage.binary_dilation(m, iterations=1) & ~m
-    base[soft] = list(pal["sigil_glow"]) + [255]
-    base[near] = list(pal["sigil_dark"]) + [255]
-    base[m]    = list(pal["sigil"]) + [255]
-
-    art = Image.open(being_png).convert("RGBA")
-    s = int(canvas * fill)
-    fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
-    art.resize((s, s), Image.NEAREST).save(tmp)
-    if regions is not None:
-        lay = paint(tmp, regions, pal["parts"],
-                    None if eye_mode == "drawn" else pal["eye"])
-    elif mode == "shade":
-        lay = shade(tmp, pal["shadow"], pal["mid"], pal["light"],
-                    None if eye_mode == "drawn" else pal["eye"])
-    else:
-        lay = tint(tmp, pal["being_top"], pal["being_bottom"],
-                   None if eye_mode == "drawn" else pal["eye"], solid=2.2)
-    os.unlink(tmp)
-    lay = outline(lay, pal["ink"])
-
-    nx, ny = w//2 - s//2, int(h * 1.02) - s
-    out = np.zeros((h, w, 4), np.uint8)
-    y0, x0, y1, x1 = max(0,ny), max(0,nx), min(h,ny+s), min(w,nx+s)
-    out[y0:y1, x0:x1] = lay[y0-ny:y1-ny, x0-nx:x1-nx]
-    base = over(base, out)
-
-    return Image.fromarray(base, "RGBA").convert("RGB").resize((w*scale, h*scale), Image.NEAREST)
-
-
-def paint(png_path, regions, parts, eye=None):
-    """Colour a being part by part, from a region map.
-
-    `regions` is one number per pixel saying which part it belongs to, and
-    `parts` gives each part a (shadow, light) pair. The drawn brightness still
-    does the shading inside each part, so an arm can be red and a chest gold
-    without either going flat.
-    """
-    im = Image.open(png_path).convert("RGBA")
-    a = np.asarray(im).astype(float)
-    drawn = a[:, :, 3]
-    h, w = drawn.shape
-
-    r = np.asarray(Image.fromarray(regions.astype(np.int16), "I;16")
-                   .resize((w, h), Image.NEAREST)).astype(int)
-
-    body = ndimage.binary_fill_holes(drawn > 20)
-    v = drawn.copy()
-    inside = v[body]
-    if inside.size:
-        lo, hi = np.percentile(inside, 2), np.percentile(inside, 98)
-        v = np.clip((v - lo) / max(hi - lo, 1e-6), 0, 1)
-
-    col = np.zeros((h, w, 3), float)
-    for k, (dark, light) in enumerate(parts):
-        m = (r == k) & body
-        if not m.any():
-            continue
-        dark, light = np.array(dark, float), np.array(light, float)
-        col[m] = dark[None, :] + (light - dark)[None, :] * v[m][:, None]
-    # anything the map does not cover falls back to the first part
-    miss = body & ~np.isin(r, range(len(parts)))
-    if miss.any():
-        dark, light = (np.array(c, float) for c in parts[0])
-        col[miss] = dark[None, :] + (light - dark)[None, :] * v[miss][:, None]
-
-    out = np.dstack([col, np.where(body, 255, 0)]).astype(np.uint8)
-    if eye is not None:
-        e = eyes(drawn)
-        if e.any():
-            out[e] = list(eye) + [255]
-    return out
+if __name__ == "__main__":
+    main()
