@@ -165,18 +165,18 @@
   /* The opening you see past that door: the arch of light, and the
      pool of it along the threshold. Not the carved slab. */
   const GAP = [
-    [0.506, 0.655],
-    [0.532, 0.588],
-    [0.562, 0.574],
-    [0.586, 0.628],
-    [0.598, 0.710],
-    [0.594, 0.800],
-    [0.574, 0.875],
-    [0.528, 0.918],
+    [0.508, 0.610],
+    [0.528, 0.568],
+    [0.558, 0.562],
+    [0.582, 0.610],
+    [0.598, 0.690],
+    [0.596, 0.790],
+    [0.576, 0.870],
+    [0.530, 0.916],
     [0.448, 0.908],
     [0.422, 0.868],
     [0.498, 0.836],
-    [0.504, 0.690]
+    [0.504, 0.680]
   ];
 
   function poly(g, x, y, w, h, pts) {
@@ -188,70 +188,118 @@
     g.closePath();
   }
 
-  function diamond(g, x, y, r) {
-    g.beginPath();
-    g.moveTo(x, y - r);
-    g.lineTo(x + r * 0.72, y);
-    g.lineTo(x, y + r);
-    g.lineTo(x - r * 0.72, y);
-    g.closePath();
+  function blob(g, x, y, r, hue, sat, light, a) {
+    const gr = g.createRadialGradient(x, y, 0, x, y, Math.max(1, r));
+    gr.addColorStop(0,    `hsla(${hue},${sat}%,${light}%,${a})`);
+    gr.addColorStop(0.42, `hsla(${hue},${sat}%,${Math.max(20, light - 18)}%,${a * 0.45})`);
+    gr.addColorStop(1,    `hsla(${hue},${sat}%,${light}%,0)`);
+    g.fillStyle = gr;
+    g.fillRect(x - r, y - r, r * 2, r * 2);
   }
 
-  /* Big flat shapes, sized to the opening. The clip throws away
-     whatever would land on the door or the tree. */
+  /* A crystal standing in that place: a lit face and a shaded one,
+     so it reads as a thing with volume, not an outline. */
+  function crystal(g, cx, cy, s, hue) {
+    g.beginPath();
+    g.moveTo(cx, cy - s * 1.7);
+    g.lineTo(cx - s * 0.46, cy + s * 0.15);
+    g.lineTo(cx, cy + s * 0.02);
+    g.closePath();
+    g.fillStyle = `hsl(${hue}, 85%, 72%)`;
+    g.fill();
+    g.beginPath();
+    g.moveTo(cx, cy - s * 1.7);
+    g.lineTo(cx + s * 0.46, cy + s * 0.15);
+    g.lineTo(cx, cy + s * 0.02);
+    g.closePath();
+    g.fillStyle = `hsl(${hue}, 70%, 38%)`;
+    g.fill();
+  }
+
+  /* The world past the door. Depth, a sun, air, and solid forms —
+     not lines sitting on black. */
   function drawGeo(g, t, x, y, w, h) {
-    const tt = still ? 0.6 : t;
-    const grd = g.createLinearGradient(0, y + h * 0.56, 0, y + h * 0.93);
-    grd.addColorStop(0,   `hsl(${268 + Math.sin(tt * 0.6) * 18}, 100%, 60%)`);
-    grd.addColorStop(0.42, `hsl(${318 + Math.sin(tt * 0.4) * 12}, 100%, 62%)`);
-    grd.addColorStop(1,   `hsl(${176 + Math.sin(tt * 0.5) * 16}, 100%, 58%)`);
-    g.fillStyle = grd;
-    g.fillRect(x, y + h * 0.5, w * 0.7, h * 0.5);
+    const tt = still ? 1.2 : t;
+    const vx = x + w * 0.552;
+    const vy = y + h * 0.70;
+    const reach = Math.min(w * 0.16, h * 0.2);
 
-    const fx = x + w * 0.548, fy = y + h * 0.745;
-    const reach = w * 0.085;
-    const shapes = [
-      [3, 1.25,  0.18, "#ffe14a", 0.95],
-      [4, 0.92, -0.14, "#ffffff", 0.9],
-      [3, 0.7,   0.28, "#22f0ff", 0.95],
-      [6, 1.05,  0.07, "#ff2ec4", 0.5]
-    ];
-    for (let i = 0; i < shapes.length; i++) {
-      const n = shapes[i][0], rad = shapes[i][1], sp = shapes[i][2];
-      const col = shapes[i][3], a = shapes[i][4];
-      g.save();
-      g.translate(fx, fy);
-      g.rotate(tt * sp + i);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = "source-over";
+    const sky = g.createLinearGradient(vx, vy - reach * 1.3, vx, vy + reach * 1.6);
+    sky.addColorStop(0,    "#12061f");
+    sky.addColorStop(0.38, "#3a1460");
+    sky.addColorStop(0.62, "#c45a8a");
+    sky.addColorStop(0.78, "#1a6e86");
+    sky.addColorStop(1,    "#071820");
+    g.fillStyle = sky;
+    g.fillRect(x, y + h * 0.5, w, h * 0.5);
+
+    g.globalCompositeOperation = "lighter";
+    const drift = still ? 0 : tt;
+    blob(g, vx + Math.sin(drift * 0.17) * w * 0.008,
+            vy - reach * 0.08,
+            reach * (1.15 + Math.sin(drift * 0.4) * 0.06),
+            36, 90, 78, 0.9);
+    blob(g, vx - reach * 0.25 + Math.sin(drift * 0.13) * w * 0.01,
+            vy + reach * 0.05, reach * 1.5, 320, 100, 62, 0.42);
+    blob(g, vx + reach * 0.3, vy + reach * 0.55, reach * 1.6, 176, 100, 60, 0.38);
+    blob(g, vx, vy + reach * 0.02, reach * 0.42, 48, 40, 96, 0.85);
+
+    g.globalAlpha = 0.34;
+    for (let i = 0; i < 9; i++) {
+      const a = drift * 0.07 + i * (Math.PI * 2 / 9);
+      const spread = 0.07;
+      g.fillStyle = i % 2 ? "rgba(255,214,140,0.95)" : "rgba(150,255,245,0.75)";
       g.beginPath();
-      for (let k = 0; k <= n; k++) {
-        const ang = (k / n) * Math.PI * 2 - Math.PI / 2;
-        const px = Math.cos(ang) * reach * rad;
-        const py = Math.sin(ang) * reach * rad * 1.4;
-        k ? g.lineTo(px, py) : g.moveTo(px, py);
-      }
+      g.moveTo(vx, vy - reach * 0.02);
+      g.lineTo(vx + Math.cos(a) * reach * 2.6, vy + Math.sin(a) * reach * 2.8);
+      g.lineTo(vx + Math.cos(a + spread) * reach * 2.6, vy + Math.sin(a + spread) * reach * 2.8);
       g.closePath();
-      g.globalAlpha = a;
-      g.fillStyle = col;
       g.fill();
-      g.globalAlpha = 0.95;
-      g.lineWidth = 1.6;
-      g.strokeStyle = "#ffffff";
-      g.stroke();
-      g.restore();
     }
 
+    g.globalCompositeOperation = "source-over";
     g.globalAlpha = 1;
-    g.lineWidth = 1.7;
-    const step = reach * 0.95;
-    const shift = still ? 0 : (tt * 16) % step;
-    for (let i = -1; i < 6; i++) {
-      const py = y + h * 0.60 + i * step - shift;
-      const px = fx + Math.sin(i * 1.3 + tt * 0.35) * reach * 0.35;
-      g.strokeStyle = i % 2 ? "#22f0ff" : "#ffe14a";
-      diamond(g, px, py, step * 0.34);
-      g.stroke();
+    const floor = g.createLinearGradient(vx, vy + reach * 0.15, vx, vy + reach * 1.5);
+    floor.addColorStop(0,    "rgba(255,206,150,0)");
+    floor.addColorStop(0.18, "rgba(255,176,110,0.55)");
+    floor.addColorStop(0.5,  "rgba(16,78,98,0.45)");
+    floor.addColorStop(1,    "rgba(4,14,22,0.2)");
+    g.fillStyle = floor;
+    g.beginPath();
+    g.ellipse(vx, vy + reach * 0.72, reach * 1.5, reach * 0.62, 0, 0, Math.PI * 2);
+    g.fill();
+
+    /* spires standing on that ground, small and pale far away,
+       larger and deeper in colour up close */
+    const spires = [
+      [-0.020, 0.55, 0.7,  268],
+      [ 0.004, 0.62, 0.9,   36],
+      [ 0.016, 0.70, 1.05, 174],
+      [-0.010, 0.78, 1.25, 328],
+      [ 0.012, 0.88, 1.5,  198],
+      [-0.004, 0.98, 1.7,   48]
+    ];
+    for (let i = 0; i < spires.length; i++) {
+      const sx = spires[i][0], depth = spires[i][1], sc = spires[i][2], hue = spires[i][3];
+      const bob = still ? 0 : Math.sin(tt * 0.6 + i) * h * 0.002;
+      crystal(g,
+        vx + w * sx + Math.sin(tt * 0.2 + i) * w * 0.003,
+        vy + h * 0.02 + reach * depth * 0.55 + bob,
+        w * 0.011 * sc,
+        hue);
+    }
+
+    g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 10; i++) {
+      const u = (tt * 0.04 + i / 10) % 1;
+      const px = vx + Math.sin(i * 2.1 + tt * 0.3) * reach * (0.15 + u * 0.7);
+      const py = vy + reach * (0.9 - u * 1.5);
+      blob(g, px, py, 2.2 + u * 3.5, i % 2 ? 48 : 180, 100, 86, 0.55 * (1 - u));
     }
     g.globalAlpha = 1;
+    g.globalCompositeOperation = "source-over";
   }
 
   function paintPortal(t, pull, x, y, w, h) {
