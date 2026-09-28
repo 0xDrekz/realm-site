@@ -84,6 +84,13 @@
     tree.width  = GW; tree.height = GH;
     tc.setTransform(GW / W, 0, 0, GH / H, 0, 0);
 
+    /* The portal is the one sharp layer. The tree stays at 1/PX.
+       This canvas is device pixels, so the geometry inside the door
+       is finer than the leaves around it. */
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    portal.width  = Math.max(1, Math.round(W * dpr));
+    portal.height = Math.max(1, Math.round(H * dpr));
+
     bakeHush();
     seedAir();
   }
@@ -109,7 +116,7 @@
   (function loadTree() {
     const img = new Image();
     img.decoding = "async";
-    img.onload = () => { art = img; buildPortal(); tree.classList.add("ready"); };
+    img.onload = () => { art = img; buildPortal(); tree.classList.add("ready"); portal.classList.add("ready"); };
     img.onerror = () => {
       if (img.src.indexOf(SMALL) === -1) { img.src = SMALL; return; }
     };
@@ -127,155 +134,299 @@
 
 
   /* ============================================================
-     THE LIGHT IN THE DOORWAY
+     THE DOOR, AND WHAT IS THROUGH IT
 
-     The picture is still, so the energy standing in the arch is still
-     too. It is found once, by colour — the tree is green and the door
-     is brown, so the one place where neither is the strongest colour is
-     the light between them — and from then on that patch is redrawn
-     every frame, climbing, so the colours move while the arch around
-     them stays exactly where it is.
+     The tree stays pixelated. Inside the arch the picture has a door
+     standing ajar, and that slab is outlined so the crack reads.
+     Through the crack the light is not a blur of the painting: it is
+     drawn again, sharper than the leaves, as flat colour and hard
+     geometry that keeps moving.
      ============================================================ */
 
-  let maskCv = null, energyCv = null, PB = null, flowCv = null, flowC = null;
+  const portal = document.createElement("canvas");
+  portal.id = "portal";
+  portal.setAttribute("aria-hidden", "true");
+  tree.after(portal);
+  const pc = portal.getContext("2d");
+
+  let openCv = null, edgeCv = null;
+  const layer = document.createElement("canvas");
+  const lg = layer.getContext("2d");
+
+  const GEO = ["#ff2ec4", "#22f0ff", "#ffe14a", "#9b6bff", "#ffffff", "#ff4d2e"];
+
+  function isOpening(r, g, b) {
+    const s = r + g + b;
+    if (s > 400 && Math.min(r, g, b) > 110) return true;
+    if (b > 70 && r > 60 && (b + r) > g * 2.05 && s > 160 && b > g - 10) return true;
+    if (b > 90 && g > 70 && (b + g) > r * 2.15 && s > 200 && g > r) return true;
+    return false;
+  }
 
   function buildPortal() {
-    const AW = 200, AH = Math.max(1, Math.round(AW * art.height / art.width));
+    const AW = art.width, AH = art.height;
     const probe = document.createElement("canvas");
     probe.width = AW; probe.height = AH;
     const pg = probe.getContext("2d", { willReadFrequently: true });
-    pg.drawImage(art, 0, 0, AW, AH);
+    pg.drawImage(art, 0, 0);
+    let img;
+    try { img = pg.getImageData(0, 0, AW, AH); }
+    catch (e) { return; }
+    const d = img.data;
 
-    let px;
-    try { px = pg.getImageData(0, 0, AW, AH); } catch (e) { return; }
-    const d = px.data;
-
-    let x0 = 1, y0 = 1, x1 = 0, y1 = 0, found = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      const p = i >> 2, fx = (p % AW) / AW, fy = ((p / AW) | 0) / AH;
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      d[i + 3] = 0;
-      if (fx < AIM.x - 0.16 || fx > AIM.x + 0.14) continue;
-      if (fy < AIM.y - 0.255 || fy > AIM.y + 0.185) continue;
-      if (g >= (r > b ? r : b) - 4) continue;   // green — that is the tree
-      if (b < r * 0.82) continue;               // brown — that is the door
-      if ((r + g + b) / 3 <= 62) continue;      // too dark to be the light
-      d[i] = d[i + 1] = d[i + 2] = d[i + 3] = 255;
-      found++;
-      if (fx < x0) x0 = fx; if (fx > x1) x1 = fx;
-      if (fy < y0) y0 = fy; if (fy > y1) y1 = fy;
+    const open = new Uint8Array(AW * AH);
+    const door = new Uint8Array(AW * AH);
+    const ox0 = (0.40 * AW) | 0, ox1 = (0.63 * AW) | 0;
+    const oy0 = (0.55 * AH) | 0, oy1 = (0.94 * AH) | 0;
+    for (let y = oy0; y < oy1; y++) {
+      for (let x = ox0; x < ox1; x++) {
+        const i = (y * AW + x) * 4;
+        if (isOpening(d[i], d[i + 1], d[i + 2])) open[y * AW + x] = 1;
+      }
     }
-    if (found < 40) return;
-    pg.putImageData(px, 0, 0);
 
-    /* A stencil edge would show, so the shape is softened — but softening
-       spreads it outward, over the door and the stone frame. Clipping the
-       soft version back to the hard one puts the fade on the inside, so
-       the mask never reaches anything that is not light. */
-    const tiny = document.createElement("canvas");
-    tiny.width = Math.max(1, AW / 9 | 0); tiny.height = Math.max(1, AH / 9 | 0);
-    tiny.getContext("2d").drawImage(probe, 0, 0, tiny.width, tiny.height);
+    /* The slab: dark wood and the gold cut into it, left of the crack,
+       and only as far down as the door is still a door. Below that the
+       light has already swallowed it, and an outline there turns into
+       a scribble. */
+    const dx0 = (0.428 * AW) | 0, dx1 = (0.512 * AW) | 0;
+    const dy0 = (0.578 * AH) | 0, dy1 = (0.845 * AH) | 0;
+    for (let y = dy0; y < dy1; y++) {
+      for (let x = dx0; x < dx1; x++) {
+        const p = y * AW + x;
+        if (open[p]) continue;
+        const i = p * 4;
+        const r = d[i], g = d[i + 1], b = d[i + 2], s = r + g + b;
+        const gold = r > 110 && g > 80 && b < 120 && r > b + 20;
+        if (s < 150 || gold) door[p] = 1;
+      }
+    }
 
-    maskCv = document.createElement("canvas");
-    maskCv.width = AW; maskCv.height = AH;
-    const mg = maskCv.getContext("2d");
-    mg.drawImage(tiny, 0, 0, AW, AH);
-    mg.drawImage(tiny, 0, 0, AW, AH);
-    mg.globalCompositeOperation = "destination-in";
-    mg.drawImage(probe, 0, 0);
-    mg.globalCompositeOperation = "source-over";
+    const n = AW > 300 ? 2 : 1;
+    const n2 = n * n;
+    const dil = new Uint8Array(AW * AH);
+    for (let y = 0; y < AH; y++) {
+      for (let x = 0; x < AW; x++) {
+        if (!door[y * AW + x]) continue;
+        for (let dy = -n; dy <= n; dy++) {
+          const yy = y + dy;
+          if (yy < 0 || yy >= AH) continue;
+          for (let dx = -n; dx <= n; dx++) {
+            if (dx * dx + dy * dy > n2) continue;
+            const xx = x + dx;
+            if (xx < 0 || xx >= AW) continue;
+            dil[yy * AW + xx] = 1;
+          }
+        }
+      }
+    }
+    const closed = new Uint8Array(AW * AH);
+    for (let y = n; y < AH - n; y++) {
+      for (let x = n; x < AW - n; x++) {
+        let ok = 1;
+        for (let dy = -n; dy <= n && ok; dy++) {
+          for (let dx = -n; dx <= n; dx++) {
+            if (dx * dx + dy * dy > n2) continue;
+            if (!dil[(y + dy) * AW + (x + dx)]) { ok = 0; break; }
+          }
+        }
+        if (ok) closed[y * AW + x] = 1;
+      }
+    }
+    for (let y = 0; y < AH; y++) {
+      for (let x = 0; x < AW; x++) {
+        if (x < dx0 - 1 || x > dx1 + 3 || y < dy0 || y > dy1) closed[y * AW + x] = 0;
+      }
+    }
 
-    PB = { x0: Math.max(0, x0 - 0.02), y0: Math.max(0, y0 - 0.02),
-           x1: Math.min(1, x1 + 0.02), y1: Math.min(1, y1 + 0.02) };
+    const oc = document.createElement("canvas");
+    oc.width = AW; oc.height = AH;
+    const oi = oc.getContext("2d").createImageData(AW, AH);
+    const od = oi.data;
+    let found = 0;
+    for (let p = 0; p < open.length; p++) {
+      if (!open[p]) continue;
+      const i = p * 4;
+      od[i] = od[i + 1] = od[i + 2] = od[i + 3] = 255;
+      found++;
+    }
+    if (found < 80) return;
+    oc.getContext("2d").putImageData(oi, 0, 0);
+    openCv = oc;
 
-    /* ---------- the moving layer holds light and nothing else ----------
-       Scrolling the picture itself dragged the door's hinges and the
-       runes on the frame along with it. So the light is lifted out of
-       the picture, masked to itself, and then blurred until there is no
-       edge or letterform left in it — only the colour. That cloud is
-       what climbs; the door and the frame underneath never move. */
-    const EW = 180;
-    const EH = Math.max(2, Math.round(EW *
-      ((PB.y1 - PB.y0) * art.height) / ((PB.x1 - PB.x0) * art.width)));
-    const lift = document.createElement("canvas");
-    lift.width = EW; lift.height = EH;
-    const lg = lift.getContext("2d");
-    lg.drawImage(art,
-      PB.x0 * art.width, PB.y0 * art.height,
-      (PB.x1 - PB.x0) * art.width, (PB.y1 - PB.y0) * art.height,
-      0, 0, EW, EH);
-    lg.globalCompositeOperation = "destination-in";
-    lg.drawImage(maskCv,
-      PB.x0 * AW, PB.y0 * AH, (PB.x1 - PB.x0) * AW, (PB.y1 - PB.y0) * AH,
-      0, 0, EW, EH);
-
-    const smear = document.createElement("canvas");
-    smear.width = Math.max(1, EW / 8 | 0); smear.height = Math.max(1, EH / 8 | 0);
-    smear.getContext("2d").drawImage(lift, 0, 0, smear.width, smear.height);
-    energyCv = document.createElement("canvas");
-    energyCv.width = EW; energyCv.height = EH;
-    energyCv.getContext("2d").drawImage(smear, 0, 0, EW, EH);
-
-    flowCv = document.createElement("canvas");
-    flowCv.width = 240;
-    flowCv.height = Math.max(2, Math.round(240 *
-      ((PB.y1 - PB.y0) * art.height) / ((PB.x1 - PB.x0) * art.width)));
-    flowC = flowCv.getContext("2d");
+    const ec = document.createElement("canvas");
+    ec.width = AW; ec.height = AH;
+    const ei = ec.getContext("2d").createImageData(AW, AH);
+    const ed = ei.data;
+    for (let y = 1; y < AH - 1; y++) {
+      for (let x = 1; x < AW - 1; x++) {
+        const p = y * AW + x;
+        if (!closed[p]) continue;
+        if (closed[p - 1] && closed[p + 1] && closed[p - AW] && closed[p + AW]) continue;
+        const crack = x >= dx1 - (AW > 300 ? 7 : 4);
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const i = ((y + dy) * AW + (x + dx)) * 4;
+            ed[i]     = 255;
+            ed[i + 1] = crack ? 236 : 186;
+            ed[i + 2] = crack ? 140 : 48;
+            ed[i + 3] = 255;
+          }
+        }
+      }
+    }
+    ec.getContext("2d").putImageData(ei, 0, 0);
+    edgeCv = ec;
   }
 
-  /* One pass of the light, climbing. Two copies of it half a cycle
-     apart, crossfaded, so it never reaches a seam and restarts. */
-  function flowDoor(t, x, y, w, h, open) {
-    if (!maskCv || !PB || !flowC || !energyCv) return;
-    const FW = flowCv.width, FH = flowCv.height;
+  function diamond(g, x, y, r) {
+    g.beginPath();
+    g.moveTo(x, y - r);
+    g.lineTo(x + r, y);
+    g.lineTo(x, y + r);
+    g.lineTo(x - r, y);
+    g.closePath();
+    g.stroke();
+  }
 
-    flowC.setTransform(1, 0, 0, 1, 0, 0);
-    flowC.clearRect(0, 0, FW, FH);
+  /* Flat colour and hard lines, in the gap. Clipped afterwards, so
+     anything that would land on the door or the tree is thrown away. */
+  function drawGeo(g, t, x, y, w, h) {
+    const tt = still ? 1.2 : t;
+    const fx = x + w * 0.548;
+    const fy = y + h * 0.735;
+    const reach = Math.min(w, h) * 0.2;
 
-    /* Each copy has one join in it, where its top meets its own bottom.
-       That join travels down the arch as it climbs, so each copy is
-       weighted by how far the join is from the middle — at its most
-       visible it is not being shown at all. */
-    const u = (t / 4.2) % 1;
-    for (const o of [u, (u + 0.5) % 1]) {
-      flowC.globalAlpha = Math.abs(2 * o - 1);
-      const up = o * FH;
-      flowC.drawImage(energyCv, 0, -up,     FW, FH);
-      flowC.drawImage(energyCv, 0, FH - up, FW, FH);
+    g.fillStyle = "#070012";
+    g.fillRect(x + w * 0.40, y + h * 0.54, w * 0.24, h * 0.42);
+
+    g.save();
+    g.translate(fx, fy);
+    g.rotate(tt * 0.07);
+    const wedges = [[0.1, "#ff2ec4"], [1.7, "#22f0ff"], [3.3, "#ffe14a"], [4.8, "#7a3cff"]];
+    for (let i = 0; i < wedges.length; i++) {
+      g.fillStyle = wedges[i][1];
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.arc(0, 0, reach * 1.45, wedges[i][0] + tt * 0.15, wedges[i][0] + 1.05 + tt * 0.15);
+      g.closePath();
+      g.fill();
     }
+    g.restore();
 
-    // filaments running up through it
-    flowC.globalAlpha = 1;
-    flowC.globalCompositeOperation = "lighter";
-    for (let k = 0; k < 5; k++) {
-      const ph = k * 1.7, climb = ((t * 0.33 + k / 5) % 1);
-      flowC.strokeStyle = `hsla(${k % 2 ? 176 : 286},100%,84%,${0.11 * open})`;
-      flowC.lineWidth = FW * 0.02;
-      flowC.beginPath();
-      for (let s = 0; s <= 14; s++) {
-        const f = s / 14;
-        const py = FH * (1 - ((f * 0.5 + climb) % 1));
-        const pxx = FW * (0.52 + Math.sin(f * 4.2 + t * 1.1 + ph) * 0.17);
-        s ? flowC.lineTo(pxx, py) : flowC.moveTo(pxx, py);
+    const step = Math.max(13, reach * 0.18);
+    const shift = still ? 0 : (tt * 18) % (step * 2);
+    g.lineWidth = 1.4;
+    g.lineJoin = "miter";
+    const x0 = x + w * 0.43, x1 = x + w * 0.64;
+    const y0 = y + h * 0.56, y1 = y + h * 0.94;
+    let row = 0;
+    for (let py = y0; py < y1 + step; py += step, row++) {
+      let col = 0;
+      for (let px = x0; px < x1 + step; px += step, col++) {
+        g.strokeStyle = GEO[(row * 2 + col + (tt * 0.6 | 0)) % GEO.length];
+        diamond(g, px + ((row & 1) ? step * 0.5 : 0), py - shift, step * 0.40);
       }
-      flowC.stroke();
     }
-    flowC.globalCompositeOperation = "destination-in";
-    flowC.drawImage(maskCv,
-      PB.x0 * maskCv.width, PB.y0 * maskCv.height,
-      (PB.x1 - PB.x0) * maskCv.width, (PB.y1 - PB.y0) * maskCv.height,
-      0, 0, FW, FH);
-    flowC.globalCompositeOperation = "source-over";
 
-    /* added to the picture, not laid over it: the light brightens what
-       is already in the arch, so the door and the frame beneath stay
-       exactly where they are while the colour climbs through them */
-    tc.globalCompositeOperation = "lighter";
-    tc.globalAlpha = 0.5;
-    tc.drawImage(flowCv, x + w * PB.x0, y + h * PB.y0,
-                 w * (PB.x1 - PB.x0), h * (PB.y1 - PB.y0));
-    tc.globalAlpha = 1;
-    tc.globalCompositeOperation = "source-over";
+    const rings = [
+      [3, 1.08,  0.25, 0, 2.5],
+      [3, 0.74, -0.42, 1, 2.1],
+      [6, 0.90,  0.16, 2, 1.8],
+      [6, 0.54, -0.30, 3, 1.6],
+      [4, 0.34,  0.55, 4, 1.5],
+      [8, 1.22, -0.10, 1, 1.25]
+    ];
+    for (let r = 0; r < rings.length; r++) {
+      const n = rings[r][0], rad = rings[r][1], sp = rings[r][2], ci = rings[r][3], lw = rings[r][4];
+      g.save();
+      g.translate(fx, fy);
+      g.rotate(tt * sp);
+      g.strokeStyle = GEO[ci % GEO.length];
+      g.lineWidth = lw;
+      g.beginPath();
+      const rr = reach * rad;
+      for (let i = 0; i <= n; i++) {
+        const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+        const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+        i ? g.lineTo(px, py) : g.moveTo(px, py);
+      }
+      g.stroke();
+      g.restore();
+    }
+
+    g.save();
+    g.translate(fx, fy);
+    g.rotate(tt * 0.1);
+    g.lineWidth = 1.3;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      g.strokeStyle = i % 2 ? "#22f0ff" : "#ff2ec4";
+      g.beginPath();
+      g.moveTo(Math.cos(a) * reach * 0.1, Math.sin(a) * reach * 0.1);
+      g.lineTo(Math.cos(a) * reach * 1.3, Math.sin(a) * reach * 1.3);
+      g.stroke();
+    }
+    g.restore();
+
+    for (let i = 0; i < 8; i++) {
+      const a = tt * (0.32 + i * 0.035) + i * 0.9;
+      const rad = reach * (0.3 + (i % 4) * 0.2);
+      g.save();
+      g.translate(fx + Math.cos(a) * rad, fy + Math.sin(a) * rad * 0.72);
+      g.rotate(tt * 0.7 + i);
+      g.fillStyle = GEO[i % GEO.length];
+      g.beginPath();
+      const s = 5 + (i % 3);
+      g.moveTo(0, -s);
+      g.lineTo(s * 0.86, s * 0.7);
+      g.lineTo(-s * 0.86, s * 0.7);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+  }
+
+  function paintPortal(t, pull, x, y, w, h) {
+    if (!openCv) return;
+    const dpr = portal.width / Math.max(1, W);
+    if (layer.width !== portal.width || layer.height !== portal.height) {
+      layer.width = portal.width;
+      layer.height = portal.height;
+    }
+    const fade = pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1;
+    lg.setTransform(dpr, 0, 0, dpr, 0, 0);
+    lg.clearRect(0, 0, W, H);
+    if (fade > 0.01) {
+      const ax = x + w * AIM.x, ay = y + h * AIM.y;
+      const rush = 1 + 17 * pull * pull * pull;
+      lg.save();
+      if (pull > 0) {
+        lg.translate(ax, ay);
+        lg.scale(rush, rush);
+        lg.translate(-ax, -ay);
+      }
+      lg.globalAlpha = 1;
+      lg.globalCompositeOperation = "source-over";
+      drawGeo(lg, t, x, y, w, h);
+
+      lg.globalCompositeOperation = "destination-in";
+      lg.imageSmoothingEnabled = false;
+      lg.drawImage(openCv, x, y, w, h);
+
+      lg.globalCompositeOperation = "source-over";
+      lg.imageSmoothingEnabled = false;
+      lg.globalAlpha = 0.82 + 0.18 * Math.sin(t * 1.35);
+      if (edgeCv) lg.drawImage(edgeCv, x, y, w, h);
+      lg.restore();
+    }
+
+    pc.setTransform(1, 0, 0, 1, 0, 0);
+    pc.clearRect(0, 0, portal.width, portal.height);
+    pc.globalAlpha = fade;
+    pc.imageSmoothingEnabled = true;
+    pc.drawImage(layer, 0, 0);
+    pc.globalAlpha = 1;
   }
 
 
@@ -481,9 +632,9 @@
     }
     drawTree(t, pull, x, y, w, h);
 
-    // the doorway, breathing
+    // the door outlined, and the geometry moving in the gap
+    paintPortal(t, pull, x, y, w, h);
     const door = 0.42 + 0.2 * Math.sin(t * 0.55) + 0.07 * Math.sin(t * 1.9);
-    flowDoor(t, x, y, w, h, door);
 
     /* ---------- light ---------- */
     tc.globalCompositeOperation = "lighter";
@@ -506,10 +657,11 @@
     }
 
     // the light it throws into the room, in the tunnel's own colours
+    /* a small halo on the frame only — the gap itself is drawn
+       on the portal, and a big glow here would wash the door out */
     const open = door + pull * 2.2;
-    glow(tc, ax, ay, w * 0.26, 282, open * 0.3, 74);
-    glow(tc, ax, ay, w * 0.10, 172, open * 0.5, 86);
-    glow(tc, ax, ay, w * 0.04, 300, open, 96);
+    glow(tc, ax, ay, w * 0.16, 286, open * 0.14, 70);
+    glow(tc, ax, ay, w * 0.05, 176, open * 0.2, 88);
 
     tc.globalCompositeOperation = "source-over";
 
@@ -714,7 +866,10 @@
     if (phase !== "options") {
       if (pullFrom) pull = Math.min(1, (now - pullFrom) / SWALLOW_MS);
       paintTree(t, dt, pull);
-      if (pull >= 1 && tree.style.display !== "none") tree.style.display = "none";
+      if (pull >= 1 && tree.style.display !== "none") {
+        tree.style.display = "none";
+        portal.style.display = "none";
+      }
     }
 
     /* Push the detail up while frames are cheap, back off when they are

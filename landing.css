@@ -81,6 +81,16 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 
 #tree.ready{opacity:1}
 
+/* sharper than the tree: the geometry in the open door.
+   The global canvas rule pixelates everything else on purpose. */
+#portal{
+  position:absolute;inset:0;width:100%;height:100%;
+  display:block;pointer-events:none;
+  image-rendering:auto;
+  opacity:0;transition:opacity 1.1s ease-out;
+}
+#portal.ready{opacity:1}
+
 .gate-in{
   position:absolute;inset:0;
   display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
