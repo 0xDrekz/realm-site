@@ -84,13 +84,6 @@
     tree.width  = GW; tree.height = GH;
     tc.setTransform(GW / W, 0, 0, GH / H, 0, 0);
 
-    /* The portal is the one sharp layer. The tree stays at 1/PX.
-       This canvas is device pixels, so the geometry inside the door
-       is finer than the leaves around it. */
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    portal.width  = Math.max(1, Math.round(W * dpr));
-    portal.height = Math.max(1, Math.round(H * dpr));
-
     bakeHush();
     seedAir();
   }
@@ -102,7 +95,7 @@
   let quality = 0.55;          // climbs on fast devices, falls on slow ones
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const TUNNEL_MS  = 6400;
+  const TUNNEL_MS  = 3800;
   const SWALLOW_MS = 1250;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -116,7 +109,7 @@
   (function loadTree() {
     const img = new Image();
     img.decoding = "async";
-    img.onload = () => { art = img; buildPortal(); tree.classList.add("ready"); portal.classList.add("ready"); };
+    img.onload = () => { art = img; buildPortal(); tree.classList.add("ready"); };
     img.onerror = () => {
       if (img.src.indexOf(SMALL) === -1) { img.src = SMALL; return; }
     };
@@ -134,198 +127,155 @@
 
 
   /* ============================================================
-     THE DOOR, AND WHAT IS THROUGH IT
+     THE LIGHT IN THE DOORWAY
 
-     The tree stays pixelated. Inside the arch the picture has a door
-     standing ajar, and that slab is outlined so the crack reads.
-     Through the crack the light is not a blur of the painting: it is
-     drawn again, sharper than the leaves, as flat colour and hard
-     geometry that keeps moving.
+     The picture is still, so the energy standing in the arch is still
+     too. It is found once, by colour — the tree is green and the door
+     is brown, so the one place where neither is the strongest colour is
+     the light between them — and from then on that patch is redrawn
+     every frame, climbing, so the colours move while the arch around
+     them stays exactly where it is.
      ============================================================ */
 
-  const portal = document.createElement("canvas");
-  portal.id = "portal";
-  portal.setAttribute("aria-hidden", "true");
-  tree.after(portal);
-  const pc = portal.getContext("2d");
+  let maskCv = null, energyCv = null, PB = null, flowCv = null, flowC = null;
 
-  function buildPortal() { /* the door and the gap are drawn as paths */ }
+  function buildPortal() {
+    const AW = 200, AH = Math.max(1, Math.round(AW * art.height / art.width));
+    const probe = document.createElement("canvas");
+    probe.width = AW; probe.height = AH;
+    const pg = probe.getContext("2d", { willReadFrequently: true });
+    pg.drawImage(art, 0, 0, AW, AH);
 
-  /* The ajar door, traced off the picture. A stroke, not a box. */
-  const DOOR = [
-    [0.434, 0.648],
-    [0.496, 0.638],
-    [0.502, 0.670],
-    [0.498, 0.808],
-    [0.468, 0.830],
-    [0.438, 0.814],
-    [0.428, 0.710]
-  ];
+    let px;
+    try { px = pg.getImageData(0, 0, AW, AH); } catch (e) { return; }
+    const d = px.data;
 
-  /* The opening you see past that door: the arch of light, and the
-     pool of it along the threshold. Not the carved slab. */
-  const GAP = [
-    [0.508, 0.610],
-    [0.528, 0.568],
-    [0.558, 0.562],
-    [0.582, 0.610],
-    [0.598, 0.690],
-    [0.596, 0.790],
-    [0.576, 0.870],
-    [0.530, 0.916],
-    [0.448, 0.908],
-    [0.422, 0.868],
-    [0.498, 0.836],
-    [0.504, 0.680]
-  ];
-
-  function poly(g, x, y, w, h, pts) {
-    g.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      const px = x + w * pts[i][0], py = y + h * pts[i][1];
-      i ? g.lineTo(px, py) : g.moveTo(px, py);
+    let x0 = 1, y0 = 1, x1 = 0, y1 = 0, found = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const p = i >> 2, fx = (p % AW) / AW, fy = ((p / AW) | 0) / AH;
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      d[i + 3] = 0;
+      if (fx < AIM.x - 0.16 || fx > AIM.x + 0.14) continue;
+      if (fy < AIM.y - 0.255 || fy > AIM.y + 0.185) continue;
+      if (g >= (r > b ? r : b) - 4) continue;   // green — that is the tree
+      if (b < r * 0.82) continue;               // brown — that is the door
+      if ((r + g + b) / 3 <= 62) continue;      // too dark to be the light
+      d[i] = d[i + 1] = d[i + 2] = d[i + 3] = 255;
+      found++;
+      if (fx < x0) x0 = fx; if (fx > x1) x1 = fx;
+      if (fy < y0) y0 = fy; if (fy > y1) y1 = fy;
     }
-    g.closePath();
+    if (found < 40) return;
+    pg.putImageData(px, 0, 0);
+
+    /* A stencil edge would show, so the shape is softened — but softening
+       spreads it outward, over the door and the stone frame. Clipping the
+       soft version back to the hard one puts the fade on the inside, so
+       the mask never reaches anything that is not light. */
+    const tiny = document.createElement("canvas");
+    tiny.width = Math.max(1, AW / 9 | 0); tiny.height = Math.max(1, AH / 9 | 0);
+    tiny.getContext("2d").drawImage(probe, 0, 0, tiny.width, tiny.height);
+
+    maskCv = document.createElement("canvas");
+    maskCv.width = AW; maskCv.height = AH;
+    const mg = maskCv.getContext("2d");
+    mg.drawImage(tiny, 0, 0, AW, AH);
+    mg.drawImage(tiny, 0, 0, AW, AH);
+    mg.globalCompositeOperation = "destination-in";
+    mg.drawImage(probe, 0, 0);
+    mg.globalCompositeOperation = "source-over";
+
+    PB = { x0: Math.max(0, x0 - 0.02), y0: Math.max(0, y0 - 0.02),
+           x1: Math.min(1, x1 + 0.02), y1: Math.min(1, y1 + 0.02) };
+
+    /* ---------- the moving layer holds light and nothing else ----------
+       Scrolling the picture itself dragged the door's hinges and the
+       runes on the frame along with it. So the light is lifted out of
+       the picture, masked to itself, and then blurred until there is no
+       edge or letterform left in it — only the colour. That cloud is
+       what climbs; the door and the frame underneath never move. */
+    const EW = 180;
+    const EH = Math.max(2, Math.round(EW *
+      ((PB.y1 - PB.y0) * art.height) / ((PB.x1 - PB.x0) * art.width)));
+    const lift = document.createElement("canvas");
+    lift.width = EW; lift.height = EH;
+    const lg = lift.getContext("2d");
+    lg.drawImage(art,
+      PB.x0 * art.width, PB.y0 * art.height,
+      (PB.x1 - PB.x0) * art.width, (PB.y1 - PB.y0) * art.height,
+      0, 0, EW, EH);
+    lg.globalCompositeOperation = "destination-in";
+    lg.drawImage(maskCv,
+      PB.x0 * AW, PB.y0 * AH, (PB.x1 - PB.x0) * AW, (PB.y1 - PB.y0) * AH,
+      0, 0, EW, EH);
+
+    const smear = document.createElement("canvas");
+    smear.width = Math.max(1, EW / 8 | 0); smear.height = Math.max(1, EH / 8 | 0);
+    smear.getContext("2d").drawImage(lift, 0, 0, smear.width, smear.height);
+    energyCv = document.createElement("canvas");
+    energyCv.width = EW; energyCv.height = EH;
+    energyCv.getContext("2d").drawImage(smear, 0, 0, EW, EH);
+
+    flowCv = document.createElement("canvas");
+    flowCv.width = 240;
+    flowCv.height = Math.max(2, Math.round(240 *
+      ((PB.y1 - PB.y0) * art.height) / ((PB.x1 - PB.x0) * art.width)));
+    flowC = flowCv.getContext("2d");
   }
 
-  function blob(g, x, y, r, hue, sat, light, a) {
-    const gr = g.createRadialGradient(x, y, 0, x, y, Math.max(1, r));
-    gr.addColorStop(0,    `hsla(${hue},${sat}%,${light}%,${a})`);
-    gr.addColorStop(0.42, `hsla(${hue},${sat}%,${Math.max(20, light - 18)}%,${a * 0.45})`);
-    gr.addColorStop(1,    `hsla(${hue},${sat}%,${light}%,0)`);
-    g.fillStyle = gr;
-    g.fillRect(x - r, y - r, r * 2, r * 2);
-  }
+  /* One pass of the light, climbing. Two copies of it half a cycle
+     apart, crossfaded, so it never reaches a seam and restarts. */
+  function flowDoor(t, x, y, w, h, open) {
+    if (!maskCv || !PB || !flowC || !energyCv) return;
+    const FW = flowCv.width, FH = flowCv.height;
 
-  /* The other side of the door: a nebula, not a diagram.
-     Soft colour, a bright heart, and stars. The same painter
-     fills the crack while you wait and the whole screen once
-     you step through. */
-  function nebula(g, t, cx, cy, reach, rush) {
-    const tt = still ? 0.4 : t;
-    const spin = tt * (0.12 + rush * 0.35);
+    flowC.setTransform(1, 0, 0, 1, 0, 0);
+    flowC.clearRect(0, 0, FW, FH);
 
-    g.globalCompositeOperation = "source-over";
-    g.globalAlpha = 1;
-    const sky = g.createRadialGradient(cx, cy, reach * 0.05, cx, cy, reach * 1.7);
-    sky.addColorStop(0,    "#f3e9ff");
-    sky.addColorStop(0.12, "#d7b4ff");
-    sky.addColorStop(0.34, "#7a2ec4");
-    sky.addColorStop(0.58, "#2a1468");
-    sky.addColorStop(0.78, "#0e4e58");
-    sky.addColorStop(1,    "#070612");
-    g.fillStyle = sky;
-    g.fillRect(cx - reach * 2, cy - reach * 2, reach * 4, reach * 4);
-
-    g.globalCompositeOperation = "lighter";
-    const clouds = [
-      [0.0, 0.22, 0.95, 292, 68, 0.50],
-      [1.3, 0.38, 0.80, 168, 62, 0.38],
-      [2.5, 0.12, 0.70, 318, 70, 0.46],
-      [3.7, 0.48, 0.88, 200, 64, 0.32],
-      [5.0, 0.28, 0.55,  46, 74, 0.22]
-    ];
-    for (let i = 0; i < clouds.length; i++) {
-      const c = clouds[i];
-      const a = c[0] + spin * (i % 2 ? 1 : -1);
-      const rad = reach * c[1] * (1 + rush * 0.35);
-      blob(g,
-        cx + Math.cos(a) * rad,
-        cy + Math.sin(a) * rad * 0.82,
-        reach * c[2],
-        c[3], 100, c[4], c[5]);
+    /* Each copy has one join in it, where its top meets its own bottom.
+       That join travels down the arch as it climbs, so each copy is
+       weighted by how far the join is from the middle — at its most
+       visible it is not being shown at all. */
+    const u = (t / 4.2) % 1;
+    for (const o of [u, (u + 0.5) % 1]) {
+      flowC.globalAlpha = Math.abs(2 * o - 1);
+      const up = o * FH;
+      flowC.drawImage(energyCv, 0, -up,     FW, FH);
+      flowC.drawImage(energyCv, 0, FH - up, FW, FH);
     }
 
-    /* filaments — the long curls of the cloud, the way the clip shows them */
-    for (let wisp = 0; wisp < 3; wisp++) {
-      const hue = [286, 168, 312][wisp];
-      const dir = wisp % 2 ? 1 : -1;
-      for (let i = 0; i < 6; i++) {
-        const u = i / 5;
-        const ang = spin * dir + wisp * 2.1 + u * 2.2;
-        const rad = reach * (0.08 + u * 0.85);
-        blob(g,
-          cx + Math.cos(ang) * rad,
-          cy + Math.sin(ang * 0.85 + wisp) * rad * 0.62,
-          reach * (0.16 + u * 0.2),
-          hue, 100, 72, 0.18);
+    // filaments running up through it
+    flowC.globalAlpha = 1;
+    flowC.globalCompositeOperation = "lighter";
+    for (let k = 0; k < 5; k++) {
+      const ph = k * 1.7, climb = ((t * 0.33 + k / 5) % 1);
+      flowC.strokeStyle = `hsla(${k % 2 ? 176 : 286},100%,84%,${0.11 * open})`;
+      flowC.lineWidth = FW * 0.02;
+      flowC.beginPath();
+      for (let s = 0; s <= 14; s++) {
+        const f = s / 14;
+        const py = FH * (1 - ((f * 0.5 + climb) % 1));
+        const pxx = FW * (0.52 + Math.sin(f * 4.2 + t * 1.1 + ph) * 0.17);
+        s ? flowC.lineTo(pxx, py) : flowC.moveTo(pxx, py);
       }
+      flowC.stroke();
     }
+    flowC.globalCompositeOperation = "destination-in";
+    flowC.drawImage(maskCv,
+      PB.x0 * maskCv.width, PB.y0 * maskCv.height,
+      (PB.x1 - PB.x0) * maskCv.width, (PB.y1 - PB.y0) * maskCv.height,
+      0, 0, FW, FH);
+    flowC.globalCompositeOperation = "source-over";
 
-    blob(g, cx, cy, reach * (0.42 + rush * 0.25), 274, 70, 90, 0.55);
-    blob(g, cx, cy, reach * 0.16, 40, 30, 98, 0.8);
-
-    g.globalAlpha = 1;
-    g.globalCompositeOperation = "source-over";
-  }
-
-  function drawGeo(g, t, x, y, w, h) {
-    nebula(g, t, x + w * 0.552, y + h * 0.71, Math.min(w, h) * 0.22, 0);
-    /* a few stars in the crack, so it already reads as a sky */
-    g.globalCompositeOperation = "lighter";
-    const cx = x + w * 0.552, cy = y + h * 0.71;
-    const reach = Math.min(w, h) * 0.2;
-    const tt = still ? 0 : t;
-    for (let i = 0; i < 14; i++) {
-      const ang = i * 2.399 + tt * 0.05;
-      const dist = reach * (0.15 + (i % 5) * 0.16);
-      const tw = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(tt * 1.7 + i));
-      g.fillStyle = `rgba(255,255,255,${0.35 + tw * 0.55})`;
-      g.beginPath();
-      g.arc(cx + Math.cos(ang) * dist, cy + Math.sin(ang) * dist, 0.8 + (i % 3) * 0.45, 0, Math.PI * 2);
-      g.fill();
-    }
-    g.globalCompositeOperation = "source-over";
-  }
-
-  function paintPortal(t, pull, x, y, w, h) {
-    const dpr = portal.width / Math.max(1, W);
-    if (layer.width !== portal.width || layer.height !== portal.height) {
-      layer.width = portal.width;
-      layer.height = portal.height;
-    }
-    const fade = pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1;
-    lg.setTransform(dpr, 0, 0, dpr, 0, 0);
-    lg.clearRect(0, 0, W, H);
-    if (fade > 0.01) {
-      const ax = x + w * AIM.x, ay = y + h * AIM.y;
-      const rush = 1 + 17 * pull * pull * pull;
-      const place = () => {
-        if (pull > 0) {
-          lg.translate(ax, ay);
-          lg.scale(rush, rush);
-          lg.translate(-ax, -ay);
-        }
-      };
-
-      lg.save();
-      place();
-      poly(lg, x, y, w, h, GAP);
-      lg.clip();
-      drawGeo(lg, t, x, y, w, h);
-      lg.restore();
-
-      lg.save();
-      place();
-      lg.lineJoin = "round";
-      lg.lineCap = "round";
-      poly(lg, x, y, w, h, DOOR);
-      lg.globalAlpha = 0.92;
-      lg.strokeStyle = "#ffe14a";
-      lg.lineWidth = 2.25;
-      lg.stroke();
-      lg.strokeStyle = "rgba(255,255,255,0.9)";
-      lg.lineWidth = 1;
-      lg.stroke();
-      lg.restore();
-    }
-
-    pc.setTransform(1, 0, 0, 1, 0, 0);
-    pc.clearRect(0, 0, portal.width, portal.height);
-    pc.globalAlpha = fade;
-    pc.imageSmoothingEnabled = true;
-    pc.drawImage(layer, 0, 0);
-    pc.globalAlpha = 1;
+    /* added to the picture, not laid over it: the light brightens what
+       is already in the arch, so the door and the frame beneath stay
+       exactly where they are while the colour climbs through them */
+    tc.globalCompositeOperation = "lighter";
+    tc.globalAlpha = 0.5;
+    tc.drawImage(flowCv, x + w * PB.x0, y + h * PB.y0,
+                 w * (PB.x1 - PB.x0), h * (PB.y1 - PB.y0));
+    tc.globalAlpha = 1;
+    tc.globalCompositeOperation = "source-over";
   }
 
 
@@ -531,9 +481,9 @@
     }
     drawTree(t, pull, x, y, w, h);
 
-    // the door outlined, and the geometry moving in the gap
-    paintPortal(t, pull, x, y, w, h);
+    // the doorway, breathing
     const door = 0.42 + 0.2 * Math.sin(t * 0.55) + 0.07 * Math.sin(t * 1.9);
+    flowDoor(t, x, y, w, h, door);
 
     /* ---------- light ---------- */
     tc.globalCompositeOperation = "lighter";
@@ -556,11 +506,10 @@
     }
 
     // the light it throws into the room, in the tunnel's own colours
-    /* a small halo on the frame only — the gap itself is drawn
-       on the portal, and a big glow here would wash the door out */
     const open = door + pull * 2.2;
-    glow(tc, ax, ay, w * 0.16, 286, open * 0.14, 70);
-    glow(tc, ax, ay, w * 0.05, 176, open * 0.2, 88);
+    glow(tc, ax, ay, w * 0.26, 282, open * 0.3, 74);
+    glow(tc, ax, ay, w * 0.10, 172, open * 0.5, 86);
+    glow(tc, ax, ay, w * 0.04, 300, open, 96);
 
     tc.globalCompositeOperation = "source-over";
 
@@ -622,85 +571,129 @@
      THE TUNNEL
      ============================================================ */
 
-  const STARS = Array.from({ length: 80 }, () => ({
-    ang: Math.random() * Math.PI * 2,
-    z: Math.random(),
-    big: Math.random() < 0.12
-  }));
+  function polygon(g, rr, sides, rot) {
+    g.beginPath();
+    for (let i = 0; i <= sides; i++) {
+      const ang = (i / sides) * Math.PI * 2 + rot;
+      const x = Math.cos(ang) * rr, y = Math.sin(ang) * rr;
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+  }
 
-  /* Through the door, and then the light. The picture in the clip:
-     the nebula rushes at you, the stars come past, and it opens
-     into a white burst. */
-  function paintTunnel(t, dt) {
+  /* One ring of the tunnel, with its own nested detail. */
+  function ringAt(g, f, k, t, hue, intensity, detail) {
+    const rr = Math.pow(f, 2.0) * R * 1.65;
+    if (rr < 1.5) return;
+
+    const fade = Math.min(1, f * 4) * (1 - f) * 2.1 * intensity;
+    if (fade <= 0.01) return;
+    const sides = 3 + (k % 10);
+    const rot   = t * 0.22 * (k % 2 ? 1 : -1) + k * 0.37;
+
+    g.strokeStyle = `hsla(${hue + k * 23},100%,${52 + (k % 3) * 6}%,${0.5 * fade})`;
+    g.lineWidth = 0.8 + f * 5;
+    polygon(g, rr, sides, rot);
+    g.stroke();
+
+    if (detail < 1) return;
+
+    g.strokeStyle = `hsla(${hue + k * 23 + 150},100%,64%,${0.4 * fade})`;
+    g.lineWidth = 0.6 + f * 2.4;
+    polygon(g, rr * 0.72, sides + 2, -rot * 1.5);
+    g.stroke();
+
+    if (detail < 2) return;
+
+    g.beginPath();
+    for (let i = 0; i < sides; i++) {
+      const ang = (i / sides) * Math.PI * 2 + rot;
+      g.moveTo(Math.cos(ang) * rr * 0.72, Math.sin(ang) * rr * 0.72);
+      g.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+    }
+    g.strokeStyle = `hsla(${hue + k * 23 + 60},100%,68%,${0.26 * fade})`;
+    g.lineWidth = 0.6;
+    g.stroke();
+
+    if (detail < 3) return;
+
+    g.beginPath();
+    for (let i = 0; i < sides; i++) {
+      const ang = (i / sides) * Math.PI * 2 + rot;
+      const x = Math.cos(ang) * rr, y = Math.sin(ang) * rr;
+      const nr = Math.max(0.8, rr * 0.035);
+      g.moveTo(x + nr, y);
+      g.arc(x, y, nr, 0, Math.PI * 2);
+    }
+    g.strokeStyle = `hsla(${hue + k * 23 + 210},100%,72%,${0.32 * fade})`;
+    g.lineWidth = 0.7;
+    g.stroke();
+  }
+
+  function paintTunnel(t) {
+    const g = fc;
     const rush = Math.min(1, (performance.now() - phaseAt) / TUNNEL_MS);
-    const dpr = portal.width / Math.max(1, W);
-    const g = pc;
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const intensity = 0.75 + rush * 0.9;
+    const speed = 0.28 + rush * rush * 2.6;
+    const hue   = t * (70 + rush * 190);
+
+    // feedback: last frame, scaled up, underneath everything
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, front.width, front.height);
+    g.globalAlpha = 0.66 + rush * 0.12;
+    const zoom = 1 + 0.028 + rush * 0.05;
+    const dw = front.width * zoom, dh = front.height * zoom;
+    g.drawImage(back, (front.width - dw) / 2, (front.height - dh) / 2, dw, dh);
     g.globalAlpha = 1;
-    g.globalCompositeOperation = "source-over";
-    g.fillStyle = "#070412";
+    g.setTransform(SC, 0, 0, SC, 0, 0);
+
+    // darken what carried over, so trails decay instead of smearing white
+    g.fillStyle = "rgba(0,0,0,0.26)";
     g.fillRect(0, 0, W, H);
 
-    const zoom = 1 + Math.pow(rush, 1.35) * 1.7;
-    g.save();
-    g.translate(W / 2, H / 2);
-    g.scale(zoom, zoom);
-    g.translate(-W / 2, -H / 2);
-    nebula(g, t, W / 2, H / 2, Math.max(W, H) * 0.48, rush);
-    g.restore();
-
     g.globalCompositeOperation = "lighter";
-    const speed = 0.15 + rush * rush * 1.15;
-    const span = Math.hypot(W, H) * 0.62;
-    for (let i = 0; i < STARS.length; i++) {
-      const s = STARS[i];
-      if (!still) {
-        s.z -= speed * dt;
-        if (s.z <= 0.02) { s.z = 1; s.ang = Math.random() * Math.PI * 2; }
-      }
-      const dist = (1 - s.z) * span;
-      const x = W / 2 + Math.cos(s.ang) * dist;
-      const y = H / 2 + Math.sin(s.ang) * dist;
-      const rad = (s.big ? 2.2 : 0.7) * (0.35 + (1 - s.z) * 2.4);
-      const a = 0.25 + (1 - s.z) * 0.7;
-      g.fillStyle = s.big ? `rgba(255,244,220,${a})` : `rgba(255,255,255,${a})`;
-      g.beginPath();
-      g.arc(x, y, rad, 0, Math.PI * 2);
-      g.fill();
-    }
+    g.lineCap = "round";
 
-    const blow = Math.max(0, (rush - 0.62) / 0.38);
-    const eased = blow * blow * (3 - 2 * blow);
-    if (eased > 0.001) {
+    const RINGS  = Math.round(46 * quality);
+    const SYM    = Math.round(2 + 5 * quality);
+    const detail = quality > 0.85 ? 3 : quality > 0.6 ? 2 : quality > 0.4 ? 1 : 0;
+    const z = (t * speed) % 1;
+
+    g.save();
+    g.translate(cx, cy);
+    for (let m = 0; m < SYM; m++) {
       g.save();
-      g.translate(W / 2, H / 2);
-      g.rotate(t * 0.08);
-      g.globalAlpha = eased * 0.72;
-      for (let i = 0; i < 28; i++) {
-        const a = i * (Math.PI * 2 / 28);
-        const spread = 0.045 + (i % 3) * 0.012;
-        g.fillStyle = i % 2 ? "rgba(255,255,255,0.95)" : "rgba(214,188,255,0.8)";
-        g.beginPath();
-        g.moveTo(0, 0);
-        g.lineTo(Math.cos(a) * R * 2.4, Math.sin(a) * R * 2.4);
-        g.lineTo(Math.cos(a + spread) * R * 2.4, Math.sin(a + spread) * R * 2.4);
-        g.closePath();
-        g.fill();
+      g.rotate((m / SYM) * Math.PI * 2 + t * 0.05 * (m % 2 ? 1 : -1));
+      for (let k = 0; k < RINGS; k++) {
+        ringAt(g, ((k / RINGS) + z) % 1, k, t, hue + m * 31, intensity, detail);
       }
       g.restore();
-
-      const flash = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, R * 1.05);
-      flash.addColorStop(0,    `rgba(255,255,255,${0.55 + eased * 0.45})`);
-      flash.addColorStop(0.28, `rgba(236,224,255,${0.35 + eased * 0.55})`);
-      flash.addColorStop(0.62, `rgba(186,150,255,${eased * 0.85})`);
-      flash.addColorStop(1,    `rgba(120,70,190,${eased * 0.95})`);
-      g.globalCompositeOperation = "source-over";
-      g.globalAlpha = Math.min(1, eased * 1.15);
-      g.fillStyle = flash;
-      g.fillRect(0, 0, W, H);
     }
-    g.globalAlpha = 1;
+    g.restore();
+
+    // the light you are heading into
+    const core = g.createRadialGradient(cx, cy, 0, cx, cy, R * (0.3 + rush * 0.7));
+    const blow = Math.pow(rush, 2.2);          // the whiteout arrives late
+    core.addColorStop(0,    `hsla(${hue + 50},100%,${70 + blow * 30}%,${0.2 + blow * 0.78})`);
+    core.addColorStop(0.2,  `hsla(${hue},100%,62%,${0.14 + blow * 0.5})`);
+    core.addColorStop(0.62, `hsla(${hue + 170},100%,54%,${0.05 + blow * 0.25})`);
+    core.addColorStop(1,    "hsla(0,0%,0%,0)");
+    g.fillStyle = core;
+    g.fillRect(0, 0, W, H);
+
     g.globalCompositeOperation = "source-over";
+
+    const vig = g.createRadialGradient(cx, cy, Math.min(W, H) * 0.12, cx, cy, R);
+    vig.addColorStop(0,   "rgba(0,0,0,0)");
+    vig.addColorStop(0.6, "rgba(0,0,0,0.37)");
+    vig.addColorStop(1,   "rgba(0,0,0,0.88)");
+    g.fillStyle = vig;
+    g.fillRect(0, 0, W, H);
+
+    // blit and swap
+    ctx.drawImage(front, 0, 0, W, H);
+    const tf = front, tcx = fc;
+    front = back; fc = bc;
+    back = tf;   bc = tcx;
   }
 
 
@@ -717,9 +710,9 @@
     last = now;
     const t = now * 0.001;
 
-    if (pullFrom && phase !== "options") pull = Math.min(1, (now - pullFrom) / SWALLOW_MS);
-    if (phase === "tunnel") paintTunnel(t, dt);
-    else if (phase !== "options") {
+    if (phase === "tunnel" || phase === "options") paintTunnel(t);
+    if (phase !== "options") {
+      if (pullFrom) pull = Math.min(1, (now - pullFrom) / SWALLOW_MS);
       paintTree(t, dt, pull);
       if (pull >= 1 && tree.style.display !== "none") tree.style.display = "none";
     }
@@ -760,22 +753,13 @@
     gate.classList.add("gone");
     if (still) { land(); return; }
     pullFrom = performance.now();
-    /* lift the portal out of the gate, or it fades away with the
-       button and the passage goes with it */
-    portal.style.position = "fixed";
-    portal.style.zIndex = "6";
-    portal.style.inset = "0";
-    document.body.appendChild(portal);
-    setTimeout(() => go("tunnel"), SWALLOW_MS * 0.9);
+    setTimeout(() => go("tunnel"), SWALLOW_MS * 0.58);
     setTimeout(land, SWALLOW_MS + TUNNEL_MS);
   }
 
   function land() {
     go("options");
     if (gate) gate.style.display = "none";
-    portal.style.zIndex = "1";
-    portal.style.transition = "opacity .9s ease";
-    portal.style.opacity = "0";
     if (!journey) return;
     journey.hidden = false;
     if (window.RealmJourney && RealmJourney.start) RealmJourney.start();
