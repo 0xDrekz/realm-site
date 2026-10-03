@@ -38,6 +38,19 @@ window.RealmJourney = (() => {
 
   const { OPTIONS } = window.RealmJourney;
   const ctx  = cv.getContext("2d");
+
+  /* The orbs have a layer of their own, at the screen's full resolution.
+     On the room's half-size grid they could only move in two-pixel jumps,
+     which at their slow drift read as stutter. Here each sprite pixel is
+     still a hard square block — they look the same — but the sprite as a
+     whole moves a device pixel at a time, and it is redrawn every frame
+     rather than with the room's thirty. */
+  const oc = document.createElement("canvas");
+  oc.className = "orbs-layer";
+  oc.setAttribute("aria-hidden", "true");
+  cv.after(oc);
+  const octx = oc.getContext("2d");
+  let DPR = 1;
   const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* data.js declares these with const, so they are globals but not
@@ -87,6 +100,8 @@ window.RealmJourney = (() => {
     GH = Math.max(1, Math.round(H / PX));
     cv.width = GW; cv.height = GH;
     ctx.setTransform(GW / W, 0, 0, GH / H, 0, 0);
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    oc.width = Math.round(W * DPR); oc.height = Math.round(H * DPR);
     bakeOverlay();
     seedMotes();
     seedOrbs();
@@ -187,9 +202,18 @@ window.RealmJourney = (() => {
       orbs.push({
         S, cv: c, g: c.getContext("2d", { willReadFrequently: true }),
         z, h1, h2,
-        x: Math.random(), y: rand(0.07, 0.58),
-        vx: (0.004 + z * 0.013) * (Math.random() < 0.5 ? -1 : 1),
-        bob: rand(0.006, 0.016), bf: rand(0.25, 0.6), ph: rand(0, 6.3),
+        /* A drift and two slow swells on each axis, at speeds that never
+           line up, so the path is a long smooth wander rather than a line
+           with a bounce on it. Near ones travel further and quicker:
+           parallax, so the room has depth. */
+        x0: Math.random(), y0: rand(0.10, 0.56),
+        vx: (0.003 + z * 0.008) * (Math.random() < 0.5 ? -1 : 1),
+        ax: [rand(0.012, 0.03) * (0.6 + z), rand(0.005, 0.012) * (0.6 + z)],
+        ay: [rand(0.012, 0.028) * (0.6 + z), rand(0.004, 0.01) * (0.6 + z)],
+        wx: [rand(0.05, 0.11), rand(0.17, 0.29)],
+        wy: [rand(0.07, 0.14), rand(0.21, 0.33)],
+        px: [rand(0, 6.3), rand(0, 6.3)], py: [rand(0, 6.3), rand(0, 6.3)],
+        ph: rand(0, 6.3),
         points: 5 + (i % 4),                       // the figure inside
         spin: rand(0.15, 0.4) * (i % 2 ? 1 : -1),
         ring: i % 3 !== 1, tilt: rand(-0.6, 0.6),
@@ -603,32 +627,55 @@ window.RealmJourney = (() => {
 
     ctx.globalCompositeOperation = "source-over";
 
-    /* ---------- the orbs ----------
-       Drawn solid over the room, each at exactly one sprite pixel to
-       one grid pixel so they sit on the same pixels as the picture.
-       The far ones are smaller, slower and dimmer. */
-    for (const o of orbs) {
-      o.x += o.vx * dt;
-      const m = o.S * PX / W;
-      if (o.x < -m) o.x = 1 + m; else if (o.x > 1 + m) o.x = -m;
-      const bx = o.x * W;
-      const by = (o.y + Math.sin(t * o.bf + o.ph) * o.bob) * H;
-      const d = o.S * PX;
-
-      paintOrb(o, t);
-      ctx.globalAlpha = 0.5 + 0.5 * o.z;
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(o.cv, Math.round((bx - d / 2) / PX) * PX, Math.round((by - d / 2) / PX) * PX, d, d);
-      ctx.imageSmoothingEnabled = true;
-      ctx.globalAlpha = 1;
-
-      ctx.globalCompositeOperation = "lighter";
-      glow(bx, by, d * 0.9, o.h1, 0.05 + 0.06 * o.z, 78);
-      ctx.globalCompositeOperation = "source-over";
-    }
-
     /* ---------- hold the room back so the words read ---------- */
     if (overlay) ctx.drawImage(overlay, 0, 0, W, H);
+  }
+
+  /* ---------- the orbs, every frame ---------- */
+  function drawOrbs(t) {
+    if (!W) return;
+    octx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    octx.clearRect(0, 0, W, H);
+    const T = still ? 0 : t;
+    for (const o of orbs) {
+      const d = o.S * PX;
+      const m = (d / W) * 0.75;                    // off the edge before it wraps
+      let x = o.x0 + o.vx * T
+            + o.ax[0] * Math.sin(T * o.wx[0] + o.px[0])
+            + o.ax[1] * Math.sin(T * o.wx[1] + o.px[1]);
+      x = ((x + m) % (1 + 2 * m) + (1 + 2 * m)) % (1 + 2 * m) - m;
+      const y = o.y0
+            + o.ay[0] * Math.sin(T * o.wy[0] + o.py[0])
+            + o.ay[1] * Math.sin(T * o.wy[1] + o.py[1]);
+      const bx = x * W, by = y * H;
+
+      // its own soft light first, under it
+      const r = d * 0.95;
+      const gl = octx.createRadialGradient(bx, by, 0, bx, by, r);
+      const a = 0.10 + 0.10 * o.z;
+      gl.addColorStop(0, `hsla(${o.h1},100%,72%,${a})`);
+      gl.addColorStop(0.45, `hsla(${o.h1},100%,60%,${a * 0.35})`);
+      gl.addColorStop(1, "hsla(0,0%,0%,0)");
+      octx.fillStyle = gl;
+      octx.fillRect(bx - r, by - r, r * 2, r * 2);
+
+      // then the sprite, its corner on a whole device pixel so every
+      // sprite pixel stays the same size as it moves
+      paintOrb(o, T);
+      const sx = Math.round((bx - d / 2) * DPR) / DPR;
+      const sy = Math.round((by - d / 2) * DPR) / DPR;
+      octx.globalAlpha = 0.5 + 0.5 * o.z;
+      octx.imageSmoothingEnabled = false;
+      octx.drawImage(o.cv, sx, sy, d, d);
+      octx.globalAlpha = 1;
+    }
+    // the same wash that holds the room back, laid only over the orbs
+    if (overlay) {
+      octx.globalCompositeOperation = "source-atop";
+      octx.imageSmoothingEnabled = true;
+      octx.drawImage(overlay, 0, 0, W, H);
+      octx.globalCompositeOperation = "source-over";
+    }
   }
 
   /* ---------- the loop ---------- */
@@ -638,6 +685,7 @@ window.RealmJourney = (() => {
     requestAnimationFrame(tick);
     if (document.hidden) { last = ms; return; }
     const dt = Math.min(0.05, (ms - last) * 0.001);
+    drawOrbs(ms * 0.001);
     if (ms - last < 26) return;
     last = ms;
     paint(ms * 0.001, dt);

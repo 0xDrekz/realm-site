@@ -347,6 +347,11 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   position:absolute;inset:0;width:100%;height:100%;
   display:block;pointer-events:none;z-index:0;
 }
+/* the orbs, drawn at full resolution above the room and below the words */
+.orbs-layer{
+  position:absolute;inset:0;width:100%;height:100%;
+  display:block;pointer-events:none;z-index:0;
+}
 
 /* the words stand in the lower half, on the floor of the room */
 .j-frame{
