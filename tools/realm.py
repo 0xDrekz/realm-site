@@ -22,7 +22,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = f"{ROOT}/art/masters/source.jpg"
+SRC = f"{ROOT}/art/scenes/tree-source.png"
 
 # The top-left corner: geometry and smoke only.
 #
@@ -30,8 +30,8 @@ SRC = f"{ROOT}/art/masters/source.jpg"
 # THING -- it made the doorway read as a picture of a mushroom rather than
 # as a place. Nothing nameable may be in here. The realm has to be texture
 # and depth, not objects.
-CROP = (0.00, 0.00, 0.40, 0.355)
-OUT_W = 300
+CROP = (0.491, 0.444, 0.680, 0.840)   # the doorway's own gap
+OUT_W = 220
 
 
 def main():
@@ -49,8 +49,8 @@ def main():
     # push the colour out: this sits behind a doorway in a green tree and has
     # to read as somewhere else entirely
     g = a.mean(axis=2, keepdims=True)
-    a = np.clip(g + (a - g) * 1.80, 0, 255)
-    a = np.clip(255 * (a / 255) ** 0.97, 0, 255)      # barely lifted: richer, not paler
+    a = np.clip(g + (a - g) * 1.45, 0, 255)
+    a = np.clip(255 * (a / 255) ** 0.94, 0, 255)      # barely lifted: richer, not paler
 
     # stack with its own mirror so a slow drift upward never shows a join
     top = a
@@ -58,7 +58,7 @@ def main():
     tile = np.concatenate([top, bot], axis=0)
 
     out = Image.fromarray(tile.astype(np.uint8))
-    q = out.quantize(colors=56, method=Image.MEDIANCUT, dither=Image.Dither.NONE)
+    q = out.quantize(colors=64, method=Image.MEDIANCUT, dither=Image.Dither.NONE)
     q.save(f"{ROOT}/realm.png", optimize=True)
 
     arr = np.asarray(q.convert("RGB"))

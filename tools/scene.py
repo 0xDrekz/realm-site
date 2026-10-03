@@ -384,23 +384,15 @@ def pass_over(src, lights, gamma, bands, out_name,
 
 
 def main():
-    W, H = TREE
-    print("the door in the tree:")
-    t = pass_over("art/scenes/tree-source.png", [
-        dict(cx=SUN[0] * W, cy=SUN[1] * H, r=W * 0.017,
-             colour=(255, 238, 186), rays=10, ray_len=3.0, seed=5, spread=7.5),
-        dict(cx=GLOW[0] * W, cy=GLOW[1] * H, r=W * 0.0085,
-             colour=(150, 100, 244), rays=6, ray_len=1.25, seed=9,
-             aspect=0.62, spread=4.6),
-    ], gamma=1.55, bands=6, out_name="tree.png",
-        # the doorway keeps its own colours and carries three times the
-        # gradation of the bark around it
-        fine=[dict(cx=AIM[0] * W, cy=(AIM[1] + 0.035) * H, r=H * 0.135,
-                   aspect=0.55, soft=0.40)],
-        fine_bands=22, fine_gamma=0.92, fine_sat=1.45)
-    save(t, f"{ROOT}/tree.png", f"{ROOT}/tree-small.png",
-         cores=[(SUN[0] * W, SUN[1] * H, W * 0.017),
-                (GLOW[0] * W, GLOW[1] * H, W * 0.0085)])
+    """Only the chamber now.
+
+    The tree was replaced with a new, much better painting that does not
+    need this treatment: it already has a white sun, a lit doorway and
+    clean edges, and banding it to six steps would be vandalism rather
+    than medicine. It is installed by tools/installtree.py, and what moves
+    in its doorway comes from tools/realm.py.
+    """
+    print("the chamber only — the tree is installed, not processed")
 
     W, H = CHAMBER
     print("the chamber:")

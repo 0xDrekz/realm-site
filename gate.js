@@ -23,11 +23,11 @@
   /* ---------- the picture, and the two places that matter in it ----------
      Both are fractions: how far across, how far down. If the artwork is
      ever replaced, these two lines are what to re-measure. */
-  const AIM = { x: 0.503, y: 0.745 };   // the doorway — where the zoom goes.
+  const AIM = { x: 0.586, y: 0.642 };   // the middle of the opening —
                                       // Measured off the art rather than
                                       // guessed: the old value was 19px to
                                       // the right of the actual arch.
-  const SUN = { x: 0.513, y: 0.436 };   // the burst of light in the canopy
+  const SUN = { x: 0.492, y: 0.298 };   // the burst in the canopy.
 
   const FULL = "tree.png";
   const SMALL = "tree-small.png";       // lighter, for narrow screens
@@ -269,7 +269,7 @@
      to. Looking only for violet and cyan found the bright core of the gap
      and missed its edges, where the light has gone pale or warm. The
      opening is everything in there that is not green. */
-  const GAP = { x0: 0.372, y0: 0.544, x1: 0.613, y1: 0.917 };
+  const GAP = { x0: 0.491, y0: 0.444, x1: 0.680, y1: 0.840 };
 
   const gapImg = new Image();
   let gapReady = false;
