@@ -828,7 +828,10 @@
 
        Or it can start and then stall. That one is caught by a backstop set
        from the real duration once the browser knows it. */
-    const stall = setTimeout(() => { if (reel.currentTime < 0.05) fallBack(); }, 1300);
+    /* 2.2s, not 1.3. A phone on a cold cellular connection can take longer
+       than a second to get the first frame out, and cutting to the fallback
+       while the film was about to start is worse than waiting a moment. */
+    const stall = setTimeout(() => { if (reel.currentTime < 0.05) fallBack(); }, 2200);
     let guard = setTimeout(done, 9000);
     reel.addEventListener("loadedmetadata", () => {
       if (reel.duration && isFinite(reel.duration)) {

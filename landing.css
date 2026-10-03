@@ -66,7 +66,8 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 /* ---------- the wallet ---------- */
 /* ---------- the door in the tree ---------- */
 .gate{
-  position:absolute;inset:0;
+  /* Above the film, which is covered by this canvas rather than hidden. */
+  position:absolute;inset:0;z-index:1;
   transition:opacity .7s ease-in;
 }
 
@@ -92,9 +93,21 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
    inside .gate, and .gate.gone takes the whole element to opacity 0 a
    second after you press enter: the film played for about a second and
    then went black, which is exactly what it looked like. */
+/* FULL SIZE AND REALLY ON SCREEN.
+
+   It was two pixels square at opacity 0.01, which is how you hide a video
+   from a person and also how you stop iOS playing it at all: a video that
+   is not genuinely on screen gets deprioritised or never starts, the
+   stall guard fired, and the canvas tunnel ran instead. That is the
+   "plays a bit, freezes, then jumps to the end" — the bit that played was
+   the first frame, and the end was the fallback.
+
+   So it is full size and visible to the browser. Nobody sees it: the
+   gate's canvas sits on top and paints the same frames at the pixel size
+   everything else on this site uses. */
 #rush{
-  position:fixed;left:0;top:0;width:2px;height:2px;
-  opacity:0.01;pointer-events:none;z-index:-2;
+  position:fixed;inset:0;width:100%;height:100%;
+  object-fit:cover;pointer-events:none;z-index:0;background:#03010a;
 }
 
 /* Only the writing fades when you go through. The canvas has to stay —
