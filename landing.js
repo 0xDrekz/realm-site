@@ -12,6 +12,12 @@
 (() => {
   "use strict";
 
+  /* The tier pictures keep their names when the art changes, and the
+     server lets browsers keep images for an hour — so after a new
+     collection a visitor saw the old beings. The provenance hash changes
+     with every collection, so it is the version: new art, new URL. */
+  const ART = "?v=" + String((typeof CONFIG !== "undefined" && CONFIG.provenance) || "1").slice(0, 8);
+
   const $  = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -137,7 +143,7 @@
       if (!t) return;
       const img = document.createElement("img");
       img.className = "peek-art";
-      img.src = "preview/" + key + ".png";
+      img.src = "preview/" + key + ".png" + ART;
       img.alt = "";
       img.loading = "lazy";
       img.width = 360; img.height = 360;
@@ -164,7 +170,7 @@
     slot.className = "form-slot";
     const art = document.createElement("img");
     art.className = "tier-art";
-    art.src = "preview/" + t.key + ".png";
+    art.src = "preview/" + t.key + ".png" + ART;
     art.alt = "";
     art.loading = "lazy";
     art.width = 360; art.height = 360;
@@ -500,7 +506,7 @@
   if (chaptersEl) {
     const art = document.createElement("img");
     art.className = "lore-art";
-    art.src = "preview/source.png";
+    art.src = "preview/source.png" + ART;
     art.alt = "";
     art.loading = "lazy";
     art.width = 360; art.height = 360;
