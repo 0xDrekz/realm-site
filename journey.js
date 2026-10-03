@@ -425,19 +425,112 @@ window.RealmJourney = (() => {
       ctx.stroke();
     }
 
-    // the shaft of light up the middle, with pulses climbing it
-    const beam = ctx.createLinearGradient(x + w * 0.5 - w * 0.03, 0, x + w * 0.5 + w * 0.03, 0);
+    /* ---------- the shaft of light, and the pulse that climbs it ----------
+       One pulse at a time, built the way light behaves rather than as a
+       dot: a white-hot core, a gold bloom round it and a wide soft halo
+       that lights the room it passes through; a burning trail on the
+       shaft behind it; a four-point glint and a horizontal streak, as a
+       lens would see it. It leaves the far door slowly and accelerates,
+       and when it reaches the great eye the eye flares — a burst of rays
+       and a ring — then it spends itself at the eye above. */
+    const bxC = x + w * 0.5;
+    const P_LEN = 4.6;                                   // seconds per pulse
+    const q  = (t % P_LEN) / P_LEN;
+    const TRAVEL = 0.6;                                  // share of the cycle spent climbing
+    const Y0 = 0.74, Y1 = EYE_HIGH.y;                    // door to the top eye
+    const ease = (u) => Math.pow(u, 1.7);
+
+    // the shaft itself, a little brighter while something is in it
+    const live = q < TRAVEL ? Math.sin(Math.PI * q / TRAVEL) : 0;
+    const beam = ctx.createLinearGradient(bxC - w * 0.03, 0, bxC + w * 0.03, 0);
     beam.addColorStop(0,   "hsla(0,0%,0%,0)");
-    beam.addColorStop(0.5, `hsla(50,100%,88%,${0.12 + 0.05 * Math.sin(t * 0.9)})`);
+    beam.addColorStop(0.5, `hsla(50,100%,88%,${0.11 + 0.04 * Math.sin(t * 0.9) + 0.07 * live})`);
     beam.addColorStop(1,   "hsla(0,0%,0%,0)");
     ctx.fillStyle = beam;
     ctx.fillRect(x + w * 0.47, y, w * 0.06, h * 0.78);
 
-    for (let k = 0; k < 3; k++) {
-      const u = ((t * 0.19 + k / 3) % 1);
-      const py = y + h * (0.74 - u * 0.66);
-      const a  = Math.sin(u * Math.PI) * 0.5;
-      glow(x + w * 0.5, py, w * 0.05, 52, a * 0.5, 94);
+    if (q < TRAVEL) {
+      const u  = q / TRAVEL;
+      const f  = ease(u);
+      const py = y + h * (Y0 - f * (Y0 - Y1));
+      const a  = Math.min(1, u * 8) * Math.min(1, (1 - u) * 10);   // in and out
+      const flick = 0.9 + 0.1 * Math.sin(t * 37) * Math.sin(t * 23); // a live flame, not a lamp
+
+      // the trail it burns on the shaft, longer the faster it goes
+      const len = h * (0.05 + 0.16 * u);
+      const trail = ctx.createLinearGradient(0, py, 0, py + len);
+      trail.addColorStop(0, `hsla(48,100%,90%,${0.55 * a})`);
+      trail.addColorStop(0.3, `hsla(40,100%,70%,${0.22 * a})`);
+      trail.addColorStop(1, "hsla(30,100%,50%,0)");
+      ctx.fillStyle = trail;
+      ctx.fillRect(bxC - w * 0.009, py, w * 0.018, len);
+
+      // bloom: wide and faint, then tighter and brighter, then the core
+      glow(bxC, py, w * 0.42, 280, 0.07 * a, 70);        // the room it lights
+      glow(bxC, py, w * 0.16, 44,  0.32 * a * flick, 82);
+      glow(bxC, py, w * 0.06, 50,  0.75 * a * flick, 94);
+      glow(bxC, py, w * 0.022, 55, 1.0 * a, 100);
+
+      // a lens's view of it: a long thin horizontal streak and a glint
+      const shine = a * (0.75 + 0.25 * Math.sin(t * 9.0));
+      const sL = w * (0.22 + 0.08 * Math.sin(t * 2.3));
+      const streak = ctx.createLinearGradient(bxC - sL, 0, bxC + sL, 0);
+      streak.addColorStop(0,   "hsla(270,100%,80%,0)");
+      streak.addColorStop(0.5, `hsla(50,100%,97%,${0.95 * shine})`);
+      streak.addColorStop(1,   "hsla(190,100%,80%,0)");
+      ctx.fillStyle = streak;
+      ctx.fillRect(bxC - sL, py - PX * 0.5, sL * 2, PX);
+
+      const spike = (dx, dy, L) => {
+        const g = ctx.createLinearGradient(bxC, py, bxC + dx * L, py + dy * L);
+        g.addColorStop(0, `hsla(52,100%,97%,${0.9 * shine})`);
+        g.addColorStop(1, "hsla(52,100%,90%,0)");
+        ctx.strokeStyle = g;
+        ctx.lineWidth = PX;
+        ctx.beginPath(); ctx.moveTo(bxC, py); ctx.lineTo(bxC + dx * L, py + dy * L); ctx.stroke();
+      };
+      const gl = w * 0.07 * (0.8 + 0.4 * Math.sin(t * 6.1));
+      spike(0, -1, gl * 1.3); spike(0, 1, gl * 0.8);
+      const d45 = Math.SQRT1_2, gd = gl * 0.45;
+      spike(d45, d45, gd); spike(-d45, d45, gd); spike(d45, -d45, gd); spike(-d45, -d45, gd);
+    }
+
+    /* the great eye takes the hit: how long since the pulse passed it */
+    const fHit = (Y0 - EYE_BIG.y) / (Y0 - Y1);
+    const sinceEye = (q - Math.pow(fHit, 1 / 1.7) * TRAVEL) * P_LEN;
+    if (sinceEye >= 0 && sinceEye < 2.2) {
+      const k = Math.exp(-sinceEye * 2.4);
+      glow(E1.x, E1.y, w * 0.34, 40, 0.34 * k, 86);
+      glow(E1.x, E1.y, w * 0.10, 48, 0.9 * k, 98);
+      // rays bursting out of it, turning slightly as they fade
+      ctx.lineWidth = PX;
+      for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * Math.PI * 2 + sinceEye * 0.35 + (i % 2) * 0.13;
+        const L = w * (0.12 + 0.2 * (1 - k)) * (i % 2 ? 0.6 : 1);
+        const g = ctx.createLinearGradient(E1.x, E1.y, E1.x + Math.cos(ang) * L, E1.y + Math.sin(ang) * L);
+        g.addColorStop(0, `hsla(48,100%,95%,${0.85 * k})`);
+        g.addColorStop(1, "hsla(40,100%,70%,0)");
+        ctx.strokeStyle = g;
+        ctx.lineWidth = PX * (i % 2 ? 1 : 2);
+        ctx.beginPath();
+        ctx.moveTo(E1.x, E1.y);
+        ctx.lineTo(E1.x + Math.cos(ang) * L, E1.y + Math.sin(ang) * L);
+        ctx.stroke();
+      }
+      // and a ring going out through the room
+      ctx.strokeStyle = `hsla(46,100%,82%,${0.42 * k})`;
+      ctx.lineWidth = PX * (1 + k);
+      ctx.beginPath();
+      ctx.arc(E1.x, E1.y, w * (0.04 + 0.5 * (1 - k)), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    /* and spends what is left at the eye above the apex */
+    const sinceTop = (q - TRAVEL) * P_LEN;
+    if (sinceTop >= 0 && sinceTop < 1.6) {
+      const k = Math.exp(-sinceTop * 3);
+      glow(E2.x, E2.y, w * 0.22, 196, 0.3 * k, 88);
+      glow(E2.x, E2.y, w * 0.06, 52, 0.85 * k, 99);
     }
 
     /* light moving across the crystal — three slow bands, as though
