@@ -30,7 +30,13 @@ SRC = f"{ROOT}/art/scenes/tree-source.png"
 # THING -- it made the doorway read as a picture of a mushroom rather than
 # as a place. Nothing nameable may be in here. The realm has to be texture
 # and depth, not objects.
-CROP = (0.442, 0.444, 0.621, 0.930)   # the doorway's own gap
+# The BRIGHT part of the gap, not all of it.
+#
+# The opening's own top is in shadow -- brightness 68 against 120 to 200
+# further down -- and lifting the whole gap meant that dark band drifted
+# up through the arch and left the top of the doorway looking unfilled.
+# Starting below it takes only the lit column.
+CROP = (0.442, 0.560, 0.621, 0.930)
 OUT_W = 220
 
 
@@ -45,6 +51,17 @@ def main():
     strip = strip.resize((ow, oh), Image.LANCZOS)
 
     a = np.asarray(strip).astype(float)
+
+    # Even it out along its length.
+    #
+    # Whatever gradient the painting has becomes a band of dark or light
+    # travelling slowly up the doorway, which reads as a fault rather than
+    # as movement. Each row is pulled most of the way toward the strip's
+    # average, so the colour still varies but the BRIGHTNESS does not drift.
+    # It also hides the join where the mirror meets.
+    rows = a.mean(axis=(1, 2), keepdims=True)
+    a = a * (0.78 * (a.mean() / np.maximum(rows, 1)) + 0.22)
+    a = np.clip(a, 0, 255)
 
     # push the colour out: this sits behind a doorway in a green tree and has
     # to read as somewhere else entirely
