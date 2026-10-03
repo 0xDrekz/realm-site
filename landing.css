@@ -81,6 +81,20 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 
 #tree.ready{opacity:1}
 
+/* The portal sits over the tree and under everything written on it.
+
+   It has its own canvas because it has its own resolution. The tree is
+   drawn at half the screen so it reads as pixel art; the doorway is drawn
+   at the full screen so it reads as somewhere with more in it than the
+   wood around it. That difference is the effect — you should be able to
+   SEE that the realm is finer-grained than the tree it is inside. */
+#portal{
+  position:absolute;inset:0;width:100%;height:100%;
+  display:block;pointer-events:none;z-index:1;
+  opacity:0;transition:opacity 1.1s ease-out;
+}
+#portal.ready{opacity:1}
+
 .gate-in{
   position:absolute;inset:0;
   display:flex;flex-direction:column;align-items:center;justify-content:flex-end;

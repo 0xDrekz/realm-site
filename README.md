@@ -202,6 +202,47 @@ down the tree, so what you see is a bend travelling up through the branches;
 a slow envelope on top makes it arrive in gusts. Bands never move up or
 down — that tears a gap above them.
 
+## The portal in the doorway
+
+The door in the tree is **ajar**, with a carved panel and a gap beside it.
+The portal fills that gap, and the panel stays in front of it — which is a
+better picture than an empty frame and also less work than removing the door.
+
+`#portal` is its own canvas at the **full screen resolution**, while the tree
+draws at half. That is the effect: what is through the doorway carries more
+detail than the wood around it, and you can see the grain change at the
+threshold. A pattern of six interfering waves drifts through it, cut into
+twelve vivid steps — magenta, violet, acid green, red, orange — colours that
+appear nowhere else on the screen.
+
+### Why it used to look the same as the tree
+
+`flowDoor` lifted the picture's OWN colours out of the arch, blurred them,
+and scrolled them back with `globalCompositeOperation = "lighter"` at half
+alpha. Compositing that way can only ever brighten what is already there, so
+the doorway could never be any colour but the tree's. The portal is generated
+instead, and drawn over rather than added to.
+
+### The mask is measured, and it is alpha
+
+`tools/doormask.py` reads the opening off the artwork — inside the arch the
+painter used violet and cyan, outside it the stone is olive, and that one
+comparison separates them. A rectangle eyeballed over the arch spills at the
+shoulders, where the frame curves in and the opening does not.
+
+Two things it had to be taught:
+
+- **The shape has to be in the ALPHA channel.** A greyscale mask looks
+  correct in an image viewer and does nothing in a browser: canvas
+  `destination-in` keeps pixels by alpha, and a grey PNG loads fully opaque,
+  so every pixel is kept and the portal comes out as its bounding rectangle.
+- **The painted light spills left along the step** at the foot of the arch.
+  Physically right, and wrong here — it puts the portal outside the doorway,
+  on the threshold, which is the one thing it must not do. Below the door
+  panel the mask is clipped to the gap's own column.
+
+Measured after: 0 vivid pixels anywhere outside the column, and 55 fps.
+
 ## The light, and why the pictures were soft
 
 Both scenes were mush, and the complaint — "more light bulb and better
