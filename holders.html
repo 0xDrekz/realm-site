@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03010a">
+<title>REALM — Holders</title>
+<meta name="description" content="What a wallet earns from the REALM holder pool: look up any address, or build a holding and see the range.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="landing.css">
+<link rel="stylesheet" href="holders.css">
+</head>
+<body class="holders">
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="REALM — back to the door">
+    <img class="brandmark" src="logo-bar.png" width="96" height="96" alt="">
+    <span class="mark">REALM <b data-ticker></b></span>
+  </a>
+  <nav class="top-links" aria-label="Elsewhere"><a class="h-back" href="/">&larr; The realm</a></nav>
+</header>
+
+<main class="h-page">
+  <section class="h-head">
+    <p class="eyebrow">Holders</p>
+    <h1>What a wallet earns</h1>
+    <p class="lede">When the mint closes, <b data-pool-pct></b> of what it took is shared
+    among everyone holding a being. Your slice is your beings' weight, multiplied by your
+    <span data-token></span> band, against everyone else's.</p>
+    <div class="h-stats">
+      <div><span>Pool</span><b class="num" data-pool></b><i data-pool-note></i></div>
+      <div><span>Beings</span><b class="num" data-total></b><i>in the collection</i></div>
+      <div><span>Weight</span><b class="num" data-weight></b><i>points in all</i></div>
+      <div><span>Paid</span><b>Once</b><i>from a snapshot when the mint closes</i></div>
+    </div>
+  </section>
+
+  <!-- ============ look up a wallet ============ -->
+  <section class="h-card" id="lookup">
+    <h2>Look up a wallet</h2>
+    <p class="h-note">Paste any Solana address. Nothing is connected or signed, and it does
+    not have to be yours.</p>
+    <div class="h-find">
+      <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="Solana address" aria-label="Solana address">
+      <button type="button" class="h-go">Look up</button>
+    </div>
+    <div class="h-out" aria-live="polite"></div>
+  </section>
+
+  <!-- ============ what if ============ -->
+  <section class="h-card" id="build">
+    <h2>What if</h2>
+    <p class="h-note">Build a holding and see what it earns. Everything updates as you go.</p>
+
+    <div class="h-tiers" data-tiers></div>
+
+    <div class="h-token">
+      <label for="tok"><span data-token></span> held</label>
+      <div class="h-tok-row">
+        <input id="tok" type="range" min="0" max="5" step="1" value="0" aria-describedby="tok-out">
+        <output id="tok-out" class="num"></output>
+      </div>
+      <div class="h-bands" data-bands></div>
+    </div>
+
+    <div class="h-result" data-result></div>
+  </section>
+
+  <!-- ============ leaderboard ============ -->
+  <section class="h-card" id="board">
+    <h2>Top holders</h2>
+    <div class="h-board" data-board><p class="h-note">Reading the chain…</p></div>
+  </section>
+
+  <!-- ============ how ============ -->
+  <section class="h-card" id="how">
+    <h2>How it is worked out</h2>
+    <div class="h-formula">
+      <p><b>Your points</b> = the weights of your beings added up &times; your <span data-token></span> multiplier.</p>
+      <p><b>Your payout</b> = the pool &times; your points &divide; everyone's points added up.</p>
+    </div>
+    <div class="h-weights" data-weights></div>
+    <p class="h-note">Because everyone else's <span data-token></span> counts against yours,
+    nobody can know their exact payout before the snapshot. That is why this page always
+    gives a range:</p>
+    <ul class="h-range-key">
+      <li><b>Low</b> &mdash; every other holder is in the top <span data-token></span> band.</li>
+      <li><b>Typical</b> &mdash; everyone is in the same band as you. The multipliers cancel out,
+        so this is your weight's share of all the weight.</li>
+      <li><b>High</b> &mdash; nobody else holds any <span data-token></span>.</li>
+    </ul>
+    <p class="h-note">All three assume every being is minted. A smaller mint means a smaller
+    pool, shared among fewer beings. <span data-token></span> on its own earns nothing; it only
+    multiplies beings. This is an estimate, not a promise, and not financial advice.</p>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script src="holders.js"></script>
+</body>
+</html>
