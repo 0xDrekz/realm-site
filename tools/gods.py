@@ -58,7 +58,18 @@ ENTITY_FIGURES = {
     "Crowned Serpent":  ("entity-crowned-serpent.jpg",  0.06, 8,  None),
     "Deep One":         ("entity-deep-one.jpg",         0.10, 8,  None),
 }
-FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES}
+MYTHIC_FIGURES = {
+    "Cube Sentinel":  ("mythic-cube-sentinel.jpg", 0.10, 10, None),
+    "Antler Sprite":  ("mythic-antler-sprite.jpg", 0.06, 8,  None),
+    "Shard Knight":   ("mythic-shard-knight.jpg",  0.06, 8,  None),
+    "Eye Architect":  ("mythic-eye-architect.jpg", 0.10, 14, None),
+}
+FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES, **MYTHIC_FIGURES}
+
+# Figures drawn as thin white lines land on the palest stop of every ramp
+# and come out white whatever they wear. Their brightness is capped here so
+# the lines sit on the colour.
+TONE = {"Eye Architect": 0.74, "Cube Sentinel": 0.9}
 
 D = (5, 3, 14)
 # shadow to light, five stops each; one colourway per God
@@ -87,7 +98,19 @@ RAMPS.update({
     "Eclipse":  [D, (40, 40, 52), (110, 110, 130), (220, 220, 236), (255, 70, 56)],
 })
 ENTITY_COLOURWAYS = ["Ichor", "Sapphire", "Molten", "Auric", "Bloom", "Eclipse"]
-PALETTE = {"Auric": "Aurum"}          # sky palette, where its name differs
+
+# The Mythics wear the five rarest of the general set; none is a God's or
+# an Entity's own.
+RAMPS.update({
+    "Abyss":   [D, (10, 30, 90), (40, 110, 220), (130, 210, 255), (230, 250, 255)],
+    "Ossuary": [D, (50, 48, 56), (140, 136, 150), (226, 222, 230), (255, 252, 240)],
+    "Furnace": [D, (80, 16, 8), (210, 70, 24), (255, 160, 50), (255, 236, 180)],
+})
+# Ossuary was in this list; with Eclipse beside it, four Mythics in every
+# ten came out silver-grey. Furnace puts fire in their place.
+MYTHIC_COLOURWAYS = ["Abyss", "Furnace", "Auric", "Bloom", "Eclipse"]
+
+PALETTE = {"Auric": "Aurum", "Abyss": "Deep", "Ossuary": "Bone", "Furnace": "Ember"}   # sky palette, where its name differs
 
 GEOMETRY = ["Metatron", "Flower", "Yantra", "Mandala", "Rosette",
             "Gatefold", "Spiral", "Weird", "Lattice", "Rays"]
@@ -180,7 +203,7 @@ def render_god(t, seed):
     bg = over(bg, traits.trees(w, h, t["Trees"], pal, seed))
     back = bg[..., :3].astype(float)
 
-    col = _ramp(RAMPS[cw], g)
+    col = _ramp(RAMPS[cw], g * TONE.get(t["Being"], 1.0))
     # outside the figure its own halo and stars are kept, as light over the scene
     lit = 255 - (255 - back) * (255 - col * 0.7) / 255
     out = col * soft[..., None] + lit * (1 - soft[..., None])
@@ -248,24 +271,57 @@ def deal_entities(seed=2020):
     return out
 
 
+def deal_mythics(seed=3030):
+    """Forty Mythics, ten of each figure. Within a figure every geometry
+    once and every colourway twice, never the same pairing twice anywhere;
+    one to three scene traits each, quieter again than an Entity."""
+    rng = np.random.default_rng(seed)
+    out, used = [], set()
+    for b in MYTHIC_FIGURES:
+        geos = list(GEOMETRY); rng.shuffle(geos)
+        cws = MYTHIC_COLOURWAYS * 2; rng.shuffle(cws)
+        mine = []
+        for k in range(10):
+            cw, g = cws[k], geos[k]
+            used.add((b, cw, g))
+            t = {"Being": b, "Colourway": cw, "Geometry": g,
+                 "Aura": AURAS[int(rng.integers(len(AURAS)))]}
+            seen = [frozenset(e for e in EVENTS if m[e] != "None") for m in mine]
+            for _ in range(200):
+                on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(1, 4)), replace=False))
+                if on not in seen:
+                    break
+            for e, vals in EVENTS.items():
+                t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
+            mine.append(t)
+        out += mine
+    return out
+
+
 def main():
     tier = sys.argv[1] if len(sys.argv) > 1 else "god"
     out = sys.argv[2] if len(sys.argv) > 2 else f"{ROOT}/out/{tier}"
     os.makedirs(out, exist_ok=True)
-    rows = deal() if tier == "god" else deal_entities()
-    per = 2 if tier == "god" else 4
+    rows = {"god": deal, "entity": deal_entities, "mythic": deal_mythics}[tier]()
+    per = {"god": 2, "entity": 4, "mythic": 10}[tier]
     pics = []
     for i, t in enumerate(rows, 1):
-        p = render_god(t, seed=(7000 if tier == "god" else 8000) + i)
+        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000}[tier] + i)
         p.save(f"{out}/{tier}-{i}.png", optimize=True)
         pics.append(p)
         print(i, t)
     json.dump(rows, open(f"{out}/{tier}s.json", "w"), indent=2)
-    size = 480 if tier == "god" else 360
-    sheet = Image.new("RGB", (5 * size, per * size))
-    for i, p in enumerate(pics):
-        # each column one figure, its beings above each other
-        sheet.paste(p.resize((size, size), Image.BOX), ((i // per) * size, (i % per) * size))
+    size = {"god": 480, "entity": 360, "mythic": 240}[tier]
+    cols = len(rows) // per
+    if tier == "mythic":            # one row per figure reads better than a tall column
+        sheet = Image.new("RGB", (per * size, cols * size))
+        for i, p in enumerate(pics):
+            sheet.paste(p.resize((size, size), Image.BOX), ((i % per) * size, (i // per) * size))
+    else:
+        sheet = Image.new("RGB", (cols * size, per * size))
+        for i, p in enumerate(pics):
+            # each column one figure, its beings above each other
+            sheet.paste(p.resize((size, size), Image.BOX), ((i // per) * size, (i % per) * size))
     sheet.save(f"{out}/sheet.png")
 
 
