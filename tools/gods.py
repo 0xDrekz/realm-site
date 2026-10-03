@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-REALM — the ten Gods.
+REALM — the ten Gods and the twenty Entities.
 
-    python3 tools/gods.py [out-dir]       renders all ten and a contact sheet
+    python3 tools/gods.py god [out-dir]       the ten Gods and a contact sheet
+    python3 tools/gods.py entity [out-dir]    the twenty Entities likewise
 
 The Gods are not line art. Each of the five figures arrives as a finished
 greyscale picture with its own halo and its own stars, so they are not put
@@ -42,13 +43,22 @@ GRID = 600
 SCALE = 0.84
 
 # name: (master, how dark the sky is, how hard to close the silhouette, where it may be)
-FIGURES = {
+GOD_FIGURES = {
     "Star Herald":   ("god-star-herald.jpg",   0.10, 8,  None),
     "Mask Wraith":   ("god-mask-wraith.jpg",   0.045, 26, None),
     "Still One":     ("god-still-one.jpg",     0.05, 8,  None),
     "Temple Warden": ("god-temple-warden.jpg", 0.07, 10, 175),    # inside the pillars
     "Galaxy Weaver": ("god-galaxy-weaver.jpg", 0.06, 8,  None),
 }
+
+ENTITY_FIGURES = {
+    "Grinning Fractal": ("entity-grinning-fractal.jpg", 0.06, 10, None),
+    "Smoke Sprite":     ("entity-smoke-sprite.jpg",     0.07, 10, None),
+    "Mushroom Elder":   ("entity-mushroom-elder.jpg",   0.06, 8,  None),
+    "Crowned Serpent":  ("entity-crowned-serpent.jpg",  0.06, 8,  None),
+    "Deep One":         ("entity-deep-one.jpg",         0.10, 8,  None),
+}
+FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES}
 
 D = (5, 3, 14)
 # shadow to light, five stops each; one colourway per God
@@ -64,6 +74,20 @@ RAMPS = {
     "Ultraviolet": [D, (40, 10, 110), (110, 50, 255), (170, 255, 80), (246, 255, 220)],
     "Rose Quartz": [D, (70, 30, 50), (220, 120, 160), (255, 196, 210), (255, 246, 236)],
 }
+GOD_COLOURWAYS = list(RAMPS)
+
+# The Entities' six: three of their own and the three rarest of the general
+# set. None is a God's, so every God's colour stays a one-of-one.
+RAMPS.update({
+    "Ichor":    [D, (20, 60, 20), (90, 200, 50), (190, 255, 110), (245, 255, 220)],
+    "Sapphire": [D, (14, 26, 90), (40, 80, 220), (120, 170, 255), (255, 226, 140)],
+    "Molten":   [D, (70, 20, 8), (200, 70, 14), (255, 150, 40), (255, 236, 170)],
+    "Auric":    [D, (70, 46, 8), (180, 130, 30), (250, 210, 100), (255, 250, 220)],
+    "Bloom":    [D, (70, 8, 56), (210, 50, 160), (255, 140, 220), (200, 255, 240)],
+    "Eclipse":  [D, (40, 40, 52), (110, 110, 130), (220, 220, 236), (255, 70, 56)],
+})
+ENTITY_COLOURWAYS = ["Ichor", "Sapphire", "Molten", "Auric", "Bloom", "Eclipse"]
+PALETTE = {"Auric": "Aurum"}          # sky palette, where its name differs
 
 GEOMETRY = ["Metatron", "Flower", "Yantra", "Mandala", "Rosette",
             "Gatefold", "Spiral", "Weird", "Lattice", "Rays"]
@@ -91,6 +115,11 @@ def figure(name):
     side = min(w, h)
     im = im.crop(((w - side) // 2, h - side, (w - side) // 2 + side, h))
     g = np.asarray(im.resize((GRID, GRID), Image.BOX)).astype(float) / 255
+    # Some pictures arrive on dark grey rather than black. The border's own
+    # level is taken as black, so the sky reads as sky and not as a slab.
+    border = np.concatenate([g[:8].ravel(), g[:, :8].ravel(), g[:, -8:].ravel()])
+    bg = float(np.median(border))
+    g = np.clip((g - bg) / max(1e-6, 1 - bg), 0, 1)
 
     s = ndimage.gaussian_filter(ndimage.median_filter(g, 7), 3)
     dark = s < dark_at
@@ -135,7 +164,7 @@ def _ramp(stops, v):
 def render_god(t, seed):
     g, soft = figure(t["Being"])
     cw = t["Colourway"]
-    pal = _flora_palette(_aura_palette(dict(BY_NAME[cw]), t["Aura"]), "Golden")
+    pal = _flora_palette(_aura_palette(dict(BY_NAME[PALETTE.get(cw, cw)]), t["Aura"]), "Golden")
     w = h = GRID
 
     bg = np.zeros((h, w, 4), np.uint8); bg[..., 3] = 255
@@ -167,8 +196,8 @@ def deal(seed=1010):
     """Ten Gods: unique colourway and geometry each, and the two of a figure
     as unlike each other as the lists allow."""
     rng = np.random.default_rng(seed)
-    beings = [b for b in FIGURES for _ in range(2)]
-    cws = list(RAMPS); rng.shuffle(cws)
+    beings = [b for b in GOD_FIGURES for _ in range(2)]
+    cws = list(GOD_COLOURWAYS); rng.shuffle(cws)
     geos = list(GEOMETRY); rng.shuffle(geos)
     gods = []
     for i, b in enumerate(beings):
@@ -189,22 +218,54 @@ def deal(seed=1010):
     return gods
 
 
+def deal_entities(seed=2020):
+    """Twenty Entities, four of each figure. Within a figure no two share a
+    colourway or a geometry; across all twenty no two share a colourway AND
+    a geometry; two or three things happen round each, never the same set
+    as another of its figure."""
+    rng = np.random.default_rng(seed)
+    out, used = [], set()
+    for b in ENTITY_FIGURES:
+        cws = list(ENTITY_COLOURWAYS); rng.shuffle(cws)
+        geos = list(GEOMETRY); rng.shuffle(geos)
+        mine = []
+        for k in range(4):
+            cw = cws[k]
+            g = next(x for x in geos if (cw, x) not in used and x not in [m["Geometry"] for m in mine])
+            used.add((cw, g))
+            t = {"Being": b, "Colourway": cw, "Geometry": g,
+                 "Aura": AURAS[int(rng.integers(len(AURAS)))]}
+            seen = [frozenset(e for e in EVENTS if m[e] != "None") for m in mine]
+            for _ in range(200):
+                on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(2, 4)), replace=False))
+                if on not in seen:
+                    break
+            for e, vals in EVENTS.items():
+                # one step quieter than a God's: never the loudest value
+                t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
+            mine.append(t)
+        out += mine
+    return out
+
+
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else f"{ROOT}/out/gods"
+    tier = sys.argv[1] if len(sys.argv) > 1 else "god"
+    out = sys.argv[2] if len(sys.argv) > 2 else f"{ROOT}/out/{tier}"
     os.makedirs(out, exist_ok=True)
-    gods = deal()
+    rows = deal() if tier == "god" else deal_entities()
+    per = 2 if tier == "god" else 4
     pics = []
-    for i, t in enumerate(gods, 1):
-        p = render_god(t, seed=7000 + i)
-        p.save(f"{out}/god-{i}.png", optimize=True)
+    for i, t in enumerate(rows, 1):
+        p = render_god(t, seed=(7000 if tier == "god" else 8000) + i)
+        p.save(f"{out}/{tier}-{i}.png", optimize=True)
         pics.append(p)
         print(i, t)
-    json.dump(gods, open(f"{out}/gods.json", "w"), indent=2)
-    size = 480
-    sheet = Image.new("RGB", (5 * size, 2 * size))
+    json.dump(rows, open(f"{out}/{tier}s.json", "w"), indent=2)
+    size = 480 if tier == "god" else 360
+    sheet = Image.new("RGB", (5 * size, per * size))
     for i, p in enumerate(pics):
-        # each column one figure, its two Gods above each other
-        sheet.paste(p.resize((size, size), Image.BOX), ((i // 2) * size, (i % 2) * size))
+        # each column one figure, its beings above each other
+        sheet.paste(p.resize((size, size), Image.BOX), ((i // per) * size, (i % per) * size))
     sheet.save(f"{out}/sheet.png")
 
 
