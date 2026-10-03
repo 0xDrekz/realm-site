@@ -51,7 +51,11 @@
 <!-- the door in the tree -->
 <main class="gate">
   <canvas id="tree" aria-hidden="true"></canvas>
-
+  <!-- what is through the doorway. Its own canvas, at the full screen
+       resolution rather than the tree's half, so the realm carries more
+       detail than the wood around it — you should see the grain change at
+       the threshold. -->
+  <canvas id="portal" aria-hidden="true"></canvas>
 
 
   <div class="gate-in">
@@ -73,14 +77,6 @@
   </div>
 </main>
 
-<!-- Going through the door is a film. It is never shown as a video: it
-     plays unseen and gate.js draws its frames into the tree's canvas, so
-     the whole journey stays on one pixel grid. It sits outside .gate
-     because .gate fades when you enter. -->
-<video id="rush" muted playsinline preload="auto" aria-hidden="true">
-  <source src="gate.webm" type="video/webm">
-  <source src="gate.mp4" type="video/mp4">
-</video>
 
 <!-- where you come out: the chamber -->
 <div class="journey" hidden>
