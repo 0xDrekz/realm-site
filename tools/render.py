@@ -272,7 +272,7 @@ def facet(drawn, weave, seed=0):
         # is small, is its eye
         d = [np.hypot(cy - cy0, cx - cx0) for cy, cx in com]
         k = int(np.argmin(d))
-        if sizes[k] < inner.sum() * 0.08:
+        if sizes[k] < inner.sum() * 0.03 and com[k][0] < top + (bot - top) * 0.55:
             centre = k + 1
         for i, (cy, cx) in enumerate(com, start=1):
             m = lab == i
