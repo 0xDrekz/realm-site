@@ -30,9 +30,9 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-import patterns, traits, parts as bodyparts
+import patterns, traits, finishes, parts as bodyparts
 from compose import over, tint, shade, eyes
-from scene import outline
+from inking import outline
 
 
 def _ramp(stops, n=17, vivid=1.0):
@@ -141,7 +141,7 @@ def _volume(drawn, body, strength=1.0):
     return lam * flat * strength * body
 
 
-def dress(drawn, weave, rim=True, volume=1.0):
+def dress(drawn, weave, rim=True, volume=1.0, tone=None):
     """Colour a being part by part, keeping the drawing's own shading.
 
     The parts come from tools/parts.py. Two colours per part was not enough:
@@ -159,6 +159,13 @@ def dress(drawn, weave, rim=True, volume=1.0):
     if inside.size:
         lo, hi = np.percentile(inside, 2), np.percentile(inside, 98)
         v = np.clip((v - lo) / max(hi - lo, 1e-6), 0, 1)
+
+    # The plain beings are drawn nearly white all over, so every colourway
+    # landed on the palest stop of its ramp and four hundred Commons came out
+    # white with a tint. A tone range pulls the drawing down into the middle
+    # of the ramp, where the colour actually is.
+    if tone:
+        v = tone[0] + v * (tone[1] - tone[0])
 
     # what the artist drew that a smooth ramp throws away: every line, scale
     # and crease is a local departure from the surrounding tone
@@ -217,6 +224,123 @@ def dress(drawn, weave, rim=True, volume=1.0):
         col[edge & ~up] = np.clip(col[edge & ~up] * 1.35 + 34, 0, 255)
 
     return np.dstack([np.clip(col, 0, 255), np.where(body, 255, 0)]).astype(np.uint8)
+
+
+def facet(drawn, weave, seed=0):
+    """Colour line art that is not a body: a crystal, a lotus, an eye.
+
+    dress() reads a figure as crown, face, wings, arms and body by where each
+    part sits, which is right for a creature and wrong for a gem: a crystal
+    came out patchy, with its lines left white. Here the drawn lines are the
+    edges and every closed shape between them is a facet. Each facet is
+    filled with its own step of the colourway's ramp, lighter toward the top
+    left, so it reads as cut stone catching light; the lines run in the
+    colourway's bright colours top to bottom; and an enclosed shape at the
+    very centre (an eye, usually) is lit.
+
+    Expects the drawing's lines at full strength and its solid body, if
+    any, faint: lines 255, body around 70.
+    """
+    h, w = drawn.shape
+    line = drawn > 160
+    body = drawn > 20
+    vivid = weave.get("vivid", 1.0)
+
+    def col(name, k):
+        spec = weave[name]
+        if isinstance(spec, dict):
+            spec = spec["a"]
+        r = _ramp(spec, vivid=vivid)
+        return r[int(np.clip(k, 0, 1) * (len(r) - 1))]
+
+    out = np.zeros((h, w, 3), float)
+    yy, xx = np.mgrid[0:h, 0:w]
+    ys, xs = np.where(body) if body.any() else np.where(line)
+    top, bot = ys.min(), max(ys.max(), ys.min() + 1)
+    left, right = xs.min(), max(xs.max(), xs.min() + 1)
+
+    # facets: the closed shapes inside the body, between the lines
+    inner = body & ~line
+    lab, n = ndimage.label(inner)
+    rng = np.random.default_rng(seed + 404)
+    cy0, cx0 = (top + bot) / 2, (left + right) / 2
+    centre = None
+    if n:
+        com = ndimage.center_of_mass(inner, lab, range(1, n + 1))
+        sizes = ndimage.sum(inner, lab, range(1, n + 1))
+        # the facet whose middle is nearest the middle of the figure, if it
+        # is small, is its eye
+        d = [np.hypot(cy - cy0, cx - cx0) for cy, cx in com]
+        k = int(np.argmin(d))
+        if sizes[k] < inner.sum() * 0.03 and com[k][0] < top + (bot - top) * 0.55:
+            centre = k + 1
+        for i, (cy, cx) in enumerate(com, start=1):
+            m = lab == i
+            # lit from the upper left, plus a little of each facet's own
+            lit = 1 - (0.55 * (cy - top) / (bot - top) + 0.45 * (cx - left) / (right - left))
+            k = np.clip(0.18 + lit * 0.55 + rng.uniform(-0.12, 0.12), 0.08, 0.85)
+            part = "Wings" if (cy - top) / (bot - top) > 0.5 else "Body"
+            out[m] = col(part, k)
+            # a dithered sheen across the top of each facet
+            fy = (yy - cy) / max(1, np.sqrt(m.sum()))
+            sheen = m & (fy < -0.15) & (((yy + xx) % 3) == 0)
+            out[sheen] = np.minimum(out[sheen] * 1.35 + 20, 255)
+
+    # the lines: bright, running from the crown colour at the top to the
+    # arms colour at the bottom
+    g = np.clip((yy - top) / (bot - top), 0, 1)
+    a = np.array([col("Crown", 0.82)]) ; b = np.array([col("Arms", 0.72)])
+    lines_rgb = a[0] * (1 - g[..., None]) + b[0] * g[..., None]
+    out[line] = lines_rgb[line]
+
+    if centre is not None:
+        m = lab == centre
+        out[m] = col("Face", 0.95)
+        core = ndimage.binary_erosion(m, iterations=2)
+        out[core] = (255, 255, 255)
+
+    alpha = np.where(body | line, 255, 0)
+    return np.dstack([np.clip(out, 0, 255), alpha]).astype(np.uint8)
+
+
+def neon(drawn, weave, seed=0):
+    """Line art as glowing lines in three colours on dark glass.
+
+    The pattern figures carry three levels of line (255 the outline, 225 the
+    inner pattern, 195 fine detail) over a faint body (70). Each level takes
+    its own colour from the colourway — the crown, the wings, the arms —
+    so a pyramid's outline, its triangles and its jewels come out three
+    colours, the way neon is drawn; the body behind them is the colourway's
+    deepest shade, so the lines read as light."""
+    h, w = drawn.shape
+    vivid = weave.get("vivid", 1.0)
+
+    def col(name, k):
+        spec = weave[name]
+        if isinstance(spec, dict):
+            spec = spec["a"]
+        r = _ramp(spec, vivid=vivid)
+        return r[int(np.clip(k, 0, 1) * (len(r) - 1))]
+
+    out = np.zeros((h, w, 3), float)
+    body = drawn > 20
+    lv0 = drawn > 240
+    lv1 = (drawn > 210) & ~lv0
+    lv2 = (drawn > 160) & ~lv0 & ~lv1
+    yy = np.mgrid[0:h, 0:w][0]
+    ys = np.where(body)[0]
+    top, bot = (ys.min(), max(ys.max(), ys.min() + 1)) if ys.size else (0, h)
+    g = np.clip((yy - top) / (bot - top), 0, 1)[..., None]
+    deep = col("Body", 0.10) * (1 - g) + col("Base", 0.16) * g
+    out[body] = deep[body]
+    out[lv2] = col("Arms", 0.86)
+    out[lv1] = col("Wings", 0.78)
+    out[lv0] = col("Crown", 0.80)
+    # a glow one pixel out from the outline, in its own colour, dimmed
+    halo = ndimage.binary_dilation(lv0, iterations=1) & ~(lv0 | lv1 | lv2)
+    out[halo] = out[halo] * 0.4 + col("Crown", 0.6) * 0.6
+    alpha = np.where(body | halo | lv0 | lv1 | lv2, 255, 0)
+    return np.dstack([np.clip(out, 0, 255), alpha]).astype(np.uint8)
 
 
 def _hue_shift(rgb, deg):
@@ -308,8 +432,44 @@ def _limit(img, colours):
     return q.convert("RGB")
 
 
+def footing(w, h, cx, fy, rx, pal):
+    """Something for the being to stand ON.
+
+    It used to float: the floor was a band behind it and nothing joined the
+    two, so it read as cut out and laid over the picture. Two things fix
+    that, both dithered so they stay on the pixel grid: a pool of light on
+    the ground round its feet in the being's own colour, and a hard contact
+    shadow right under them.
+    """
+    from compose import _dither
+    out = np.zeros((h, w, 4), np.uint8)
+    yy, xx = np.mgrid[0:h, 0:w]
+
+    weave = pal.get("weave") or {}
+    body = weave.get("Body")
+    if isinstance(body, dict):
+        body = body["a"]
+    lit = np.array(body[2] if body else pal.get("ground_lit", (120, 100, 200)), float)
+    lit = tuple(int(c) for c in np.clip(lit * 0.75 + 30, 0, 255))
+
+    # the pool of light, wide and flat, fading out from the middle
+    ry = rx * 0.26
+    d = np.sqrt(((xx - cx) / (rx * 1.7)) ** 2 + ((yy - fy) / (ry * 1.7)) ** 2)
+    field = np.clip(1 - d, 0, 1) ** 1.4 * 0.55
+    m = _dither(field, 0) & (d < 1)
+    out[m] = list(lit) + [150]
+
+    # the shadow, tighter and dark, densest right under the feet
+    d = np.sqrt(((xx - cx) / rx) ** 2 + ((yy - fy) / ry) ** 2)
+    field = np.clip(1 - d, 0, 1) ** 0.7 * 0.95
+    m = _dither(field, 3) & (d < 1)
+    out[m] = list(pal.get("ink", (8, 5, 12))) + [235]
+    return out
+
+
 def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
-           eye_mode="holes", fill=0.82, colours=48, phase=None):
+           eye_mode="holes", fill=0.82, colours=48, phase=None, tone=None):
+    finish = t.get("Finish", "None")
     w = h = canvas
     rng = np.random.default_rng(seed ^ 0x5EED)
     pal = _aura_palette(pal, t.get("Aura", "Opposed"))
@@ -345,8 +505,18 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
     art.resize((s, s), Image.NEAREST).save(tmp)
     drawn = np.asarray(Image.open(tmp).convert("RGBA"))[:, :, 3]
-    if pal.get("weave"):
-        lay = dress(drawn, pal["weave"], volume=t.get("Volume", 1.6))
+    if mode == "own":
+        # a drawing that arrives already coloured keeps its own colours;
+        # only its silhouette is taken from the alpha
+        own = np.asarray(Image.open(tmp).convert("RGBA")).copy()
+        own[:, :, 3] = np.where(own[:, :, 3] > 40, 255, 0)
+        lay = own
+    elif mode == "neon" and pal.get("weave"):
+        lay = neon(drawn, pal["weave"], seed)
+    elif mode == "facet" and pal.get("weave"):
+        lay = facet(drawn, pal["weave"], seed)
+    elif pal.get("weave"):
+        lay = dress(drawn, pal["weave"], volume=t.get("Volume", 1.6), tone=tone)
     elif mode == "shade":
         lay = shade(tmp, pal["shadow"], pal["mid"], pal["light"], None)
     else:
@@ -372,6 +542,18 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     # the floor and what grows on it, far to near
     # every being stands on something
     base = over(base, traits.ground(w, h, "Floor", pal, seed))
+
+    # where its feet are: the lowest drawn row, and the middle of what is
+    # drawn just above it
+    ys, xs = np.where(drawn > 40)
+    if ys.size:
+        foot = ys.max()
+        low = xs[ys > foot - max(2, s * 0.06)]
+        fx = nx + (low.min() + low.max()) / 2
+        rx = max(6.0, (low.max() - low.min()) * 0.62)
+        fy = ny + foot - 1
+        if fy < h:
+            base = over(base, footing(w, h, fx, fy, rx, pal))
     base = over(base, traits.trees(w, h, t.get("Trees", "None"), pal, seed))
     base = over(base, traits.mushrooms(w, h, t.get("Mushrooms", "None"), pal, seed))
 
@@ -393,7 +575,9 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
             k = np.clip(behind / max(behind.max(), 1), 0, 1) * 96
             hold[edge, :3] = np.clip(hold[edge, :3].astype(float) + k[None, :],
                                      0, 255).astype(np.uint8)
+    hold = finishes.being(hold, finish, seed)
     base = over(base, hold)
+    base = finishes.picture(base, finish, seed, skin)
 
     flat = _limit(Image.fromarray(base, "RGBA").convert("RGB"), colours)
     return flat.resize((w*scale, h*scale), Image.NEAREST)

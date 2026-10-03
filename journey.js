@@ -5,7 +5,7 @@
 
    The room is a still picture, so everything that makes it feel
    inhabited is drawn over it: the light in the eyes and the doorway
-   breathes, the floor moves like water, beings drift between the
+   breathes, the floor moves like water, orbs drift between the
    spires, and the whole room pushes very slowly in and out as though
    you were standing in it rather than looking at it.
 
@@ -88,6 +88,7 @@ window.RealmJourney = (() => {
     ctx.setTransform(GW / W, 0, 0, GH / H, 0, 0);
     bakeOverlay();
     seedMotes();
+    seedOrbs();
   }
 
   /* The two washes that hold the room back never change, and filling
@@ -123,8 +124,14 @@ window.RealmJourney = (() => {
      covers it. What is then chosen is which part you are standing in
      front of — the eye in the pyramid is held high, above the words,
      and the picture is slid no further than its own edges allow. */
+  /* On a wide screen this tall picture stretched edge to edge is blown up
+     past three times its size and turns to blocks. There it is held
+     narrower, and the sides are the same room pushed back into the dark —
+     the same as the door. */
   function frame(zoom, sway) {
-    const cover = Math.max(W / art.width, H / art.height) * zoom;
+    let cover = Math.max(W / art.width, H / art.height);
+    if (W > H * 1.05) cover = Math.min(cover, Math.max(H * 1.1 / art.height, W * 0.55 / art.width));
+    cover *= zoom;
     const w = art.width * cover, h = art.height * cover;
     let y = H * 0.30 - h * EYE_BIG.y;
     if (y > 0)     y = 0;
@@ -152,44 +159,148 @@ window.RealmJourney = (() => {
     }
   }
 
-  /* ---------- the things that live here ----------
-     The beings are the ones from the collection, drawn small and lit
-     from within, drifting between the spires. */
-  let beings = [];
-  function bakeBeings() {
-    const TIERS = g_("TIERS", null);
-    if (beings.length || !window.RealmForms || !TIERS) return;
-    const keys = ["god", "entity", "mythic", "legendary", "epic", "rare", "uncommon"];
-    beings = keys.map((tier, n) => {
-      const t = TIERS.find(x => x.key === tier);
-      if (!t) return null;
-      return {
-        img: RealmForms.pixelate(
-          RealmForms.makeForm({ id: 700 + n, n: n + 1, tier, tierName: t.name, color: t.color }), 20),
-        x: rand(0.08, 0.92), y: rand(0.16, 0.66),
-        vx: rand(0.004, 0.017) * (Math.random() < 0.5 ? -1 : 1),
-        vy: rand(0.002, 0.009) * (Math.random() < 0.5 ? -1 : 1),
-        s:  rand(0.045, 0.1),
-        ph: rand(0, 6.3),
-        a:  rand(0.3, 0.62)
-      };
-    }).filter(Boolean);
+  /* ---------- the orbs ----------
+     Lights that live in the room, drifting between the spires at three
+     depths. Each one is drawn fresh every frame into its own tiny canvas,
+     a few dozen pixels across, and blown up with hard edges onto the
+     room's grid — so it is pixel art, but pixel art that turns: a shaded
+     sphere with a slowly rotating figure inside it, some with a tilted
+     ring and sparks going round. The finished sprite is run through an
+     ordered dither so its glow breaks into pixels instead of smearing. */
+  const ORB_HUES = [
+    [282, 312], [176, 150], [44, 28], [318, 286], [196, 230], [262, 200]
+  ];
+  const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  let orbs = [];
+
+  function seedOrbs() {
+    const k = Math.min(1.3, Math.max(0.8, Math.min(W, H) / 700));
+    const n = W > 900 ? 13 : 9;
+    orbs = [];
+    for (let i = 0; i < n; i++) {
+      const z = i / (n - 1);                       // 0 far, 1 near
+      const S = Math.max(10, Math.round((13 + z * 31) * k)) | 1;
+      const c = document.createElement("canvas");
+      c.width = c.height = S;
+      const [h1, h2] = ORB_HUES[i % ORB_HUES.length];
+      orbs.push({
+        S, cv: c, g: c.getContext("2d", { willReadFrequently: true }),
+        z, h1, h2,
+        x: Math.random(), y: rand(0.07, 0.58),
+        vx: (0.004 + z * 0.013) * (Math.random() < 0.5 ? -1 : 1),
+        bob: rand(0.006, 0.016), bf: rand(0.25, 0.6), ph: rand(0, 6.3),
+        points: 5 + (i % 4),                       // the figure inside
+        spin: rand(0.15, 0.4) * (i % 2 ? 1 : -1),
+        ring: i % 3 !== 1, tilt: rand(-0.6, 0.6),
+        sparks: 1 + (i % 3), sp: rand(0.7, 1.4)
+      });
+    }
+    orbs.sort((a, b) => a.z - b.z);                // far ones drawn first
   }
 
-  /* a pocket of dark for a being to stand in, painted once */
-  let pocketCv = null;
-  function pocket() {
-    if (pocketCv) return pocketCv;
-    pocketCv = document.createElement("canvas");
-    pocketCv.width = pocketCv.height = 72;
-    const g = pocketCv.getContext("2d");
-    const r = g.createRadialGradient(36, 36, 0, 36, 36, 36);
-    r.addColorStop(0,    "rgba(3,1,10,0.8)");
-    r.addColorStop(0.55, "rgba(3,1,10,0.45)");
-    r.addColorStop(1,    "rgba(3,1,10,0)");
-    g.fillStyle = r;
-    g.fillRect(0, 0, 72, 72);
-    return pocketCv;
+  function paintOrb(o, t) {
+    const { S, g, h1, h2 } = o;
+    const c = S / 2, r = S * 0.3;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = "source-over";
+    g.globalAlpha = 1;
+    g.clearRect(0, 0, S, S);
+    g.lineWidth = 1;
+
+    const pulse = 0.5 + 0.5 * Math.sin(t * 1.3 + o.ph);
+
+    // the glow it sits in
+    const halo = g.createRadialGradient(c, c, r * 0.7, c, c, c);
+    halo.addColorStop(0, `hsla(${h1},100%,70%,${0.32 + 0.14 * pulse})`);
+    halo.addColorStop(1, `hsla(${h1},100%,60%,0)`);
+    g.fillStyle = halo;
+    g.fillRect(0, 0, S, S);
+
+    // a ring round it, and sparks on an orbit: back halves first
+    const rx = r * 1.55, ry = r * 0.42;
+    const ring = (front) => {
+      if (!o.ring) return;
+      g.strokeStyle = `hsla(46,100%,${front ? 74 : 52}%,${front ? 0.95 : 0.5})`;
+      g.beginPath();
+      g.ellipse(c, c, rx, ry, o.tilt, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2);
+      g.stroke();
+    };
+    const sparks = (front) => {
+      for (let k = 0; k < o.sparks; k++) {
+        const a = t * o.sp + (k / o.sparks) * Math.PI * 2;
+        if ((Math.sin(a) > 0) !== front) continue;
+        const ex = Math.cos(a) * rx * 1.08, ey = Math.sin(a) * ry * 1.08;
+        const px = c + ex * Math.cos(o.tilt) - ey * Math.sin(o.tilt);
+        const py = c + ex * Math.sin(o.tilt) + ey * Math.cos(o.tilt);
+        g.fillStyle = front ? "#fff8e6" : `hsla(${h2},100%,70%,0.7)`;
+        g.fillRect(Math.round(px) - 1, Math.round(py) - 1, 2, 2);
+      }
+    };
+    ring(false); sparks(false);
+
+    // the sphere, lit from the upper left
+    const body = g.createRadialGradient(c - r * 0.38, c - r * 0.42, r * 0.08, c, c, r);
+    body.addColorStop(0,    `hsl(${h2},95%,78%)`);
+    body.addColorStop(0.45, `hsl(${h1},85%,44%)`);
+    body.addColorStop(1,    `hsl(${h1},90%,12%)`);
+    g.fillStyle = body;
+    g.beginPath(); g.arc(c, c, r, 0, Math.PI * 2); g.fill();
+
+    // the figure inside it, turning
+    g.save();
+    g.beginPath(); g.arc(c, c, r - 0.5, 0, Math.PI * 2); g.clip();
+    g.globalCompositeOperation = "lighter";
+    const rot = t * o.spin + o.ph;
+    /* a star polygon {n/step}: 5 and 6 points skip one, 7 and 8 skip
+       two. Where n and step share a factor it is several polygons laid
+       over each other (6 → two triangles, a hexagram), so each is traced */
+    const n = o.points, step = n > 6 ? 3 : 2;
+    const loops = n % step === 0 ? step : 1, per = n / loops;
+    g.strokeStyle = `hsla(${h2},100%,82%,0.7)`;
+    g.beginPath();
+    for (let L = 0; L < loops; L++) {
+      for (let i = 0; i <= per; i++) {
+        const a = rot + ((L + i * step) / n) * Math.PI * 2;
+        const px = c + Math.cos(a) * r * 0.86, py = c + Math.sin(a) * r * 0.86;
+        i ? g.lineTo(px, py) : g.moveTo(px, py);
+      }
+    }
+    g.stroke();
+    if (S > 22) {                                   // petals, where there is room
+      g.strokeStyle = `hsla(${h1 + 40},100%,72%,0.35)`;
+      for (let i = 0; i < 6; i++) {
+        const a = -rot * 0.7 + (i / 6) * Math.PI * 2;
+        g.beginPath();
+        g.arc(c + Math.cos(a) * r * 0.42, c + Math.sin(a) * r * 0.42, r * 0.42, 0, Math.PI * 2);
+        g.stroke();
+      }
+    }
+    // the eye at the middle
+    g.fillStyle = `hsla(${h2},100%,92%,${0.55 + 0.45 * pulse})`;
+    g.beginPath(); g.arc(c, c, Math.max(1, r * 0.16), 0, Math.PI * 2); g.fill();
+    g.restore();
+
+    // backlight on the rim, and a hard highlight
+    g.strokeStyle = `hsla(${h2},100%,84%,0.55)`;
+    g.beginPath(); g.arc(c, c, r - 0.5, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+    g.fillStyle = "rgba(255,255,255,0.9)";
+    g.fillRect(Math.round(c - r * 0.5), Math.round(c - r * 0.55), S > 22 ? 2 : 1, S > 22 ? 2 : 1);
+
+    ring(true); sparks(true);
+
+    /* ordered dither: colour to a short ramp, alpha to four steps, so
+       the soft parts crumble into pixels like everything else here */
+    const img = g.getImageData(0, 0, S, S), d = img.data;
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      const b = (BAYER4[((p / S | 0) & 3) * 4 + (p % S & 3)] + 0.5) / 16 - 0.5;
+      const a = d[i + 3] / 255 + b * 0.34;
+      d[i + 3] = a < 0.12 ? 0 : Math.min(255, Math.round(a * 3) / 3 * 255);
+      for (let ch = 0; ch < 3; ch++) {
+        const v = d[i + ch] / 255 + b * 0.16;
+        d[i + ch] = Math.max(0, Math.min(255, Math.round(v * 6) / 6 * 255));
+      }
+    }
+    g.putImageData(img, 0, 0);
   }
 
   /* ---------- light ---------- */
@@ -202,6 +313,27 @@ window.RealmJourney = (() => {
     g.addColorStop(1,    "hsla(0,0%,0%,0)");
     ctx.fillStyle = g;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+
+  /* ---------- the pulse's clock ----------
+     Shared by the shaft, the eyes and the light in the room, so the room
+     brightens exactly as the pulse climbs and hits. */
+  const P_LEN = 4.6;                                   // seconds per pulse
+  const TRAVEL = 0.6;                                  // share of the cycle spent climbing
+  const P_Y0 = 0.74;                                   // it leaves the far door here
+  const pEase = (u) => Math.pow(u, 1.7);
+  function pulseAt(t) {
+    const q = (t % P_LEN) / P_LEN;
+    const fHit = (P_Y0 - EYE_BIG.y) / (P_Y0 - EYE_HIGH.y);
+    const sinceEye = (q - Math.pow(fHit, 1 / 1.7) * TRAVEL) * P_LEN;
+    const sinceTop = (q - TRAVEL) * P_LEN;
+    /* how lit the room is, 0 to 1: it gathers as the pulse climbs,
+       floods when it hits the great eye, and ebbs away before the next */
+    const u = q < TRAVEL ? q / TRAVEL : 1;
+    let lit = q < TRAVEL ? 0.38 * u * u : 0;
+    if (sinceEye >= 0) lit = Math.max(lit, Math.exp(-sinceEye * 1.25) *
+                                       Math.min(1, sinceEye / 0.08));
+    return { q, sinceEye, sinceTop, lit };
   }
 
   /* ---------- one frame ---------- */
@@ -223,6 +355,17 @@ window.RealmJourney = (() => {
        never feels like looking at a photograph */
     const zoom = 1 + 0.035 * (0.5 + 0.5 * Math.sin(t * 0.12));
     const { x, y, w, h } = frame(zoom, Math.sin(t * 0.055));
+
+    const narrow = w < W - 1;
+    if (narrow) {
+      const c = Math.max(W / art.width, H / art.height) * 1.08;
+      const bw = art.width * c, bh = art.height * c;
+      ctx.drawImage(art, (W - bw) / 2, (H - bh) / 2, bw, bh);
+      ctx.fillStyle = "rgba(3,1,10,0.62)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, 0, w, H); ctx.clip();
+    }
 
     ctx.drawImage(art, x, y, w, h);
 
@@ -247,6 +390,40 @@ window.RealmJourney = (() => {
         x + off - over, dy, w + over * 2, dstH + 2);
     }
 
+    if (narrow) {
+      ctx.restore();
+      // feather the picture's edges into the backdrop
+      const f = Math.min(w * 0.18, 160);
+      for (const [from, to] of [[x, x + f], [x + w, x + w - f]]) {
+        const g = ctx.createLinearGradient(from, 0, to, 0);
+        g.addColorStop(0, "rgba(3,1,10,1)");
+        g.addColorStop(1, "rgba(3,1,10,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(Math.min(from, to) - 1, 0, f + 2, H);
+      }
+    }
+
+    /* ---------- the room, dark between pulses and lit by them ----------
+       Held down in the dark while nothing is happening, so that when the
+       pulse hits it has somewhere to go: a warm flood from the great eye
+       that reaches the walls, and then the dark coming back. */
+    const PS = pulseAt(t);
+    ctx.fillStyle = `rgba(3,1,10,${0.5 * (1 - PS.lit)})`;
+    ctx.fillRect(0, 0, W, H);
+    if (PS.lit > 0.01) {
+      const ex = x + w * EYE_BIG.x, ey = y + h * EYE_BIG.y;
+      const R = Math.hypot(W, H) * 0.75;
+      const flood = ctx.createRadialGradient(ex, ey, 0, ex, ey, R);
+      flood.addColorStop(0,    `hsla(46,100%,80%,${0.55 * PS.lit})`);
+      flood.addColorStop(0.3,  `hsla(38,100%,64%,${0.26 * PS.lit})`);
+      flood.addColorStop(0.65, `hsla(300,100%,55%,${0.08 * PS.lit})`);
+      flood.addColorStop(1,    "hsla(290,100%,40%,0)");
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = flood;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
     /* ---------- everything that gives off light ---------- */
     ctx.globalCompositeOperation = "lighter";
 
@@ -260,12 +437,15 @@ window.RealmJourney = (() => {
     glow(P.x, P.y, w * 0.11, 52, door, 95);
 
     // light spilling out of it along the floor
+    /* a pool, not a band: a straight-edged fill showed its sides as seams
+       once the picture stopped running edge to edge */
     if (P.y < H && y + h > P.y) {
-      const spill = ctx.createLinearGradient(P.x, P.y, P.x, y + h);
+      const R = w * 0.42;
+      const spill = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, R);
       spill.addColorStop(0, `hsla(44,100%,76%,${0.2 * door})`);
       spill.addColorStop(1, "hsla(0,0%,0%,0)");
       ctx.fillStyle = spill;
-      ctx.fillRect(Math.max(x, 0), P.y, Math.min(w, W), Math.min(y + h, H) - P.y);
+      ctx.fillRect(P.x - R, P.y, R * 2, R);
     }
 
     // the two eyes, awake at their own pace
@@ -287,19 +467,109 @@ window.RealmJourney = (() => {
       ctx.stroke();
     }
 
-    // the shaft of light up the middle, with pulses climbing it
-    const beam = ctx.createLinearGradient(x + w * 0.5 - w * 0.03, 0, x + w * 0.5 + w * 0.03, 0);
+    /* ---------- the shaft of light, and the pulse that climbs it ----------
+       One pulse at a time, built the way light behaves rather than as a
+       dot: a white-hot core, a gold bloom round it and a wide soft halo
+       that lights the room it passes through; a burning trail on the
+       shaft behind it; a four-point glint and a horizontal streak, as a
+       lens would see it. It leaves the far door slowly and accelerates,
+       and when it reaches the great eye the eye flares — a burst of rays
+       and a ring — then it spends itself at the eye above. */
+    const bxC = x + w * 0.5;
+    const q = PS.q;
+    const Y0 = P_Y0, Y1 = EYE_HIGH.y;                    // door to the top eye
+    const ease = pEase;
+
+    // the shaft itself, a little brighter while something is in it
+    const live = q < TRAVEL ? Math.sin(Math.PI * q / TRAVEL) : 0;
+    const beam = ctx.createLinearGradient(bxC - w * 0.03, 0, bxC + w * 0.03, 0);
     beam.addColorStop(0,   "hsla(0,0%,0%,0)");
-    beam.addColorStop(0.5, `hsla(50,100%,88%,${0.12 + 0.05 * Math.sin(t * 0.9)})`);
+    beam.addColorStop(0.5, `hsla(50,100%,88%,${0.11 + 0.04 * Math.sin(t * 0.9) + 0.07 * live})`);
     beam.addColorStop(1,   "hsla(0,0%,0%,0)");
     ctx.fillStyle = beam;
     ctx.fillRect(x + w * 0.47, y, w * 0.06, h * 0.78);
 
-    for (let k = 0; k < 3; k++) {
-      const u = ((t * 0.19 + k / 3) % 1);
-      const py = y + h * (0.74 - u * 0.66);
-      const a  = Math.sin(u * Math.PI) * 0.5;
-      glow(x + w * 0.5, py, w * 0.05, 52, a * 0.5, 94);
+    if (q < TRAVEL) {
+      const u  = q / TRAVEL;
+      const f  = ease(u);
+      const py = y + h * (Y0 - f * (Y0 - Y1));
+      const a  = Math.min(1, u * 8) * Math.min(1, (1 - u) * 10);   // in and out
+      const flick = 0.9 + 0.1 * Math.sin(t * 37) * Math.sin(t * 23); // a live flame, not a lamp
+
+      // the trail it burns on the shaft, longer the faster it goes
+      const len = h * (0.05 + 0.16 * u);
+      const trail = ctx.createLinearGradient(0, py, 0, py + len);
+      trail.addColorStop(0, `hsla(48,100%,90%,${0.55 * a})`);
+      trail.addColorStop(0.3, `hsla(40,100%,70%,${0.22 * a})`);
+      trail.addColorStop(1, "hsla(30,100%,50%,0)");
+      ctx.fillStyle = trail;
+      ctx.fillRect(bxC - w * 0.009, py, w * 0.018, len);
+
+      // bloom: wide and faint, then tighter and brighter, then the core
+      glow(bxC, py, w * 0.42, 280, 0.07 * a, 70);        // the room it lights
+      glow(bxC, py, w * 0.16, 44,  0.32 * a * flick, 82);
+      glow(bxC, py, w * 0.06, 50,  0.75 * a * flick, 94);
+      glow(bxC, py, w * 0.022, 55, 1.0 * a, 100);
+
+      // a lens's view of it: a long thin horizontal streak and a glint
+      const shine = a * (0.75 + 0.25 * Math.sin(t * 9.0));
+      const sL = w * (0.22 + 0.08 * Math.sin(t * 2.3));
+      const streak = ctx.createLinearGradient(bxC - sL, 0, bxC + sL, 0);
+      streak.addColorStop(0,   "hsla(270,100%,80%,0)");
+      streak.addColorStop(0.5, `hsla(50,100%,97%,${0.95 * shine})`);
+      streak.addColorStop(1,   "hsla(190,100%,80%,0)");
+      ctx.fillStyle = streak;
+      ctx.fillRect(bxC - sL, py - PX * 0.5, sL * 2, PX);
+
+      const spike = (dx, dy, L) => {
+        const g = ctx.createLinearGradient(bxC, py, bxC + dx * L, py + dy * L);
+        g.addColorStop(0, `hsla(52,100%,97%,${0.9 * shine})`);
+        g.addColorStop(1, "hsla(52,100%,90%,0)");
+        ctx.strokeStyle = g;
+        ctx.lineWidth = PX;
+        ctx.beginPath(); ctx.moveTo(bxC, py); ctx.lineTo(bxC + dx * L, py + dy * L); ctx.stroke();
+      };
+      const gl = w * 0.07 * (0.8 + 0.4 * Math.sin(t * 6.1));
+      spike(0, -1, gl * 1.3); spike(0, 1, gl * 0.8);
+      const d45 = Math.SQRT1_2, gd = gl * 0.45;
+      spike(d45, d45, gd); spike(-d45, d45, gd); spike(d45, -d45, gd); spike(-d45, -d45, gd);
+    }
+
+    /* the great eye takes the hit: how long since the pulse passed it */
+    const sinceEye = PS.sinceEye;
+    if (sinceEye >= 0 && sinceEye < 2.2) {
+      const k = Math.exp(-sinceEye * 2.4);
+      glow(E1.x, E1.y, w * 0.34, 40, 0.34 * k, 86);
+      glow(E1.x, E1.y, w * 0.10, 48, 0.9 * k, 98);
+      // rays bursting out of it, turning slightly as they fade
+      ctx.lineWidth = PX;
+      for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * Math.PI * 2 + sinceEye * 0.35 + (i % 2) * 0.13;
+        const L = w * (0.12 + 0.2 * (1 - k)) * (i % 2 ? 0.6 : 1);
+        const g = ctx.createLinearGradient(E1.x, E1.y, E1.x + Math.cos(ang) * L, E1.y + Math.sin(ang) * L);
+        g.addColorStop(0, `hsla(48,100%,95%,${0.85 * k})`);
+        g.addColorStop(1, "hsla(40,100%,70%,0)");
+        ctx.strokeStyle = g;
+        ctx.lineWidth = PX * (i % 2 ? 1 : 2);
+        ctx.beginPath();
+        ctx.moveTo(E1.x, E1.y);
+        ctx.lineTo(E1.x + Math.cos(ang) * L, E1.y + Math.sin(ang) * L);
+        ctx.stroke();
+      }
+      // and a ring going out through the room
+      ctx.strokeStyle = `hsla(46,100%,82%,${0.42 * k})`;
+      ctx.lineWidth = PX * (1 + k);
+      ctx.beginPath();
+      ctx.arc(E1.x, E1.y, w * (0.04 + 0.5 * (1 - k)), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    /* and spends what is left at the eye above the apex */
+    const sinceTop = PS.sinceTop;
+    if (sinceTop >= 0 && sinceTop < 1.6) {
+      const k = Math.exp(-sinceTop * 3);
+      glow(E2.x, E2.y, w * 0.22, 196, 0.3 * k, 88);
+      glow(E2.x, E2.y, w * 0.06, 52, 0.85 * k, 99);
     }
 
     /* light moving across the crystal — three slow bands, as though
@@ -332,30 +602,27 @@ window.RealmJourney = (() => {
 
     ctx.globalCompositeOperation = "source-over";
 
-    /* ---------- the things that live here ----------
-       Drawn solid, not as light. The room is bright enough that
-       anything added to it would simply vanish, so each being gets a
-       pocket of dark to stand in and its own glow on top. */
-    bakeBeings();
-    for (const b of beings) {
-      b.x += b.vx * dt; b.y += b.vy * dt;
-      if (b.x < 0.06 || b.x > 0.94) b.vx *= -1;
-      if (b.y < 0.10 || b.y > 0.62) b.vy *= -1;
+    /* ---------- the orbs ----------
+       Drawn solid over the room, each at exactly one sprite pixel to
+       one grid pixel so they sit on the same pixels as the picture.
+       The far ones are smaller, slower and dimmer. */
+    for (const o of orbs) {
+      o.x += o.vx * dt;
+      const m = o.S * PX / W;
+      if (o.x < -m) o.x = 1 + m; else if (o.x > 1 + m) o.x = -m;
+      const bx = o.x * W;
+      const by = (o.y + Math.sin(t * o.bf + o.ph) * o.bob) * H;
+      const d = o.S * PX;
 
-      const d  = w * b.s * (1 + Math.sin(t * 0.9 + b.ph) * 0.09);
-      const bx = x + b.x * w, by = y + b.y * h;
-      if (bx < -d || bx > W + d || by < -d || by > H * 0.92) continue;
-
-      ctx.drawImage(pocket(), bx - d, by - d, d * 2, d * 2);
-
-      ctx.globalAlpha = 0.72 + 0.22 * Math.sin(t * 0.7 + b.ph);
-      ctx.imageSmoothingEnabled = false;      // a sprite keeps its pixels
-      ctx.drawImage(b.img, bx - d / 2, by - d / 2, d, d);
+      paintOrb(o, t);
+      ctx.globalAlpha = 0.5 + 0.5 * o.z;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(o.cv, Math.round((bx - d / 2) / PX) * PX, Math.round((by - d / 2) / PX) * PX, d, d);
       ctx.imageSmoothingEnabled = true;
       ctx.globalAlpha = 1;
 
       ctx.globalCompositeOperation = "lighter";
-      glow(bx, by, d * 0.8, 200 + (b.ph * 30) % 120, 0.1, 80);
+      glow(bx, by, d * 0.9, o.h1, 0.05 + 0.06 * o.z, 78);
       ctx.globalCompositeOperation = "source-over";
     }
 

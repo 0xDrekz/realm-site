@@ -38,7 +38,7 @@ const CONFIG = {
      hashed, unaltered and unreordered. What it does NOT prove: how mint
      order was assigned to token number — that is the launchpad's shuffle.
      Say only the first thing. */
-  provenance: "2fd1348474c57b2e9346dd8d3cdc5430f82184604383c7689df9663196f92845",
+  provenance: "97ad789cab86faf23c77028ae113d52d814043255d606ec79b0d69a20feee5c6",
 
   // Social + marketplace links.
   links: {
@@ -158,28 +158,35 @@ const LORE = [
   + "way people look up when a door opens. Some of them are pleased. Some of "
   + "them were in the middle of something.",
 
-  "The small grey ones are the most common thing in the realm and the least "
-  + "interesting to themselves. They stand about in the geometry like commuters "
-  + "in a station, and they will let you look at them for as long as you like. "
-  + "The ones with four arms are busier. The reptiles are older and know it. "
-  + "The one with a single enormous eye does not blink and does not need to.",
+  "The first thing you meet is the mushrooms, because they were here before "
+  + "anything that could walk. Hundreds of them, spotted, spiralled, some with "
+  + "an eye set into the cap that follows you without the rest of the mushroom "
+  + "turning. They are the most common thing in the realm and the most patient. "
+  + "Nothing grows here that did not grow out of them first.",
 
-  "Further in they start to be dressed. Crowns, or something the drawing can "
-  + "only render as a crown. Wings that are not for flying. Teeth that are "
-  + "clearly a statement rather than a tool. There is a winged thing with "
-  + "dreadlocks that will not show you its face straight on, and a six-eyed "
-  + "one that looks at you with all of them at once and is not hostile, only "
-  + "thorough.",
+  "Among them live the small folk: elves in robes stitched with the same "
+  + "patterns as the walls, gnomes with staffs and lanterns and mushroom hats, "
+  + "goblins carrying things they will not explain. They are busy. They have "
+  + "seen visitors before. Some of them will wave.",
 
-  "The Gods are ten. Each one is a serpent knotted into the shape of a seated "
-  + "figure, crowned, with a third eye that is painted rather than opened. "
-  + "They do not move while you are watching. The consensus among people who "
-  + "have met one is that they moved a great deal before you arrived.",
+  "Past the woods the realm turns to water that is not water, and the shoals "
+  + "begin: jellyfish that are mostly eye, octopi that coil around nothing, "
+  + "moths with constellations on their wings. Further down, in the deep, they "
+  + "get stranger and fewer, and older, and you start to feel that you are the "
+  + "one being looked at.",
 
-  "And then there is the Source, which is one, and which is not like the rest. "
-  + "White, winged, three eyes, a green channel of light running the length of "
-  + "it, and a red-capped mushroom standing to either side like a witness. It "
-  + "does not look up when you arrive. It has been looking the whole time.",
+  "Then the ones that have names. A jester who laughs at something just "
+  + "behind you. A lotus with a child inside it. A citadel that is also an eye. "
+  + "And above them the Mythics, forty, each the only one of its kind; and the "
+  + "Entities, twenty, each the only one of its kind; and the Gods, ten — a "
+  + "sun-crowned wraith, a sovereign jellyfish, a serpent with a moon in its "
+  + "teeth — each the only one of its kind, and each wearing a colour that "
+  + "nothing else in the realm is allowed to wear.",
+
+  "And then there is the Source, which is one, and which is not a being at "
+  + "all. It is a star of gold light with a single eye at its heart, hanging in "
+  + "violet cloud. Everything else in the realm came out of it. It does not "
+  + "look up when you arrive. It has been looking the whole time.",
 
   "Every one of them is in the geometry. Not standing in front of it — in it, "
   + "the way a fish is in water, the way a word is in a sentence. The patterns "

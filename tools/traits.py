@@ -487,8 +487,10 @@ def ground(w, h, kind, pal, seed):
     _put(out, _dither(depth * 0.22, seed + 72) & (y >= f), pal["ground_lit"], 170)
     # a line of grit where the ground begins, so it reads as ground rather
     # than as the picture getting slightly lighter toward the bottom
+    # Softer than it was: a solid line at half density read as the edge of
+    # a stage. A sparse scatter still says "ground starts here".
     lip = (y >= f) & (y < f + max(1, h * 0.006))
-    _put(out, lip & _dither(np.full((h, w), 0.5), seed + 73), pal["ground_lit"], 200)
+    _put(out, lip & _dither(np.full((h, w), 0.28), seed + 73), pal["ground_lit"], 150)
     return out
 
 

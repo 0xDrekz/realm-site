@@ -66,7 +66,8 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 /* ---------- the wallet ---------- */
 /* ---------- the door in the tree ---------- */
 .gate{
-  position:absolute;inset:0;
+  /* Above the film, which is covered by this canvas rather than hidden. */
+  position:absolute;inset:0;z-index:1;
   transition:opacity .7s ease-in;
 }
 
@@ -81,19 +82,6 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 
 #tree.ready{opacity:1}
 
-/* the realm, standing in the doorway.
-   Drawn on its own canvas at the full screen resolution while the tree is
-   drawn at half, so what is through the door reads as somewhere with more
-   in it than the wood around it. That difference IS the effect.
-   It sits above the tree and below .gate-in — everything written on the
-   door belongs in front of what is behind the door. */
-#portal{
-  position:absolute;inset:0;width:100%;height:100%;
-  display:block;pointer-events:none;z-index:1;
-  opacity:0;transition:opacity 1.1s ease-out;
-}
-#portal.ready{opacity:1}
-
 /* The way through.
 
    The video is never SHOWN. It plays with its pixels turned off and
@@ -105,9 +93,28 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
    inside .gate, and .gate.gone takes the whole element to opacity 0 a
    second after you press enter: the film played for about a second and
    then went black, which is exactly what it looked like. */
+/* FULL SIZE AND REALLY ON SCREEN.
 
+   It was two pixels square at opacity 0.01, which is how you hide a video
+   from a person and also how you stop iOS playing it at all: a video that
+   is not genuinely on screen gets deprioritised or never starts, the
+   stall guard fired, and the canvas tunnel ran instead. That is the
+   "plays a bit, freezes, then jumps to the end" — the bit that played was
+   the first frame, and the end was the fallback.
 
+   So it is full size and visible to the browser. Nobody sees it: the
+   gate's canvas sits on top and paints the same frames at the pixel size
+   everything else on this site uses. */
+#rush{
+  position:fixed;inset:0;width:100%;height:100%;
+  object-fit:cover;pointer-events:none;z-index:0;background:#03010a;
+}
 
+/* Only the writing fades when you go through. The canvas has to stay —
+   the film is being drawn into it. */
+.gate.filming .gate-in{
+  opacity:0;transition:opacity .4s ease-in;pointer-events:none;
+}
 
 
 
@@ -409,8 +416,8 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 
 /* ---------- the standing facts, under the door ---------- */
 .standing{
-  margin:0;display:flex;gap:clamp(14px,5vw,30px);justify-content:center;
-  flex-wrap:wrap;
+  margin:0;display:flex;gap:clamp(20px,8vw,44px);justify-content:center;
+  flex-wrap:nowrap;
 }
 .standing div{display:flex;flex-direction:column;gap:3px;align-items:center}
 .standing dt{
@@ -421,11 +428,15 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   margin:0;font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
   font-size:.88rem;letter-spacing:.05em;color:#f4efe4;
 }
-.standing dd.shut{color:#9d8fc4;font-weight:500}
-
-.terms{
-  margin:0;font-family:'Pixelify Sans',system-ui,sans-serif;
-  font-size:.70rem;letter-spacing:.2em;text-transform:uppercase;color:#6d6192;
+.standing dd{white-space:nowrap}
+/* the mint's state as a small lit tag, so open/closed reads at a glance */
+#st-status{
+  padding:1px 8px;border:1px solid rgba(124,232,190,.55);color:#9ff5d2;
+  background:rgba(124,232,190,.08);
+}
+#st-status.shut{
+  border-color:rgba(157,143,196,.45);color:#b9acdf;background:rgba(157,143,196,.08);
+  font-weight:500;
 }
 
 /* ---------- what is behind the door ----------
@@ -448,9 +459,6 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 @media (max-height:700px){
   .gate-in{gap:clamp(3px,.9vh,9px)}
   .peek-art{width:clamp(36px,10vw,46px)}
-}
-@media (max-height:600px){
-  .terms{display:none}
 }
 @media (max-height:520px){
   .peek{display:none}

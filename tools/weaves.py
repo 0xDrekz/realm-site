@@ -90,3 +90,80 @@ WEAVES = {
    Body =[(8,8,12),(34,34,44),(102,102,122),(196,196,214)],
    Base =[(4,4,8),(20,20,28),(64,64,80),(148,148,168)]),
 }
+
+
+# ---------------------------------------------------------------- the exalted
+#
+# Colourways that exist only at the very top, kept OUT of WEAVES so that no
+# lower tier's pool (which takes the rarest N of WEAVES) can ever reach them.
+#
+# Why they exist: a being is mostly its figure, and the figure is its drawing,
+# its colourway and its eyes. The Entity tier has one drawing and drew from
+# three colourways, so its twenty pieces could only ever look like three
+# beings — eight of them came out as the same red-eyed figure. The God's eyes
+# are painted into the drawing, so ten Gods were three looks.
+#
+# Each part is given by its middle colour and the ramp is built round it,
+# shadow to light, the same four stops the hand-written schemes above use.
+
+def _stops(mid):
+    m = [float(c) for c in mid]
+    return [tuple(int(c * 0.20) for c in m), tuple(int(c * 0.58) for c in m),
+            tuple(int(c) for c in m), tuple(int(c + (255 - c) * 0.66) for c in m)]
+
+
+def _weave(vivid, crown, hair, face, wings, arms, body, base):
+    def part(p):
+        if isinstance(p, dict):
+            return dict(axis=p.get("axis", "y"), a=_stops(p["a"]), b=_stops(p["b"]))
+        return _stops(p)
+    return dict(weight=1, vivid=vivid, Crown=part(crown), Hair=part(hair),
+                Face=part(face), Wings=part(wings), Arms=part(arms),
+                Body=part(body), Base=part(base))
+
+
+# Three for the Entities alone, worn alongside the three rarest of WEAVES.
+ENTITY_WEAVES = {
+ "Ichor":    _weave(1.20, crown=(170,255,60),  hair=(18,44,20),  face=(204,255,176),
+                    wings=(34,74,34),  arms=(150,255,70),  body=(44,92,40),  base=(24,58,26)),
+ "Sapphire": _weave(1.18, crown=(255,206,90),  hair=(22,44,150), face=(204,222,255),
+                    wings=dict(a=(40,90,220), b=(20,40,140)), arms=(255,200,96),
+                    body=(34,66,190), base=(22,42,136)),
+ "Molten":   _weave(1.24, crown=(255,186,46),  hair=(60,20,10),   face=(255,212,156),
+                    wings=dict(a=(80,30,16), b=(230,80,14)), arms=(255,116,24),
+                    body=(124,44,18), base=(160,54,14)),
+}
+
+# Ten for the ten Gods: each is worn by exactly one being in the collection.
+GOD_WEAVES = {
+ "Prism":       _weave(1.26, crown=(255,214,90),  hair=(255,150,60),  face=(236,230,255),
+                       wings=dict(a=(60,220,255), b=(255,80,200)), arms=(255,230,90),
+                       body=(60,214,196), base=(230,70,190)),
+ "Celestial":   _weave(1.06, crown=(255,226,140), hair=(255,232,176), face=(246,246,255),
+                       wings=dict(a=(244,244,255), b=(214,200,160)), arms=(255,214,120),
+                       body=(232,232,246), base=(206,194,160)),
+ "Obsidian":    _weave(1.20, crown=(196,96,255),  hair=(170,80,255),  face=(84,76,108),
+                       wings=(52,44,74), arms=(204,84,255), body=(56,48,78), base=(34,28,50)),
+ "Nebula":      _weave(1.24, crown=(255,190,240), hair=(60,210,200),  face=(240,200,255),
+                       wings=dict(a=(80,230,220), b=(220,70,220)), arms=(90,220,210),
+                       body=(220,70,200), base=(120,50,220)),
+ "Solar":       _weave(1.22, crown=(255,250,200), hair=(255,150,40),  face=(255,236,180),
+                       wings=dict(a=(255,210,80), b=(255,90,30)), arms=(255,120,40),
+                       body=(255,190,70), base=(230,110,30)),
+ "Jade":        _weave(1.18, crown=(255,210,90),  hair=(22,124,84),   face=(192,240,212),
+                       wings=(40,180,120), arms=(255,200,80), body=(40,160,110), base=(24,110,80)),
+ "Blood Moon":  _weave(1.22, crown=(255,90,60),   hair=(44,10,14),    face=(240,226,210),
+                       wings=(150,16,30), arms=(222,30,40), body=(124,16,28), base=(82,10,20)),
+ "Glacier":     _weave(1.14, crown=(226,252,255), hair=(90,190,240),  face=(228,250,255),
+                       wings=dict(a=(190,244,255), b=(90,190,240)), arms=(170,236,255),
+                       body=(150,230,255), base=(80,180,235)),
+ "Ultraviolet": _weave(1.26, crown=(190,255,60),  hair=(150,255,60),  face=(212,182,255),
+                       wings=dict(a=(130,60,255), b=(60,90,255)), arms=(180,255,70),
+                       body=(110,50,255), base=(56,36,190)),
+ "Rose Quartz": _weave(1.14, crown=(255,214,120), hair=(255,150,190), face=(255,228,236),
+                       wings=dict(a=(255,190,210), b=(255,160,120)), arms=(255,130,170),
+                       body=(250,170,200), base=(210,120,160)),
+}
+
+# every colourway there is, for looking one up by name
+ALL_WEAVES = {**WEAVES, **ENTITY_WEAVES, **GOD_WEAVES}
