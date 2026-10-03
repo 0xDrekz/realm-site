@@ -41,15 +41,18 @@ TOTAL = GENERATED + 1                        # the Source is the 1,111th
 # The hand-made painting is art/source.png. What goes into the collection is
 # that painting put on the collection's pixel grid by tools/source_pixel.py,
 # so it no longer reads as a different collection beside the other 1,110.
-SOURCE_ART   = f"{ROOT}/art/source-pixel.png"
+SOURCE_ART   = f"{ROOT}/art/source-prime.png"      # tools/source_prime.py
 SOURCE_DRAWN = True
 
 # what is actually in the picture, rather than what a roll would have given it
-SOURCE_TRAITS = dict(Stars="Field", Geometry="Yantra", GeometryUnder="Mandala",
+# The Prime Source: a star of gold light with one eye at its heart, in
+# violet and teal cloud. The trait list will be replaced with the new
+# collection's; until then it records what is actually in the picture.
+SOURCE_TRAITS = dict(Stars="Dense", Geometry="None", GeometryUnder="None",
                      Lightning="None", UFOs="None", Planets="None",
-                     Explosions="None", Mushrooms="Few", Trees="None",
-                     Smoke="Shroud", Dust="Faint", Spores="Golden",
-                     Aura="Cold", Eyes="Painted")
+                     Explosions="None", Mushrooms="None", Trees="None",
+                     Smoke="Shroud", Dust="None", Spores="Golden",
+                     Aura="Warm", Eyes="Painted")
 
 
 def make_source(out_dir, n, rng):
@@ -63,21 +66,23 @@ def make_source(out_dir, n, rng):
 
     attrs = [{"trait_type": "Tier", "value": "Source"},
              {"trait_type": "Being", "value": "source"},
-             {"trait_type": "Colourway", "value": "The Source"}]
+             {"trait_type": "Colourway", "value": "Prime Gold"}]
     for k in ("Geometry", "Stars", "Planets", "UFOs", "Explosions", "Lightning",
               "Smoke", "Dust", "Trees", "Mushrooms", "Spores", "Aura", "Eyes"):
         attrs.append({"trait_type": k, "value": SOURCE_TRAITS[k]})
 
-    json.dump({"name": f"REALM #{n} \u2014 The Source", "symbol": "REALM",
-               "description": "The 1,111th being of the realm. There is one, "
-                              "and there will never be another.",
+    json.dump({"name": f"REALM #{n} \u2014 The Prime Source", "symbol": "REALM",
+               "description": "Origin of all creation. The singular spark "
+                              "containing infinite knowledge. The 1,111th being "
+                              "of the realm: there is one, and there will never "
+                              "be another.",
                "image": f"{n}.png", "attributes": attrs,
                "properties": {"files": [{"uri": f"{n}.png", "type": "image/png"}],
                               "category": "image"}},
               open(f"{out_dir}/metadata/{n}.json", "w"), indent=2)
 
     row = {"id": n, "tier": "source", "being": "source",
-           "colourway": "The Source", "png": png, "loud": 1.0}
+           "colourway": "Prime Gold", "png": png, "loud": 1.0}
     row.update({k: SOURCE_TRAITS[k] for k in R.TRAITS})
     return row
 

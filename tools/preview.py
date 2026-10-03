@@ -55,12 +55,12 @@ def main():
 
     # The Source is not generated — it arrived as a finished composition. Its
     # preview is the version in the collection, on the pixel grid, shrunk.
-    src = f"{ROOT}/art/source-pixel.png"
+    src = f"{ROOT}/art/source-prime.png"
     if os.path.exists(src):
         Image.open(src).convert("RGB").resize((360, 360), Image.BOX) \
              .quantize(colors=64, method=Image.MEDIANCUT, dither=Image.Dither.NONE) \
              .save(f"{ROOT}/preview/source.png", optimize=True)
-        print("  source     (the finished drawing, on the pixel grid)")
+        print("  source     (the Prime Source)")
 
     for tier, being, wname, extra in SHOW:
         info = BEINGS[being]
