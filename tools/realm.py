@@ -30,7 +30,7 @@ SRC = f"{ROOT}/art/scenes/tree-source.png"
 # THING -- it made the doorway read as a picture of a mushroom rather than
 # as a place. Nothing nameable may be in here. The realm has to be texture
 # and depth, not objects.
-CROP = (0.491, 0.444, 0.680, 0.840)   # the doorway's own gap
+CROP = (0.442, 0.444, 0.621, 0.930)   # the doorway's own gap
 OUT_W = 220
 
 

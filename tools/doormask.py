@@ -4,16 +4,28 @@ REALM — the shape of the opening in the tree.
 
     python3 tools/doormask.py
 
-Writes door-mask.png: white where the doorway is, black everywhere else.
+Writes door-mask.png: the gap beside the ajar door, as transparency.
+gate.js draws the portal through it, and it is what stops the colour
+touching the stonework or the door panel.
 
-gate.js draws a live portal through this. The mask is what stops its colours
-leaking onto the bark -- eyeballing a rectangle over the arch would spill at
-the shoulders, where the frame curves in and the opening does not.
+THE SHAPE IS TRACED BY HAND, not found by colour.
 
-So the shape is taken from the artwork rather than guessed: the opening is
-the violet and cyan the painter put inside the arch, kept as one connected
-piece, its holes filled, and its edge pulled in a pixel so the portal never
-sits on the stonework.
+Three attempts found it from colour and all three failed the same way.
+Below the foot of the arch, the glow lying on the ground is the SAME
+violet as the way through -- so every rule either missed the edges of the
+opening or painted the floor outside it. The failure was not in the
+thresholds; it is that the picture genuinely does not distinguish them.
+
+So the opening is marked in solid white on a copy of the painting
+(art/scenes/door-marked.png) and this lines that copy up with the
+original. The mark may be any crop, any scale, drawn on a phone -- the
+registration finds where it belongs by matching the painting around it,
+with the marked area itself excluded from the comparison so the mark
+cannot pull the fit toward itself.
+
+To redo it: paint the opening solid white over the artwork, save it as
+art/scenes/door-marked.png, and run this. It prints the GAP and AIM lines
+to paste into gate.js.
 """
 import os
 import numpy as np
@@ -21,57 +33,105 @@ from PIL import Image
 from scipy import ndimage
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = f"{ROOT}/art/scenes/tree-source.png"
+ART = f"{ROOT}/art/scenes/tree-source.png"
+MARK = f"{ROOT}/art/scenes/door-marked.png"
+
+
+def marked(img):
+    """The white the opening was painted in — one piece, holes filled."""
+    a = np.asarray(img).astype(int)
+    m = a.min(axis=2) >= 254
+    lab, n = ndimage.label(m)
+    if n == 0:
+        raise SystemExit("no white mark found in " + MARK)
+    m = lab == int(np.argmax(ndimage.sum(m, lab, range(1, n + 1)))) + 1
+    return ndimage.binary_fill_holes(m)
+
+
+def register(cut, src, mark, coarse=24):
+    """Find the scale and offset that lay the marked copy over the painting.
+
+    Scored on everything EXCEPT the mark, so a big white shape cannot drag
+    the fit toward whatever in the original happens to be bright.
+    """
+    sg = np.asarray(src.convert("L")).astype(float)
+    W, H = src.size
+    valid = ~ndimage.binary_dilation(mark, np.ones((9, 9)))
+
+    def search(scales, xs, ys):
+        best = None
+        for s in scales:
+            nw, nh = int(cut.width * s), int(cut.height * s)
+            if nw >= W or nh >= H or nw < 8 or nh < 8:
+                continue
+            small = np.asarray(cut.resize((nw, nh), Image.LANCZOS).convert("L")).astype(float)
+            vm = np.asarray(Image.fromarray((valid * 255).astype(np.uint8))
+                            .resize((nw, nh), Image.NEAREST)) > 127
+            for oy in ys(nh):
+                for ox in xs(nw):
+                    d = np.abs(sg[oy:oy + nh, ox:ox + nw] - small)[vm]
+                    if d.size < 1000:
+                        continue
+                    e = d.mean()
+                    if best is None or e < best[0]:
+                        best = (e, s, ox, oy, nw, nh)
+        return best
+
+    rough = search(np.arange(0.30, 1.05, 0.02),
+                   lambda nw: range(0, W - nw + 1, max(4, (W - nw) // coarse or 1)),
+                   lambda nh: range(0, H - nh + 1, max(4, (H - nh) // coarse or 1)))
+    if rough is None:
+        raise SystemExit("could not line the mark up with the painting")
+    _, s0, x0, y0, _, _ = rough
+    fine = search(np.arange(max(0.05, s0 - 0.025), s0 + 0.025, 0.0025),
+                  lambda nw: range(max(0, x0 - 14), min(W - nw, x0 + 14) + 1),
+                  lambda nh: range(max(0, y0 - 14), min(H - nh, y0 + 14) + 1))
+    return fine or rough
 
 
 def main():
-    a = np.asarray(Image.open(SRC).convert("RGB")).astype(int)
-    h, w, _ = a.shape
-    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    src = Image.open(ART).convert("RGB")
+    cut = Image.open(MARK).convert("RGB")
+    W, H = src.size
+    mark = marked(cut)
 
-    # The opening is violet and teal, which nothing else in the painting is:
-    # the tree is green, the door and its frame are brown and gold.
-    viol = (b > g + 18) & (b > r + 10)
-    teal = (g > r + 18) & (b > r + 18)
-    m = viol | teal
+    err, scale, ox, oy, nw, nh = register(cut, src, mark)
+    print(f"  lined up: error {err:.2f}  scale {scale:.4f}  offset {ox},{oy}")
+    if err > 14:
+        print("  ! that is a poor fit — is the mark drawn on this painting?")
 
-    # ONLY above the foot of the arch. Below that the same colours are the
-    # glow lying on the ground OUTSIDE the doorway -- light the door is
-    # casting rather than the way through, and painting the portal onto it
-    # is the leak that kept coming back.
-    box = np.zeros((h, w), bool)
-    box[int(0.43 * h):int(0.838 * h), int(0.42 * w):int(0.68 * w)] = True
-    m &= box
+    small = np.asarray(Image.fromarray((mark * 255).astype(np.uint8))
+                       .resize((nw, nh), Image.NEAREST)) > 127
+    m = np.zeros((H, W), bool)
+    m[oy:oy + nh, ox:ox + nw] = small
 
     lab, n = ndimage.label(m)
-    if n == 0:
-        raise SystemExit("found no doorway")
     m = lab == int(np.argmax(ndimage.sum(m, lab, range(1, n + 1)))) + 1
-
-    m = ndimage.binary_closing(m, np.ones((9, 9)))
     m = ndimage.binary_fill_holes(m)
-    m = ndimage.binary_opening(m, np.ones((5, 5)))
-    m = ndimage.binary_erosion(m, np.ones((3, 3)), iterations=1)
+    m = ndimage.binary_erosion(m, np.ones((3, 3)), iterations=1)   # off the stone
 
     ys, xs = np.where(m)
-    print(f"  the opening: {m.sum()} pixels, "
-          f"x {xs.min()/w:.3f}-{xs.max()/w:.3f}, y {ys.min()/h:.3f}-{ys.max()/h:.3f}")
-    print(f"  put this in gate.js:  GAP = {{ x0: {xs.min()/w-0.004:.3f}, "
-          f"y0: {ys.min()/h-0.004:.3f}, x1: {xs.max()/w+0.004:.3f}, "
-          f"y1: {ys.max()/h+0.004:.3f} }}")
+    x0, x1 = xs.min() / W, xs.max() / W
+    y0, y1 = ys.min() / H, ys.max() / H
+    print(f"  the opening: {m.sum()} pixels, x {x0:.3f}-{x1:.3f}, y {y0:.3f}-{y1:.3f}")
 
-    # RGBA, with the shape in the ALPHA channel.
-    #
-    # A greyscale mask looks right in an image viewer and does nothing in a
-    # browser: canvas "destination-in" keeps pixels by alpha, and a grey PNG
-    # loads fully opaque, so every pixel is kept and the portal comes out as
-    # the bounding rectangle. The shape has to BE the transparency.
-    rgba = np.zeros((h, w, 4), dtype=np.uint8)
+    # RGBA, with the shape in the ALPHA channel. A greyscale mask looks right
+    # in an image viewer and does nothing in a browser: canvas
+    # "destination-in" keeps pixels by alpha, and a grey PNG loads fully
+    # opaque, so the portal comes out as its bounding rectangle.
+    rgba = np.zeros((H, W, 4), np.uint8)
     rgba[..., :3] = 255
-    rgba[..., 3] = (m * 255).astype(np.uint8)
-    Image.fromarray(rgba, mode="RGBA").save(f"{ROOT}/door-mask.png", optimize=True)
+    rgba[..., 3] = m * 255
+    Image.fromarray(rgba, "RGBA").save(f"{ROOT}/door-mask.png", optimize=True)
     print(f"  written: door-mask.png "
           f"({os.path.getsize(f'{ROOT}/door-mask.png') // 1024} KB)")
+
+    print("\n  paste into gate.js:")
+    print(f"    const AIM = {{ x: {(x0+x1)/2:.3f}, y: {(y0+y1)/2:.3f} }};")
+    print(f"    const GAP = {{ x0: {x0-0.003:.3f}, y0: {y0-0.003:.3f}, "
+          f"x1: {x1+0.003:.3f}, y1: {y1+0.003:.3f} }};")
+    print(f"  and into tools/realm.py:")
+    print(f"    CROP = ({x0-0.003:.3f}, {y0-0.003:.3f}, {x1+0.003:.3f}, {y1+0.003:.3f})")
 
 
 if __name__ == "__main__":

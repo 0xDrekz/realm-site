@@ -23,7 +23,7 @@
   /* ---------- the picture, and the two places that matter in it ----------
      Both are fractions: how far across, how far down. If the artwork is
      ever replaced, these two lines are what to re-measure. */
-  const AIM = { x: 0.586, y: 0.642 };   // the middle of the opening —
+  const AIM = { x: 0.532, y: 0.687 };   // the middle of the opening
                                       // Measured off the art rather than
                                       // guessed: the old value was 19px to
                                       // the right of the actual arch.
@@ -262,14 +262,21 @@
      also happens to be less work.
      ============================================================ */
 
-  /* The opening, measured off the artwork by tools/doormask.py.
+  /* The opening, traced BY HAND and registered onto the artwork by
+     tools/doormask.py. Three goes at finding it from colour all failed the
+     same way — below the arch the glow on the ground is the same violet as
+     the way through, so every rule either missed the edges or painted the
+     floor. A hand-marked cut-out settles it, and the tool lines the mark up
+     with the painting rather than trusting it was drawn to scale.
+
+     Earlier note, still true:
 
      It is most of the archway beside the door, widening at the foot and
      spreading left across the step -- not the narrow slot it was first cut
      to. Looking only for violet and cyan found the bright core of the gap
      and missed its edges, where the light has gone pale or warm. The
      opening is everything in there that is not green. */
-  const GAP = { x0: 0.491, y0: 0.444, x1: 0.680, y1: 0.840 };
+  const GAP = { x0: 0.442, y0: 0.444, x1: 0.621, y1: 0.930 };
 
   const gapImg = new Image();
   let gapReady = false;
