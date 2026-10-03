@@ -303,6 +303,46 @@ def facet(drawn, weave, seed=0):
     return np.dstack([np.clip(out, 0, 255), alpha]).astype(np.uint8)
 
 
+def neon(drawn, weave, seed=0):
+    """Line art as glowing lines in three colours on dark glass.
+
+    The pattern figures carry three levels of line (255 the outline, 225 the
+    inner pattern, 195 fine detail) over a faint body (70). Each level takes
+    its own colour from the colourway — the crown, the wings, the arms —
+    so a pyramid's outline, its triangles and its jewels come out three
+    colours, the way neon is drawn; the body behind them is the colourway's
+    deepest shade, so the lines read as light."""
+    h, w = drawn.shape
+    vivid = weave.get("vivid", 1.0)
+
+    def col(name, k):
+        spec = weave[name]
+        if isinstance(spec, dict):
+            spec = spec["a"]
+        r = _ramp(spec, vivid=vivid)
+        return r[int(np.clip(k, 0, 1) * (len(r) - 1))]
+
+    out = np.zeros((h, w, 3), float)
+    body = drawn > 20
+    lv0 = drawn > 240
+    lv1 = (drawn > 210) & ~lv0
+    lv2 = (drawn > 160) & ~lv0 & ~lv1
+    yy = np.mgrid[0:h, 0:w][0]
+    ys = np.where(body)[0]
+    top, bot = (ys.min(), max(ys.max(), ys.min() + 1)) if ys.size else (0, h)
+    g = np.clip((yy - top) / (bot - top), 0, 1)[..., None]
+    deep = col("Body", 0.10) * (1 - g) + col("Base", 0.16) * g
+    out[body] = deep[body]
+    out[lv2] = col("Arms", 0.86)
+    out[lv1] = col("Wings", 0.78)
+    out[lv0] = col("Crown", 0.80)
+    # a glow one pixel out from the outline, in its own colour, dimmed
+    halo = ndimage.binary_dilation(lv0, iterations=1) & ~(lv0 | lv1 | lv2)
+    out[halo] = out[halo] * 0.4 + col("Crown", 0.6) * 0.6
+    alpha = np.where(body | halo | lv0 | lv1 | lv2, 255, 0)
+    return np.dstack([np.clip(out, 0, 255), alpha]).astype(np.uint8)
+
+
 def _hue_shift(rgb, deg):
     """Rotate a colour's hue, keeping how light and how saturated it is."""
     import colorsys
@@ -471,6 +511,8 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
         own = np.asarray(Image.open(tmp).convert("RGBA")).copy()
         own[:, :, 3] = np.where(own[:, :, 3] > 40, 255, 0)
         lay = own
+    elif mode == "neon" and pal.get("weave"):
+        lay = neon(drawn, pal["weave"], seed)
     elif mode == "facet" and pal.get("weave"):
         lay = facet(drawn, pal["weave"], seed)
     elif pal.get("weave"):

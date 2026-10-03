@@ -25,6 +25,9 @@ from PIL import Image, ImageDraw
 N = 160            # drawing grid
 C = N // 2         # the mirror line
 LINE, BODY = 255, 70
+# Lines carry a level in their strength, so the 'neon' colouring can give
+# the outline, the inner pattern and the fine detail colours of their own.
+L0, L1, L2 = 255, 225, 195
 
 PREFIX = ["Hex", "Prism", "Lattice", "Axiom", "Vertex", "Cipher", "Glyph",
           "Obelisk", "Monolith", "Tesseract", "Facet", "Quartz", "Echo",
@@ -43,20 +46,23 @@ class Pen:
         self.fills = []           # filled first, faint
         self.lines = []           # drawn last, full
 
-    def poly(self, pts, fill=True, mirror=True):
+    def poly(self, pts, fill=True, mirror=True, lv=L0):
         for p in ([pts, [(2 * C - 1 - x, y) for x, y in pts]] if mirror else [pts]):
             if fill:
                 self.fills.append(("poly", p))
-            self.lines.append(("poly", p))
+            self.lines.append(("poly", p, lv))
 
-    def line(self, pts, mirror=True):
+    def line(self, pts, mirror=True, lv=L0):
         for p in ([pts, [(2 * C - 1 - x, y) for x, y in pts]] if mirror else [pts]):
-            self.lines.append(("line", p))
+            self.lines.append(("line", p, lv))
 
-    def ellipse(self, box, fill=True):
+    def ellipse(self, box, fill=True, lv=L0):
         if fill:
             self.fills.append(("ell", box))
-        self.lines.append(("ell", box))
+        self.lines.append(("ell", box, lv))
+
+    def dot(self, x, y, lv=L2):
+        self.lines.append(("dot", (x, y), lv))
 
     def done(self):
         for kind, p in self.fills:
@@ -64,13 +70,16 @@ class Pen:
                 self.d.polygon(p, fill=BODY)
             else:
                 self.d.ellipse(p, fill=BODY)
-        for kind, p in self.lines:
+        # finest detail first, so the outline always wins where they cross
+        for kind, p, lv in sorted(self.lines, key=lambda e: e[2]):
             if kind == "poly":
-                self.d.polygon(p, outline=LINE)
+                self.d.polygon(p, outline=lv)
             elif kind == "line":
-                self.d.line(p, fill=LINE)
+                self.d.line(p, fill=lv)
+            elif kind == "dot":
+                self.d.point(p, fill=lv)
             else:
-                self.d.ellipse(p, outline=LINE)
+                self.d.ellipse(p, outline=lv)
         return self.im
 
 
@@ -268,9 +277,180 @@ def floaters(pen, rng, n):
             pen.poly([(x - s, y - s), (x + s, y - s), (x + s, y + s), (x - s, y + s)])
 
 
-def make(seed):
+
+
+# ---------------------------------------------------------------- pattern figures
+#
+# Not bodies with heads and arms but one sacred-geometry form standing for
+# the whole being — the pyramid with its eye, the lattice totem, the star,
+# the orb, the gate. Drawn with three levels of line for 'neon' colouring.
+
+def eye_at(pen, cx, cy, w, lv=L0):
+    h = max(2, w // 2)
+    pen.poly([(cx - w, cy), (cx - w // 2, cy - h), (cx + w // 2, cy - h), (cx + w, cy),
+              (cx + w // 2, cy + h), (cx - w // 2, cy + h)], mirror=False, lv=lv)
+    pen.ellipse((cx - h + 1, cy - h + 1, cx + h - 1, cy + h - 1), lv=L1)
+    pen.dot(cx, cy, lv=L0)
+
+
+def pyramid(pen, rng):
+    top, bot = r(rng, 12, 22), r(rng, 140, 150)
+    hw = r(rng, 58, 72)
+    rows = r(rng, 3, 6)
+    H = bot - top
+
+    def P(i, j):          # the grid point j of row i, apex is row 0
+        return (int(C - hw * i / rows + 2 * hw * j / rows), int(top + H * i / rows))
+
+    pen.poly([(C, top), (C - hw, bot), (C + hw - 1, bot)], mirror=False)
+    for i in range(1, rows):
+        for j in range(i):
+            # each downward triangle between the upward ones
+            pen.poly([P(i, j), P(i, j + 1), P(i + 1, j + 1)], fill=False, mirror=False, lv=L1)
+    jewel = rng.choice(["diamond", "dot", "eye"])
+    for i in range(1, rows):
+        for j in range(i + 1):
+            if rng.random() < 0.55:
+                a, b, c = P(i, j), P(i + 1, j), P(i + 1, j + 1)
+                x, y = (a[0] + b[0] + c[0]) // 3, (a[1] + b[1] + c[1]) // 3 + 1
+                q = max(2, H // (rows * 6))
+                if jewel == "diamond":
+                    pen.poly([(x, y - q), (x - q, y), (x, y + q), (x + q, y)], mirror=False, lv=L2)
+                else:
+                    pen.ellipse((x - q + 1, y - q + 1, x + q - 1, y + q - 1), lv=L2, fill=False)
+    a, b, c = P(0, 0), P(1, 0), P(1, 1)
+    eye_at(pen, C, (a[1] + b[1] * 2) // 3 + 1, max(4, int(hw / rows * 0.55)))
+    if rng.random() < 0.5:   # rays from the apex
+        for k in range(r(rng, 3, 5)):
+            t = -np.pi / 2 + (k - 2) * 0.3
+            pen.line([(C, top - 2), (C + int(np.cos(t) * 12), top - 2 + int(np.sin(t) * 12))], mirror=False, lv=L2)
+    if rng.random() < 0.6:   # drips under the base
+        for i in range(r(rng, 2, 5)):
+            x = C - hw + r(rng, 6, 2 * hw - 6)
+            pen.line([(x, bot), (x, bot + r(rng, 3, 8))], mirror=False, lv=L2)
+    if rng.random() < 0.6:   # crosses beside it
+        y = top + H // 2
+        for x in (C - hw // 2 - 14, C + hw // 2 + 13):
+            pen.line([(x - 3, y), (x + 3, y)], mirror=False, lv=L2)
+            pen.line([(x, y - 3), (x, y + 3)], mirror=False, lv=L2)
+
+
+def lattice(pen, rng):
+    y, s = r(rng, 10, 18), r(rng, 13, 24)
+    n = 0
+    stairs = rng.random() < 0.4
+    while y + 2 * s < 128:
+        pen.poly([(C, y), (C - s, y + s), (C, y + 2 * s), (C + s - 1, y + s)], mirror=False)
+        for k in range(1, 3):
+            q = s - k * s // 3
+            pen.poly([(C, y + s - q), (C - q, y + s), (C, y + s + q), (C + q - 1, y + s)],
+                     fill=False, mirror=False, lv=L1 if k == 1 else L2)
+        # the boughs: lines out from each diamond's sides
+        w = s + 10 + n * 8
+        if stairs:
+            x0, y0 = C - s, y + s
+            for k in range(2 + n):
+                pen.poly([(x0 - 5, y0), (x0, y0), (x0, y0 + 4), (x0 - 5, y0 + 4)], lv=L1)
+                x0 -= 5; y0 += 3
+        else:
+            pen.line([(C - s, y + s), (C - w, y + s + 14)], lv=L1)
+            pen.line([(C - w, y + s + 14), (C - w + 6, y + s + 14)], lv=L1)
+        y += 2 * s - s // 2
+        s = max(10, s - r(rng, 0, 3)); n += 1
+    # the root dissolving into falling pixels
+    for _ in range(r(rng, 40, 70)):
+        x = C + int(rng.normal(0, 18)); yy = r(rng, y, 150)
+        pen.dot(x, yy, lv=[L0, L1, L2][r(rng, 0, 2)])
+    for x in range(C - 14, C + 15, 4):
+        pen.line([(x, y), (x, y + r(rng, 6, 20))], mirror=False, lv=L1)
+
+
+def star(pen, rng):
+    cx, cy = C, r(rng, 74, 84)
+    pts = int(rng.choice([4, 5, 6, 7, 8, 12]))
+    for layer, (R, rr, lv) in enumerate([(r(rng, 56, 66), r(rng, 22, 30), L0),
+                                         (r(rng, 36, 44), r(rng, 14, 20), L1),
+                                         (r(rng, 20, 26), r(rng, 8, 12), L2)]):
+        rot = (np.pi / pts) * (layer % 2) - np.pi / 2
+        p = []
+        for i in range(pts * 2):
+            a = rot + i * np.pi / pts
+            rad = R if i % 2 == 0 else rr
+            p.append((cx + int(np.cos(a) * rad), cy + int(np.sin(a) * rad)))
+        pen.poly(p, mirror=False, lv=lv, fill=layer == 0)
+    pen.ellipse((cx - 9, cy - 9, cx + 9, cy + 9), lv=L0)
+    if rng.random() < 0.5:
+        eye_at(pen, cx, cy, 7)
+    else:
+        pen.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), lv=L1)
+    for _ in range(r(rng, 4, 8)):     # crystals round it
+        a = rng.uniform(0, 2 * np.pi); d = r(rng, 64, 74)
+        x, y = cx + int(np.cos(a) * d), cy + int(np.sin(a) * d)
+        pen.poly([(x, y - 5), (x - 2, y), (x, y + 5), (x + 2, y)], mirror=False, lv=L1)
+
+
+def orb(pen, rng):
+    cx, cy = C, r(rng, 74, 84)
+    rings = sorted([r(rng, 50, 60)] + [r(rng, 16, 46) for _ in range(r(rng, 1, 3))], reverse=True)
+    for k, R in enumerate(rings):
+        pen.ellipse((cx - R, cy - R, cx + R, cy + R), lv=[L0, L1, L2, L1][k], fill=k == 0)
+    if rng.random() < 0.5:     # a square set in the orb
+        q = int(rings[0] * 0.7)
+        pen.poly([(cx, cy - q), (cx - q, cy), (cx, cy + q), (cx + q, cy)], fill=False, mirror=False, lv=L1)
+    rings = rings + [rings[-1]] * 2
+    eye_at(pen, cx, cy, 12)
+    n = int(rng.choice([4, 6, 8, 12]))
+    Ro = rings[0] + r(rng, 8, 16)
+    for i in range(n):
+        a = i * 2 * np.pi / n - np.pi / 2
+        x, y = cx + int(np.cos(a) * Ro), cy + int(np.sin(a) * Ro)
+        pen.line([(cx + int(np.cos(a) * rings[1]), cy + int(np.sin(a) * rings[1])), (x, y)],
+                 mirror=False, lv=L2)
+        if i % 2 == 0:
+            pen.ellipse((x - 4, y - 4, x + 4, y + 4), lv=L1)
+            pen.ellipse((x - 1, y - 1, x + 1, y + 1), lv=L0, fill=False)
+        else:
+            pen.poly([(x, y - 4), (x - 4, y), (x, y + 4), (x + 4, y)], mirror=False, lv=L0)
+
+
+def tunnel(pen, rng):
+    bot = r(rng, 142, 150)
+    n = r(rng, 5, 7)
+    pointed = rng.random() < 0.5
+    for k in range(n):
+        f = 1 - k / n
+        hw = int(62 * f) + 6; top = bot - int(128 * f) - 10
+        if pointed:
+            p = [(C - hw, bot), (C - hw, top + hw), (C, top), (C + hw - 1, top + hw), (C + hw - 1, bot)]
+        else:
+            p = [(C - hw, bot), (C - hw, top + hw // 2)]
+            for i in range(9):
+                a = np.pi + i * np.pi / 8
+                p.append((C + int(np.cos(a) * hw), top + hw // 2 + int(np.sin(a) * hw // 2)))
+            p.append((C + hw - 1, bot))
+        pen.poly(p, mirror=False, lv=[L0, L1, L2][k % 3], fill=k == 0)
+        # stones round the outer arches
+        if k < 2:
+            for i in range(0, len(p) - 1):
+                x, y = p[i]
+                pen.poly([(x - 2, y - 2), (x + 2, y - 2), (x + 2, y + 2), (x - 2, y + 2)],
+                         mirror=False, lv=L2)
+    eye_at(pen, C, bot - 22, 6)
+    for i in range(3):              # steps up to it
+        y = bot - 2 - i * 3
+        pen.line([(C - 14 + i * 3, y), (C + 13 - i * 3, y)], mirror=False, lv=L1)
+
+
+PATTERNS = {"Pyramid": pyramid, "Lattice Totem": lattice, "Star Sigil": star,
+            "Hypersphere": orb, "Tunnel Gate": tunnel}
+
+
+def make(seed, kind=None):
     rng = np.random.default_rng(seed)
     pen = Pen()
+    if kind in PATTERNS:
+        PATTERNS[kind](pen, rng)
+        return _finish(pen, seed, {"form": kind})
     s = r(rng, 12, 19)                    # head size
     hy = r(rng, 40, 54)                   # head centre
     ws = r(rng, 14, 26); wb = r(rng, ws + 6, 52)
@@ -284,6 +464,11 @@ def make(seed):
     parts["crown"] = crown(pen, rng, hy - s, s)
     parts["base"] = base(pen, rng, bbot + 1, wb)
     floaters(pen, rng, r(rng, 2, 6))
+    parts["form"] = "Totem"
+    return _finish(pen, seed, parts)
+
+
+def _finish(pen, seed, parts):
     im = pen.done()
 
     # on a 480 canvas, standing on the bottom, a little room above
@@ -306,8 +491,9 @@ if __name__ == "__main__":
     out = sys.argv[2] if len(sys.argv) > 2 else "out/sigilforms"
     os.makedirs(out, exist_ok=True)
     meta = []
+    kinds = ["Totem"] + list(PATTERNS)
     for seed in range(1, count + 1):
-        im, name, parts = make(seed)
+        im, name, parts = make(seed, kinds[(seed - 1) % len(kinds)])
         im.save(f"{out}/{seed}.png")
         meta.append({"seed": seed, "name": name, **parts})
     json.dump(meta, open(f"{out}/forms.json", "w"), indent=1)
