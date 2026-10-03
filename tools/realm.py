@@ -19,7 +19,7 @@ upward through it loops for ever with no join.
 """
 import os
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = f"{ROOT}/art/scenes/tree-source.png"
@@ -36,6 +36,10 @@ SRC = f"{ROOT}/art/scenes/tree-source.png"
 # further down -- and lifting the whole gap meant that dark band drifted
 # up through the arch and left the top of the doorway looking unfilled.
 # Starting below it takes only the lit column.
+# This is deliberately NOT the GAP that gate.js clips to. The mask stops at
+# the doorstep and starts at the left edge of the opening; this only has to
+# be a patch of the painting worth stretching, so it takes the widest, most
+# evenly lit column available and ignores where the doorway actually is.
 CROP = (0.422, 0.560, 0.640, 0.943)
 OUT_W = 220
 
@@ -52,6 +56,19 @@ def main():
 
     a = np.asarray(strip).astype(float)
 
+    # Put the bite back in first.
+    #
+    # Flattening the strip (below) is what stops dark bands drifting through
+    # the arch, but it works by pulling every row and column toward the
+    # average -- and that takes the local contrast with it. The result filled
+    # the doorway evenly and read as a flat wash.
+    #
+    # So the contrast is pushed UP before the flattening and the flattening
+    # then removes whatever bands that amplified. Doing it the other way
+    # round would re-introduce the bands it just took out.
+    mu = a.mean()
+    a = np.clip(mu + (a - mu) * 1.38, 0, 255)
+
     # Even it out BOTH WAYS.
     #
     # The strip is a photograph of the gap, so it carries the gap's own
@@ -67,15 +84,68 @@ def main():
     # Each row and each column is pulled most of the way toward the strip's
     # average, so the colour still varies and the brightness does not. It
     # also hides the join where the mirror meets.
-    for axis in (1, 0):
-        band = a.mean(axis=(axis, 2), keepdims=True)
-        a = np.clip(a * (0.82 * (a.mean() / np.maximum(band, 1)) + 0.18), 0, 255)
+    #
+    # Twice round, and almost all the way: one pass at 0.82 left the columns
+    # running 83 to 141 once the contrast above was pushed up, because the
+    # pass only corrects the fraction of the drift it is given and the
+    # contrast boost had made the drift bigger.
+    for _ in range(2):
+        for axis in (1, 0):
+            band = a.mean(axis=(axis, 2), keepdims=True)
+            a = np.clip(a * (0.95 * (a.mean() / np.maximum(band, 1)) + 0.05), 0, 255)
 
     # push the colour out: this sits behind a doorway in a green tree and has
     # to read as somewhere else entirely
     g = a.mean(axis=2, keepdims=True)
     a = np.clip(g + (a - g) * 1.45, 0, 255)
     a = np.clip(255 * (a / 255) ** 0.94, 0, 255)      # barely lifted: richer, not paler
+
+    # Nothing in here may be black.
+    #
+    # The texture supplies the LIGHTNESS of what is in the doorway -- the
+    # colour comes from a separate field drawn over it with the "color"
+    # blend, which keeps the backdrop's lightness and replaces its hue. So a
+    # pixel that is black here stays black there however vivid the colour
+    # over it, and the contrast boost above had left enough of them to read
+    # as holes punched in the portal.
+    #
+    # Lifting the floor costs a little contrast and buys a doorway with
+    # nothing missing from it.
+    # Nor pure white. Where the texture peaks the colour over it comes out
+    # as a pale wash, because the "color" blend cannot saturate a pixel that
+    # has no room left to be lighter. Holding the ceiling down keeps the
+    # highlights coloured instead of bleached.
+    FLOOR, CEIL = 40, 228
+    a = FLOOR + a * (CEIL - FLOOR) / 255
+
+    # And then held DOWN.
+    #
+    # The colour over this is applied with the "color" blend, which takes
+    # the lightness from here -- so a bright texture gives pastel, not
+    # vivid. At a mean of 199 the doorway came out as watercolour. Rich
+    # colour wants its lightness in the middle, with the highlights earning
+    # their brightness rather than everything being bright at once.
+    a = np.clip(255 * (a / 255) ** 1.22, 0, 255)
+
+    # Give it edges.
+    #
+    # The strip is a photograph of a painted glow, so left alone it is
+    # SOFT -- and dropped into a site built entirely out of hard pixels,
+    # the one soft thing on the screen is the doorway, which is the one
+    # place that was supposed to have the most in it. It read as airbrush.
+    #
+    # Sharpened, then cut into bands of brightness with the colour of each
+    # pixel kept: the shapes in it get an edge and the whole thing speaks
+    # the same language as the rest of the artwork.
+    blur = np.stack([np.asarray(Image.fromarray(a[..., c].astype(np.uint8))
+                                .filter(ImageFilter.GaussianBlur(1.6)), float)
+                     for c in range(3)], axis=2)
+    a = np.clip(a + (a - blur) * 0.9, 0, 255)
+
+    BANDS = 11
+    v = a.max(axis=2, keepdims=True)
+    step = np.clip(np.round(v / 255 * BANDS) / BANDS * 255, 1, 255)
+    a = np.clip(a * (step / np.maximum(v, 1)), 0, 255)
 
     # stack with its own mirror so a slow drift upward never shows a join
     top = a

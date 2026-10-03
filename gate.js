@@ -8,8 +8,8 @@
 
    The tree is a still picture. Everything that makes it feel like a
    living place is drawn over it: the canopy bends in gusts, the sun
-   flares through it, and the doorway breathes. Pressing ENTER plays the
-   film, which opens on this exact picture and pushes in through the door.
+   flares through it, smoke rises off the roots, and the doorway
+   breathes. Pressing ENTER rushes the whole picture into that doorway.
 
    The tunnel is meant to be punishing. It measures its own frame rate
    and adds detail until the device is working hard, then holds there —
@@ -23,32 +23,28 @@
   /* ---------- the picture, and the two places that matter in it ----------
      Both are fractions: how far across, how far down. If the artwork is
      ever replaced, these two lines are what to re-measure. */
-  const AIM = { x: 0.505, y: 0.700 };   // the middle of the opening
-  const SUN = { x: 0.506, y: 0.433 };   // the burst in the canopy.
-                                      // Both measured off tree.jpg.
+  const AIM = { x: 0.559, y: 0.691 };   // the middle of the opening
+                                      // Measured off the art rather than
+                                      // guessed: the old value was 19px to
+                                      // the right of the actual arch.
+  const SUN = { x: 0.492, y: 0.298 };   // the burst in the canopy.
 
-  /* The still IS the first frame of the film (gate.mp4), so pressing
-     enter starts the zoom from exactly the picture already on screen.
-     If the film is ever replaced, re-extract these from its frame 0. */
-  const FULL = "tree.jpg";
-  const SMALL = "tree-small.jpg";       // lighter, for narrow screens
+  const FULL = "tree.png";
+  const SMALL = "tree-small.png";       // lighter, for narrow screens
 
   const canvas = document.getElementById("sky");
   const tree   = document.getElementById("tree");
   if (!canvas || !tree) return;
 
-  /* Declared up here with the other elements, not beside the code that
-     plays it: the paint loop draws the film and runs before that code is
-     reached, which threw "Cannot access 'rush' before initialization" on
-     every frame. */
-  /* Named `reel`, not `rush`: paintTree already declares a local `rush` for
-     the zoom factor, and a `const` in that function shadows this one for the
-     whole of it — every frame threw "Cannot access 'rush' before
-     initialization" from a line above the declaration that caused it. */
-  const reel = document.getElementById("rush");
-  let playing = false, filmAt = 0, filmBreathe = 1;
   const ctx = canvas.getContext("2d");
   const tc  = tree.getContext("2d");
+
+  /* The realm has its own canvas at the FULL screen resolution, while the
+     tree is drawn at half. That is deliberate and it is the whole point of
+     the effect: what is through the doorway has to carry more detail than
+     the wood around it, or it is just a differently coloured hole. */
+  const portal = document.getElementById("portal");
+  const pc = portal ? portal.getContext("2d") : null;
 
 
   /* two buffers, so each frame of the tunnel can be drawn on top of a
@@ -59,6 +55,7 @@
   let front = A, back = B, fc = a, bc = b;
 
   let W = 0, H = 0, cx = 0, cy = 0, R = 0, SC = 1, GW = 0, GH = 0;
+  let PDPR = 1;
 
   /* ---------- the grid ----------
      Everything is drawn into a canvas a fraction of the screen's size and
@@ -81,6 +78,12 @@
   function resize() {
     W = window.innerWidth;
     H = window.innerHeight;
+    if (portal) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      portal.width  = Math.max(1, Math.round(W * dpr));
+      portal.height = Math.max(1, Math.round(H * dpr));
+      PDPR = dpr;
+    }
     GW = Math.max(1, Math.round(W / PX));
     GH = Math.max(1, Math.round(H / PX));
 
@@ -98,6 +101,7 @@
     tc.setTransform(GW / W, 0, 0, GH / H, 0, 0);
 
     bakeHush();
+    seedAir();
   }
   window.addEventListener("resize", resize);
 
@@ -110,10 +114,7 @@
   const TUNNEL_MS  = 3800;
   const SWALLOW_MS = 1250;
 
-  const smooth = (a, b, v) => {
-    const k = Math.min(1, Math.max(0, (v - a) / (b - a)));
-    return k * k * (3 - 2 * k);
-  };
+  const rand = (a, b) => a + Math.random() * (b - a);
 
 
   /* ============================================================
@@ -126,8 +127,8 @@
     img.decoding = "async";
     img.onload = () => {
       art = img;
-      buildPortal();
       tree.classList.add("ready");
+      if (portal) portal.classList.add("ready");
     };
     img.onerror = () => {
       if (img.src.indexOf(SMALL) === -1) { img.src = SMALL; return; }
@@ -146,155 +147,321 @@
 
 
   /* ============================================================
-     THE LIGHT IN THE DOORWAY
+     THE REALM, STANDING IN THE DOORWAY
 
-     The picture is still, so the energy standing in the arch is still
-     too. It is found once, by colour — the tree is green and the door
-     is brown, so the one place where neither is the strongest colour is
-     the light between them — and from then on that patch is redrawn
-     every frame, climbing, so the colours move while the arch around
-     them stays exactly where it is.
+     Three earlier attempts are worth knowing about, because each one
+     failed for a different reason and the shape of this one is the answer
+     to all three.
+
+       1. The picture's own colours, lifted out of the arch, blurred and
+          scrolled with "lighter". Compositing with "lighter" can only ever
+          BRIGHTEN what is already there, so it read as the same green and
+          violet as the tree. A brighter version of the wood is not another
+          place.
+
+       2. A generated plasma. It looked like a screensaver. Nothing
+          generated carries the density of something drawn.
+
+       3. The painting's own gap, flattened and slid upward as one block.
+          A photograph sliding upward reads as a sliding photograph, not as
+          energy — the giveaway is that every part of it moves the same way
+          at the same time, which nothing alive does.
+
+     So: a drawn texture (1), warped in strips that churn against each
+     other (3), and recoloured through a travelling gradient into hues that
+     appear nowhere else on the screen (2) — violet, teal, acid green, red.
+     Drawn at the full screen resolution and clipped to the traced opening,
+     so the door panel and the stonework are untouched and the realm is
+     visibly finer-grained than the wood it sits in.
      ============================================================ */
 
-  let maskCv = null, energyCv = null, PB = null, flowCv = null, flowC = null;
+  /* The opening, traced BY HAND and registered onto the artwork by
+     tools/doormask.py. Three goes at finding it from colour all failed the
+     same way — below the arch the glow on the ground is the same violet as
+     the way through, so every rule either missed the edges or painted the
+     floor. A hand-marked cut-out settles it, and the tool lines the mark up
+     with the painting rather than trusting it was drawn to scale. */
+  const GAP = { x0: 0.477, y0: 0.440, x1: 0.640, y1: 0.941 };
 
-  function buildPortal() {
-    const AW = 200, AH = Math.max(1, Math.round(AW * art.height / art.width));
-    const probe = document.createElement("canvas");
-    probe.width = AW; probe.height = AH;
-    const pg = probe.getContext("2d", { willReadFrequently: true });
-    pg.drawImage(art, 0, 0, AW, AH);
+  const gapImg = new Image();
+  let gapReady = false;
+  gapImg.onload = () => { gapReady = true; };
+  gapImg.src = "door-mask.png";
 
-    let px;
-    try { px = pg.getImageData(0, 0, AW, AH); } catch (e) { return; }
-    const d = px.data;
-
-    let x0 = 1, y0 = 1, x1 = 0, y1 = 0, found = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      const p = i >> 2, fx = (p % AW) / AW, fy = ((p / AW) | 0) / AH;
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      d[i + 3] = 0;
-      if (fx < AIM.x - 0.16 || fx > AIM.x + 0.14) continue;
-      if (fy < AIM.y - 0.255 || fy > AIM.y + 0.185) continue;
-      if (g >= (r > b ? r : b) - 4) continue;   // green — that is the tree
-      if (b < r * 0.82) continue;               // brown — that is the door
-      if ((r + g + b) / 3 <= 62) continue;      // too dark to be the light
-      d[i] = d[i + 1] = d[i + 2] = d[i + 3] = 255;
-      found++;
-      if (fx < x0) x0 = fx; if (fx > x1) x1 = fx;
-      if (fy < y0) y0 = fy; if (fy > y1) y1 = fy;
-    }
-    if (found < 40) return;
-    pg.putImageData(px, 0, 0);
-
-    /* A stencil edge would show, so the shape is softened — but softening
-       spreads it outward, over the door and the stone frame. Clipping the
-       soft version back to the hard one puts the fade on the inside, so
-       the mask never reaches anything that is not light. */
-    const tiny = document.createElement("canvas");
-    tiny.width = Math.max(1, AW / 9 | 0); tiny.height = Math.max(1, AH / 9 | 0);
-    tiny.getContext("2d").drawImage(probe, 0, 0, tiny.width, tiny.height);
-
-    maskCv = document.createElement("canvas");
-    maskCv.width = AW; maskCv.height = AH;
-    const mg = maskCv.getContext("2d");
-    mg.drawImage(tiny, 0, 0, AW, AH);
-    mg.drawImage(tiny, 0, 0, AW, AH);
-    mg.globalCompositeOperation = "destination-in";
-    mg.drawImage(probe, 0, 0);
-    mg.globalCompositeOperation = "source-over";
-
-    PB = { x0: Math.max(0, x0 - 0.02), y0: Math.max(0, y0 - 0.02),
-           x1: Math.min(1, x1 + 0.02), y1: Math.min(1, y1 + 0.02) };
-
-    /* ---------- the moving layer holds light and nothing else ----------
-       Scrolling the picture itself dragged the door's hinges and the
-       runes on the frame along with it. So the light is lifted out of
-       the picture, masked to itself, and then blurred until there is no
-       edge or letterform left in it — only the colour. That cloud is
-       what climbs; the door and the frame underneath never move. */
-    const EW = 180;
-    const EH = Math.max(2, Math.round(EW *
-      ((PB.y1 - PB.y0) * art.height) / ((PB.x1 - PB.x0) * art.width)));
-    const lift = document.createElement("canvas");
-    lift.width = EW; lift.height = EH;
-    const lg = lift.getContext("2d");
-    lg.drawImage(art,
-      PB.x0 * art.width, PB.y0 * art.height,
-      (PB.x1 - PB.x0) * art.width, (PB.y1 - PB.y0) * art.height,
-      0, 0, EW, EH);
-    lg.globalCompositeOperation = "destination-in";
-    lg.drawImage(maskCv,
-      PB.x0 * AW, PB.y0 * AH, (PB.x1 - PB.x0) * AW, (PB.y1 - PB.y0) * AH,
-      0, 0, EW, EH);
-
-    const smear = document.createElement("canvas");
-    smear.width = Math.max(1, EW / 8 | 0); smear.height = Math.max(1, EH / 8 | 0);
-    smear.getContext("2d").drawImage(lift, 0, 0, smear.width, smear.height);
-    energyCv = document.createElement("canvas");
-    energyCv.width = EW; energyCv.height = EH;
-    energyCv.getContext("2d").drawImage(smear, 0, 0, EW, EH);
-
-    flowCv = document.createElement("canvas");
-    flowCv.width = 240;
-    flowCv.height = Math.max(2, Math.round(240 *
-      ((PB.y1 - PB.y0) * art.height) / ((PB.x1 - PB.x0) * art.width)));
-    flowC = flowCv.getContext("2d");
+  /* the cut-out of the mask that covers GAP, taken once.
+     The shape lives in the mask's ALPHA, not its brightness: canvas masks
+     with destination-in, which tests alpha and ignores luminance, and a
+     greyscale mask kept everything — the realm rendered as its own
+     bounding rectangle. */
+  let gapCut = null;
+  function gapStencil() {
+    if (gapCut || !gapReady) return gapCut;
+    const w = gapImg.width, h = gapImg.height;
+    const cv = document.createElement("canvas");
+    cv.width  = Math.max(1, Math.round((GAP.x1 - GAP.x0) * w));
+    cv.height = Math.max(1, Math.round((GAP.y1 - GAP.y0) * h));
+    cv.getContext("2d").drawImage(gapImg,
+      GAP.x0 * w, GAP.y0 * h, cv.width, cv.height, 0, 0, cv.width, cv.height);
+    gapCut = cv;
+    return gapCut;
   }
 
-  /* One pass of the light, climbing. Two copies of it half a cycle
-     apart, crossfaded, so it never reaches a seam and restarts. */
-  function flowDoor(t, x, y, w, h, open) {
-    if (!maskCv || !PB || !flowC || !energyCv) return;
-    const FW = flowCv.width, FH = flowCv.height;
+  /* The texture. Geometry and smoke from a corner of the Source's own
+     artwork, flattened so no dark band can drift through the arch and look
+     like an unfilled gap, then stacked with its own mirror so a drift
+     upward loops for ever with no join. tools/realm.py builds it. */
+  const realmImg = new Image();
+  let realmReady = false;
+  realmImg.onload = () => { realmReady = true; };
+  realmImg.src = "realm.png";
 
-    flowC.setTransform(1, 0, 0, 1, 0, 0);
-    flowC.clearRect(0, 0, FW, FH);
+  /* ---------- the colours ----------
+     Patches of colour drifting against each other, NOT a gradient.
 
-    /* Each copy has one join in it, where its top meets its own bottom.
-       That join travels down the arch as it climbs, so each copy is
-       weighted by how far the join is from the middle — at its most
-       visible it is not being shown at all. */
-    const u = (t / 4.2) % 1;
-    for (const o of [u, (u + 0.5) % 1]) {
-      flowC.globalAlpha = Math.abs(2 * o - 1);
-      const up = o * FH;
-      flowC.drawImage(energyCv, 0, -up,     FW, FH);
-      flowC.drawImage(energyCv, 0, FH - up, FW, FH);
+     A single linear gradient across the opening was tried and it came out
+     as a rainbow: one hue at the top running smoothly to another at the
+     bottom through every colour in between, including the yellows and
+     oranges this palette does not want anywhere near it. A gradient reads
+     as a gradient however it is coloured. Patches that move independently
+     read as a field with something going on inside it.
+
+     THREE colours, repeated, and no others.
+
+     Seven hues spread round the wheel and stacked down a narrow opening is
+     a rainbow however they are drawn — the doorway came out as a strip of
+     spectrum, which is the one thing it must not look like. Purple, green
+     and red, each appearing twice, read as three colours moving past each
+     other. Where two of them meet the blend is short and dark, which the
+     eye takes for depth rather than for another colour. */
+  /* Narrow ribbons, taller than they are wide, and never the full width.
+
+     Three shapes were tried and two of them read as something a person
+     drew. Round blobs the width of the opening put an unmistakable green
+     DOT in the middle of the doorway. Blobs stretched tall AND wide
+     stacked into three flat vertical stripes. Narrow ones, each covering
+     well under half the width and sweeping slowly across it, are neither:
+     they overlap into ribbons that pass each other going up, which is what
+     light moving through a gap actually looks like. */
+  const BLOBS = [
+    { hue: 285, x: 0.30, y: 0.00, ax: 0.34, ay: 0.05, sx: 0.051, sy: 0.037, r: 0.30, st: 3.4, ph: 0.0 },
+    { hue: 120, x: 0.70, y: 0.12, ax: 0.32, ay: 0.06, sx: 0.037, sy: 0.059, r: 0.28, st: 3.0, ph: 1.9 },
+    { hue: 350, x: 0.38, y: 0.25, ax: 0.35, ay: 0.05, sx: 0.067, sy: 0.043, r: 0.31, st: 3.2, ph: 3.4 },
+    { hue: 285, x: 0.66, y: 0.37, ax: 0.33, ay: 0.06, sx: 0.059, sy: 0.031, r: 0.29, st: 3.6, ph: 2.6 },
+    { hue: 120, x: 0.32, y: 0.50, ax: 0.34, ay: 0.05, sx: 0.045, sy: 0.071, r: 0.30, st: 3.1, ph: 4.7 },
+    { hue: 350, x: 0.68, y: 0.62, ax: 0.32, ay: 0.06, sx: 0.063, sy: 0.049, r: 0.28, st: 3.5, ph: 5.5 },
+    { hue: 285, x: 0.36, y: 0.75, ax: 0.35, ay: 0.05, sx: 0.041, sy: 0.065, r: 0.31, st: 3.0, ph: 0.9 },
+    { hue: 120, x: 0.64, y: 0.87, ax: 0.33, ay: 0.06, sx: 0.055, sy: 0.039, r: 0.29, st: 3.3, ph: 2.2 }
+  ];
+
+  /* The field is painted small and blown up soft, so the colour is a wash
+     the texture shows through rather than a second set of shapes competing
+     with it. Its own canvas, kept between frames. */
+  let fieldCv = null;
+  function colourField(t, w, h) {
+    const FW = 64, FH = Math.max(8, Math.round(FW * h / w));
+    if (!fieldCv) fieldCv = document.createElement("canvas");
+    if (fieldCv.width !== FW || fieldCv.height !== FH) {
+      fieldCv.width = FW; fieldCv.height = FH;
     }
+    const g = fieldCv.getContext("2d");
+    g.globalCompositeOperation = "source-over";
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    /* 92%, not 100%. Full saturation everywhere turned the doorway into a
+       flat neon panel: with the "color" blend the field supplies ALL of the
+       saturation, so pinning it to the maximum erases the difference
+       between the lit parts of the texture and the rest. */
+    g.fillStyle = "hsl(285,92%,46%)";
+    g.fillRect(0, 0, FW, FH);
 
-    // filaments running up through it
-    flowC.globalAlpha = 1;
-    flowC.globalCompositeOperation = "lighter";
-    for (let k = 0; k < 5; k++) {
-      const ph = k * 1.7, climb = ((t * 0.33 + k / 5) % 1);
-      flowC.strokeStyle = `hsla(${k % 2 ? 176 : 286},100%,84%,${0.11 * open})`;
-      flowC.lineWidth = FW * 0.02;
-      flowC.beginPath();
+    for (const bl of BLOBS) {
+      const bx = (bl.x + bl.ax * Math.sin(t * bl.sx * 6.283 + bl.ph)) * FW;
+      /* climbing, with the texture — they wrap past the top and come back
+         below the bottom, so the loop never shows */
+      const v = ((bl.y - t * 0.028 + bl.ay * Math.sin(t * bl.sy * 6.283 + bl.ph * 1.7))
+                 % 1 + 1) % 1;
+      const by = (v * 1.5 - 0.25) * FH;
+      const r = bl.r * FW * (1 + 0.18 * Math.sin(t * 0.21 + bl.ph));
+
+      g.save();
+      g.translate(bx, by);
+      g.scale(1, bl.st);
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, r);
+      /* Held wide and then dropped off a cliff. A gentle falloff leaves a
+         broad band of half-and-half wherever two of them meet, and half
+         purple plus half green is GREY — a washed-out column ran down the
+         middle of the doorway until this was tightened. */
+      gr.addColorStop(0,    `hsla(${bl.hue},92%,52%,1)`);
+      gr.addColorStop(0.68, `hsla(${bl.hue},92%,52%,0.96)`);
+      gr.addColorStop(0.86, `hsla(${bl.hue},92%,52%,0.4)`);
+      gr.addColorStop(1,    `hsla(${bl.hue},92%,52%,0)`);
+      g.fillStyle = gr;
+      g.fillRect(-r, -r, r * 2, r * 2);
+      g.restore();
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    return fieldCv;
+  }
+
+  /* Recolouring needs the "color" blend: hue and saturation from the
+     gradient, LIGHTNESS from the texture underneath, which is what keeps
+     every bit of the drawn detail while replacing the colour completely.
+     An unsupported composite value is ignored rather than refused, so it
+     is tested by setting it and reading it back — without the test, an old
+     browser would silently fall through to source-over and paint a flat
+     wash of gradient straight over the texture. */
+  const TINT = (() => {
+    const g = document.createElement("canvas").getContext("2d");
+    g.globalCompositeOperation = "color";
+    return g.globalCompositeOperation === "color" ? "color" : "lighter";
+  })();
+
+  let pbuf = null;
+  function portalBuf(w, h) {
+    if (!pbuf) pbuf = document.createElement("canvas");
+    if (pbuf.width !== w || pbuf.height !== h) { pbuf.width = w; pbuf.height = h; }
+    return pbuf;
+  }
+
+  /* ---------- one layer of the churn ----------
+     The texture drawn in horizontal strips, each one taking its slice from
+     a different place across the picture. The offsets come from two sines
+     at different lengths and speeds, so neighbouring strips pull against
+     each other and the whole thing swirls instead of sliding.
+
+     Sideways only, near enough. Every destination strip is painted edge to
+     edge whatever its source offset, so no amount of horizontal warping
+     can open a gap — moving a strip DOWN the screen would tear one above
+     it. The small vertical term shifts where the slice is READ from, not
+     where it lands, which stretches the content without leaving a hole. */
+  function warpLayer(bg, fw, fh, t, rise, phase, zoom, mirror) {
+    const half = realmImg.height / 2;        // the loop is half the tile
+
+    /* Pick the HEIGHT first and derive the width from it. The other way
+       round once asked for a slice 687 pixels tall out of a 514-pixel
+       picture: it sampled past the bottom edge and left the foot of the
+       doorway empty. The opening is far taller than it is wide, so height
+       is the scarce dimension. */
+    let srcH = (half * 0.92) / zoom;
+    let srcW = srcH * (fw / fh);
+    if (srcW > realmImg.width * 0.92) {
+      srcW = realmImg.width * 0.92;
+      srcH = srcW * (fh / fw);
+    }
+    const ox = (realmImg.width - srcW) / 2;
+    /* whatever slack is left either side is how far a strip may travel —
+       asking for pixels past the edge of the texture would smear the last
+       column of it across the strip */
+    const amp = Math.min(ox - 1, srcW * 0.085);
+    const creep = mirror ? half - ((t * rise) % half) : ((t * rise) % half);
+
+    const n = Math.max(14, Math.min(56, Math.round(fh / 7)));
+    const dy = fh / n, sy = srcH / n;
+
+    for (let i = 0; i < n; i++) {
+      const f = (i + 0.5) / n;
+      const off = amp * (0.62 * Math.sin(f * 6.1 + t * 0.62 + phase)
+                       + 0.38 * Math.sin(f * 13.4 - t * 1.07 + phase * 1.9));
+      const lift = sy * 0.5 * Math.sin(f * 9.2 + t * 0.43 + phase * 2.3);
+      /* a pixel of overlap each way, or rounding leaves hairlines between
+         the strips that read as scanlines */
+      bg.drawImage(realmImg,
+        ox + off, creep + i * sy + lift, srcW, sy + 1,
+        0, i * dy, fw, dy + 1);
+    }
+  }
+
+  function drawPortal(t, x, y, w, h, pull, rush, ax, ay) {
+    if (!pc || !gapReady || !realmReady) return;
+    const cut = gapStencil();
+    if (!cut) return;
+
+    /* where the gap lands on the screen, in device pixels */
+    const sx = (x + w * GAP.x0) * PDPR;
+    const sy = (y + h * GAP.y0) * PDPR;
+    const sw = w * (GAP.x1 - GAP.x0) * PDPR;
+    const sh = h * (GAP.y1 - GAP.y0) * PDPR;
+
+    pc.setTransform(1, 0, 0, 1, 0, 0);
+    pc.clearRect(0, 0, portal.width, portal.height);
+    if (sw < 2 || sh < 2) return;
+
+    /* The buffer is a little smaller than the hole it fills, so the realm
+       lands on a visibly finer grid than the tree's blocks without going
+       smooth. The tree is drawn at half the screen; this is drawn at about
+       four fifths of the opening. */
+    const fw = Math.max(8, Math.min(260, Math.round(sw / 1.25)));
+    const fh = Math.max(8, Math.min(520, Math.round(sh / 1.25)));
+    const buf = portalBuf(fw, fh);
+    const bg = buf.getContext("2d");
+
+    bg.setTransform(1, 0, 0, 1, 0, 0);
+    bg.globalCompositeOperation = "source-over";
+    bg.globalAlpha = 1;
+    bg.clearRect(0, 0, fw, fh);
+    bg.imageSmoothingEnabled = false;
+
+    /* two depths, at different speeds and different scales — one coming
+       toward you, one drifting the other way behind it */
+    const zoom = 1 + 0.09 * Math.sin(t * 0.19);
+    warpLayer(bg, fw, fh, t, 15, 0, zoom, false);
+
+    bg.globalCompositeOperation = "lighter";
+    bg.globalAlpha = 0.18;                 // parallax, not brightness: 0.45
+    warpLayer(bg, fw, fh, t, 7, 2.4,       // washed the whole thing to cream
+              zoom * 1.34, true);
+    bg.globalAlpha = 1;
+    bg.globalCompositeOperation = "source-over";
+
+    /* ---------- the colour, drifting through it ----------
+       Smoothed on the way up, deliberately: this is the only part of the
+       picture that is allowed to be soft. The hard pixels come from the
+       texture underneath, and the colour is a wash over them. */
+    bg.imageSmoothingEnabled = true;
+    bg.globalCompositeOperation = TINT;
+    bg.globalAlpha = TINT === "color" ? 1 : 0.5;
+    bg.drawImage(colourField(t, fw, fh), 0, 0, fw, fh);
+    bg.globalAlpha = 1;
+    bg.imageSmoothingEnabled = false;
+
+    /* ---------- hot filaments ----------
+       Over the colour, not under it, so they keep a white edge. Short,
+       wavy and faint: six long smooth ones read as scratches drawn across
+       the doorway rather than as anything moving through it. */
+    bg.globalCompositeOperation = "lighter";
+    bg.lineCap = "round";
+    for (let k = 0; k < 4; k++) {
+      const climb = ((t * (0.17 + k * 0.04) + k / 4) % 1);
+      bg.strokeStyle = `hsla(${[286, 170, 322, 104][k]},100%,88%,` +
+                       `${0.1 + 0.05 * Math.sin(t * 1.3 + k)})`;
+      bg.lineWidth = Math.max(0.7, fw * 0.008);
+      bg.beginPath();
       for (let s = 0; s <= 14; s++) {
         const f = s / 14;
-        const py = FH * (1 - ((f * 0.5 + climb) % 1));
-        const pxx = FW * (0.52 + Math.sin(f * 4.2 + t * 1.1 + ph) * 0.17);
-        s ? flowC.lineTo(pxx, py) : flowC.moveTo(pxx, py);
+        const py = fh * (1 - ((f * 0.26 + climb) % 1));
+        const px = fw * (0.5 + Math.sin(f * 2.1 + t * 0.7 + k * 1.7) * 0.2
+                             + Math.sin(f * 16 - t * 1.6 + k) * 0.09);
+        s ? bg.lineTo(px, py) : bg.moveTo(px, py);
       }
-      flowC.stroke();
+      bg.stroke();
     }
-    flowC.globalCompositeOperation = "destination-in";
-    flowC.drawImage(maskCv,
-      PB.x0 * maskCv.width, PB.y0 * maskCv.height,
-      (PB.x1 - PB.x0) * maskCv.width, (PB.y1 - PB.y0) * maskCv.height,
-      0, 0, FW, FH);
-    flowC.globalCompositeOperation = "source-over";
+    bg.globalCompositeOperation = "source-over";
 
-    /* added to the picture, not laid over it: the light brightens what
-       is already in the arch, so the door and the frame beneath stay
-       exactly where they are while the colour climbs through them */
-    tc.globalCompositeOperation = "lighter";
-    tc.globalAlpha = 0.5;
-    tc.drawImage(flowCv, x + w * PB.x0, y + h * PB.y0,
-                 w * (PB.x1 - PB.x0), h * (PB.y1 - PB.y0));
-    tc.globalAlpha = 1;
-    tc.globalCompositeOperation = "source-over";
+    /* ---------- then cut it to the opening ----------
+       Last, so nothing above can have strayed past the stonework. */
+    bg.globalCompositeOperation = "destination-in";
+    bg.drawImage(cut, 0, 0, fw, fh);
+    bg.globalCompositeOperation = "source-over";
+
+    pc.imageSmoothingEnabled = false;
+    if (pull > 0) {
+      pc.translate(ax * PDPR, ay * PDPR);
+      pc.scale(rush, rush);
+      pc.translate(-ax * PDPR, -ay * PDPR);
+      pc.globalAlpha = Math.max(0, 1 - Math.pow(pull, 2.4));
+    }
+    pc.drawImage(buf, sx, sy, sw, sh);
+    pc.globalAlpha = 1;
+    pc.setTransform(1, 0, 0, 1, 0, 0);
   }
 
 
@@ -356,44 +523,17 @@
     }
   }
 
-  /* On a wide screen a tall picture stretched edge to edge is cropped to
-     the middle of the door: no sun, no canopy, and nothing left to zoom
-     towards. So there it is held narrower than the screen, the whole arch
-     and the sun's burst in view, and the sides are filled by backdrop(). */
-  function frame(zoom, iw, ih) {
-    iw = iw || art.width; ih = ih || art.height;
-    let cover = Math.max(W / iw, H / ih);
-    const wide = W > H * 1.05;
-    if (wide) cover = Math.min(cover, Math.max(H * 1.25 / ih, W * 0.55 / iw));
-    cover *= zoom;
-    const w = iw * cover, h = ih * cover;
-    const y = Math.min(0, H * (wide ? 0.5 : DOOR_AT) - h * AIM.y);
-    return { x: (W - w) / 2, y, w, h };
-  }
+  /* where the picture landed this frame, in screen pixels. Kept so that
+     tools/check can ask where the doorway is rather than recomputing the
+     breathing zoom and getting a slightly different answer. */
+  let at = null;
 
-  /* What fills the sides when the picture is narrower than the screen:
-     the same picture blown up and pushed back into the dark, then the
-     picture's own edges feathered into it so there is no line. */
-  function backdrop(src, iw, ih, x, w, k) {
-    if (w >= W - 1) return;
-    const c = Math.max(W / iw, H / ih) * 1.08;
-    const bw = iw * c, bh = ih * c;
-    tc.imageSmoothingEnabled = false;
-    tc.drawImage(src, (W - bw) / 2, (H - bh) / 2, bw, bh);
-    tc.fillStyle = `rgba(3,1,10,${0.55 + 0.1 * k})`;
-    tc.fillRect(0, 0, W, H);
-  }
-  function feather(x, w) {
-    if (w >= W - 1) return;
-    const f = Math.min(w * 0.18, 160);
-    for (const [from, to] of [[x, x + f], [x + w, x + w - f]]) {
-      const g = tc.createLinearGradient(from, 0, to, 0);
-      g.addColorStop(0, "rgba(3,1,10,1)");
-      g.addColorStop(1, "rgba(3,1,10,0)");
-      tc.fillStyle = g;
-      tc.fillRect(Math.min(from, to) - 1, 0, f + 2, H);
-    }
-    tc.fillStyle = "#03010a";
+  function frame(zoom) {
+    const cover = Math.max(W / art.width, H / art.height) * zoom;
+    const w = art.width * cover, h = art.height * cover;
+    const y = Math.min(0, H * DOOR_AT - h * AIM.y);
+    at = { x: (W - w) / 2, y, w, h };
+    return at;
   }
 
   /* the wash that holds the picture back so the words on it can be
@@ -421,6 +561,85 @@
     g.fillRect(0, oh * 0.5, ow, oh * 0.5);
   }
 
+  /* ---------- smoke ----------
+     Baked as a handful of small sprites with a dithered edge, then drawn
+     over and over. A soft gradient would look like a smudge once the
+     screen is blown up; a dithered one breaks into the same pixels as
+     everything else and reads as smoke made of them. */
+  const PUFFS = [];
+  function bakePuffs() {
+    if (PUFFS.length) return;
+    const BAYER = [
+      [ 0,  8,  2, 10], [12,  4, 14,  6],
+      [ 3, 11,  1,  9], [15,  7, 13,  5]
+    ];
+    /* deliberately tiny: every puff is drawn bigger than this, so the
+       dither is magnified into the same chunky pixels as the rest
+       rather than being thrown away by shrinking it */
+    for (let v = 0; v < 3; v++) {
+      const S = 11 + v * 5;
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = S;
+      const g = cv.getContext("2d");
+      const img = g.createImageData(S, S);
+      const d = img.data;
+      const c = (S - 1) / 2;
+      for (let py = 0; py < S; py++) {
+        for (let px = 0; px < S; px++) {
+          const dx = (px - c) / c, dy = (py - c) / c;
+          // a little squashed, and lumpier on one side than the other
+          const r = Math.sqrt(dx * dx * (1 + v * 0.14) + dy * dy * 1.22);
+          const lump = 1 + 0.16 * Math.sin(Math.atan2(dy, dx) * (3 + v) + v * 2.1);
+          let a = 1 - r / lump;
+          a = a <= 0 ? 0 : Math.pow(a, 1.5);
+          // quantise through the dither table, so the edge crumbles
+          const step = (BAYER[py & 3][px & 3] + 0.5) / 16;
+          a = a * 6 - step > 0 ? Math.min(1, Math.round(a * 6 - step) / 6) : 0;
+          const i4 = (py * S + px) * 4;
+          d[i4] = 226; d[i4 + 1] = 216; d[i4 + 2] = 255;
+          d[i4 + 3] = a * 255;
+        }
+      }
+      g.putImageData(img, 0, 0);
+      PUFFS.push(cv);
+    }
+  }
+
+  let smoke = [];
+
+  function seedAir() {
+    bakePuffs();
+    smoke = [];
+    const n = Math.min(64, Math.round((W * H) / 5200));
+    for (let i = 0; i < n; i++) smoke.push(newPuff(Math.random()));
+  }
+
+  /* Smoke comes up off the roots, thickest where the trunk meets the
+     ground and thinning out to the sides. A puff is handed a fraction of
+     a life when it is made, so that on the first frame the air is already
+     full of smoke at every stage rather than a clean floor. */
+  function newPuff(f) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const off  = Math.pow(Math.random(), 1.8) * 0.46 * side;
+    const q = {
+      x: 0.5 + off,
+      y: 1.0 + Math.random() * 0.12,
+      span: rand(9, 16),
+      rise: rand(0.055, 0.115),
+      sway: rand(0.5, 1.6),
+      phase: rand(0, 6.3),
+      drift: rand(-0.022, 0.022) + off * 0.07,
+      size: rand(0.12, 0.3),
+      grow: rand(0.8, 1.7),
+      spr: (Math.random() * 3) | 0,
+      a: rand(0.3, 0.58)
+    };
+    q.life = (f || 0) * q.span;
+    q.y   -= q.rise * q.life;                  // already on its way up
+    q.x   += q.drift * q.life;
+    return q;
+  }
+
   let zoomed = false;          // true while the picture is being rushed into
   function glow(g, x, y, r, hue, alpha, light) {
     if (alpha <= 0.004 || r <= 0) return;
@@ -439,45 +658,10 @@
     tc.clearRect(0, 0, W, H);
     if (!art) return;
 
-    /* ---------- the film, on the same grid as everything else ----------
-       Drawn into this canvas rather than shown as a video, so the pixels
-       stay exactly the size they were on the door. Showing the element
-       itself jumped from chunky pixel art to full-resolution film the
-       instant you pressed enter, and back again when you arrived. */
-    const filming = playing && reel && reel.videoWidth > 0;
-
     /* standing in front of it, not looking at a photograph */
-    const breathe = filming ? filmBreathe
-                            : 1 + 0.028 * (0.5 + 0.5 * Math.sin(t * 0.14));
+    const breathe = 1 + 0.028 * (0.5 + 0.5 * Math.sin(t * 0.14));
     const rush = 1 + 17 * pull * pull * pull;      // and then, the doorway
-    let { x, y, w, h } = frame(breathe);
-
-    /* How far into going through: 0 on the door, 1 a second after enter.
-       The lights, the wash and the sway all fade on this, so nothing pops
-       off the moment the film takes over. */
-    const lit = filming ? Math.max(0, 1 - (performance.now() - filmAt) / 1000) : 1;
-
-    if (filming) {
-      /* The film opens on exactly this picture, framed exactly as the
-         still was, so the zoom starts from what is already on screen.
-         As the camera arrives at the door the framing drifts to the
-         middle of the film, where the passage and the flare are. */
-      const p = reel.duration ? Math.min(1, reel.currentTime / reel.duration) : 0;
-      const m = smooth(0.0, 0.45, p);
-      const f = frame(breathe, reel.videoWidth, reel.videoHeight);
-      const cover = Math.max(W / reel.videoWidth, H / reel.videoHeight);
-      const cw = reel.videoWidth * cover, ch = reel.videoHeight * cover;
-      x = f.x + ((W - cw) / 2 - f.x) * m;
-      y = f.y + ((H - ch) / 2 - f.y) * m;
-      w = f.w + (cw - f.w) * m;
-      h = f.h + (ch - f.h) * m;
-      backdrop(reel, reel.videoWidth, reel.videoHeight, x, w, 1 - m);
-      tc.imageSmoothingEnabled = false;
-      tc.drawImage(reel, x, y, w, h);
-      tc.globalAlpha = 1 - m;
-      feather(x, w);
-      tc.globalAlpha = 1;
-    }
+    const { x, y, w, h } = frame(breathe);
 
     const ax = x + w * AIM.x, ay = y + h * AIM.y;
 
@@ -487,35 +671,13 @@
       tc.translate(ax, ay); tc.scale(rush, rush); tc.translate(-ax, -ay);
       tc.globalAlpha = Math.max(0, 1 - Math.pow(pull, 2.4));
     }
-    if (!filming) {
-      backdrop(art, art.width, art.height, x, w, 1);
-      /* the sway slides bands past the picture's edges; keep them in */
-      tc.save();
-      if (w < W - 1) { tc.beginPath(); tc.rect(x, 0, w, H); tc.clip(); }
-      drawTree(t, pull, x, y, w, h);
-      tc.restore();
-      feather(x, w);
-    }
-    else if (lit > 0.65) {
-      /* the still, swaying, laid over its own first frame for a moment,
-         so the sway settles instead of snapping straight */
-      tc.globalAlpha = (lit - 0.65) / 0.35;
-      drawTree(t, pull, x, y, w, h);
-      tc.globalAlpha = 1;
-    }
+    drawTree(t, pull, x, y, w, h);
 
-    /* The doorway is left as painted.
-
-       An animated portal was built here and taken out again. Every version
-       of it was measurably better than the last — the mask traced and
-       snapped to the stonework, the texture flattened both ways, the
-       button lifted clear — and none of them was as good as the painting
-       already is. The violet and teal in that gap were painted by someone
-       who could see the whole picture at once; a canvas redrawing a strip
-       of it sixty times a second was never going to improve on that.
-
-       If it is ever wanted again it is in the history, whole, at 828d34b. */
+    /* The realm in the doorway. Drawn on its own canvas, over the gap
+       rather than added to it, so it is not limited to brightening the
+       colours the tree already has. */
     const door = 0.42 + 0.2 * Math.sin(t * 0.55) + 0.07 * Math.sin(t * 1.9);
+    drawPortal(t, x, y, w, h, pull, rush, ax, ay);
 
     /* ---------- light ---------- */
     tc.globalCompositeOperation = "lighter";
@@ -523,10 +685,10 @@
     // the sun, flaring through the canopy
     const sx = x + w * SUN.x, sy = y + h * SUN.y;
     const flare = 0.34 + 0.12 * Math.sin(t * 0.7) + 0.05 * Math.sin(t * 2.3);
-    glow(tc, sx, sy, w * 0.26, 48, flare * 0.42 * lit, 92);
-    glow(tc, sx, sy, w * 0.07, 54, flare * lit, 99);
+    glow(tc, sx, sy, w * 0.26, 48, flare * 0.42, 92);
+    glow(tc, sx, sy, w * 0.07, 54, flare, 99);
 
-    tc.strokeStyle = `hsla(50,100%,92%,${0.13 * flare * lit})`;
+    tc.strokeStyle = `hsla(50,100%,92%,${0.13 * flare})`;
     tc.lineWidth = 1.4;
     for (let k = 0; k < 10; k++) {
       const ang = (k / 10) * Math.PI * 2 + t * 0.04;
@@ -538,7 +700,7 @@
     }
 
     // the light it throws into the room, in the tunnel's own colours
-    const open = (door + pull * 2.2) * lit;
+    const open = door + pull * 2.2;
     glow(tc, ax, ay, w * 0.26, 282, open * 0.3, 74);
     glow(tc, ax, ay, w * 0.10, 172, open * 0.5, 86);
     glow(tc, ax, ay, w * 0.04, 300, open, 96);
@@ -553,18 +715,49 @@
       fade.addColorStop(0, "rgba(3,1,10,0)");
       fade.addColorStop(1, "rgba(3,1,10,1)");
       tc.fillStyle = fade;
-      tc.fillRect(0, foot - h * 0.1, W, h * 0.1 + 1);
+      tc.fillRect(x, foot - h * 0.1, w, h * 0.1 + 1);
       tc.fillStyle = "#03010a";
       tc.fillRect(0, foot, W, H - foot + 1);
     }
 
     tc.restore();
 
-    if (hush && lit > 0) {
-      tc.globalAlpha = lit;
-      tc.drawImage(hush, 0, 0, W, H);
+    /* ---------- the air between you and the tree ----------
+       Drawn after the picture is put back, in plain screen space: none
+       of this should rush into the doorway with the tree, and at
+       seventeen times its size a firefly would be a saucer. */
+    const air = Math.max(0, 1 - pull * 2.4);
+    if (air > 0.01) {
+      tc.globalCompositeOperation = "lighter";
+
+      tc.globalCompositeOperation = "source-over";   // smoke blocks light
+      tc.imageSmoothingEnabled = false;             // and keeps its pixels
+      for (const q of smoke) {
+        q.life += dt;
+        if (q.life > q.span) { Object.assign(q, newPuff(0)); continue; }
+
+        const u = q.life / q.span;              // 0 new, 1 spent
+        q.y -= q.rise * dt;
+        q.x += q.drift * dt + Math.sin(t * q.sway + q.phase) * 0.0016;
+
+        // gathers quickly, holds through the middle, thins out at the top
+        const fade = Math.min(1, u * 5) * Math.min(1, (1 - u) * 2.6);
+        if (fade <= 0.01) continue;
+        const d = W * q.size * (0.45 + q.grow * u);
+        const px = q.x * W, py = q.y * H;
+        if (px < -d || px > W + d || py < -d) continue;
+
+        tc.globalAlpha = q.a * fade * air;
+        tc.drawImage(PUFFS[q.spr], px - d / 2, py - d / 2, d, d);
+      }
       tc.globalAlpha = 1;
+      tc.imageSmoothingEnabled = true;
+      tc.globalCompositeOperation = "lighter";
+
+      tc.globalCompositeOperation = "source-over";
     }
+
+    if (hush) tc.drawImage(hush, 0, 0, W, H);
   }
 
 
@@ -750,97 +943,26 @@
   }
 
   /* ---------- going through ----------
-     A film, not a simulation of one.
+     The picture rushes into the doorway, and a feedback loop of scaled
+     copies stands in for the passage beyond it.
 
-     There used to be a canvas tunnel here: the picture zoomed into the
-     doorway, then a feedback loop of scaled copies stood in for the
-     passage. It was a good imitation and it was still an imitation. The
-     video is the thing itself, it ends on the white flare exactly where
-     the chamber should take over, and it is 980 KB.
-
-     The canvas tunnel is kept as the fallback, for a browser that will
-     not play it and for anyone who has asked for less motion. */
-  function canFilm() {
-    if (!reel || still || !reel.canPlayType) return false;
-    return reel.canPlayType("video/webm") !== "" ||
-           reel.canPlayType("video/mp4") !== "";
-  }
-
-  function film() {
-    /* freeze the slow breathing where it is, so the film is framed the
-       same as the still was at the instant of the press */
-    filmBreathe = 1 + 0.028 * (0.5 + 0.5 * Math.sin(performance.now() * 0.001 * 0.14));
-    filmAt = performance.now();
-    playing = true;
-
-    let fellBack = false;
-    const fallBack = () => {
-      if (!playing || fellBack) return;
-      fellBack = true; playing = false;
-      canvasRush();                       // the canvas tunnel, as it was
-    };
-    const done = () => {
-      if (!playing) return;
-      playing = false; clearTimeout(stall); clearTimeout(guard);
-      land();
-    };
-
-    /* Two guards, because a video can fail in two ways.
-
-       It can refuse to start — no codec, a policy, a dead connection — and
-       that has to be caught FAST: a second and a bit of nothing, then the
-       canvas tunnel runs instead and nobody notices. Waiting out a long
-       timeout would leave somebody staring at a door that has already shut
-       behind them.
-
-       Or it can start and then stall. That one is caught by a backstop set
-       from the real duration once the browser knows it. */
-    /* 2.2s, not 1.3. A phone on a cold cellular connection can take longer
-       than a second to get the first frame out, and cutting to the fallback
-       while the film was about to start is worse than waiting a moment. */
-    const stall = setTimeout(() => { if (reel.currentTime < 0.05) fallBack(); }, 2200);
-    let guard = setTimeout(done, 9000);
-    reel.addEventListener("loadedmetadata", () => {
-      if (reel.duration && isFinite(reel.duration)) {
-        clearTimeout(guard);
-        guard = setTimeout(done, reel.duration * 1000 + 1200);
-      }
-    }, { once: true });
-
-    reel.addEventListener("ended", done, { once: true });
-
-    const p = reel.play();
-    if (p && p.catch) p.catch(() => { clearTimeout(stall); fallBack(); });
-  }
-
-  function canvasRush() {
-    playing = false;
-    gate.classList.remove("filming");
+     A generated film was tried in place of this and taken out again. It
+     was the thing itself rather than an imitation of it, and it cost a
+     megabyte, a second codec, two stall guards and a phone that would not
+     start it — and on the way through, the jump from this site's chunky
+     pixels to full-resolution video and back again was worse than the
+     imitation it replaced. */
+  function enter() {
+    if (phase !== "gate") return;
     gate.classList.add("gone");
+    if (still) { land(); return; }
     pullFrom = performance.now();
     setTimeout(() => go("tunnel"), SWALLOW_MS * 0.58);
     setTimeout(land, SWALLOW_MS + TUNNEL_MS);
   }
 
-  function enter() {
-    if (phase !== "gate") return;
-    if (still) { gate.classList.add("gone"); land(); return; }
-    if (canFilm()) {
-      /* Only the writing fades. .gate.gone would take the canvas with it,
-         and the canvas is where the film is being drawn — that is what
-         made it play for a second and then go black. */
-      gate.classList.add("filming");
-      film();
-      return;
-    }
-    gate.classList.add("gone");
-    canvasRush();
-  }
-
   function land() {
     go("options");
-    playing = false;
-    if (reel) reel.pause();
     if (gate) gate.style.display = "none";
     if (!journey) return;
     journey.hidden = false;
@@ -871,16 +993,11 @@
 
   /* nobody should be trapped in the tunnel — a tap takes you straight
      through, and it becomes the obvious thing to do on a second visit */
-  window.addEventListener("pointerdown", (e) => {
+  window.addEventListener("pointerdown", () => {
     if (phase === "tunnel") land();
-    /* the film too, after a beat so the press on ENTER itself doesn't
-       count as the skip */
-    else if (playing && performance.now() - filmAt > 600 && !e.target.closest("#enter")) {
-      playing = false; land();
-    }
   });
 
-  window.RealmGate = { enter, land };
+  window.RealmGate = { enter, land, where: () => at };
 
   resize();
   go("gate");
