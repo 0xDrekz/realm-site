@@ -416,8 +416,8 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 
 /* ---------- the standing facts, under the door ---------- */
 .standing{
-  margin:0;display:flex;gap:clamp(14px,5vw,30px);justify-content:center;
-  flex-wrap:wrap;
+  margin:0;display:flex;gap:clamp(20px,8vw,44px);justify-content:center;
+  flex-wrap:nowrap;
 }
 .standing div{display:flex;flex-direction:column;gap:3px;align-items:center}
 .standing dt{
@@ -428,11 +428,15 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   margin:0;font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
   font-size:.88rem;letter-spacing:.05em;color:#f4efe4;
 }
-.standing dd.shut{color:#9d8fc4;font-weight:500}
-
-.terms{
-  margin:0;font-family:'Pixelify Sans',system-ui,sans-serif;
-  font-size:.70rem;letter-spacing:.2em;text-transform:uppercase;color:#6d6192;
+.standing dd{white-space:nowrap}
+/* the mint's state as a small lit tag, so open/closed reads at a glance */
+#st-status{
+  padding:1px 8px;border:1px solid rgba(124,232,190,.55);color:#9ff5d2;
+  background:rgba(124,232,190,.08);
+}
+#st-status.shut{
+  border-color:rgba(157,143,196,.45);color:#b9acdf;background:rgba(157,143,196,.08);
+  font-weight:500;
 }
 
 /* ---------- what is behind the door ----------
@@ -455,9 +459,6 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 @media (max-height:700px){
   .gate-in{gap:clamp(3px,.9vh,9px)}
   .peek-art{width:clamp(36px,10vw,46px)}
-}
-@media (max-height:600px){
-  .terms{display:none}
 }
 @media (max-height:520px){
   .peek{display:none}

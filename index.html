@@ -63,10 +63,9 @@
     <!-- what a stranger needs to know, all of it from data.js -->
     <dl class="standing">
       <div><dt>Price</dt><dd id="st-chapter"></dd></div>
-      <div><dt>Taken</dt><dd id="st-supply"></dd></div>
+      <div><dt>Minted</dt><dd id="st-supply"></dd></div>
       <div><dt>Mint</dt><dd id="st-status"></dd></div>
     </dl>
-    <p class="terms">Solana &middot; <span data-max></span> per wallet &middot; revealed the moment you mint</p>
 
     <!-- what is actually behind the door. Filled by landing.js. -->
     <div class="peek" data-peek aria-label="Beings from the collection"></div>
@@ -78,6 +77,8 @@
      the whole journey stays on one pixel grid. It sits outside .gate
      because .gate fades when you enter. -->
 <video id="rush" muted playsinline preload="auto" aria-hidden="true">
+  <source src="gate-small.webm" type="video/webm" media="(max-width: 700px)">
+  <source src="gate-small.mp4" type="video/mp4" media="(max-width: 700px)">
   <source src="gate.webm" type="video/webm">
   <source src="gate.mp4" type="video/mp4">
 </video>

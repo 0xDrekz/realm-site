@@ -40,13 +40,12 @@
      so this carried the same sentence twice. It carries the price now,
      which is the other thing a stranger wants before deciding anything. */
   const chapter = $("#st-chapter");
-  if (chapter) chapter.textContent = `${PRICE} SOL each`;
+  if (chapter) chapter.textContent = `${PRICE} SOL`;
 
+  /* short enough that all three sit on one row on a phone */
   const supply = $("#st-supply");
   if (supply) {
-    supply.textContent = soldOut ? "all of them"
-      : minted > 0 ? `${minted.toLocaleString()} of ${TOTAL_BEINGS.toLocaleString()}`
-                   : `none of ${TOTAL_BEINGS.toLocaleString()} yet`;
+    supply.textContent = `${minted.toLocaleString()} / ${TOTAL_BEINGS.toLocaleString()}`;
   }
 
   const status = $("#st-status");

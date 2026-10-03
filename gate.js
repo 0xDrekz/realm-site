@@ -8,8 +8,8 @@
 
    The tree is a still picture. Everything that makes it feel like a
    living place is drawn over it: the canopy bends in gusts, the sun
-   flares through it, smoke rises off the roots, and the doorway
-   breathes. Pressing ENTER rushes the whole picture into that doorway.
+   flares through it, and the doorway breathes. Pressing ENTER plays the
+   film, which opens on this exact picture and pushes in through the door.
 
    The tunnel is meant to be punishing. It measures its own frame rate
    and adds detail until the device is working hard, then holds there —
@@ -23,14 +23,15 @@
   /* ---------- the picture, and the two places that matter in it ----------
      Both are fractions: how far across, how far down. If the artwork is
      ever replaced, these two lines are what to re-measure. */
-  const AIM = { x: 0.531, y: 0.692 };   // the middle of the opening
-                                      // Measured off the art rather than
-                                      // guessed: the old value was 19px to
-                                      // the right of the actual arch.
-  const SUN = { x: 0.492, y: 0.298 };   // the burst in the canopy.
+  const AIM = { x: 0.505, y: 0.700 };   // the middle of the opening
+  const SUN = { x: 0.506, y: 0.433 };   // the burst in the canopy.
+                                      // Both measured off tree.jpg.
 
-  const FULL = "tree.png";
-  const SMALL = "tree-small.png";       // lighter, for narrow screens
+  /* The still IS the first frame of the film (gate.mp4), so pressing
+     enter starts the zoom from exactly the picture already on screen.
+     If the film is ever replaced, re-extract these from its frame 0. */
+  const FULL = "tree.jpg";
+  const SMALL = "tree-small.jpg";       // lighter, for narrow screens
 
   const canvas = document.getElementById("sky");
   const tree   = document.getElementById("tree");
@@ -45,7 +46,7 @@
      whole of it — every frame threw "Cannot access 'rush' before
      initialization" from a line above the declaration that caused it. */
   const reel = document.getElementById("rush");
-  let playing = false;
+  let playing = false, filmAt = 0, filmBreathe = 1;
   const ctx = canvas.getContext("2d");
   const tc  = tree.getContext("2d");
 
@@ -97,7 +98,6 @@
     tc.setTransform(GW / W, 0, 0, GH / H, 0, 0);
 
     bakeHush();
-    seedAir();
   }
   window.addEventListener("resize", resize);
 
@@ -110,7 +110,10 @@
   const TUNNEL_MS  = 3800;
   const SWALLOW_MS = 1250;
 
-  const rand = (a, b) => a + Math.random() * (b - a);
+  const smooth = (a, b, v) => {
+    const k = Math.min(1, Math.max(0, (v - a) / (b - a)));
+    return k * k * (3 - 2 * k);
+  };
 
 
   /* ============================================================
@@ -353,11 +356,44 @@
     }
   }
 
-  function frame(zoom) {
-    const cover = Math.max(W / art.width, H / art.height) * zoom;
-    const w = art.width * cover, h = art.height * cover;
-    const y = Math.min(0, H * DOOR_AT - h * AIM.y);
+  /* On a wide screen a tall picture stretched edge to edge is cropped to
+     the middle of the door: no sun, no canopy, and nothing left to zoom
+     towards. So there it is held narrower than the screen, the whole arch
+     and the sun's burst in view, and the sides are filled by backdrop(). */
+  function frame(zoom, iw, ih) {
+    iw = iw || art.width; ih = ih || art.height;
+    let cover = Math.max(W / iw, H / ih);
+    const wide = W > H * 1.05;
+    if (wide) cover = Math.min(cover, Math.max(H * 1.25 / ih, W * 0.55 / iw));
+    cover *= zoom;
+    const w = iw * cover, h = ih * cover;
+    const y = Math.min(0, H * (wide ? 0.5 : DOOR_AT) - h * AIM.y);
     return { x: (W - w) / 2, y, w, h };
+  }
+
+  /* What fills the sides when the picture is narrower than the screen:
+     the same picture blown up and pushed back into the dark, then the
+     picture's own edges feathered into it so there is no line. */
+  function backdrop(src, iw, ih, x, w, k) {
+    if (w >= W - 1) return;
+    const c = Math.max(W / iw, H / ih) * 1.08;
+    const bw = iw * c, bh = ih * c;
+    tc.imageSmoothingEnabled = false;
+    tc.drawImage(src, (W - bw) / 2, (H - bh) / 2, bw, bh);
+    tc.fillStyle = `rgba(3,1,10,${0.55 + 0.1 * k})`;
+    tc.fillRect(0, 0, W, H);
+  }
+  function feather(x, w) {
+    if (w >= W - 1) return;
+    const f = Math.min(w * 0.18, 160);
+    for (const [from, to] of [[x, x + f], [x + w, x + w - f]]) {
+      const g = tc.createLinearGradient(from, 0, to, 0);
+      g.addColorStop(0, "rgba(3,1,10,1)");
+      g.addColorStop(1, "rgba(3,1,10,0)");
+      tc.fillStyle = g;
+      tc.fillRect(Math.min(from, to) - 1, 0, f + 2, H);
+    }
+    tc.fillStyle = "#03010a";
   }
 
   /* the wash that holds the picture back so the words on it can be
@@ -385,85 +421,6 @@
     g.fillRect(0, oh * 0.5, ow, oh * 0.5);
   }
 
-  /* ---------- smoke ----------
-     Baked as a handful of small sprites with a dithered edge, then drawn
-     over and over. A soft gradient would look like a smudge once the
-     screen is blown up; a dithered one breaks into the same pixels as
-     everything else and reads as smoke made of them. */
-  const PUFFS = [];
-  function bakePuffs() {
-    if (PUFFS.length) return;
-    const BAYER = [
-      [ 0,  8,  2, 10], [12,  4, 14,  6],
-      [ 3, 11,  1,  9], [15,  7, 13,  5]
-    ];
-    /* deliberately tiny: every puff is drawn bigger than this, so the
-       dither is magnified into the same chunky pixels as the rest
-       rather than being thrown away by shrinking it */
-    for (let v = 0; v < 3; v++) {
-      const S = 11 + v * 5;
-      const cv = document.createElement("canvas");
-      cv.width = cv.height = S;
-      const g = cv.getContext("2d");
-      const img = g.createImageData(S, S);
-      const d = img.data;
-      const c = (S - 1) / 2;
-      for (let py = 0; py < S; py++) {
-        for (let px = 0; px < S; px++) {
-          const dx = (px - c) / c, dy = (py - c) / c;
-          // a little squashed, and lumpier on one side than the other
-          const r = Math.sqrt(dx * dx * (1 + v * 0.14) + dy * dy * 1.22);
-          const lump = 1 + 0.16 * Math.sin(Math.atan2(dy, dx) * (3 + v) + v * 2.1);
-          let a = 1 - r / lump;
-          a = a <= 0 ? 0 : Math.pow(a, 1.5);
-          // quantise through the dither table, so the edge crumbles
-          const step = (BAYER[py & 3][px & 3] + 0.5) / 16;
-          a = a * 6 - step > 0 ? Math.min(1, Math.round(a * 6 - step) / 6) : 0;
-          const i4 = (py * S + px) * 4;
-          d[i4] = 226; d[i4 + 1] = 216; d[i4 + 2] = 255;
-          d[i4 + 3] = a * 255;
-        }
-      }
-      g.putImageData(img, 0, 0);
-      PUFFS.push(cv);
-    }
-  }
-
-  let smoke = [];
-
-  function seedAir() {
-    bakePuffs();
-    smoke = [];
-    const n = Math.min(64, Math.round((W * H) / 5200));
-    for (let i = 0; i < n; i++) smoke.push(newPuff(Math.random()));
-  }
-
-  /* Smoke comes up off the roots, thickest where the trunk meets the
-     ground and thinning out to the sides. A puff is handed a fraction of
-     a life when it is made, so that on the first frame the air is already
-     full of smoke at every stage rather than a clean floor. */
-  function newPuff(f) {
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const off  = Math.pow(Math.random(), 1.8) * 0.46 * side;
-    const q = {
-      x: 0.5 + off,
-      y: 1.0 + Math.random() * 0.12,
-      span: rand(9, 16),
-      rise: rand(0.055, 0.115),
-      sway: rand(0.5, 1.6),
-      phase: rand(0, 6.3),
-      drift: rand(-0.022, 0.022) + off * 0.07,
-      size: rand(0.12, 0.3),
-      grow: rand(0.8, 1.7),
-      spr: (Math.random() * 3) | 0,
-      a: rand(0.3, 0.58)
-    };
-    q.life = (f || 0) * q.span;
-    q.y   -= q.rise * q.life;                  // already on its way up
-    q.x   += q.drift * q.life;
-    return q;
-  }
-
   let zoomed = false;          // true while the picture is being rushed into
   function glow(g, x, y, r, hue, alpha, light) {
     if (alpha <= 0.004 || r <= 0) return;
@@ -487,18 +444,40 @@
        stay exactly the size they were on the door. Showing the element
        itself jumped from chunky pixel art to full-resolution film the
        instant you pressed enter, and back again when you arrived. */
-    if (playing && reel && reel.videoWidth) {
-      const cover = Math.max(W / reel.videoWidth, H / reel.videoHeight);
-      const vw = reel.videoWidth * cover, vh = reel.videoHeight * cover;
-      tc.imageSmoothingEnabled = false;
-      tc.drawImage(reel, (W - vw) / 2, (H - vh) / 2, vw, vh);
-      return;
-    }
+    const filming = playing && reel && reel.videoWidth > 0;
 
     /* standing in front of it, not looking at a photograph */
-    const breathe = 1 + 0.028 * (0.5 + 0.5 * Math.sin(t * 0.14));
+    const breathe = filming ? filmBreathe
+                            : 1 + 0.028 * (0.5 + 0.5 * Math.sin(t * 0.14));
     const rush = 1 + 17 * pull * pull * pull;      // and then, the doorway
-    const { x, y, w, h } = frame(breathe);
+    let { x, y, w, h } = frame(breathe);
+
+    /* How far into going through: 0 on the door, 1 a second after enter.
+       The lights, the wash and the sway all fade on this, so nothing pops
+       off the moment the film takes over. */
+    const lit = filming ? Math.max(0, 1 - (performance.now() - filmAt) / 1000) : 1;
+
+    if (filming) {
+      /* The film opens on exactly this picture, framed exactly as the
+         still was, so the zoom starts from what is already on screen.
+         As the camera arrives at the door the framing drifts to the
+         middle of the film, where the passage and the flare are. */
+      const p = reel.duration ? Math.min(1, reel.currentTime / reel.duration) : 0;
+      const m = smooth(0.0, 0.45, p);
+      const f = frame(breathe, reel.videoWidth, reel.videoHeight);
+      const cover = Math.max(W / reel.videoWidth, H / reel.videoHeight);
+      const cw = reel.videoWidth * cover, ch = reel.videoHeight * cover;
+      x = f.x + ((W - cw) / 2 - f.x) * m;
+      y = f.y + ((H - ch) / 2 - f.y) * m;
+      w = f.w + (cw - f.w) * m;
+      h = f.h + (ch - f.h) * m;
+      backdrop(reel, reel.videoWidth, reel.videoHeight, x, w, 1 - m);
+      tc.imageSmoothingEnabled = false;
+      tc.drawImage(reel, x, y, w, h);
+      tc.globalAlpha = 1 - m;
+      feather(x, w);
+      tc.globalAlpha = 1;
+    }
 
     const ax = x + w * AIM.x, ay = y + h * AIM.y;
 
@@ -508,7 +487,22 @@
       tc.translate(ax, ay); tc.scale(rush, rush); tc.translate(-ax, -ay);
       tc.globalAlpha = Math.max(0, 1 - Math.pow(pull, 2.4));
     }
-    drawTree(t, pull, x, y, w, h);
+    if (!filming) {
+      backdrop(art, art.width, art.height, x, w, 1);
+      /* the sway slides bands past the picture's edges; keep them in */
+      tc.save();
+      if (w < W - 1) { tc.beginPath(); tc.rect(x, 0, w, H); tc.clip(); }
+      drawTree(t, pull, x, y, w, h);
+      tc.restore();
+      feather(x, w);
+    }
+    else if (lit > 0.65) {
+      /* the still, swaying, laid over its own first frame for a moment,
+         so the sway settles instead of snapping straight */
+      tc.globalAlpha = (lit - 0.65) / 0.35;
+      drawTree(t, pull, x, y, w, h);
+      tc.globalAlpha = 1;
+    }
 
     /* The doorway is left as painted.
 
@@ -529,10 +523,10 @@
     // the sun, flaring through the canopy
     const sx = x + w * SUN.x, sy = y + h * SUN.y;
     const flare = 0.34 + 0.12 * Math.sin(t * 0.7) + 0.05 * Math.sin(t * 2.3);
-    glow(tc, sx, sy, w * 0.26, 48, flare * 0.42, 92);
-    glow(tc, sx, sy, w * 0.07, 54, flare, 99);
+    glow(tc, sx, sy, w * 0.26, 48, flare * 0.42 * lit, 92);
+    glow(tc, sx, sy, w * 0.07, 54, flare * lit, 99);
 
-    tc.strokeStyle = `hsla(50,100%,92%,${0.13 * flare})`;
+    tc.strokeStyle = `hsla(50,100%,92%,${0.13 * flare * lit})`;
     tc.lineWidth = 1.4;
     for (let k = 0; k < 10; k++) {
       const ang = (k / 10) * Math.PI * 2 + t * 0.04;
@@ -544,7 +538,7 @@
     }
 
     // the light it throws into the room, in the tunnel's own colours
-    const open = door + pull * 2.2;
+    const open = (door + pull * 2.2) * lit;
     glow(tc, ax, ay, w * 0.26, 282, open * 0.3, 74);
     glow(tc, ax, ay, w * 0.10, 172, open * 0.5, 86);
     glow(tc, ax, ay, w * 0.04, 300, open, 96);
@@ -559,49 +553,18 @@
       fade.addColorStop(0, "rgba(3,1,10,0)");
       fade.addColorStop(1, "rgba(3,1,10,1)");
       tc.fillStyle = fade;
-      tc.fillRect(x, foot - h * 0.1, w, h * 0.1 + 1);
+      tc.fillRect(0, foot - h * 0.1, W, h * 0.1 + 1);
       tc.fillStyle = "#03010a";
       tc.fillRect(0, foot, W, H - foot + 1);
     }
 
     tc.restore();
 
-    /* ---------- the air between you and the tree ----------
-       Drawn after the picture is put back, in plain screen space: none
-       of this should rush into the doorway with the tree, and at
-       seventeen times its size a firefly would be a saucer. */
-    const air = Math.max(0, 1 - pull * 2.4);
-    if (air > 0.01) {
-      tc.globalCompositeOperation = "lighter";
-
-      tc.globalCompositeOperation = "source-over";   // smoke blocks light
-      tc.imageSmoothingEnabled = false;             // and keeps its pixels
-      for (const q of smoke) {
-        q.life += dt;
-        if (q.life > q.span) { Object.assign(q, newPuff(0)); continue; }
-
-        const u = q.life / q.span;              // 0 new, 1 spent
-        q.y -= q.rise * dt;
-        q.x += q.drift * dt + Math.sin(t * q.sway + q.phase) * 0.0016;
-
-        // gathers quickly, holds through the middle, thins out at the top
-        const fade = Math.min(1, u * 5) * Math.min(1, (1 - u) * 2.6);
-        if (fade <= 0.01) continue;
-        const d = W * q.size * (0.45 + q.grow * u);
-        const px = q.x * W, py = q.y * H;
-        if (px < -d || px > W + d || py < -d) continue;
-
-        tc.globalAlpha = q.a * fade * air;
-        tc.drawImage(PUFFS[q.spr], px - d / 2, py - d / 2, d, d);
-      }
+    if (hush && lit > 0) {
+      tc.globalAlpha = lit;
+      tc.drawImage(hush, 0, 0, W, H);
       tc.globalAlpha = 1;
-      tc.imageSmoothingEnabled = true;
-      tc.globalCompositeOperation = "lighter";
-
-      tc.globalCompositeOperation = "source-over";
     }
-
-    if (hush) tc.drawImage(hush, 0, 0, W, H);
   }
 
 
@@ -804,6 +767,10 @@
   }
 
   function film() {
+    /* freeze the slow breathing where it is, so the film is framed the
+       same as the still was at the instant of the press */
+    filmBreathe = 1 + 0.028 * (0.5 + 0.5 * Math.sin(performance.now() * 0.001 * 0.14));
+    filmAt = performance.now();
     playing = true;
 
     let fellBack = false;
@@ -904,8 +871,13 @@
 
   /* nobody should be trapped in the tunnel — a tap takes you straight
      through, and it becomes the obvious thing to do on a second visit */
-  window.addEventListener("pointerdown", () => {
+  window.addEventListener("pointerdown", (e) => {
     if (phase === "tunnel") land();
+    /* the film too, after a beat so the press on ENTER itself doesn't
+       count as the skip */
+    else if (playing && performance.now() - filmAt > 600 && !e.target.closest("#enter")) {
+      playing = false; land();
+    }
   });
 
   window.RealmGate = { enter, land };
