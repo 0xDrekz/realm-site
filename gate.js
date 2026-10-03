@@ -35,6 +35,17 @@
   const canvas = document.getElementById("sky");
   const tree   = document.getElementById("tree");
   if (!canvas || !tree) return;
+
+  /* Declared up here with the other elements, not beside the code that
+     plays it: the paint loop draws the film and runs before that code is
+     reached, which threw "Cannot access 'rush' before initialization" on
+     every frame. */
+  /* Named `reel`, not `rush`: paintTree already declares a local `rush` for
+     the zoom factor, and a `const` in that function shadows this one for the
+     whole of it — every frame threw "Cannot access 'rush' before
+     initialization" from a line above the declaration that caused it. */
+  const reel = document.getElementById("rush");
+  let playing = false;
   const ctx = canvas.getContext("2d");
   const tc  = tree.getContext("2d");
 
@@ -471,6 +482,19 @@
     tc.clearRect(0, 0, W, H);
     if (!art) return;
 
+    /* ---------- the film, on the same grid as everything else ----------
+       Drawn into this canvas rather than shown as a video, so the pixels
+       stay exactly the size they were on the door. Showing the element
+       itself jumped from chunky pixel art to full-resolution film the
+       instant you pressed enter, and back again when you arrived. */
+    if (playing && reel && reel.videoWidth) {
+      const cover = Math.max(W / reel.videoWidth, H / reel.videoHeight);
+      const vw = reel.videoWidth * cover, vh = reel.videoHeight * cover;
+      tc.imageSmoothingEnabled = false;
+      tc.drawImage(reel, (W - vw) / 2, (H - vh) / 2, vw, vh);
+      return;
+    }
+
     /* standing in front of it, not looking at a photograph */
     const breathe = 1 + 0.028 * (0.5 + 0.5 * Math.sin(t * 0.14));
     const rush = 1 + 17 * pull * pull * pull;      // and then, the doorway
@@ -773,28 +797,24 @@
 
      The canvas tunnel is kept as the fallback, for a browser that will
      not play it and for anyone who has asked for less motion. */
-  const rush = document.getElementById("rush");
-  let rushing = false;
-
   function canFilm() {
-    if (!rush || still || !rush.canPlayType) return false;
-    return rush.canPlayType("video/webm") !== "" ||
-           rush.canPlayType("video/mp4") !== "";
+    if (!reel || still || !reel.canPlayType) return false;
+    return reel.canPlayType("video/webm") !== "" ||
+           reel.canPlayType("video/mp4") !== "";
   }
 
   function film() {
-    rushing = true;
-    rush.hidden = false;
+    playing = true;
 
     let fellBack = false;
     const fallBack = () => {
-      if (!rushing || fellBack) return;
-      fellBack = true; rushing = false;
+      if (!playing || fellBack) return;
+      fellBack = true; playing = false;
       canvasRush();                       // the canvas tunnel, as it was
     };
     const done = () => {
-      if (!rushing) return;
-      rushing = false; clearTimeout(stall); clearTimeout(guard);
+      if (!playing) return;
+      playing = false; clearTimeout(stall); clearTimeout(guard);
       land();
     };
 
@@ -808,23 +828,25 @@
 
        Or it can start and then stall. That one is caught by a backstop set
        from the real duration once the browser knows it. */
-    const stall = setTimeout(() => { if (rush.currentTime < 0.05) fallBack(); }, 1300);
+    const stall = setTimeout(() => { if (reel.currentTime < 0.05) fallBack(); }, 1300);
     let guard = setTimeout(done, 9000);
-    rush.addEventListener("loadedmetadata", () => {
-      if (rush.duration && isFinite(rush.duration)) {
+    reel.addEventListener("loadedmetadata", () => {
+      if (reel.duration && isFinite(reel.duration)) {
         clearTimeout(guard);
-        guard = setTimeout(done, rush.duration * 1000 + 1200);
+        guard = setTimeout(done, reel.duration * 1000 + 1200);
       }
     }, { once: true });
 
-    rush.addEventListener("ended", done, { once: true });
+    reel.addEventListener("ended", done, { once: true });
 
-    const p = rush.play();
+    const p = reel.play();
     if (p && p.catch) p.catch(() => { clearTimeout(stall); fallBack(); });
   }
 
   function canvasRush() {
-    if (rush) rush.hidden = true;
+    playing = false;
+    gate.classList.remove("filming");
+    gate.classList.add("gone");
     pullFrom = performance.now();
     setTimeout(() => go("tunnel"), SWALLOW_MS * 0.58);
     setTimeout(land, SWALLOW_MS + TUNNEL_MS);
@@ -832,15 +854,23 @@
 
   function enter() {
     if (phase !== "gate") return;
+    if (still) { gate.classList.add("gone"); land(); return; }
+    if (canFilm()) {
+      /* Only the writing fades. .gate.gone would take the canvas with it,
+         and the canvas is where the film is being drawn — that is what
+         made it play for a second and then go black. */
+      gate.classList.add("filming");
+      film();
+      return;
+    }
     gate.classList.add("gone");
-    if (still) { land(); return; }
-    if (canFilm()) { film(); return; }
     canvasRush();
   }
 
   function land() {
     go("options");
-    if (rush) { rush.pause(); rush.hidden = true; }
+    playing = false;
+    if (reel) reel.pause();
     if (gate) gate.style.display = "none";
     if (!journey) return;
     journey.hidden = false;
