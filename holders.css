@@ -1,0 +1,158 @@
+/* ============================================================
+   REALM — the holders page.
+   The same ground as everywhere else: near-black, a hairline of gold,
+   pixel type for words and a readable face for every number.
+   ============================================================ */
+
+body.holders{
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(120,60,200,.22), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(227,186,92,.10), transparent 55%),
+    var(--void);
+  background-attachment:fixed;
+  min-height:100vh;
+}
+body.holders .topbar{position:sticky;top:0}
+.h-back{color:var(--dim);text-decoration:none;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase}
+.h-back:hover{color:var(--gold)}
+
+.h-page{
+  max-width:760px;margin:0 auto;
+  padding:28px 16px calc(60px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:22px;
+}
+
+.h-head h1{
+  margin:2px 0 8px;font-weight:700;letter-spacing:.06em;
+  font-size:clamp(1.6rem,6vw,2.3rem);line-height:1.15;color:var(--bone);
+}
+.h-head .eyebrow{margin:0;color:var(--gold);letter-spacing:.24em;text-transform:uppercase;font-size:.74rem}
+.h-head .lede{color:var(--dim);margin:0 0 16px}
+.h-head .lede b{color:var(--bone)}
+
+.h-stats,.h-sum{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0;
+}
+.h-stats>div,.h-sum>div{
+  border:1px solid var(--line);background:rgba(7,4,15,.7);padding:10px 12px;
+  display:flex;flex-direction:column;gap:2px;min-width:0;
+}
+.h-stats span,.h-sum span{font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+.h-stats b,.h-sum b{font-size:1.22rem;color:var(--bone);font-weight:700}
+.h-stats i{font-style:normal;font-size:.72rem;color:var(--dim);line-height:1.4}
+
+.h-card{
+  border:1px solid var(--line);background:rgba(7,4,15,.82);
+  padding:18px 16px 16px;
+}
+.h-card h2{
+  margin:0 0 6px;font-size:1.05rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);
+}
+.h-note{color:var(--dim);font-size:.88rem;margin:8px 0}
+.h-note a{color:var(--gold)}
+.h-bad{color:#ff8a7a;font-size:.9rem}
+
+/* ---------- look up ---------- */
+.h-find{display:flex;gap:8px;margin:10px 0}
+.h-find input{
+  flex:1;min-width:0;background:var(--void);border:1px solid var(--line);color:var(--bone);
+  padding:11px 12px;font:inherit;font-family:'Space Grotesk',system-ui,sans-serif;font-size:.92rem;
+}
+.h-find input:focus{outline:none;border-color:var(--gold)}
+.h-find button,.h-step button,.h-bands button{
+  font:inherit;cursor:pointer;color:var(--bone);background:transparent;border:1px solid var(--line-lit);
+}
+.h-find button{padding:0 16px;letter-spacing:.12em;text-transform:uppercase;font-size:.82rem}
+.h-find button:hover{background:rgba(227,186,92,.12)}
+.h-find button:disabled{opacity:.5}
+.h-who{margin:6px 0;color:var(--bone);font-family:'Space Grotesk',system-ui,sans-serif}
+
+.h-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin:8px 0}
+.h-grid figure{margin:0;border:1px solid var(--c);background:var(--void)}
+.h-grid img{display:block;width:100%;aspect-ratio:1;object-fit:cover;image-rendering:pixelated}
+.h-grid figcaption{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c);padding:3px 6px}
+.h-more{grid-column:1/-1;color:var(--dim);font-size:.82rem;margin:0}
+
+/* ---------- what if ---------- */
+.h-tiers{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.h-tier{
+  display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;
+  border:1px solid rgba(227,186,92,.14);padding:5px 8px 5px 5px;background:var(--void);
+  transition:border-color .2s;
+}
+.h-tier.on{border-color:var(--c)}
+.h-tier img{width:44px;height:44px;image-rendering:pixelated;display:block}
+.h-tname{display:flex;flex-direction:column;line-height:1.3;min-width:0}
+.h-tname b{color:var(--c);font-weight:600;letter-spacing:.06em}
+.h-tname i{font-style:normal;color:var(--faint);font-size:.74rem}
+.h-step{display:flex;align-items:center;gap:6px}
+.h-step button{width:36px;height:36px;font-size:1.1rem;line-height:1}
+.h-step button:hover{background:rgba(227,186,92,.12)}
+.h-step span{min-width:2.2ch;text-align:center;font-size:1.05rem;color:var(--bone)}
+
+.h-token{margin:16px 0 4px}
+.h-token label{display:block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+.h-tok-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.h-tok-row input{flex:1;min-width:160px;accent-color:var(--gold)}
+.h-tok-row output{color:var(--bone);font-size:.92rem}
+.h-bands{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.h-bands button{
+  padding:4px 9px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:.8rem;
+  border-color:rgba(227,186,92,.3);display:flex;gap:6px;align-items:baseline;
+}
+.h-bands button i{font-style:normal;color:var(--dim);font-size:.72rem}
+.h-bands button.on{border-color:var(--gold);background:rgba(227,186,92,.14)}
+
+/* ---------- the range ---------- */
+.h-range{margin:14px 0 4px}
+.h-figs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.h-figs>div{border:1px solid var(--line);padding:9px 10px;background:var(--void);display:flex;flex-direction:column}
+.h-figs span{font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+.h-figs b{font-size:clamp(1.05rem,4.6vw,1.45rem);color:var(--bone);font-weight:700;line-height:1.3}
+.h-figs i{font-style:normal;font-size:.7rem;color:var(--dim)}
+.h-figs .ty{border-color:var(--gold)}
+.h-figs .ty b{color:var(--gold)}
+
+.h-bar{position:relative;height:14px;margin:22px 0 8px;background:rgba(157,143,196,.12)}
+.h-span{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,rgba(157,143,196,.5),rgba(227,186,92,.75))}
+.h-tick{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1px;background:var(--bone)}
+.h-cost{position:absolute;top:-8px;bottom:-8px;width:0;border-left:2px dashed #ff8a7a}
+.h-cost i{
+  position:absolute;top:-18px;left:4px;font-style:normal;white-space:nowrap;
+  font-family:'Space Grotesk',system-ui,sans-serif;font-size:.7rem;color:#ff8a7a;
+}
+.h-cost.flip i{left:auto;right:4px}
+.h-sub{margin:4px 0 0;color:var(--faint);font-size:.78rem;font-family:'Space Grotesk',system-ui,sans-serif}
+
+/* ---------- top holders ---------- */
+.h-table{overflow-x:auto;margin:8px 0}
+.h-table table{width:100%;border-collapse:collapse;font-size:.86rem}
+.h-table th{
+  text-align:left;font-weight:400;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);padding:6px 8px;border-bottom:1px solid var(--line);
+}
+.h-table td{padding:7px 8px;border-bottom:1px solid rgba(227,186,92,.08);color:var(--bone);white-space:nowrap}
+.h-addr{
+  font:inherit;font-family:'Space Grotesk',system-ui,sans-serif;background:none;border:0;padding:0;
+  color:var(--gold);cursor:pointer;text-decoration:underline;text-underline-offset:3px;
+}
+
+/* ---------- how ---------- */
+.h-formula{border-left:2px solid var(--gold);padding:2px 0 2px 12px;margin:10px 0}
+.h-formula p{margin:4px 0;color:var(--bone)}
+.h-formula b{color:var(--gold);font-weight:600}
+.h-weights{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:12px 0}
+.h-weights div{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:8px;
+  border:1px solid rgba(227,186,92,.14);padding:4px 8px 4px 4px}
+.h-weights img{width:30px;height:30px;image-rendering:pixelated}
+.h-weights span{color:var(--c);font-size:.84rem}
+.h-weights b{color:var(--bone)}
+.h-range-key{margin:6px 0 10px;padding-left:18px;color:var(--dim);font-size:.88rem}
+.h-range-key b{color:var(--bone)}
+
+/* on a phone the board keeps what matters: rank, wallet, weight, band, share, SOL */
+@media (max-width:480px){
+  .h-table th:nth-child(3),.h-table td:nth-child(3){display:none}
+  .h-table th,.h-table td{padding:6px 5px}
+  .h-table table{font-size:.8rem}
+}

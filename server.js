@@ -107,7 +107,11 @@ async function holdings(address) {
       const attrs = (a.content && a.content.metadata && a.content.metadata.attributes) || [];
       const tier = (attrs.find(t => t.trait_type === "Tier") || {}).value;
       const name = (a.content && a.content.metadata && a.content.metadata.name) || a.id;
-      if (tier) beings.push({ tier, name });
+      const image = (a.content && a.content.links && a.content.links.image)
+                 || (a.content && a.content.files && a.content.files[0] && a.content.files[0].uri)
+                 || "";
+      const being = (attrs.find(t => t.trait_type === "Being") || {}).value || "";
+      if (tier) beings.push({ tier, name, being, image });
     }
     if (items.length < 1000) break;
   }
@@ -124,6 +128,63 @@ async function holdings(address) {
   return { beings, tokens };
 }
 
+/* ---- the holders board ----
+   Every being in the collection, grouped by owner and weighed. Done once
+   every ten minutes at most, whoever asks: it is a few calls for the whole
+   collection, and a board that is ten minutes old is still a true board.
+   The tier weights are read out of data.js so there is one list of them. */
+const WEIGHTS = (() => {
+  try {
+    const src = fs.readFileSync(path.join(ROOT, "data.js"), "utf8");
+    const out = {};
+    for (const m of src.matchAll(/name:\s*"([A-Za-z]+)"[^}]*?weight:\s*(\d+)/g)) out[m[1]] = Number(m[2]);
+    return out;
+  } catch { return {}; }
+})();
+let board = null, boardAt = 0, boardBusy = null;
+const BOARD_MS = 10 * 60_000;
+
+async function holders() {
+  const owners = new Map();
+  let minted = 0;
+  for (let page = 1; page <= 10; page++) {
+    const res = await rpc("getAssetsByGroup", {
+      groupKey: "collection", groupValue: ENV.col, page, limit: 1000
+    });
+    const items = (res && res.items) || [];
+    for (const a of items) {
+      const attrs = (a.content && a.content.metadata && a.content.metadata.attributes) || [];
+      const tier = (attrs.find(t => t.trait_type === "Tier") || {}).value;
+      const owner = a.ownership && a.ownership.owner;
+      if (!tier || !owner) continue;
+      minted++;
+      const o = owners.get(owner) || { owner, weight: 0, beings: 0, tiers: {} };
+      o.weight += WEIGHTS[tier] || 0;
+      o.beings += 1;
+      o.tiers[tier] = (o.tiers[tier] || 0) + 1;
+      owners.set(owner, o);
+    }
+    if (items.length < 1000) break;
+  }
+  const list = [...owners.values()].sort((a, b) => b.weight - a.weight);
+  // token balances only for the top of the board: one call each
+  if (ENV.mint) {
+    for (const o of list.slice(0, 25)) {
+      try {
+        const res = await rpc("getTokenAccountsByOwner",
+          [o.owner, { mint: ENV.mint }, { encoding: "jsonParsed" }]);
+        o.tokens = 0;
+        for (const acc of (res && res.value) || []) {
+          const t = acc.account.data.parsed.info.tokenAmount;
+          o.tokens += Math.floor(Number(t.amount) / 10 ** Number(t.decimals));
+        }
+      } catch { /* a missing balance is shown as unknown, not as zero */ }
+    }
+  }
+  return { minted, holders: list.length, weightHeld: list.reduce((a, o) => a + o.weight, 0),
+           top: list.slice(0, 25), at: Date.now() };
+}
+
 const server = http.createServer((req, res) => {
   // strip query string, decode, and block path traversal
   let urlPath;
@@ -135,6 +196,22 @@ const server = http.createServer((req, res) => {
   }
 
   if (urlPath === "/") urlPath = "/index.html";
+
+  if (urlPath === "/holders") urlPath = "/holders.html";
+
+  if (urlPath === "/api/holders") {
+    const send = (code, obj) => res.writeHead(code, {
+      "Content-Type": TYPES[".json"], "Cache-Control": "no-store"
+    }).end(JSON.stringify(obj));
+    if (!ENV.key || !ENV.col) return send(503, { ready: false });
+    if (board && Date.now() - boardAt < BOARD_MS) return send(200, board);
+    boardBusy = boardBusy || holders()
+      .then(d => { board = d; boardAt = Date.now(); return d; })
+      .finally(() => { boardBusy = null; });
+    boardBusy.then(d => send(200, d))
+             .catch(() => board ? send(200, board) : send(502, { error: "Could not read the chain just now." }));
+    return;
+  }
 
   /* ---- the checker ---- */
   if (urlPath === "/api/holdings") {
