@@ -38,15 +38,18 @@ TOTAL = GENERATED + 1                        # the Source is the 1,111th
 # Its palette is 64 colours rather than the collection's 48. That is not a
 # preference: at 48 the green channel down its centre disappears completely —
 # 0 of 7,143 pixels survive, measured — and at 64 it comes back.
-SOURCE_ART   = f"{ROOT}/art/source.png"
+# The hand-made painting is art/source.png. What goes into the collection is
+# that painting put on the collection's pixel grid by tools/source_pixel.py,
+# so it no longer reads as a different collection beside the other 1,110.
+SOURCE_ART   = f"{ROOT}/art/source-pixel.png"
 SOURCE_DRAWN = True
 
 # what is actually in the picture, rather than what a roll would have given it
-SOURCE_TRAITS = dict(Stars="None", Geometry="Yantra", GeometryUnder="Mandala",
+SOURCE_TRAITS = dict(Stars="Field", Geometry="Yantra", GeometryUnder="Mandala",
                      Lightning="None", UFOs="None", Planets="None",
                      Explosions="None", Mushrooms="Few", Trees="None",
                      Smoke="Shroud", Dust="Faint", Spores="Golden",
-                     Aura="Cold", Eyes="Slit")
+                     Aura="Cold", Eyes="Painted")
 
 
 def make_source(out_dir, n, rng):
@@ -137,6 +140,36 @@ def verify(rows, out_dir):
     if len(set(keys)) != len(keys):
         bad.append(f"{len(keys) - len(set(keys))} repeated combinations")
 
+    # From Epic up the figure is dealt, so no drawing may wear one figure
+    # (colourway and eyes) a second time while another it could wear is
+    # still unused.
+    for tier in R.LOOKS:
+        for being in sorted({r["being"] for r in rows if r["tier"] == tier}):
+            figs = {}
+            for r in rows:
+                if r["tier"] == tier and r["being"] == being:
+                    f = (r["colourway"], r["Eyes"])
+                    figs[f] = figs.get(f, 0) + 1
+            cws = R.look_pool(tier)
+            eyes = 1 if R.BEINGS[being].get("eye_mode") == "drawn" else len(R.EYE_VALUES)
+            if len(figs) < min(sum(figs.values()), len(cws) * eyes):
+                bad.append(f"{tier} {being}: {sum(figs.values())} pieces but only "
+                           f"{len(figs)} different figures")
+
+    # every God wears a colourway no other being in the collection wears
+    gods = [r["colourway"] for r in rows if r["tier"] == "god"]
+    if len(set(gods)) != len(gods):
+        bad.append("two Gods share a colourway")
+    for r in rows:
+        if r["tier"] != "god" and r["colourway"] in gods:
+            bad.append(f"#{r['id']}: a {r['tier']} in a God's colourway")
+
+    # no being names eyes its picture does not show
+    for r in rows:
+        drawn = R.BEINGS.get(r["being"], {}).get("eye_mode") == "drawn"
+        if drawn != (r["Eyes"] == "Painted") and r["tier"] != "source":
+            bad.append(f"#{r['id']}: Eyes is {r['Eyes']} on a {r['being']}")
+
     # every picture there, the right size, and not blank
     for r in rows:
         if not os.path.exists(r["png"]):
@@ -164,7 +197,17 @@ def main():
     os.makedirs(f"{out}/metadata", exist_ok=True)
 
     print(f"generating {GENERATED} beings")
-    rows = R.generate(out)
+    rows, jobs = R.generate(out, defer=True)
+    if jobs:
+        # every core at once: one picture is a few seconds, and 1,110 of them
+        # one after another was most of an hour
+        from multiprocessing import Pool
+        n = os.cpu_count() or 1
+        print(f"  drawing {len(jobs)} on {n} cores")
+        with Pool(n) as pool:
+            for k, _ in enumerate(pool.imap_unordered(R.draw, jobs, chunksize=4), 1):
+                if k % 100 == 0:
+                    print(f"  {k}/{len(jobs)}")
 
     print("the Source")
     rows.append(make_source(out, TOTAL, np.random.default_rng(1111)))

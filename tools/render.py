@@ -32,7 +32,7 @@ from scipy import ndimage
 
 import patterns, traits, parts as bodyparts
 from compose import over, tint, shade, eyes
-from scene import outline
+from inking import outline
 
 
 def _ramp(stops, n=17, vivid=1.0):
@@ -141,7 +141,7 @@ def _volume(drawn, body, strength=1.0):
     return lam * flat * strength * body
 
 
-def dress(drawn, weave, rim=True, volume=1.0):
+def dress(drawn, weave, rim=True, volume=1.0, tone=None):
     """Colour a being part by part, keeping the drawing's own shading.
 
     The parts come from tools/parts.py. Two colours per part was not enough:
@@ -159,6 +159,13 @@ def dress(drawn, weave, rim=True, volume=1.0):
     if inside.size:
         lo, hi = np.percentile(inside, 2), np.percentile(inside, 98)
         v = np.clip((v - lo) / max(hi - lo, 1e-6), 0, 1)
+
+    # The plain beings are drawn nearly white all over, so every colourway
+    # landed on the palest stop of its ramp and four hundred Commons came out
+    # white with a tint. A tone range pulls the drawing down into the middle
+    # of the ramp, where the colour actually is.
+    if tone:
+        v = tone[0] + v * (tone[1] - tone[0])
 
     # what the artist drew that a smooth ramp throws away: every line, scale
     # and crease is a local departure from the surrounding tone
@@ -308,8 +315,43 @@ def _limit(img, colours):
     return q.convert("RGB")
 
 
+def footing(w, h, cx, fy, rx, pal):
+    """Something for the being to stand ON.
+
+    It used to float: the floor was a band behind it and nothing joined the
+    two, so it read as cut out and laid over the picture. Two things fix
+    that, both dithered so they stay on the pixel grid: a pool of light on
+    the ground round its feet in the being's own colour, and a hard contact
+    shadow right under them.
+    """
+    from compose import _dither
+    out = np.zeros((h, w, 4), np.uint8)
+    yy, xx = np.mgrid[0:h, 0:w]
+
+    weave = pal.get("weave") or {}
+    body = weave.get("Body")
+    if isinstance(body, dict):
+        body = body["a"]
+    lit = np.array(body[2] if body else pal.get("ground_lit", (120, 100, 200)), float)
+    lit = tuple(int(c) for c in np.clip(lit * 0.75 + 30, 0, 255))
+
+    # the pool of light, wide and flat, fading out from the middle
+    ry = rx * 0.26
+    d = np.sqrt(((xx - cx) / (rx * 1.7)) ** 2 + ((yy - fy) / (ry * 1.7)) ** 2)
+    field = np.clip(1 - d, 0, 1) ** 1.4 * 0.55
+    m = _dither(field, 0) & (d < 1)
+    out[m] = list(lit) + [150]
+
+    # the shadow, tighter and dark, densest right under the feet
+    d = np.sqrt(((xx - cx) / rx) ** 2 + ((yy - fy) / ry) ** 2)
+    field = np.clip(1 - d, 0, 1) ** 0.7 * 0.95
+    m = _dither(field, 3) & (d < 1)
+    out[m] = list(pal.get("ink", (8, 5, 12))) + [235]
+    return out
+
+
 def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
-           eye_mode="holes", fill=0.82, colours=48, phase=None):
+           eye_mode="holes", fill=0.82, colours=48, phase=None, tone=None):
     w = h = canvas
     rng = np.random.default_rng(seed ^ 0x5EED)
     pal = _aura_palette(pal, t.get("Aura", "Opposed"))
@@ -346,7 +388,7 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     art.resize((s, s), Image.NEAREST).save(tmp)
     drawn = np.asarray(Image.open(tmp).convert("RGBA"))[:, :, 3]
     if pal.get("weave"):
-        lay = dress(drawn, pal["weave"], volume=t.get("Volume", 1.6))
+        lay = dress(drawn, pal["weave"], volume=t.get("Volume", 1.6), tone=tone)
     elif mode == "shade":
         lay = shade(tmp, pal["shadow"], pal["mid"], pal["light"], None)
     else:
@@ -372,6 +414,18 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     # the floor and what grows on it, far to near
     # every being stands on something
     base = over(base, traits.ground(w, h, "Floor", pal, seed))
+
+    # where its feet are: the lowest drawn row, and the middle of what is
+    # drawn just above it
+    ys, xs = np.where(drawn > 40)
+    if ys.size:
+        foot = ys.max()
+        low = xs[ys > foot - max(2, s * 0.06)]
+        fx = nx + (low.min() + low.max()) / 2
+        rx = max(6.0, (low.max() - low.min()) * 0.62)
+        fy = ny + foot - 1
+        if fy < h:
+            base = over(base, footing(w, h, fx, fy, rx, pal))
     base = over(base, traits.trees(w, h, t.get("Trees", "None"), pal, seed))
     base = over(base, traits.mushrooms(w, h, t.get("Mushrooms", "None"), pal, seed))
 

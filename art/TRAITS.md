@@ -25,9 +25,9 @@ different collection. The list above is the list.
 
 | Trait | Values |
 |-------|--------|
-| Colourway | Regalia, Verdant, Furnace, Abyss, Ossuary, Auric, Bloom, Eclipse |
+| Colourway | Regalia, Verdant, Furnace, Abyss, Ossuary, Auric, Bloom, Eclipse — and, only at the top, Ichor, Sapphire, Molten (Entity) and ten worn by one God each |
 | Aura | Opposed, Acid, Cold, Warm, Rose — the geometry's own colour |
-| Eyes | Plain, Slit, Ringed, Spiral, Starburst, Void |
+| Eyes | Plain, Slit, Ringed, Spiral, Starburst, Void — or Painted, where the drawing has its own eyes |
 
 | Moon dust | None, Faint, Drifting, Heavy |
 
@@ -252,6 +252,43 @@ That has a consequence worth stating: seven Legendaries drawing from five
 colourways must repeat twice. The check allows exactly that many and no more.
 It failed the first time for measuring against all eight.
 
+## From Epic up, the figure is dealt, not rolled
+
+A being is mostly its figure — its drawing, its colourway and its eyes — and
+the backgrounds only change what is behind it. With the colourway and eyes
+rolled, the top of the collection repeated itself: eight of the twenty
+Entities were one red-eyed Eclipse figure, and the ten Gods, whose eyes are
+painted into the drawing, were three looks between them.
+
+So from Epic up every pairing of colourway and eyes a drawing can wear is
+laid out, the colourways taken in turn, and each being is handed the next.
+No figure repeats until every figure that drawing can wear has been used.
+
+The top needed more colourways for that to work, and they are kept out of
+the general set so no lower tier can reach them:
+
+- **Entity** wears the three rarest colourways plus three of its own —
+  Ichor, Sapphire and Molten. Six colourways and six kinds of eye: every
+  Entity is a different figure.
+- **God** wears ten colourways that exist nowhere else — Prism, Celestial,
+  Obsidian, Nebula, Solar, Jade, Blood Moon, Glacier, Ultraviolet and Rose
+  Quartz — one each. Every God is a one-of-one colour.
+- **Legendary** draws from six colourways rather than five, so its 35 of
+  each drawing never need to repeat a figure.
+
+## A trait that is not in the picture is not in the metadata
+
+The reptilian and the God have their eyes drawn in. An Eyes roll was still
+made for them and written down, so 150 beings named eyes nobody could see.
+They carry Eyes: Painted now.
+
+## The plain beings are toned down into their colour
+
+The grey beings are drawn near-white all over, so every colourway landed on
+the palest stop of its ramp and four hundred Commons came out white with a
+tint. Their drawing is pulled into the middle of the ramp (art/beings.json,
+`tone`), where the colourway actually shows.
+
 
 ---
 
@@ -338,6 +375,12 @@ It used to appear only when something grew on it. Every being stands on
 something now, and the floor carries a line of grit where it begins — without
 it the ground read as the picture getting slightly lighter toward the bottom
 rather than as ground.
+
+That line was a solid half-density row, and it read as the edge of a stage;
+it is a sparse scatter now. And the being stood in front of the floor rather
+than on it, with nothing joining the two. It has a footing: a dithered pool
+of light in its own colour on the ground round its feet, and a hard contact
+shadow right under them.
 
 ## Mushrooms need not match the ground
 

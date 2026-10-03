@@ -18,7 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, f"{ROOT}/tools")
 from render import render
 from palettes import BY_NAME
-from weaves import WEAVES
+from weaves import WEAVES, ENTITY_WEAVES, GOD_WEAVES, ALL_WEAVES
 
 BEINGS = json.load(open(f"{ROOT}/art/beings.json"))
 
@@ -29,6 +29,8 @@ BEINGS = json.load(open(f"{ROOT}/art/beings.json"))
 PALETTE_FOR = {"Regalia": "Void", "Verdant": "Verdigris", "Furnace": "Ember",
                "Abyss": "Deep", "Ossuary": "Bone", "Auric": "Aurum",
                "Bloom": "Bloom", "Eclipse": "Eclipse"}
+# the exalted colourways each have a sky of their own name
+PALETTE_FOR.update({k: k for k in list(ENTITY_WEAVES) + list(GOD_WEAVES)})
 
 # How many of each tier in the whole collection. The Source is not here: it
 # is the 1,111th, it is not generated, and drop.py adds it afterwards.
@@ -106,7 +108,54 @@ def roll(trait, loud, rng):
 # tried twice and both times a God came out in a common colourway — at 72%
 # odds of a rare one, a miss is not unlikely, it is expected. Whether a God
 # wears a rare colour is a rule, not a probability.
-POOL = {"god": 3, "entity": 3, "mythic": 4, "legendary": 5}
+POOL = {"god": 3, "entity": 3, "mythic": 4, "legendary": 6}
+
+# ---- the figure, dealt rather than rolled, at the top ---------------------
+#
+# A being is mostly its figure, and the figure is three things: the drawing,
+# the colourway and the eyes. The backgrounds only change what is behind it.
+# Rolling the colourway and the eyes left whole groups at the top wearing the
+# same figure — eight of the twenty Entities were one red-eyed Eclipse figure,
+# and the ten Gods (whose eyes are painted in) were three looks between them.
+#
+# So from Epic up the LOOK is dealt: every pairing of colourway and eyes a
+# drawing can wear is laid out, the colourways taken in turn so none crowds
+# the others, and each being is handed the next one. No figure repeats until
+# every figure has been used once.
+LOOKS = ("epic", "legendary", "mythic", "entity", "god")
+EYE_VALUES = [v for v, _ in TRAITS["Eyes"]]
+
+
+def look_pool(tier):
+    """The colourways a top-tier figure can wear."""
+    if tier == "god":
+        return list(GOD_WEAVES)                 # ten, one God each
+    if tier == "entity":
+        return list(WEAVES)[-POOL["entity"]:] + list(ENTITY_WEAVES)
+    names = list(WEAVES)
+    return names[-POOL[tier]:] if tier in POOL else names
+
+
+def deal_looks(tier, being, n, rng):
+    """n figures for one drawing, as different from each other as it goes."""
+    cws = look_pool(tier)
+    painted = BEINGS[being].get("eye_mode") == "drawn"
+    rows = []
+    for cw in cws:
+        eyes = ["Painted"] if painted else list(EYE_VALUES)
+        rng.shuffle(eyes)
+        rows.append([(cw, e) for e in eyes])
+    order = list(range(len(cws)))
+    rng.shuffle(order)
+    seq = []
+    depth = max(len(r) for r in rows)
+    for d in range(depth):                      # one of each colourway, then again
+        for c in order:
+            if d < len(rows[c]):
+                seq.append(rows[c][d])
+    out = [seq[i % len(seq)] for i in range(n)]
+    rng.shuffle(out)
+    return out
 
 
 def colourway(tier, loud, rng):
@@ -175,8 +224,15 @@ def deal_beings(tier, n, rng):
     return out
 
 
-def generate(out_dir, seed=1111):
-    """The 1,110 generated beings, in one pass."""
+def generate(out_dir, seed=1111, defer=False):
+    """The 1,110 generated beings, in one pass.
+
+    With defer, nothing is drawn: every picture still to be made is handed
+    back as a job, so drop.py can draw them on every core at once. The
+    choices are all made here either way, in the same order, so the
+    collection is the same whichever way it is drawn.
+    """
+    jobs = []
     tiers = tier_list()
     if len(tiers) != GENERATED:
         raise SystemExit(f"the tier counts add up to {len(tiers)}, not {GENERATED}")
@@ -197,6 +253,12 @@ def generate(out_dir, seed=1111):
     dealt = {t: deal_beings(t, n, rng) for t, n in COUNTS.items()}
     used = {t: 0 for t in COUNTS}
 
+    looks, look_used = {}, {}
+    for t in LOOKS:
+        for b in sorted(set(dealt[t])):          # sorted: a set's order changes run to run
+            looks[(t, b)] = deal_looks(t, b, dealt[t].count(b), rng)
+            look_used[(t, b)] = 0
+
     seen, rows, kept = set(), [], 0
     for i, tier in enumerate(tiers, start=1):
         being = dealt[tier][used[tier]]
@@ -204,15 +266,26 @@ def generate(out_dir, seed=1111):
         info = BEINGS[being]
         loud = LOUD[tier]
 
+        look = None
+        if tier in LOOKS:
+            look = looks[(tier, being)][look_used[(tier, being)]]
+            look_used[(tier, being)] += 1
         for _ in range(120):
-            wname = colourway(tier, loud, rng)
+            wname = colourway(tier, loud, rng) if look is None else look[0]
             pool_n = POOL.get(tier, len(WEAVES))
-            if tier in SCARCE and wname in used_cw[tier] and len(used_cw[tier]) < pool_n:
+            if look is None and tier in SCARCE and wname in used_cw[tier] and len(used_cw[tier]) < pool_n:
                 continue
             # Pose and Spores are choices, not intensities — tilting them by
             # loudness would just make every God a close crop.
             FLAT = {"Spores", "Eyes", "Aura"}
             t = {k: roll(k, 0.0 if k in FLAT else loud, rng) for k in TRAITS}
+            if look is not None:
+                wname, t["Eyes"] = look
+            elif info.get("eye_mode") == "drawn":
+                # the eyes are drawn into the picture, so no Eyes roll ever
+                # shows; naming one would put a trait in the metadata that
+                # is not in the image
+                t["Eyes"] = "Painted"
             t["ExtraEyes"] = info.get("extra_eyes") or None
             key = (being, wname) + tuple(t[k] for k in TRAITS)
             if key not in seen:
@@ -225,7 +298,7 @@ def generate(out_dir, seed=1111):
 
         canvas, scale = CANVAS[tier]
         pal = dict(BY_NAME[PALETTE_FOR[wname]])
-        pal["weave"] = dict(WEAVES[wname])
+        pal["weave"] = dict(ALL_WEAVES[wname])
         pal["weave"]["vivid"] = pal["weave"].get("vivid", 1.0) + loud * 0.30
 
         # The seed is drawn whether or not the picture gets made, because the
@@ -245,11 +318,14 @@ def generate(out_dir, seed=1111):
         if _usable(png):
             kept += 1
         else:
-            img = render(f"{ROOT}/art/beings/{being}.png", pal, t, canvas, scale,
-                         seed=img_seed,
-                         mode=info["mode"], eye_mode=info.get("eye_mode", "holes"),
-                         fill=info["rung"] / canvas)
-            img.save(png, optimize=True)
+            job = (f"{ROOT}/art/beings/{being}.png", pal, dict(t), canvas, scale,
+                   dict(seed=img_seed, mode=info["mode"],
+                        eye_mode=info.get("eye_mode", "holes"),
+                        fill=info["rung"] / canvas, tone=info.get("tone")), png)
+            if defer:
+                jobs.append(job)
+            else:
+                draw(job)
 
         attrs = [{"trait_type": "Tier", "value": tier.capitalize()},
                  {"trait_type": "Being", "value": being},
@@ -277,7 +353,14 @@ def generate(out_dir, seed=1111):
     if kept:
         print(f"  kept {kept} already on disk, made {len(rows) - kept}")
     json.dump(rows, open(f"{out_dir}/generated.json", "w"), indent=2)
-    return rows
+    return (rows, jobs) if defer else rows
+
+
+def draw(job):
+    """Make one picture from a job generate() handed out."""
+    being_png, pal, t, canvas, scale, kw, png = job
+    render(being_png, pal, t, canvas, scale, **kw).save(png, optimize=True)
+    return png
 
 
 def verify(rows, out_dir):
