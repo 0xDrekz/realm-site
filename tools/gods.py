@@ -70,7 +70,11 @@ _LEG = ["Crystal Warden", "Jester of Tides", "Jelly Cap", "Pyramid Seer",
         "Laughing Jester", "Eye Citadel", "Lotus Sprite", "World Tree", "Smoke Serpent"]
 LEGENDARY_FIGURES = {n: (f"legendary-{n.lower().replace(' ', '-')}.jpg", 0.06, 8, None)
                      for n in _LEG}
-FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES, **MYTHIC_FIGURES, **LEGENDARY_FIGURES}
+# The Commons are mushrooms: fifty-two of them, cut from four sheets.
+COMMON_FIGURES = {f"Mushroom {i:02d}": (f"commons/mushroom-{i:02d}.png", 0.06, 6, None)
+                  for i in range(1, 53)}
+FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES, **MYTHIC_FIGURES, **LEGENDARY_FIGURES,
+           **COMMON_FIGURES}
 
 # Figures drawn as thin white lines land on the palest stop of every ramp
 # and come out white whatever they wear. Their brightness is capped here so
@@ -124,8 +128,19 @@ RAMPS.update({
 # tiers' silver) and two of the general set's warmest.
 LEGENDARY_COLOURWAYS = ["Regalia", "Verdant", "Furnace", "Abyss", "Auric", "Bloom"]
 
+# Eight for the four hundred: the general set's commonest five and three
+# more, so a Common is never in a colour only the top tiers wear.
+RAMPS.update({
+    "Amethyst": [D, (40, 16, 70), (130, 60, 200), (200, 150, 255), (246, 230, 255)],
+    "Moss":     [D, (24, 40, 10), (90, 140, 40), (180, 220, 100), (246, 255, 210)],
+    "Coral":    [D, (70, 20, 24), (220, 90, 80), (255, 170, 140), (255, 240, 226)],
+})
+COMMON_COLOURWAYS = ["Regalia", "Verdant", "Furnace", "Abyss", "Ossuary",
+                     "Amethyst", "Moss", "Coral"]
+
 PALETTE = {"Auric": "Aurum", "Abyss": "Deep", "Ossuary": "Bone", "Furnace": "Ember",
-           "Regalia": "Void", "Verdant": "Verdigris"}   # sky palette, where its name differs
+           "Regalia": "Void", "Verdant": "Verdigris",
+           "Amethyst": "Void", "Moss": "Verdigris", "Coral": "Ember"}   # sky palette, where its name differs
 
 GEOMETRY = ["Metatron", "Flower", "Yantra", "Mandala", "Rosette",
             "Gatefold", "Spiral", "Weird", "Lattice", "Rays"]
@@ -208,7 +223,8 @@ def render_god(t, seed):
     bg = np.zeros((h, w, 4), np.uint8); bg[..., 3] = 255
     bg = over(bg, traits.stars(w, h, "Dense", pal, seed))
     bg = over(bg, traits.planets(w, h, t["Planets"], pal, seed))
-    bg = over(bg, sigilry(w, h, t["Geometry"], pal, seed, "None"))
+    if t["Geometry"] != "None":
+        bg = over(bg, sigilry(w, h, t["Geometry"], pal, seed, "None"))
     bg = over(bg, traits.lightning(w, h, t["Lightning"], pal, seed))
     bg = over(bg, traits.ufos(w, h, t["UFOs"], pal, seed))
     bg = over(bg, traits.explosions(w, h, t["Supernova"], pal, seed))
@@ -340,23 +356,51 @@ def deal_legendaries(seed=4040, total=70):
     return out
 
 
+def deal_commons(seed=5050, total=400):
+    """Four hundred mushrooms across fifty-two: seven or eight of each.
+    Within a mushroom no colourway repeats; the geometry may be absent
+    (a Common need not have one); nought to two scene traits, never loud,
+    and mushrooms never grown round a mushroom."""
+    rng = np.random.default_rng(seed)
+    names = list(COMMON_FIGURES)
+    base, extra = divmod(total, len(names))
+    out, seen = [], set()
+    for i, b in enumerate(names):
+        n = base + (1 if i < extra else 0)
+        cws = list(COMMON_COLOURWAYS); rng.shuffle(cws)
+        for k in range(n):
+            for _ in range(500):
+                g = GEOMETRY[int(rng.integers(len(GEOMETRY)))] if rng.random() < 0.6 else "None"
+                ev = [e for e in EVENTS if e != "Mushrooms"]
+                on = frozenset(rng.choice(ev, size=int(rng.integers(0, 3)), replace=False))
+                t = {"Being": b, "Colourway": cws[k], "Geometry": g,
+                     "Aura": AURAS[int(rng.integers(len(AURAS)))]}
+                for e, vals in EVENTS.items():
+                    t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
+                key = tuple(sorted(t.items()))
+                if key not in seen:
+                    seen.add(key); break
+            out.append(t)
+    return out
+
+
 def main():
     tier = sys.argv[1] if len(sys.argv) > 1 else "god"
     out = sys.argv[2] if len(sys.argv) > 2 else f"{ROOT}/out/{tier}"
     os.makedirs(out, exist_ok=True)
     rows = {"god": deal, "entity": deal_entities, "mythic": deal_mythics,
-            "legendary": deal_legendaries}[tier]()
-    per = {"god": 2, "entity": 4, "mythic": 10, "legendary": 10}[tier]
+            "legendary": deal_legendaries, "common": deal_commons}[tier]()
+    per = {"god": 2, "entity": 4, "mythic": 10, "legendary": 10, "common": 20}[tier]
     pics = []
     for i, t in enumerate(rows, 1):
-        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000}[tier] + i)
+        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000, "common": 20000}[tier] + i)
         p.save(f"{out}/{tier}-{i}.png", optimize=True)
         pics.append(p)
         print(i, t)
     json.dump(rows, open(f"{out}/{tier}s.json", "w"), indent=2)
-    size = {"god": 480, "entity": 360, "mythic": 240, "legendary": 200}[tier]
+    size = {"god": 480, "entity": 360, "mythic": 240, "legendary": 200, "common": 120}[tier]
     cols = -(-len(rows) // per)
-    if tier in ("mythic", "legendary"):            # one row per figure reads better than a tall column
+    if tier in ("mythic", "legendary", "common"):            # one row per figure reads better than a tall column
         sheet = Image.new("RGB", (per * size, cols * size))
         for i, p in enumerate(pics):
             sheet.paste(p.resize((size, size), Image.BOX), ((i % per) * size, (i // per) * size))
