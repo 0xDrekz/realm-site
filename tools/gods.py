@@ -50,13 +50,13 @@ _GOD = ["Sun Wraith", "Jelly Sovereign", "Throne Watcher", "Crystal Kraken", "Ne
         "Veiled Sage", "Shell Seer", "Seraph of the Spiral", "Moon Serpent", "Root Crown"]
 GOD_FIGURES = {n: (f"god2-{n.lower().replace(' ', '-')}.jpg", 0.07, 10, None) for n in _GOD}
 
-ENTITY_FIGURES = {
-    "Grinning Fractal": ("entity-grinning-fractal.jpg", 0.06, 10, None),
-    "Smoke Sprite":     ("entity-smoke-sprite.jpg",     0.07, 10, None),
-    "Mushroom Elder":   ("entity-mushroom-elder.jpg",   0.06, 8,  None),
-    "Crowned Serpent":  ("entity-crowned-serpent.jpg",  0.06, 8,  None),
-    "Deep One":         ("entity-deep-one.jpg",         0.10, 8,  None),
-}
+# Twenty figures for the twenty Entities, one each. (The first five, four
+# each, are kept as masters but no longer dealt.)
+_ENT = ["Tide Priest", "Veil Medusa", "Horned Oracle", "Spore Sovereign", "Feather Herald",
+        "Throne Mystic", "Mist Dragon", "Cloud Isle", "Lotus Flame", "Many-Armed Elder",
+        "Elder Tree", "Diamond Sigil", "Void Spiral", "Bone Knight", "Winged Haloed",
+        "Smoke Phantom", "Black Sun", "Crystal Mandala", "Coil Warden", "Thorn Spire"]
+ENTITY_FIGURES = {n: (f"entities2/{n.lower().replace(' ', '-')}.png", 0.07, 8, None) for n in _ENT}
 MYTHIC_FIGURES = {
     "Cube Sentinel":  ("mythic-cube-sentinel.jpg", 0.10, 10, None),
     "Antler Sprite":  ("mythic-antler-sprite.jpg", 0.06, 8,  None),
@@ -279,32 +279,24 @@ def deal(seed=1010):
 
 
 def deal_entities(seed=2020):
-    """Twenty Entities, four of each figure. Within a figure no two share a
-    colourway or a geometry; across all twenty no two share a colourway AND
-    a geometry; two or three things happen round each, never the same set
-    as another of its figure."""
+    """Twenty Entities, one of each figure. The six Entity colourways are
+    dealt round so each is worn three or four times; no two Entities share
+    a colourway AND a geometry; two or three scene traits each, never the
+    loudest value."""
     rng = np.random.default_rng(seed)
+    names = list(ENTITY_FIGURES)
+    cws = (ENTITY_COLOURWAYS * 4)[:len(names)]; rng.shuffle(cws)
     out, used = [], set()
-    for b in ENTITY_FIGURES:
-        cws = list(ENTITY_COLOURWAYS); rng.shuffle(cws)
+    for b, cw in zip(names, cws):
         geos = list(GEOMETRY); rng.shuffle(geos)
-        mine = []
-        for k in range(4):
-            cw = cws[k]
-            g = next(x for x in geos if (cw, x) not in used and x not in [m["Geometry"] for m in mine])
-            used.add((cw, g))
-            t = {"Being": b, "Colourway": cw, "Geometry": g,
-                 "Aura": AURAS[int(rng.integers(len(AURAS)))]}
-            seen = [frozenset(e for e in EVENTS if m[e] != "None") for m in mine]
-            for _ in range(200):
-                on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(2, 4)), replace=False))
-                if on not in seen:
-                    break
-            for e, vals in EVENTS.items():
-                # one step quieter than a God's: never the loudest value
-                t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
-            mine.append(t)
-        out += mine
+        g = next(x for x in geos if (cw, x) not in used)
+        used.add((cw, g))
+        on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(2, 4)), replace=False))
+        t = {"Being": b, "Colourway": cw, "Geometry": g,
+             "Aura": AURAS[int(rng.integers(len(AURAS)))]}
+        for e, vals in EVENTS.items():
+            t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
+        out.append(t)
     return out
 
 
@@ -478,7 +470,7 @@ def main():
     rows = {"god": deal, "entity": deal_entities, "mythic": deal_mythics,
             "legendary": deal_legendaries, "common": deal_commons,
             "uncommon": deal_uncommons, "epic": deal_epics, "rare": deal_rares}[tier]()
-    per = {"god": 1, "entity": 4, "mythic": 10, "legendary": 10, "common": 20, "uncommon": 20, "epic": 10, "rare": 15}[tier]
+    per = {"god": 1, "entity": 1, "mythic": 10, "legendary": 10, "common": 20, "uncommon": 20, "epic": 10, "rare": 15}[tier]
     pics = []
     for i, t in enumerate(rows, 1):
         p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000, "common": 20000, "uncommon": 30000, "epic": 40000, "rare": 50000}[tier] + i)
