@@ -52,16 +52,24 @@ def main():
 
     a = np.asarray(strip).astype(float)
 
-    # Even it out along its length.
+    # Even it out BOTH WAYS.
     #
-    # Whatever gradient the painting has becomes a band of dark or light
-    # travelling slowly up the doorway, which reads as a fault rather than
-    # as movement. Each row is pulled most of the way toward the strip's
-    # average, so the colour still varies but the BRIGHTNESS does not drift.
-    # It also hides the join where the mirror meets.
-    rows = a.mean(axis=(1, 2), keepdims=True)
-    a = a * (0.78 * (a.mean() / np.maximum(rows, 1)) + 0.22)
-    a = np.clip(a, 0, 255)
+    # The strip is a photograph of the gap, so it carries the gap's own
+    # shading: dark at the top where the arch is in shadow, and dark down
+    # BOTH EDGES where the light falls away beside the door and beside the
+    # frame. Stretched across the whole opening, those dark edges land
+    # inside it -- the left one hides behind the door, and the right one is
+    # a strip of unlit doorway that looks exactly like a gap in the fill.
+    #
+    # Measured before this: 63 at the edges against 188 in the middle, and
+    # 68 at the top against 199 lower down.
+    #
+    # Each row and each column is pulled most of the way toward the strip's
+    # average, so the colour still varies and the brightness does not. It
+    # also hides the join where the mirror meets.
+    for axis in (1, 0):
+        band = a.mean(axis=(axis, 2), keepdims=True)
+        a = np.clip(a * (0.82 * (a.mean() / np.maximum(band, 1)) + 0.18), 0, 255)
 
     # push the colour out: this sits behind a doorway in a green tree and has
     # to read as somewhere else entirely
