@@ -36,7 +36,7 @@ SRC = f"{ROOT}/art/scenes/tree-source.png"
 # further down -- and lifting the whole gap meant that dark band drifted
 # up through the arch and left the top of the doorway looking unfilled.
 # Starting below it takes only the lit column.
-CROP = (0.442, 0.560, 0.621, 0.930)
+CROP = (0.422, 0.560, 0.640, 0.943)
 OUT_W = 220
 
 

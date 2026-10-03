@@ -23,7 +23,7 @@
   /* ---------- the picture, and the two places that matter in it ----------
      Both are fractions: how far across, how far down. If the artwork is
      ever replaced, these two lines are what to re-measure. */
-  const AIM = { x: 0.532, y: 0.687 };   // the middle of the opening
+  const AIM = { x: 0.531, y: 0.692 };   // the middle of the opening
                                       // Measured off the art rather than
                                       // guessed: the old value was 19px to
                                       // the right of the actual arch.
@@ -276,7 +276,7 @@
      to. Looking only for violet and cyan found the bright core of the gap
      and missed its edges, where the light has gone pale or warm. The
      opening is everything in there that is not green. */
-  const GAP = { x0: 0.442, y0: 0.444, x1: 0.621, y1: 0.930 };
+  const GAP = { x0: 0.422, y0: 0.440, x1: 0.640, y1: 0.943 };
 
   const gapImg = new Image();
   let gapReady = false;

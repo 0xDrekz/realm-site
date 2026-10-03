@@ -89,6 +89,34 @@ def register(cut, src, mark, coarse=24):
     return fine or rough
 
 
+def snap(seed, art, reach=14):
+    """Grow the hand trace out onto the painting's own edges.
+
+    A line drawn with a finger stops a few pixels short of where the
+    stonework actually begins, and on the right of the arch -- where the
+    frame curves away and the opening widens -- short by a few pixels is a
+    visible strip of unpainted stone.
+
+    So the trace is treated as a SEED rather than as the answer. It grows
+    outward, but only into pixels that look like the opening (bright, and
+    not the green of the tree or the dark of the frame), and only within
+    `reach` pixels of where the hand put it. The hand decides where the
+    opening is; the painting decides exactly where it ends.
+    """
+    r, g, b = art[..., 0], art[..., 1], art[..., 2]
+    mean = art.mean(2)
+    green = (g > r + 10) & (g > b + 10)
+    opening = ~green & (mean > 70)
+
+    near = ndimage.binary_dilation(seed, np.ones((3, 3)), iterations=reach)
+    allowed = (opening & near) | seed
+    grown = ndimage.binary_propagation(seed, mask=allowed)
+    grown = ndimage.binary_closing(grown, np.ones((5, 5)))
+    grown = ndimage.binary_fill_holes(grown)
+    print(f"  snapped to the painting: {seed.sum()} -> {grown.sum()} pixels")
+    return grown
+
+
 def main():
     src = Image.open(ART).convert("RGB")
     cut = Image.open(MARK).convert("RGB")
@@ -108,6 +136,8 @@ def main():
     lab, n = ndimage.label(m)
     m = lab == int(np.argmax(ndimage.sum(m, lab, range(1, n + 1)))) + 1
     m = ndimage.binary_fill_holes(m)
+
+    m = snap(m, np.asarray(src).astype(int))
     m = ndimage.binary_erosion(m, np.ones((3, 3)), iterations=1)   # off the stone
 
     ys, xs = np.where(m)
