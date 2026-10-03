@@ -43,13 +43,12 @@ GRID = 600
 SCALE = 0.84
 
 # name: (master, how dark the sky is, how hard to close the silhouette, where it may be)
-GOD_FIGURES = {
-    "Star Herald":   ("god-star-herald.jpg",   0.10, 8,  None),
-    "Mask Wraith":   ("god-mask-wraith.jpg",   0.045, 26, None),
-    "Still One":     ("god-still-one.jpg",     0.05, 8,  None),
-    "Temple Warden": ("god-temple-warden.jpg", 0.07, 10, 175),    # inside the pillars
-    "Galaxy Weaver": ("god-galaxy-weaver.jpg", 0.06, 8,  None),
-}
+# Ten figures for the ten Gods, one each: every God is a one-of-one figure
+# as well as a one-of-one colourway. (The first five, two each, are kept
+# as masters but no longer dealt.)
+_GOD = ["Sun Wraith", "Jelly Sovereign", "Throne Watcher", "Crystal Kraken", "Nebula Tree",
+        "Veiled Sage", "Shell Seer", "Seraph of the Spiral", "Moon Serpent", "Root Crown"]
+GOD_FIGURES = {n: (f"god2-{n.lower().replace(' ', '-')}.jpg", 0.07, 10, None) for n in _GOD}
 
 ENTITY_FIGURES = {
     "Grinning Fractal": ("entity-grinning-fractal.jpg", 0.06, 10, None),
@@ -259,7 +258,7 @@ def deal(seed=1010):
     """Ten Gods: unique colourway and geometry each, and the two of a figure
     as unlike each other as the lists allow."""
     rng = np.random.default_rng(seed)
-    beings = [b for b in GOD_FIGURES for _ in range(2)]
+    beings = list(GOD_FIGURES)
     cws = list(GOD_COLOURWAYS); rng.shuffle(cws)
     geos = list(GEOMETRY); rng.shuffle(geos)
     gods = []
@@ -267,14 +266,12 @@ def deal(seed=1010):
         t = {"Being": b, "Colourway": cws[i], "Geometry": geos[i],
              "Aura": AURAS[int(rng.integers(len(AURAS)))]}
         # three or four things happening round each God, never the same set
-        # as its twin, and always at least one of them loud
-        twin = gods[-1] if i % 2 else None
+        # as another God's
+        seen = [frozenset(e for e in EVENTS if g[e] != "None") for g in gods]
         for _ in range(200):
-            k = int(rng.integers(3, 5))
-            on = set(rng.choice(list(EVENTS), size=k, replace=False))
-            if twin and len(on & {e for e in EVENTS if twin[e] != "None"}) > 1:
-                continue
-            break
+            on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(3, 5)), replace=False))
+            if on not in seen:
+                break
         for e, vals in EVENTS.items():
             t[e] = vals[int(rng.integers(1, len(vals)))] if e in on else "None"
         gods.append(t)
@@ -481,7 +478,7 @@ def main():
     rows = {"god": deal, "entity": deal_entities, "mythic": deal_mythics,
             "legendary": deal_legendaries, "common": deal_commons,
             "uncommon": deal_uncommons, "epic": deal_epics, "rare": deal_rares}[tier]()
-    per = {"god": 2, "entity": 4, "mythic": 10, "legendary": 10, "common": 20, "uncommon": 20, "epic": 10, "rare": 15}[tier]
+    per = {"god": 1, "entity": 4, "mythic": 10, "legendary": 10, "common": 20, "uncommon": 20, "epic": 10, "rare": 15}[tier]
     pics = []
     for i, t in enumerate(rows, 1):
         p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000, "common": 20000, "uncommon": 30000, "epic": 40000, "rare": 50000}[tier] + i)
