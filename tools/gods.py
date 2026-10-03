@@ -79,8 +79,11 @@ UNCOMMON_FIGURES = {f"Folk {i:02d}": (f"uncommons/folk-{i:02d}.png", 0.06, 6, No
 # The Epics are the deep: jellyfish, octopi, eye-stars, moths, seventy-one.
 EPIC_FIGURES = {f"Deep {i:02d}": (f"epics/epic-{i:02d}.png", 0.06, 6, None)
                 for i in range(1, 72)}
+# The Rares are the shallows: ninety-two creatures of the same sea.
+RARE_FIGURES = {f"Shoal {i:02d}": (f"rares/rare-{i:02d}.png", 0.06, 6, None)
+                for i in range(1, 93)}
 FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES, **MYTHIC_FIGURES, **LEGENDARY_FIGURES,
-           **COMMON_FIGURES, **UNCOMMON_FIGURES, **EPIC_FIGURES}
+           **COMMON_FIGURES, **UNCOMMON_FIGURES, **EPIC_FIGURES, **RARE_FIGURES}
 
 # Figures drawn as thin white lines land on the palest stop of every ramp
 # and come out white whatever they wear. Their brightness is capped here so
@@ -419,6 +422,32 @@ def deal_epics(seed=7070, total=110):
     return out
 
 
+# Between the folk and the Epics: no Eclipse, which stays a mark of the top.
+RARE_COLOURWAYS = ["Regalia", "Verdant", "Furnace", "Abyss", "Ossuary", "Auric", "Bloom"]
+
+
+def deal_rares(seed=8080, total=180):
+    """A hundred and eighty across ninety-two: one or two each, a pair never
+    sharing a colourway; geometry on most; nought to two scene traits."""
+    rng = np.random.default_rng(seed)
+    names = list(RARE_FIGURES)
+    base, extra = divmod(total, len(names))
+    out = []
+    for i, b in enumerate(names):
+        n = base + (1 if i < extra else 0)
+        cws = list(RARE_COLOURWAYS); rng.shuffle(cws)
+        geos = list(GEOMETRY); rng.shuffle(geos)
+        for k in range(n):
+            on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(0, 3)), replace=False))
+            t = {"Being": b, "Colourway": cws[k],
+                 "Geometry": geos[k] if rng.random() < 0.85 else "None",
+                 "Aura": AURAS[int(rng.integers(len(AURAS)))]}
+            for e, vals in EVENTS.items():
+                t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
+            out.append(t)
+    return out
+
+
 def deal_uncommons(seed=6060, total=280):
     """Two hundred and eighty of the folk across sixty-two: four or five
     each. No colourway repeats within one; geometry on most; nought to two
@@ -451,18 +480,18 @@ def main():
     os.makedirs(out, exist_ok=True)
     rows = {"god": deal, "entity": deal_entities, "mythic": deal_mythics,
             "legendary": deal_legendaries, "common": deal_commons,
-            "uncommon": deal_uncommons, "epic": deal_epics}[tier]()
-    per = {"god": 2, "entity": 4, "mythic": 10, "legendary": 10, "common": 20, "uncommon": 20, "epic": 10}[tier]
+            "uncommon": deal_uncommons, "epic": deal_epics, "rare": deal_rares}[tier]()
+    per = {"god": 2, "entity": 4, "mythic": 10, "legendary": 10, "common": 20, "uncommon": 20, "epic": 10, "rare": 15}[tier]
     pics = []
     for i, t in enumerate(rows, 1):
-        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000, "common": 20000, "uncommon": 30000, "epic": 40000}[tier] + i)
+        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000, "common": 20000, "uncommon": 30000, "epic": 40000, "rare": 50000}[tier] + i)
         p.save(f"{out}/{tier}-{i}.png", optimize=True)
         pics.append(p)
         print(i, t)
     json.dump(rows, open(f"{out}/{tier}s.json", "w"), indent=2)
-    size = {"god": 480, "entity": 360, "mythic": 240, "legendary": 200, "common": 120, "uncommon": 120, "epic": 160}[tier]
+    size = {"god": 480, "entity": 360, "mythic": 240, "legendary": 200, "common": 120, "uncommon": 120, "epic": 160, "rare": 140}[tier]
     cols = -(-len(rows) // per)
-    if tier in ("mythic", "legendary", "common", "uncommon", "epic"):            # one row per figure reads better than a tall column
+    if tier in ("mythic", "legendary", "common", "uncommon", "epic", "rare"):            # one row per figure reads better than a tall column
         sheet = Image.new("RGB", (per * size, cols * size))
         for i, p in enumerate(pics):
             sheet.paste(p.resize((size, size), Image.BOX), ((i % per) * size, (i // per) * size))
