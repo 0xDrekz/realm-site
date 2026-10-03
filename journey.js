@@ -123,8 +123,14 @@ window.RealmJourney = (() => {
      covers it. What is then chosen is which part you are standing in
      front of — the eye in the pyramid is held high, above the words,
      and the picture is slid no further than its own edges allow. */
+  /* On a wide screen this tall picture stretched edge to edge is blown up
+     past three times its size and turns to blocks. There it is held
+     narrower, and the sides are the same room pushed back into the dark —
+     the same as the door. */
   function frame(zoom, sway) {
-    const cover = Math.max(W / art.width, H / art.height) * zoom;
+    let cover = Math.max(W / art.width, H / art.height);
+    if (W > H * 1.05) cover = Math.min(cover, Math.max(H * 1.1 / art.height, W * 0.55 / art.width));
+    cover *= zoom;
     const w = art.width * cover, h = art.height * cover;
     let y = H * 0.30 - h * EYE_BIG.y;
     if (y > 0)     y = 0;
@@ -224,6 +230,17 @@ window.RealmJourney = (() => {
     const zoom = 1 + 0.035 * (0.5 + 0.5 * Math.sin(t * 0.12));
     const { x, y, w, h } = frame(zoom, Math.sin(t * 0.055));
 
+    const narrow = w < W - 1;
+    if (narrow) {
+      const c = Math.max(W / art.width, H / art.height) * 1.08;
+      const bw = art.width * c, bh = art.height * c;
+      ctx.drawImage(art, (W - bw) / 2, (H - bh) / 2, bw, bh);
+      ctx.fillStyle = "rgba(3,1,10,0.62)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, 0, w, H); ctx.clip();
+    }
+
     ctx.drawImage(art, x, y, w, h);
 
     /* ---------- the floor moves like water ----------
@@ -247,6 +264,19 @@ window.RealmJourney = (() => {
         x + off - over, dy, w + over * 2, dstH + 2);
     }
 
+    if (narrow) {
+      ctx.restore();
+      // feather the picture's edges into the backdrop
+      const f = Math.min(w * 0.18, 160);
+      for (const [from, to] of [[x, x + f], [x + w, x + w - f]]) {
+        const g = ctx.createLinearGradient(from, 0, to, 0);
+        g.addColorStop(0, "rgba(3,1,10,1)");
+        g.addColorStop(1, "rgba(3,1,10,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(Math.min(from, to) - 1, 0, f + 2, H);
+      }
+    }
+
     /* ---------- everything that gives off light ---------- */
     ctx.globalCompositeOperation = "lighter";
 
@@ -260,12 +290,15 @@ window.RealmJourney = (() => {
     glow(P.x, P.y, w * 0.11, 52, door, 95);
 
     // light spilling out of it along the floor
+    /* a pool, not a band: a straight-edged fill showed its sides as seams
+       once the picture stopped running edge to edge */
     if (P.y < H && y + h > P.y) {
-      const spill = ctx.createLinearGradient(P.x, P.y, P.x, y + h);
+      const R = w * 0.42;
+      const spill = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, R);
       spill.addColorStop(0, `hsla(44,100%,76%,${0.2 * door})`);
       spill.addColorStop(1, "hsla(0,0%,0%,0)");
       ctx.fillStyle = spill;
-      ctx.fillRect(Math.max(x, 0), P.y, Math.min(w, W), Math.min(y + h, H) - P.y);
+      ctx.fillRect(P.x - R, P.y, R * 2, R);
     }
 
     // the two eyes, awake at their own pace
