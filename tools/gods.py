@@ -64,7 +64,13 @@ MYTHIC_FIGURES = {
     "Shard Knight":   ("mythic-shard-knight.jpg",  0.06, 8,  None),
     "Eye Architect":  ("mythic-eye-architect.jpg", 0.10, 14, None),
 }
-FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES, **MYTHIC_FIGURES}
+_LEG = ["Crystal Warden", "Jester of Tides", "Jelly Cap", "Pyramid Seer",
+        "Veiled Oracle", "Vine Queen", "Scale Drake", "Tendril Eye", "Heart Flare",
+        "Crystal Spire", "Root Child", "Eye Sigil", "Coil Spirit",
+        "Laughing Jester", "Eye Citadel", "Lotus Sprite", "World Tree", "Smoke Serpent"]
+LEGENDARY_FIGURES = {n: (f"legendary-{n.lower().replace(' ', '-')}.jpg", 0.06, 8, None)
+                     for n in _LEG}
+FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES, **MYTHIC_FIGURES, **LEGENDARY_FIGURES}
 
 # Figures drawn as thin white lines land on the palest stop of every ramp
 # and come out white whatever they wear. Their brightness is capped here so
@@ -110,7 +116,16 @@ RAMPS.update({
 # ten came out silver-grey. Furnace puts fire in their place.
 MYTHIC_COLOURWAYS = ["Abyss", "Furnace", "Auric", "Bloom", "Eclipse"]
 
-PALETTE = {"Auric": "Aurum", "Abyss": "Deep", "Ossuary": "Bone", "Furnace": "Ember"}   # sky palette, where its name differs
+RAMPS.update({
+    "Regalia": [D, (40, 20, 90), (130, 80, 230), (255, 200, 90), (255, 246, 210)],
+    "Verdant": [D, (10, 50, 36), (30, 170, 120), (130, 240, 190), (240, 255, 220)],
+})
+# Six for the seventy: four of the Mythics' (Eclipse kept for the higher
+# tiers' silver) and two of the general set's warmest.
+LEGENDARY_COLOURWAYS = ["Regalia", "Verdant", "Furnace", "Abyss", "Auric", "Bloom"]
+
+PALETTE = {"Auric": "Aurum", "Abyss": "Deep", "Ossuary": "Bone", "Furnace": "Ember",
+           "Regalia": "Void", "Verdant": "Verdigris"}   # sky palette, where its name differs
 
 GEOMETRY = ["Metatron", "Flower", "Yantra", "Mandala", "Rosette",
             "Gatefold", "Spiral", "Weird", "Lattice", "Rays"]
@@ -298,22 +313,50 @@ def deal_mythics(seed=3030):
     return out
 
 
+def deal_legendaries(seed=4040, total=70):
+    """Seventy Legendaries across eighteen figures: four of most, three of
+    the last two. Within a figure no colourway and no geometry repeats;
+    nought to two scene traits each, the quietest of the hand-drawn tiers."""
+    rng = np.random.default_rng(seed)
+    names = list(LEGENDARY_FIGURES)
+    base, extra = divmod(total, len(names))
+    out = []
+    for i, b in enumerate(names):
+        n = base + (1 if i < extra else 0)
+        cws = list(LEGENDARY_COLOURWAYS); rng.shuffle(cws)
+        geos = list(GEOMETRY); rng.shuffle(geos)
+        seen = []
+        for k in range(n):
+            t = {"Being": b, "Colourway": cws[k], "Geometry": geos[k],
+                 "Aura": AURAS[int(rng.integers(len(AURAS)))]}
+            for _ in range(200):
+                on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(0, 3)), replace=False))
+                if on not in seen:
+                    break
+            seen.append(on)
+            for e, vals in EVENTS.items():
+                t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
+            out.append(t)
+    return out
+
+
 def main():
     tier = sys.argv[1] if len(sys.argv) > 1 else "god"
     out = sys.argv[2] if len(sys.argv) > 2 else f"{ROOT}/out/{tier}"
     os.makedirs(out, exist_ok=True)
-    rows = {"god": deal, "entity": deal_entities, "mythic": deal_mythics}[tier]()
-    per = {"god": 2, "entity": 4, "mythic": 10}[tier]
+    rows = {"god": deal, "entity": deal_entities, "mythic": deal_mythics,
+            "legendary": deal_legendaries}[tier]()
+    per = {"god": 2, "entity": 4, "mythic": 10, "legendary": 10}[tier]
     pics = []
     for i, t in enumerate(rows, 1):
-        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000}[tier] + i)
+        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000}[tier] + i)
         p.save(f"{out}/{tier}-{i}.png", optimize=True)
         pics.append(p)
         print(i, t)
     json.dump(rows, open(f"{out}/{tier}s.json", "w"), indent=2)
-    size = {"god": 480, "entity": 360, "mythic": 240}[tier]
-    cols = len(rows) // per
-    if tier == "mythic":            # one row per figure reads better than a tall column
+    size = {"god": 480, "entity": 360, "mythic": 240, "legendary": 200}[tier]
+    cols = -(-len(rows) // per)
+    if tier in ("mythic", "legendary"):            # one row per figure reads better than a tall column
         sheet = Image.new("RGB", (per * size, cols * size))
         for i, p in enumerate(pics):
             sheet.paste(p.resize((size, size), Image.BOX), ((i % per) * size, (i // per) * size))
