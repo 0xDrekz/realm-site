@@ -57,12 +57,10 @@ _ENT = ["Tide Priest", "Veil Medusa", "Horned Oracle", "Spore Sovereign", "Feath
         "Elder Tree", "Diamond Sigil", "Void Spiral", "Bone Knight", "Winged Haloed",
         "Smoke Phantom", "Black Sun", "Crystal Mandala", "Coil Warden", "Thorn Spire"]
 ENTITY_FIGURES = {n: (f"entities2/{n.lower().replace(' ', '-')}.png", 0.07, 8, None) for n in _ENT}
-MYTHIC_FIGURES = {
-    "Cube Sentinel":  ("mythic-cube-sentinel.jpg", 0.10, 10, None),
-    "Antler Sprite":  ("mythic-antler-sprite.jpg", 0.06, 8,  None),
-    "Shard Knight":   ("mythic-shard-knight.jpg",  0.06, 8,  None),
-    "Eye Architect":  ("mythic-eye-architect.jpg", 0.10, 14, None),
-}
+# Forty figures for the forty Mythics, one each. (The first four, ten
+# each, are kept as masters but no longer dealt.)
+MYTHIC_FIGURES = {f"Mythic {i:02d}": (f"mythics2/mythic-{i:02d}.png", 0.07, 8, None)
+                  for i in range(1, 41)}
 _LEG = ["Crystal Warden", "Jester of Tides", "Jelly Cap", "Pyramid Seer",
         "Veiled Oracle", "Vine Queen", "Scale Drake", "Tendril Eye", "Heart Flare",
         "Crystal Spire", "Root Child", "Eye Sigil", "Coil Spirit",
@@ -301,29 +299,23 @@ def deal_entities(seed=2020):
 
 
 def deal_mythics(seed=3030):
-    """Forty Mythics, ten of each figure. Within a figure every geometry
-    once and every colourway twice, never the same pairing twice anywhere;
-    one to three scene traits each, quieter again than an Entity."""
+    """Forty Mythics, one of each figure. The five Mythic colourways are
+    worn eight times each; no two Mythics share colourway and geometry;
+    one to three scene traits, quieter than an Entity."""
     rng = np.random.default_rng(seed)
+    names = list(MYTHIC_FIGURES)
+    cws = MYTHIC_COLOURWAYS * 8; rng.shuffle(cws)
     out, used = [], set()
-    for b in MYTHIC_FIGURES:
+    for b, cw in zip(names, cws):
         geos = list(GEOMETRY); rng.shuffle(geos)
-        cws = MYTHIC_COLOURWAYS * 2; rng.shuffle(cws)
-        mine = []
-        for k in range(10):
-            cw, g = cws[k], geos[k]
-            used.add((b, cw, g))
-            t = {"Being": b, "Colourway": cw, "Geometry": g,
-                 "Aura": AURAS[int(rng.integers(len(AURAS)))]}
-            seen = [frozenset(e for e in EVENTS if m[e] != "None") for m in mine]
-            for _ in range(200):
-                on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(1, 4)), replace=False))
-                if on not in seen:
-                    break
-            for e, vals in EVENTS.items():
-                t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
-            mine.append(t)
-        out += mine
+        g = next(x for x in geos if (cw, x) not in used)
+        used.add((cw, g))
+        on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(1, 4)), replace=False))
+        t = {"Being": b, "Colourway": cw, "Geometry": g,
+             "Aura": AURAS[int(rng.integers(len(AURAS)))]}
+        for e, vals in EVENTS.items():
+            t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
+        out.append(t)
     return out
 
 
