@@ -5,7 +5,7 @@
 
    The room is a still picture, so everything that makes it feel
    inhabited is drawn over it: the light in the eyes and the doorway
-   breathes, the floor moves like water, beings drift between the
+   breathes, the floor moves like water, orbs drift between the
    spires, and the whole room pushes very slowly in and out as though
    you were standing in it rather than looking at it.
 
@@ -88,6 +88,7 @@ window.RealmJourney = (() => {
     ctx.setTransform(GW / W, 0, 0, GH / H, 0, 0);
     bakeOverlay();
     seedMotes();
+    seedOrbs();
   }
 
   /* The two washes that hold the room back never change, and filling
@@ -158,44 +159,148 @@ window.RealmJourney = (() => {
     }
   }
 
-  /* ---------- the things that live here ----------
-     The beings are the ones from the collection, drawn small and lit
-     from within, drifting between the spires. */
-  let beings = [];
-  function bakeBeings() {
-    const TIERS = g_("TIERS", null);
-    if (beings.length || !window.RealmForms || !TIERS) return;
-    const keys = ["god", "entity", "mythic", "legendary", "epic", "rare", "uncommon"];
-    beings = keys.map((tier, n) => {
-      const t = TIERS.find(x => x.key === tier);
-      if (!t) return null;
-      return {
-        img: RealmForms.pixelate(
-          RealmForms.makeForm({ id: 700 + n, n: n + 1, tier, tierName: t.name, color: t.color }), 20),
-        x: rand(0.08, 0.92), y: rand(0.16, 0.66),
-        vx: rand(0.004, 0.017) * (Math.random() < 0.5 ? -1 : 1),
-        vy: rand(0.002, 0.009) * (Math.random() < 0.5 ? -1 : 1),
-        s:  rand(0.045, 0.1),
-        ph: rand(0, 6.3),
-        a:  rand(0.3, 0.62)
-      };
-    }).filter(Boolean);
+  /* ---------- the orbs ----------
+     Lights that live in the room, drifting between the spires at three
+     depths. Each one is drawn fresh every frame into its own tiny canvas,
+     a few dozen pixels across, and blown up with hard edges onto the
+     room's grid — so it is pixel art, but pixel art that turns: a shaded
+     sphere with a slowly rotating figure inside it, some with a tilted
+     ring and sparks going round. The finished sprite is run through an
+     ordered dither so its glow breaks into pixels instead of smearing. */
+  const ORB_HUES = [
+    [282, 312], [176, 150], [44, 28], [318, 286], [196, 230], [262, 200]
+  ];
+  const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  let orbs = [];
+
+  function seedOrbs() {
+    const k = Math.min(1.3, Math.max(0.8, Math.min(W, H) / 700));
+    const n = W > 900 ? 13 : 9;
+    orbs = [];
+    for (let i = 0; i < n; i++) {
+      const z = i / (n - 1);                       // 0 far, 1 near
+      const S = Math.max(10, Math.round((13 + z * 31) * k)) | 1;
+      const c = document.createElement("canvas");
+      c.width = c.height = S;
+      const [h1, h2] = ORB_HUES[i % ORB_HUES.length];
+      orbs.push({
+        S, cv: c, g: c.getContext("2d", { willReadFrequently: true }),
+        z, h1, h2,
+        x: Math.random(), y: rand(0.07, 0.58),
+        vx: (0.004 + z * 0.013) * (Math.random() < 0.5 ? -1 : 1),
+        bob: rand(0.006, 0.016), bf: rand(0.25, 0.6), ph: rand(0, 6.3),
+        points: 5 + (i % 4),                       // the figure inside
+        spin: rand(0.15, 0.4) * (i % 2 ? 1 : -1),
+        ring: i % 3 !== 1, tilt: rand(-0.6, 0.6),
+        sparks: 1 + (i % 3), sp: rand(0.7, 1.4)
+      });
+    }
+    orbs.sort((a, b) => a.z - b.z);                // far ones drawn first
   }
 
-  /* a pocket of dark for a being to stand in, painted once */
-  let pocketCv = null;
-  function pocket() {
-    if (pocketCv) return pocketCv;
-    pocketCv = document.createElement("canvas");
-    pocketCv.width = pocketCv.height = 72;
-    const g = pocketCv.getContext("2d");
-    const r = g.createRadialGradient(36, 36, 0, 36, 36, 36);
-    r.addColorStop(0,    "rgba(3,1,10,0.8)");
-    r.addColorStop(0.55, "rgba(3,1,10,0.45)");
-    r.addColorStop(1,    "rgba(3,1,10,0)");
-    g.fillStyle = r;
-    g.fillRect(0, 0, 72, 72);
-    return pocketCv;
+  function paintOrb(o, t) {
+    const { S, g, h1, h2 } = o;
+    const c = S / 2, r = S * 0.3;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = "source-over";
+    g.globalAlpha = 1;
+    g.clearRect(0, 0, S, S);
+    g.lineWidth = 1;
+
+    const pulse = 0.5 + 0.5 * Math.sin(t * 1.3 + o.ph);
+
+    // the glow it sits in
+    const halo = g.createRadialGradient(c, c, r * 0.7, c, c, c);
+    halo.addColorStop(0, `hsla(${h1},100%,70%,${0.32 + 0.14 * pulse})`);
+    halo.addColorStop(1, `hsla(${h1},100%,60%,0)`);
+    g.fillStyle = halo;
+    g.fillRect(0, 0, S, S);
+
+    // a ring round it, and sparks on an orbit: back halves first
+    const rx = r * 1.55, ry = r * 0.42;
+    const ring = (front) => {
+      if (!o.ring) return;
+      g.strokeStyle = `hsla(46,100%,${front ? 74 : 52}%,${front ? 0.95 : 0.5})`;
+      g.beginPath();
+      g.ellipse(c, c, rx, ry, o.tilt, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2);
+      g.stroke();
+    };
+    const sparks = (front) => {
+      for (let k = 0; k < o.sparks; k++) {
+        const a = t * o.sp + (k / o.sparks) * Math.PI * 2;
+        if ((Math.sin(a) > 0) !== front) continue;
+        const ex = Math.cos(a) * rx * 1.08, ey = Math.sin(a) * ry * 1.08;
+        const px = c + ex * Math.cos(o.tilt) - ey * Math.sin(o.tilt);
+        const py = c + ex * Math.sin(o.tilt) + ey * Math.cos(o.tilt);
+        g.fillStyle = front ? "#fff8e6" : `hsla(${h2},100%,70%,0.7)`;
+        g.fillRect(Math.round(px) - 1, Math.round(py) - 1, 2, 2);
+      }
+    };
+    ring(false); sparks(false);
+
+    // the sphere, lit from the upper left
+    const body = g.createRadialGradient(c - r * 0.38, c - r * 0.42, r * 0.08, c, c, r);
+    body.addColorStop(0,    `hsl(${h2},95%,78%)`);
+    body.addColorStop(0.45, `hsl(${h1},85%,44%)`);
+    body.addColorStop(1,    `hsl(${h1},90%,12%)`);
+    g.fillStyle = body;
+    g.beginPath(); g.arc(c, c, r, 0, Math.PI * 2); g.fill();
+
+    // the figure inside it, turning
+    g.save();
+    g.beginPath(); g.arc(c, c, r - 0.5, 0, Math.PI * 2); g.clip();
+    g.globalCompositeOperation = "lighter";
+    const rot = t * o.spin + o.ph;
+    /* a star polygon {n/step}: 5 and 6 points skip one, 7 and 8 skip
+       two. Where n and step share a factor it is several polygons laid
+       over each other (6 → two triangles, a hexagram), so each is traced */
+    const n = o.points, step = n > 6 ? 3 : 2;
+    const loops = n % step === 0 ? step : 1, per = n / loops;
+    g.strokeStyle = `hsla(${h2},100%,82%,0.7)`;
+    g.beginPath();
+    for (let L = 0; L < loops; L++) {
+      for (let i = 0; i <= per; i++) {
+        const a = rot + ((L + i * step) / n) * Math.PI * 2;
+        const px = c + Math.cos(a) * r * 0.86, py = c + Math.sin(a) * r * 0.86;
+        i ? g.lineTo(px, py) : g.moveTo(px, py);
+      }
+    }
+    g.stroke();
+    if (S > 22) {                                   // petals, where there is room
+      g.strokeStyle = `hsla(${h1 + 40},100%,72%,0.35)`;
+      for (let i = 0; i < 6; i++) {
+        const a = -rot * 0.7 + (i / 6) * Math.PI * 2;
+        g.beginPath();
+        g.arc(c + Math.cos(a) * r * 0.42, c + Math.sin(a) * r * 0.42, r * 0.42, 0, Math.PI * 2);
+        g.stroke();
+      }
+    }
+    // the eye at the middle
+    g.fillStyle = `hsla(${h2},100%,92%,${0.55 + 0.45 * pulse})`;
+    g.beginPath(); g.arc(c, c, Math.max(1, r * 0.16), 0, Math.PI * 2); g.fill();
+    g.restore();
+
+    // backlight on the rim, and a hard highlight
+    g.strokeStyle = `hsla(${h2},100%,84%,0.55)`;
+    g.beginPath(); g.arc(c, c, r - 0.5, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+    g.fillStyle = "rgba(255,255,255,0.9)";
+    g.fillRect(Math.round(c - r * 0.5), Math.round(c - r * 0.55), S > 22 ? 2 : 1, S > 22 ? 2 : 1);
+
+    ring(true); sparks(true);
+
+    /* ordered dither: colour to a short ramp, alpha to four steps, so
+       the soft parts crumble into pixels like everything else here */
+    const img = g.getImageData(0, 0, S, S), d = img.data;
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      const b = (BAYER4[((p / S | 0) & 3) * 4 + (p % S & 3)] + 0.5) / 16 - 0.5;
+      const a = d[i + 3] / 255 + b * 0.34;
+      d[i + 3] = a < 0.12 ? 0 : Math.min(255, Math.round(a * 3) / 3 * 255);
+      for (let ch = 0; ch < 3; ch++) {
+        const v = d[i + ch] / 255 + b * 0.16;
+        d[i + ch] = Math.max(0, Math.min(255, Math.round(v * 6) / 6 * 255));
+      }
+    }
+    g.putImageData(img, 0, 0);
   }
 
   /* ---------- light ---------- */
@@ -365,30 +470,27 @@ window.RealmJourney = (() => {
 
     ctx.globalCompositeOperation = "source-over";
 
-    /* ---------- the things that live here ----------
-       Drawn solid, not as light. The room is bright enough that
-       anything added to it would simply vanish, so each being gets a
-       pocket of dark to stand in and its own glow on top. */
-    bakeBeings();
-    for (const b of beings) {
-      b.x += b.vx * dt; b.y += b.vy * dt;
-      if (b.x < 0.06 || b.x > 0.94) b.vx *= -1;
-      if (b.y < 0.10 || b.y > 0.62) b.vy *= -1;
+    /* ---------- the orbs ----------
+       Drawn solid over the room, each at exactly one sprite pixel to
+       one grid pixel so they sit on the same pixels as the picture.
+       The far ones are smaller, slower and dimmer. */
+    for (const o of orbs) {
+      o.x += o.vx * dt;
+      const m = o.S * PX / W;
+      if (o.x < -m) o.x = 1 + m; else if (o.x > 1 + m) o.x = -m;
+      const bx = o.x * W;
+      const by = (o.y + Math.sin(t * o.bf + o.ph) * o.bob) * H;
+      const d = o.S * PX;
 
-      const d  = w * b.s * (1 + Math.sin(t * 0.9 + b.ph) * 0.09);
-      const bx = x + b.x * w, by = y + b.y * h;
-      if (bx < -d || bx > W + d || by < -d || by > H * 0.92) continue;
-
-      ctx.drawImage(pocket(), bx - d, by - d, d * 2, d * 2);
-
-      ctx.globalAlpha = 0.72 + 0.22 * Math.sin(t * 0.7 + b.ph);
-      ctx.imageSmoothingEnabled = false;      // a sprite keeps its pixels
-      ctx.drawImage(b.img, bx - d / 2, by - d / 2, d, d);
+      paintOrb(o, t);
+      ctx.globalAlpha = 0.5 + 0.5 * o.z;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(o.cv, Math.round((bx - d / 2) / PX) * PX, Math.round((by - d / 2) / PX) * PX, d, d);
       ctx.imageSmoothingEnabled = true;
       ctx.globalAlpha = 1;
 
       ctx.globalCompositeOperation = "lighter";
-      glow(bx, by, d * 0.8, 200 + (b.ph * 30) % 120, 0.1, 80);
+      glow(bx, by, d * 0.9, o.h1, 0.05 + 0.06 * o.z, 78);
       ctx.globalCompositeOperation = "source-over";
     }
 
