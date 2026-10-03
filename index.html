@@ -52,6 +52,15 @@
 <main class="gate">
   <canvas id="tree" aria-hidden="true"></canvas>
 
+  <!-- Going through the door is a film, not a simulation of one. It is the
+       same painting as the still above, so the first frame lands exactly
+       where the door screen was and there is no cut. -->
+  <video id="rush" muted playsinline preload="auto" aria-hidden="true"
+         poster="tree.png" hidden>
+    <source src="gate.webm" type="video/webm">
+    <source src="gate.mp4" type="video/mp4">
+  </video>
+
   <div class="gate-in">
     <button id="enter" class="enter" type="button">
       <span class="enter-in">Enter the realm</span>

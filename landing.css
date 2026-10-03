@@ -81,6 +81,18 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 
 #tree.ready{opacity:1}
 
+/* The way through.
+
+   It covers the screen, over the still and under nothing — once it is
+   playing there is nothing else to look at. The still behind it is the
+   video's own first frame, so the swap is invisible. */
+#rush{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;display:block;pointer-events:none;z-index:5;
+  background:#03010a;
+}
+#rush[hidden]{display:none}
+
 
 
 .gate-in{

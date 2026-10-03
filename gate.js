@@ -762,17 +762,85 @@
     }
   }
 
-  function enter() {
-    if (phase !== "gate") return;
-    gate.classList.add("gone");
-    if (still) { land(); return; }
+  /* ---------- going through ----------
+     A film, not a simulation of one.
+
+     There used to be a canvas tunnel here: the picture zoomed into the
+     doorway, then a feedback loop of scaled copies stood in for the
+     passage. It was a good imitation and it was still an imitation. The
+     video is the thing itself, it ends on the white flare exactly where
+     the chamber should take over, and it is 980 KB.
+
+     The canvas tunnel is kept as the fallback, for a browser that will
+     not play it and for anyone who has asked for less motion. */
+  const rush = document.getElementById("rush");
+  let rushing = false;
+
+  function canFilm() {
+    if (!rush || still || !rush.canPlayType) return false;
+    return rush.canPlayType("video/webm") !== "" ||
+           rush.canPlayType("video/mp4") !== "";
+  }
+
+  function film() {
+    rushing = true;
+    rush.hidden = false;
+
+    let fellBack = false;
+    const fallBack = () => {
+      if (!rushing || fellBack) return;
+      fellBack = true; rushing = false;
+      canvasRush();                       // the canvas tunnel, as it was
+    };
+    const done = () => {
+      if (!rushing) return;
+      rushing = false; clearTimeout(stall); clearTimeout(guard);
+      land();
+    };
+
+    /* Two guards, because a video can fail in two ways.
+
+       It can refuse to start — no codec, a policy, a dead connection — and
+       that has to be caught FAST: a second and a bit of nothing, then the
+       canvas tunnel runs instead and nobody notices. Waiting out a long
+       timeout would leave somebody staring at a door that has already shut
+       behind them.
+
+       Or it can start and then stall. That one is caught by a backstop set
+       from the real duration once the browser knows it. */
+    const stall = setTimeout(() => { if (rush.currentTime < 0.05) fallBack(); }, 1300);
+    let guard = setTimeout(done, 9000);
+    rush.addEventListener("loadedmetadata", () => {
+      if (rush.duration && isFinite(rush.duration)) {
+        clearTimeout(guard);
+        guard = setTimeout(done, rush.duration * 1000 + 1200);
+      }
+    }, { once: true });
+
+    rush.addEventListener("ended", done, { once: true });
+
+    const p = rush.play();
+    if (p && p.catch) p.catch(() => { clearTimeout(stall); fallBack(); });
+  }
+
+  function canvasRush() {
+    if (rush) rush.hidden = true;
     pullFrom = performance.now();
     setTimeout(() => go("tunnel"), SWALLOW_MS * 0.58);
     setTimeout(land, SWALLOW_MS + TUNNEL_MS);
   }
 
+  function enter() {
+    if (phase !== "gate") return;
+    gate.classList.add("gone");
+    if (still) { land(); return; }
+    if (canFilm()) { film(); return; }
+    canvasRush();
+  }
+
   function land() {
     go("options");
+    if (rush) { rush.pause(); rush.hidden = true; }
     if (gate) gate.style.display = "none";
     if (!journey) return;
     journey.hidden = false;
