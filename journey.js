@@ -315,6 +315,27 @@ window.RealmJourney = (() => {
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
 
+  /* ---------- the pulse's clock ----------
+     Shared by the shaft, the eyes and the light in the room, so the room
+     brightens exactly as the pulse climbs and hits. */
+  const P_LEN = 4.6;                                   // seconds per pulse
+  const TRAVEL = 0.6;                                  // share of the cycle spent climbing
+  const P_Y0 = 0.74;                                   // it leaves the far door here
+  const pEase = (u) => Math.pow(u, 1.7);
+  function pulseAt(t) {
+    const q = (t % P_LEN) / P_LEN;
+    const fHit = (P_Y0 - EYE_BIG.y) / (P_Y0 - EYE_HIGH.y);
+    const sinceEye = (q - Math.pow(fHit, 1 / 1.7) * TRAVEL) * P_LEN;
+    const sinceTop = (q - TRAVEL) * P_LEN;
+    /* how lit the room is, 0 to 1: it gathers as the pulse climbs,
+       floods when it hits the great eye, and ebbs away before the next */
+    const u = q < TRAVEL ? q / TRAVEL : 1;
+    let lit = q < TRAVEL ? 0.38 * u * u : 0;
+    if (sinceEye >= 0) lit = Math.max(lit, Math.exp(-sinceEye * 1.25) *
+                                       Math.min(1, sinceEye / 0.08));
+    return { q, sinceEye, sinceTop, lit };
+  }
+
   /* ---------- one frame ---------- */
   let ringT = 0;
 
@@ -382,6 +403,27 @@ window.RealmJourney = (() => {
       }
     }
 
+    /* ---------- the room, dark between pulses and lit by them ----------
+       Held down in the dark while nothing is happening, so that when the
+       pulse hits it has somewhere to go: a warm flood from the great eye
+       that reaches the walls, and then the dark coming back. */
+    const PS = pulseAt(t);
+    ctx.fillStyle = `rgba(3,1,10,${0.5 * (1 - PS.lit)})`;
+    ctx.fillRect(0, 0, W, H);
+    if (PS.lit > 0.01) {
+      const ex = x + w * EYE_BIG.x, ey = y + h * EYE_BIG.y;
+      const R = Math.hypot(W, H) * 0.75;
+      const flood = ctx.createRadialGradient(ex, ey, 0, ex, ey, R);
+      flood.addColorStop(0,    `hsla(46,100%,80%,${0.55 * PS.lit})`);
+      flood.addColorStop(0.3,  `hsla(38,100%,64%,${0.26 * PS.lit})`);
+      flood.addColorStop(0.65, `hsla(300,100%,55%,${0.08 * PS.lit})`);
+      flood.addColorStop(1,    "hsla(290,100%,40%,0)");
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = flood;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "source-over";
+    }
+
     /* ---------- everything that gives off light ---------- */
     ctx.globalCompositeOperation = "lighter";
 
@@ -434,11 +476,9 @@ window.RealmJourney = (() => {
        and when it reaches the great eye the eye flares — a burst of rays
        and a ring — then it spends itself at the eye above. */
     const bxC = x + w * 0.5;
-    const P_LEN = 4.6;                                   // seconds per pulse
-    const q  = (t % P_LEN) / P_LEN;
-    const TRAVEL = 0.6;                                  // share of the cycle spent climbing
-    const Y0 = 0.74, Y1 = EYE_HIGH.y;                    // door to the top eye
-    const ease = (u) => Math.pow(u, 1.7);
+    const q = PS.q;
+    const Y0 = P_Y0, Y1 = EYE_HIGH.y;                    // door to the top eye
+    const ease = pEase;
 
     // the shaft itself, a little brighter while something is in it
     const live = q < TRAVEL ? Math.sin(Math.PI * q / TRAVEL) : 0;
@@ -496,8 +536,7 @@ window.RealmJourney = (() => {
     }
 
     /* the great eye takes the hit: how long since the pulse passed it */
-    const fHit = (Y0 - EYE_BIG.y) / (Y0 - Y1);
-    const sinceEye = (q - Math.pow(fHit, 1 / 1.7) * TRAVEL) * P_LEN;
+    const sinceEye = PS.sinceEye;
     if (sinceEye >= 0 && sinceEye < 2.2) {
       const k = Math.exp(-sinceEye * 2.4);
       glow(E1.x, E1.y, w * 0.34, 40, 0.34 * k, 86);
@@ -526,7 +565,7 @@ window.RealmJourney = (() => {
     }
 
     /* and spends what is left at the eye above the apex */
-    const sinceTop = (q - TRAVEL) * P_LEN;
+    const sinceTop = PS.sinceTop;
     if (sinceTop >= 0 && sinceTop < 1.6) {
       const k = Math.exp(-sinceTop * 3);
       glow(E2.x, E2.y, w * 0.22, 196, 0.3 * k, 88);
