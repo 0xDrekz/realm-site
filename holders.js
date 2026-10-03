@@ -126,16 +126,16 @@
     draw();
   });
 
-  const tok = $("#tok"), tokOut = $("#tok-out");
-  tok.max = String(BANDS.length - 1);
+  /* Tap buttons, not a slider. A slider on a phone catches the finger of
+     anybody scrolling past it, and every value it skidded through changed
+     the figures and the height of the section underneath. */
   $("[data-bands]").innerHTML = BANDS.map((b, i) =>
-    '<button type="button" data-i="' + i + '">' + (b.hold ? (b.hold >= 1e6 ? b.hold / 1e6 + "M" : b.hold / 1e3 + "k") : "0")
+    '<button type="button" role="radio" data-i="' + i + '">' + (b.hold ? (b.hold >= 1e6 ? b.hold / 1e6 + "M" : b.hold / 1e3 + "k") : "0")
     + '<i>' + b.mult.toFixed(1) + '×</i></button>').join("");
   $("[data-bands]").addEventListener("click", e => {
     const b = e.target.closest("button[data-i]");
-    if (b) { band = Number(b.dataset.i); tok.value = band; draw(); }
+    if (b) { band = Number(b.dataset.i); draw(); }
   });
-  tok.addEventListener("input", () => { band = Number(tok.value); draw(); });
 
   function draw() {
     $$(".h-tier").forEach(el => {
@@ -144,8 +144,10 @@
       el.classList.toggle("on", n > 0);
     });
     const b = BANDS[band];
-    tokOut.textContent = fmt(b.hold) + " " + TOKEN + "  ·  " + b.mult.toFixed(1) + "×";
-    $$("[data-bands] button").forEach((el, i) => el.classList.toggle("on", i === band));
+    $$("[data-bands] button").forEach((el, i) => {
+      el.classList.toggle("on", i === band);
+      el.setAttribute("aria-checked", i === band ? "true" : "false");
+    });
 
     const n = Object.values(counts).reduce((a, x) => a + x, 0);
     const w = TIERS.reduce((a, t) => a + t.weight * counts[t.key], 0);
@@ -215,7 +217,6 @@
     TIERS.forEach(t => counts[t.key] = 0);
     beings.forEach(b => { const t = tierOf(b.tier); if (t) counts[t.key]++; });
     band = BANDS.reduce((i, b, k) => tokens >= b.hold ? k : i, 0);
-    tok.value = band;
     draw();
 
     const grid = beings.slice(0, 24).map(b => {

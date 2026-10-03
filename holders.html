@@ -61,12 +61,8 @@
     <div class="h-tiers" data-tiers></div>
 
     <div class="h-token">
-      <label for="tok"><span data-token></span> held</label>
-      <div class="h-tok-row">
-        <input id="tok" type="range" min="0" max="5" step="1" value="0" aria-describedby="tok-out">
-        <output id="tok-out" class="num"></output>
-      </div>
-      <div class="h-bands" data-bands></div>
+      <p class="h-tok-label" id="tok-label"><span data-token></span> held</p>
+      <div class="h-bands" data-bands role="radiogroup" aria-labelledby="tok-label"></div>
     </div>
 
     <div class="h-result" data-result></div>

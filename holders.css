@@ -91,17 +91,19 @@ body.holders .topbar{position:sticky;top:0}
 .h-step span{min-width:2.2ch;text-align:center;font-size:1.05rem;color:var(--bone)}
 
 .h-token{margin:16px 0 4px}
-.h-token label{display:block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
-.h-tok-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.h-tok-row input{flex:1;min-width:160px;accent-color:var(--gold)}
-.h-tok-row output{color:var(--bone);font-size:.92rem}
-.h-bands{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.h-tok-label{margin:0 0 6px;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+/* a fixed grid: nothing in it changes size when one is chosen */
+.h-bands{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .h-bands button{
-  padding:4px 9px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:.8rem;
-  border-color:rgba(227,186,92,.3);display:flex;gap:6px;align-items:baseline;
+  font:inherit;cursor:pointer;color:var(--bone);background:transparent;
+  border:1px solid rgba(227,186,92,.3);padding:8px 4px;min-height:52px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  font-family:'Space Grotesk',system-ui,sans-serif;font-size:.9rem;line-height:1.2;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
 }
-.h-bands button i{font-style:normal;color:var(--dim);font-size:.72rem}
+.h-bands button i{font-style:normal;color:var(--dim);font-size:.76rem}
 .h-bands button.on{border-color:var(--gold);background:rgba(227,186,92,.14)}
+.h-bands button.on i{color:var(--gold)}
 
 /* ---------- the range ---------- */
 .h-range{margin:14px 0 4px}
@@ -122,6 +124,8 @@ body.holders .topbar{position:sticky;top:0}
   font-family:'Space Grotesk',system-ui,sans-serif;font-size:.7rem;color:#ff8a7a;
 }
 .h-cost.flip i{left:auto;right:4px}
+.h-result{min-height:250px}
+.h-result>.h-note{min-height:4.8em}
 .h-sub{margin:4px 0 0;color:var(--faint);font-size:.78rem;font-family:'Space Grotesk',system-ui,sans-serif}
 
 /* ---------- top holders ---------- */
