@@ -388,7 +388,13 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
     fd, tmp = tempfile.mkstemp(suffix=".png"); os.close(fd)
     art.resize((s, s), Image.NEAREST).save(tmp)
     drawn = np.asarray(Image.open(tmp).convert("RGBA"))[:, :, 3]
-    if pal.get("weave"):
+    if mode == "own":
+        # a drawing that arrives already coloured keeps its own colours;
+        # only its silhouette is taken from the alpha
+        own = np.asarray(Image.open(tmp).convert("RGBA")).copy()
+        own[:, :, 3] = np.where(own[:, :, 3] > 40, 255, 0)
+        lay = own
+    elif pal.get("weave"):
         lay = dress(drawn, pal["weave"], volume=t.get("Volume", 1.6), tone=tone)
     elif mode == "shade":
         lay = shade(tmp, pal["shadow"], pal["mid"], pal["light"], None)
