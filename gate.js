@@ -290,19 +290,21 @@
     return gapCut;
   }
 
-  /* Vivid, and none of it in the tree. The tree is olive, bark and sky;
-     these are the colours of somewhere else. Stepped rather than smooth,
-     so the portal is pixel art too — just at a finer pitch. */
-  const REALM = [
-    [255,  40, 170], [214,  30, 220], [150,  40, 255], [ 90,  70, 255],
-    [ 40, 150, 255], [ 30, 230, 220], [ 60, 255, 140], [170, 255,  60],
-    [255, 220,  40], [255, 130,  30], [255,  50,  60], [255,  30, 120]
-  ];
+  /* What is through the doorway is a PICTURE, not a pattern.
 
-  let field = null, fieldW = 0, fieldH = 0;
+     A generated plasma was tried first and it looked like a screensaver.
+     The problem was never its colours or how fine its pixels were — it was
+     that nothing generated carries the density of something drawn. This is
+     the geometry and smoke from the corner of the Source's own artwork,
+     stacked with its own mirror so a slow drift upward loops for ever with
+     no join. tools/realm.py builds it. */
+  const realmImg = new Image();
+  let realmReady = false;
+  realmImg.onload = () => { realmReady = true; };
+  realmImg.src = "realm.png";
 
   function drawPortal(t, x, y, w, h, pull, rush, ax, ay) {
-    if (!pc || !gapReady) return;
+    if (!pc || !gapReady || !realmReady) return;
     const cut = gapStencil();
     if (!cut) return;
 
@@ -316,63 +318,56 @@
     pc.clearRect(0, 0, portal.width, portal.height);
     if (sw < 2 || sh < 2) return;
 
-    /* One portal pixel to about 1.4 device pixels. The tree's blocks are
-       PX * dpr, so this is still visibly finer than the wood around it,
-       which is the whole point — but at 1.15 the full opening cost 14
-       frames a second, and the difference between 1.15 and 1.4 is not
-       something anyone can see. Capped so a desk monitor does not ask for
-       a quarter of a million pixels a frame. */
-    const fw = Math.max(8, Math.min(200, Math.round(sw / 1.4)));
-    const fh = Math.max(8, Math.min(400, Math.round(sh / 1.4)));
-    if (!field || fieldW !== fw || fieldH !== fh) {
-      field = pc.createImageData(fw, fh);
-      fieldW = fw; fieldH = fh;
-    }
-    const d = field.data;
-
-    /* A standing interference pattern, drifting. The last term is a ring
-       travelling outward from the middle, which is what gives it somewhere
-       to be coming FROM rather than just churning. */
-    const n = REALM.length;
-    const spin = t * 0.42;
-    for (let j = 0; j < fh; j++) {
-      const v = j / fh;
-      for (let i = 0; i < fw; i++) {
-        const u = i / fw;
-        const du = u - 0.5, dv = v - 0.46;
-        const r = Math.sqrt(du * du * 2.2 + dv * dv);
-        /* Six terms rather than three, at higher frequencies, so the
-           pattern has fine structure inside its broad shapes instead of
-           being four wide bands sliding past. The last two are rings
-           travelling outward from the middle — somewhere to be coming
-           FROM, rather than churn. */
-        const f =
-            Math.sin(u * 13.7 + spin * 1.7)
-          + Math.sin(v * 17.3 - spin * 1.2)
-          + Math.sin((u + v) * 11.9 + spin * 0.9)
-          + Math.sin((u - v) * 21.1 - spin * 1.4) * 0.7
-          + Math.sin(r * 31.0 - t * 2.1) * 1.3
-          + Math.sin(r * 57.0 - t * 3.4) * 0.5;
-        let k = Math.floor((f * 0.115 + 0.5 + t * 0.07) * n) % n;
-        if (k < 0) k += n;
-        const c = REALM[k];
-        /* brighter toward the middle of the gap, so it reads as a way
-           through rather than as wallpaper */
-        const lift = 0.62 + 0.38 * Math.max(0, 1 - r * 1.9);
-        const p = (j * fw + i) << 2;
-        d[p]     = Math.min(255, c[0] * lift);
-        d[p + 1] = Math.min(255, c[1] * lift);
-        d[p + 2] = Math.min(255, c[2] * lift);
-        d[p + 3] = 255;
-      }
-    }
-
-    /* paint it, clip it to the gap, then put it on the screen */
+    /* The buffer is a little smaller than the hole it fills, so the picture
+       lands on a visibly finer grid than the tree's blocks without being
+       smooth — the realm has more in it than the wood, which is the point
+       of giving it its own canvas. */
+    const fw = Math.max(8, Math.min(240, Math.round(sw / 1.25)));
+    const fh = Math.max(8, Math.min(480, Math.round(sh / 1.25)));
     const buf = portalBuf(fw, fh);
     const bg = buf.getContext("2d");
-    bg.putImageData(field, 0, 0);
-    bg.globalCompositeOperation = "destination-in";
+
+    bg.setTransform(1, 0, 0, 1, 0, 0);
+    bg.clearRect(0, 0, fw, fh);
     bg.imageSmoothingEnabled = false;
+
+    /* Drifting up, and breathing in and out. The zoom is what makes it a
+       depth rather than a wallpaper: the realm is always coming toward you
+       a little. */
+    const half = realmImg.height / 2;          // the loop is half the tile
+    const breathe = 1 + 0.10 * Math.sin(t * 0.21);
+
+    /* Pick the HEIGHT first and derive the width from it.
+       Doing it the other way round asked for a slice 687 pixels tall out of
+       a 514-pixel picture: it sampled past the bottom edge and left the
+       foot of the doorway empty. The opening is far taller than it is wide,
+       so the height is what is scarce. */
+    let srcH = (half * 0.92) / breathe;
+    let srcW = srcH * (fw / fh);
+    if (srcW > realmImg.width) {
+      srcW = realmImg.width;
+      srcH = srcW * (fh / fw);
+    }
+    const ox = (realmImg.width - srcW) / 2;
+    const creep = ((t * 16) % half);
+
+    bg.drawImage(realmImg, ox, creep, srcW, srcH, 0, 0, fw, fh);
+
+    /* a second, slower copy over the top, shifted — two depths moving at
+       different speeds is what stops it reading as a flat photograph */
+    bg.globalAlpha = 0.22;        // 0.45 washed it to cream; the second
+                                  // layer is for parallax, not brightness
+    bg.globalCompositeOperation = "lighter";
+    const creep2 = ((t * 7) % half);
+    const srcH2 = Math.min(srcH * 1.3, realmImg.height - half);
+    const srcW2 = srcH2 * (fw / fh);
+    bg.drawImage(realmImg, (realmImg.width - srcW2) / 2, half - creep2,
+                 Math.min(srcW2, realmImg.width), srcH2, 0, 0, fw, fh);
+    bg.globalCompositeOperation = "source-over";
+    bg.globalAlpha = 1;
+
+    /* then cut it to the opening */
+    bg.globalCompositeOperation = "destination-in";
     bg.drawImage(cut, 0, 0, fw, fh);
     bg.globalCompositeOperation = "source-over";
 
