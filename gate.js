@@ -38,13 +38,6 @@
   const ctx = canvas.getContext("2d");
   const tc  = tree.getContext("2d");
 
-  /* The portal has its own canvas at the FULL screen resolution, while
-     the tree is drawn at half. That is deliberate and it is the whole
-     point of the effect: what is through the doorway has to carry more
-     detail than the wood around it, or it is just a differently coloured
-     hole. You should be able to see the grain change at the threshold. */
-  const portal = document.getElementById("portal");
-  const pc = portal ? portal.getContext("2d") : null;
 
   /* two buffers, so each frame of the tunnel can be drawn on top of a
      scaled copy of the last one — that feedback is what makes it feel
@@ -54,7 +47,6 @@
   let front = A, back = B, fc = a, bc = b;
 
   let W = 0, H = 0, cx = 0, cy = 0, R = 0, SC = 1, GW = 0, GH = 0;
-  let PDPR = 1;
 
   /* ---------- the grid ----------
      Everything is drawn into a canvas a fraction of the screen's size and
@@ -77,12 +69,6 @@
   function resize() {
     W = window.innerWidth;
     H = window.innerHeight;
-    if (portal) {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      portal.width  = Math.max(1, Math.round(W * dpr));
-      portal.height = Math.max(1, Math.round(H * dpr));
-      PDPR = dpr;
-    }
     GW = Math.max(1, Math.round(W / PX));
     GH = Math.max(1, Math.round(H / PX));
 
@@ -128,7 +114,6 @@
       art = img;
       buildPortal();
       tree.classList.add("ready");
-      if (portal) portal.classList.add("ready");
     };
     img.onerror = () => {
       if (img.src.indexOf(SMALL) === -1) { img.src = SMALL; return; }
@@ -245,158 +230,6 @@
 
   /* One pass of the light, climbing. Two copies of it half a cycle
      apart, crossfaded, so it never reaches a seam and restarts. */
-  /* ============================================================
-     THE PORTAL
-
-     What is through the doorway used to be the picture's own colours,
-     lifted out, blurred and scrolled with "lighter" at half alpha. That
-     can only ever BRIGHTEN what is already there, which is exactly why
-     it read as the same green and violet as the tree around it.
-
-     It is generated now, in colours that appear nowhere else on the
-     screen — magenta, violet, acid green, red — drawn over rather than
-     added to, at the full screen resolution, and clipped to the gap
-     beside the door so none of it touches the stonework or the door
-     panel. The door is ajar and stays in front of it; the light pours
-     through the gap, which is a better picture than an empty frame and
-     also happens to be less work.
-     ============================================================ */
-
-  /* The opening, traced BY HAND and registered onto the artwork by
-     tools/doormask.py. Three goes at finding it from colour all failed the
-     same way — below the arch the glow on the ground is the same violet as
-     the way through, so every rule either missed the edges or painted the
-     floor. A hand-marked cut-out settles it, and the tool lines the mark up
-     with the painting rather than trusting it was drawn to scale.
-
-     Earlier note, still true:
-
-     It is most of the archway beside the door, widening at the foot and
-     spreading left across the step -- not the narrow slot it was first cut
-     to. Looking only for violet and cyan found the bright core of the gap
-     and missed its edges, where the light has gone pale or warm. The
-     opening is everything in there that is not green. */
-  const GAP = { x0: 0.422, y0: 0.440, x1: 0.640, y1: 0.943 };
-
-  const gapImg = new Image();
-  let gapReady = false;
-  gapImg.onload = () => { gapReady = true; };
-  gapImg.src = "door-mask.png";
-
-  /* the cut-out of the mask that covers GAP, drawn once */
-  let gapCut = null;
-  function gapStencil() {
-    if (gapCut || !gapReady) return gapCut;
-    const w = gapImg.width, h = gapImg.height;
-    const cv = document.createElement("canvas");
-    cv.width = Math.round((GAP.x1 - GAP.x0) * w);
-    cv.height = Math.round((GAP.y1 - GAP.y0) * h);
-    cv.getContext("2d").drawImage(gapImg,
-      GAP.x0 * w, GAP.y0 * h, cv.width, cv.height, 0, 0, cv.width, cv.height);
-    gapCut = cv;
-    return gapCut;
-  }
-
-  /* What is through the doorway is a PICTURE, not a pattern.
-
-     A generated plasma was tried first and it looked like a screensaver.
-     The problem was never its colours or how fine its pixels were — it was
-     that nothing generated carries the density of something drawn. This is
-     the geometry and smoke from the corner of the Source's own artwork,
-     stacked with its own mirror so a slow drift upward loops for ever with
-     no join. tools/realm.py builds it. */
-  const realmImg = new Image();
-  let realmReady = false;
-  realmImg.onload = () => { realmReady = true; };
-  realmImg.src = "realm.png";
-
-  function drawPortal(t, x, y, w, h, pull, rush, ax, ay) {
-    if (!pc || !gapReady || !realmReady) return;
-    const cut = gapStencil();
-    if (!cut) return;
-
-    /* where the gap lands on the screen, in device pixels */
-    const sx = (x + w * GAP.x0) * PDPR;
-    const sy = (y + h * GAP.y0) * PDPR;
-    const sw = w * (GAP.x1 - GAP.x0) * PDPR;
-    const sh = h * (GAP.y1 - GAP.y0) * PDPR;
-
-    pc.setTransform(1, 0, 0, 1, 0, 0);
-    pc.clearRect(0, 0, portal.width, portal.height);
-    if (sw < 2 || sh < 2) return;
-
-    /* The buffer is a little smaller than the hole it fills, so the picture
-       lands on a visibly finer grid than the tree's blocks without being
-       smooth — the realm has more in it than the wood, which is the point
-       of giving it its own canvas. */
-    const fw = Math.max(8, Math.min(240, Math.round(sw / 1.25)));
-    const fh = Math.max(8, Math.min(480, Math.round(sh / 1.25)));
-    const buf = portalBuf(fw, fh);
-    const bg = buf.getContext("2d");
-
-    bg.setTransform(1, 0, 0, 1, 0, 0);
-    bg.clearRect(0, 0, fw, fh);
-    bg.imageSmoothingEnabled = false;
-
-    /* Drifting up, and breathing in and out. The zoom is what makes it a
-       depth rather than a wallpaper: the realm is always coming toward you
-       a little. */
-    const half = realmImg.height / 2;          // the loop is half the tile
-    const breathe = 1 + 0.10 * Math.sin(t * 0.21);
-
-    /* Pick the HEIGHT first and derive the width from it.
-       Doing it the other way round asked for a slice 687 pixels tall out of
-       a 514-pixel picture: it sampled past the bottom edge and left the
-       foot of the doorway empty. The opening is far taller than it is wide,
-       so the height is what is scarce. */
-    let srcH = (half * 0.92) / breathe;
-    let srcW = srcH * (fw / fh);
-    if (srcW > realmImg.width) {
-      srcW = realmImg.width;
-      srcH = srcW * (fh / fw);
-    }
-    const ox = (realmImg.width - srcW) / 2;
-    const creep = ((t * 16) % half);
-
-    bg.drawImage(realmImg, ox, creep, srcW, srcH, 0, 0, fw, fh);
-
-    /* a second, slower copy over the top, shifted — two depths moving at
-       different speeds is what stops it reading as a flat photograph */
-    bg.globalAlpha = 0.22;        // 0.45 washed it to cream; the second
-                                  // layer is for parallax, not brightness
-    bg.globalCompositeOperation = "lighter";
-    const creep2 = ((t * 7) % half);
-    const srcH2 = Math.min(srcH * 1.3, realmImg.height - half);
-    const srcW2 = srcH2 * (fw / fh);
-    bg.drawImage(realmImg, (realmImg.width - srcW2) / 2, half - creep2,
-                 Math.min(srcW2, realmImg.width), srcH2, 0, 0, fw, fh);
-    bg.globalCompositeOperation = "source-over";
-    bg.globalAlpha = 1;
-
-    /* then cut it to the opening */
-    bg.globalCompositeOperation = "destination-in";
-    bg.drawImage(cut, 0, 0, fw, fh);
-    bg.globalCompositeOperation = "source-over";
-
-    pc.imageSmoothingEnabled = false;
-    if (pull > 0) {
-      pc.translate(ax * PDPR, ay * PDPR);
-      pc.scale(rush, rush);
-      pc.translate(-ax * PDPR, -ay * PDPR);
-      pc.globalAlpha = Math.max(0, 1 - Math.pow(pull, 2.4));
-    }
-    pc.drawImage(buf, sx, sy, sw, sh);
-    pc.globalAlpha = 1;
-    pc.setTransform(1, 0, 0, 1, 0, 0);
-  }
-
-  let pbuf = null;
-  function portalBuf(w, h) {
-    if (!pbuf) pbuf = document.createElement("canvas");
-    if (pbuf.width !== w || pbuf.height !== h) { pbuf.width = w; pbuf.height = h; }
-    return pbuf;
-  }
-
   function flowDoor(t, x, y, w, h, open) {
     if (!maskCv || !PB || !flowC || !energyCv) return;
     const FW = flowCv.width, FH = flowCv.height;
@@ -653,12 +486,18 @@
     }
     drawTree(t, pull, x, y, w, h);
 
-    /* The doorway. flowDoor used to scroll the picture's own colours
-       through the arch with "lighter", which could only brighten what was
-       already there — so it always matched the tree. The portal replaces
-       what is in the gap instead, in colours the tree does not have. */
+    /* The doorway is left as painted.
+
+       An animated portal was built here and taken out again. Every version
+       of it was measurably better than the last — the mask traced and
+       snapped to the stonework, the texture flattened both ways, the
+       button lifted clear — and none of them was as good as the painting
+       already is. The violet and teal in that gap were painted by someone
+       who could see the whole picture at once; a canvas redrawing a strip
+       of it sixty times a second was never going to improve on that.
+
+       If it is ever wanted again it is in the history, whole, at 828d34b. */
     const door = 0.42 + 0.2 * Math.sin(t * 0.55) + 0.07 * Math.sin(t * 1.9);
-    drawPortal(t, x, y, w, h, pull, rush, ax, ay);
 
     /* ---------- light ---------- */
     tc.globalCompositeOperation = "lighter";
