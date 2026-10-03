@@ -262,10 +262,14 @@
      also happens to be less work.
      ============================================================ */
 
-  /* The opening, measured off the artwork by tools/doormask.py. A
-     rectangle eyeballed over the arch would spill at the shoulders,
-     where the frame curves in and the opening does not. */
-  const GAP = { x0: 0.482, y0: 0.577, x1: 0.605, y1: 0.885 };
+  /* The opening, measured off the artwork by tools/doormask.py.
+
+     It is most of the archway beside the door, widening at the foot and
+     spreading left across the step -- not the narrow slot it was first cut
+     to. Looking only for violet and cyan found the bright core of the gap
+     and missed its edges, where the light has gone pale or warm. The
+     opening is everything in there that is not green. */
+  const GAP = { x0: 0.372, y0: 0.544, x1: 0.613, y1: 0.917 };
 
   const gapImg = new Image();
   let gapReady = false;
@@ -312,11 +316,14 @@
     pc.clearRect(0, 0, portal.width, portal.height);
     if (sw < 2 || sh < 2) return;
 
-    /* One portal pixel to about 1.6 device pixels — finer than the tree's
-       blocks, which are PX * dpr. Capped so a desk monitor does not ask
-       for a quarter of a million pixels a frame. */
-    const fw = Math.max(8, Math.min(230, Math.round(sw / 1.15)));
-    const fh = Math.max(8, Math.min(460, Math.round(sh / 1.15)));
+    /* One portal pixel to about 1.4 device pixels. The tree's blocks are
+       PX * dpr, so this is still visibly finer than the wood around it,
+       which is the whole point — but at 1.15 the full opening cost 14
+       frames a second, and the difference between 1.15 and 1.4 is not
+       something anyone can see. Capped so a desk monitor does not ask for
+       a quarter of a million pixels a frame. */
+    const fw = Math.max(8, Math.min(200, Math.round(sw / 1.4)));
+    const fh = Math.max(8, Math.min(400, Math.round(sh / 1.4)));
     if (!field || fieldW !== fw || fieldH !== fh) {
       field = pc.createImageData(fw, fh);
       fieldW = fw; fieldH = fh;

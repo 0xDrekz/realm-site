@@ -28,15 +28,24 @@ def main():
     a = np.asarray(Image.open(SRC).convert("RGB")).astype(int)
     h, w, _ = a.shape
 
-    # inside the arch the painter used violet and cyan; the frame is olive
-    # stone, where green leads. That one comparison separates them.
-    inside = (a[..., 2] >= a[..., 1] - 4) & (a.mean(2) > 84)
+    # The opening is everything in the arch that is NOT green.
+    #
+    # Looking only for violet and cyan found the bright core of the gap and
+    # missed its edges, where the light has gone pale or warm -- so the
+    # portal came out as a narrow slot when the opening is most of the
+    # archway beside the door. The frame and the tree are green; the door
+    # panel is dark; everything else in there is the way through.
+    green = (a[..., 1] > a[..., 0] + 6) & (a[..., 1] > a[..., 2] + 6)
+    inside = ~green & (a.mean(2) > 46)
 
     box = np.zeros((h, w), bool)
     # The lower bound is 0.885, not the 0.95 it was: below that the light
     # spills out past the arch onto the step, and a portal that paints the
     # threshold is leaking out of the doorway rather than coming through it.
-    box[int(0.52 * h):int(0.885 * h), int(0.33 * w):int(0.68 * w)] = True
+    # Down to 0.945: the light spreads left across the step at the foot of
+    # the arch, and that spread is part of the opening rather than a leak
+    # out of it -- it is still inside the archway, on the floor of it.
+    box[int(0.515 * h):int(0.945 * h), int(0.33 * w):int(0.68 * w)] = True
     m = inside & box
 
     # one piece, not the speckle of sky showing through leaves nearby
@@ -47,26 +56,13 @@ def main():
     m = lab == (int(np.argmax(sizes)) + 1)
 
     # close the gaps the swirl leaves, then fill it solid
-    m = ndimage.binary_closing(m, np.ones((9, 9)))
+    m = ndimage.binary_closing(m, np.ones((11, 11)))
     m = ndimage.binary_fill_holes(m)
     m = ndimage.binary_opening(m, np.ones((5, 5)))
     m = ndimage.binary_fill_holes(m)
 
     # step back off the stonework
-    m = ndimage.binary_erosion(m, np.ones((3, 3)), iterations=3)
-
-    # The light in the painting spills left along the step at the foot of
-    # the arch. Physically right, and wrong here: it puts the portal
-    # OUTSIDE the doorway, on the threshold, which is the one thing it must
-    # not do. Below the door panel the opening is clipped to the gap's own
-    # column so nothing creeps out sideways.
-    ys_, xs_ = np.where(m)
-    if len(xs_):
-        mid = np.median(xs_[ys_ < int(0.78 * h)]) if (ys_ < int(0.78 * h)).any() else xs_.mean()
-        low = np.zeros_like(m)
-        low[int(0.78 * h):, :] = True
-        too_far = low & (np.abs(np.arange(w)[None, :] - mid) > w * 0.055)
-        m = m & ~too_far
+    m = ndimage.binary_erosion(m, np.ones((3, 3)), iterations=2)
 
     ys, xs = np.where(m)
     print(f"  the opening: {m.sum()} pixels, "
