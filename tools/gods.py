@@ -73,8 +73,11 @@ LEGENDARY_FIGURES = {n: (f"legendary-{n.lower().replace(' ', '-')}.jpg", 0.06, 8
 # The Commons are mushrooms: fifty-two of them, cut from four sheets.
 COMMON_FIGURES = {f"Mushroom {i:02d}": (f"commons/mushroom-{i:02d}.png", 0.06, 6, None)
                   for i in range(1, 53)}
+# The Uncommons are the folk: elves, gnomes and goblins, sixty-two of them.
+UNCOMMON_FIGURES = {f"Folk {i:02d}": (f"uncommons/folk-{i:02d}.png", 0.06, 6, None)
+                    for i in range(1, 63)}
 FIGURES = {**GOD_FIGURES, **ENTITY_FIGURES, **MYTHIC_FIGURES, **LEGENDARY_FIGURES,
-           **COMMON_FIGURES}
+           **COMMON_FIGURES, **UNCOMMON_FIGURES}
 
 # Figures drawn as thin white lines land on the palest stop of every ramp
 # and come out white whatever they wear. Their brightness is capped here so
@@ -384,23 +387,55 @@ def deal_commons(seed=5050, total=400):
     return out
 
 
+# A step up from the Commons: the general set's colours and two of the
+# Legendaries', none of the three that are only the Commons'.
+UNCOMMON_COLOURWAYS = ["Regalia", "Verdant", "Furnace", "Abyss", "Ossuary", "Auric", "Bloom"]
+
+
+def deal_uncommons(seed=6060, total=280):
+    """Two hundred and eighty of the folk across sixty-two: four or five
+    each. No colourway repeats within one; geometry on most; nought to two
+    scene traits; every combination unique."""
+    rng = np.random.default_rng(seed)
+    names = list(UNCOMMON_FIGURES)
+    base, extra = divmod(total, len(names))
+    out, seen = [], set()
+    for i, b in enumerate(names):
+        n = base + (1 if i < extra else 0)
+        cws = list(UNCOMMON_COLOURWAYS); rng.shuffle(cws)
+        for k in range(n):
+            for _ in range(500):
+                g = GEOMETRY[int(rng.integers(len(GEOMETRY)))] if rng.random() < 0.75 else "None"
+                on = frozenset(rng.choice(list(EVENTS), size=int(rng.integers(0, 3)), replace=False))
+                t = {"Being": b, "Colourway": cws[k], "Geometry": g,
+                     "Aura": AURAS[int(rng.integers(len(AURAS)))]}
+                for e, vals in EVENTS.items():
+                    t[e] = vals[int(rng.integers(1, len(vals) - 1))] if e in on else "None"
+                key = tuple(sorted(t.items()))
+                if key not in seen:
+                    seen.add(key); break
+            out.append(t)
+    return out
+
+
 def main():
     tier = sys.argv[1] if len(sys.argv) > 1 else "god"
     out = sys.argv[2] if len(sys.argv) > 2 else f"{ROOT}/out/{tier}"
     os.makedirs(out, exist_ok=True)
     rows = {"god": deal, "entity": deal_entities, "mythic": deal_mythics,
-            "legendary": deal_legendaries, "common": deal_commons}[tier]()
-    per = {"god": 2, "entity": 4, "mythic": 10, "legendary": 10, "common": 20}[tier]
+            "legendary": deal_legendaries, "common": deal_commons,
+            "uncommon": deal_uncommons}[tier]()
+    per = {"god": 2, "entity": 4, "mythic": 10, "legendary": 10, "common": 20, "uncommon": 20}[tier]
     pics = []
     for i, t in enumerate(rows, 1):
-        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000, "common": 20000}[tier] + i)
+        p = render_god(t, seed={"god": 7000, "entity": 8000, "mythic": 9000, "legendary": 10000, "common": 20000, "uncommon": 30000}[tier] + i)
         p.save(f"{out}/{tier}-{i}.png", optimize=True)
         pics.append(p)
         print(i, t)
     json.dump(rows, open(f"{out}/{tier}s.json", "w"), indent=2)
-    size = {"god": 480, "entity": 360, "mythic": 240, "legendary": 200, "common": 120}[tier]
+    size = {"god": 480, "entity": 360, "mythic": 240, "legendary": 200, "common": 120, "uncommon": 120}[tier]
     cols = -(-len(rows) // per)
-    if tier in ("mythic", "legendary", "common"):            # one row per figure reads better than a tall column
+    if tier in ("mythic", "legendary", "common", "uncommon"):            # one row per figure reads better than a tall column
         sheet = Image.new("RGB", (per * size, cols * size))
         for i, p in enumerate(pics):
             sheet.paste(p.resize((size, size), Image.BOX), ((i % per) * size, (i // per) * size))
