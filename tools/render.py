@@ -226,6 +226,83 @@ def dress(drawn, weave, rim=True, volume=1.0, tone=None):
     return np.dstack([np.clip(col, 0, 255), np.where(body, 255, 0)]).astype(np.uint8)
 
 
+def facet(drawn, weave, seed=0):
+    """Colour line art that is not a body: a crystal, a lotus, an eye.
+
+    dress() reads a figure as crown, face, wings, arms and body by where each
+    part sits, which is right for a creature and wrong for a gem: a crystal
+    came out patchy, with its lines left white. Here the drawn lines are the
+    edges and every closed shape between them is a facet. Each facet is
+    filled with its own step of the colourway's ramp, lighter toward the top
+    left, so it reads as cut stone catching light; the lines run in the
+    colourway's bright colours top to bottom; and an enclosed shape at the
+    very centre (an eye, usually) is lit.
+
+    Expects the drawing's lines at full strength and its solid body, if
+    any, faint: lines 255, body around 70.
+    """
+    h, w = drawn.shape
+    line = drawn > 160
+    body = drawn > 20
+    vivid = weave.get("vivid", 1.0)
+
+    def col(name, k):
+        spec = weave[name]
+        if isinstance(spec, dict):
+            spec = spec["a"]
+        r = _ramp(spec, vivid=vivid)
+        return r[int(np.clip(k, 0, 1) * (len(r) - 1))]
+
+    out = np.zeros((h, w, 3), float)
+    yy, xx = np.mgrid[0:h, 0:w]
+    ys, xs = np.where(body) if body.any() else np.where(line)
+    top, bot = ys.min(), max(ys.max(), ys.min() + 1)
+    left, right = xs.min(), max(xs.max(), xs.min() + 1)
+
+    # facets: the closed shapes inside the body, between the lines
+    inner = body & ~line
+    lab, n = ndimage.label(inner)
+    rng = np.random.default_rng(seed + 404)
+    cy0, cx0 = (top + bot) / 2, (left + right) / 2
+    centre = None
+    if n:
+        com = ndimage.center_of_mass(inner, lab, range(1, n + 1))
+        sizes = ndimage.sum(inner, lab, range(1, n + 1))
+        # the facet whose middle is nearest the middle of the figure, if it
+        # is small, is its eye
+        d = [np.hypot(cy - cy0, cx - cx0) for cy, cx in com]
+        k = int(np.argmin(d))
+        if sizes[k] < inner.sum() * 0.08:
+            centre = k + 1
+        for i, (cy, cx) in enumerate(com, start=1):
+            m = lab == i
+            # lit from the upper left, plus a little of each facet's own
+            lit = 1 - (0.55 * (cy - top) / (bot - top) + 0.45 * (cx - left) / (right - left))
+            k = np.clip(0.18 + lit * 0.55 + rng.uniform(-0.12, 0.12), 0.08, 0.85)
+            part = "Wings" if (cy - top) / (bot - top) > 0.5 else "Body"
+            out[m] = col(part, k)
+            # a dithered sheen across the top of each facet
+            fy = (yy - cy) / max(1, np.sqrt(m.sum()))
+            sheen = m & (fy < -0.15) & (((yy + xx) % 3) == 0)
+            out[sheen] = np.minimum(out[sheen] * 1.35 + 20, 255)
+
+    # the lines: bright, running from the crown colour at the top to the
+    # arms colour at the bottom
+    g = np.clip((yy - top) / (bot - top), 0, 1)
+    a = np.array([col("Crown", 0.82)]) ; b = np.array([col("Arms", 0.72)])
+    lines_rgb = a[0] * (1 - g[..., None]) + b[0] * g[..., None]
+    out[line] = lines_rgb[line]
+
+    if centre is not None:
+        m = lab == centre
+        out[m] = col("Face", 0.95)
+        core = ndimage.binary_erosion(m, iterations=2)
+        out[core] = (255, 255, 255)
+
+    alpha = np.where(body | line, 255, 0)
+    return np.dstack([np.clip(out, 0, 255), alpha]).astype(np.uint8)
+
+
 def _hue_shift(rgb, deg):
     """Rotate a colour's hue, keeping how light and how saturated it is."""
     import colorsys
@@ -394,6 +471,8 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
         own = np.asarray(Image.open(tmp).convert("RGBA")).copy()
         own[:, :, 3] = np.where(own[:, :, 3] > 40, 255, 0)
         lay = own
+    elif mode == "facet" and pal.get("weave"):
+        lay = facet(drawn, pal["weave"], seed)
     elif pal.get("weave"):
         lay = dress(drawn, pal["weave"], volume=t.get("Volume", 1.6), tone=tone)
     elif mode == "shade":
