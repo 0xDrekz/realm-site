@@ -148,8 +148,7 @@ Telegram and a marketplace link appear the same way when they are real.
 | `journey.js` | the chamber — the room, everything alive in it, and the menu |
 | `landing.js` | fills the panels from `data.js` |
 | `forms.js` | draws a being for a tier |
-| `tree.jpg` | the tree with the door in it — the first frame of the film |
-| `gate.webm`, `gate.mp4` | the film: the push in to the door and through it (`-small` versions for phones) |
+| `tree.png` | the tree with the door in it, as pixel art |
 | `chamber.png` | the room you come out into, as pixel art |
 | `logo-bar.png` | the mark in the top bar |
 | `favicon-32.png`, `favicon-16.png` | the mark in the browser tab |
@@ -169,10 +168,7 @@ Each picture also has a `-small` version, used on phones.
 
 ## Replacing the artwork
 
-The door screen and the film are one picture: `tree.jpg` (and `tree-small.jpg`)
-is frame 0 of `gate.mp4`, so pressing Enter starts the zoom from exactly what
-is on screen. If the film is replaced, re-extract the still from its first
-frame (`ffmpeg -i gate.mp4 -frames:v 1 -q:v 3 tree.jpg`).
+Drop in a new `tree.png` (and `tree-small.png`) and the door screen uses it.
 Two lines at the top of `gate.js` say where things are in it:
 
 ```js

@@ -117,6 +117,43 @@ def snap(seed, art, reach=14):
     return grown
 
 
+def threshold(m, hold=0.10, fade=0.10):
+    """Stop the opening at the doorstep.
+
+    The hand trace follows the painting faithfully, and in the painting the
+    light does not stop at the threshold -- it pours out across the step and
+    spreads to the left in front of the door. Traced in, that spill is a
+    puddle of portal sitting outside the doorway, below the arch and behind
+    the ENTER button, and once the colours were turned up it was the first
+    thing you saw.
+
+    So the foot is clamped to the width the opening has just above the step,
+    and the last stretch of it is faded out -- the realm ends by falling
+    away into the floor rather than stopping on a line.
+
+    Returns the trimmed shape, and the alpha to write with it.
+    """
+    ys = np.where(m.any(1))[0]
+    y0, y1 = ys.min(), ys.max()
+    span = y1 - y0
+
+    cut = int(y1 - span * hold)
+    ref = m[max(y0, cut - 12):cut]
+    if ref.any():
+        xs = np.where(ref.any(0))[0]
+        m = m.copy()
+        m[cut:, :xs.min()] = False
+        m[cut:, xs.max() + 1:] = False
+        print(f"  foot clamped below {cut / m.shape[0]:.3f} "
+              f"to x {xs.min()}-{xs.max()}")
+
+    a = m.astype(float)
+    start = y1 - span * fade
+    for y in range(int(start), m.shape[0]):
+        a[y] *= max(0.0, 1.0 - (y - start) / (span * fade))
+    return m, a
+
+
 def main():
     src = Image.open(ART).convert("RGB")
     cut = Image.open(MARK).convert("RGB")
@@ -139,6 +176,7 @@ def main():
 
     m = snap(m, np.asarray(src).astype(int))
     m = ndimage.binary_erosion(m, np.ones((3, 3)), iterations=1)   # off the stone
+    m, alpha = threshold(m)
 
     ys, xs = np.where(m)
     x0, x1 = xs.min() / W, xs.max() / W
@@ -151,7 +189,7 @@ def main():
     # opaque, so the portal comes out as its bounding rectangle.
     rgba = np.zeros((H, W, 4), np.uint8)
     rgba[..., :3] = 255
-    rgba[..., 3] = m * 255
+    rgba[..., 3] = np.clip(alpha * 255, 0, 255).astype(np.uint8)
     Image.fromarray(rgba, "RGBA").save(f"{ROOT}/door-mask.png", optimize=True)
     print(f"  written: door-mask.png "
           f"({os.path.getsize(f'{ROOT}/door-mask.png') // 1024} KB)")
