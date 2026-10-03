@@ -30,7 +30,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-import patterns, traits, parts as bodyparts
+import patterns, traits, finishes, parts as bodyparts
 from compose import over, tint, shade, eyes
 from inking import outline
 
@@ -352,6 +352,7 @@ def footing(w, h, cx, fy, rx, pal):
 
 def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
            eye_mode="holes", fill=0.82, colours=48, phase=None, tone=None):
+    finish = t.get("Finish", "None")
     w = h = canvas
     rng = np.random.default_rng(seed ^ 0x5EED)
     pal = _aura_palette(pal, t.get("Aura", "Opposed"))
@@ -447,7 +448,9 @@ def render(being_png, pal, t, canvas, scale, seed, mode="stencil",
             k = np.clip(behind / max(behind.max(), 1), 0, 1) * 96
             hold[edge, :3] = np.clip(hold[edge, :3].astype(float) + k[None, :],
                                      0, 255).astype(np.uint8)
+    hold = finishes.being(hold, finish, seed)
     base = over(base, hold)
+    base = finishes.picture(base, finish, seed, skin)
 
     flat = _limit(Image.fromarray(base, "RGBA").convert("RGB"), colours)
     return flat.resize((w*scale, h*scale), Image.NEAREST)
