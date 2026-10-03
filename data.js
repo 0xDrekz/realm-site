@@ -38,7 +38,7 @@ const CONFIG = {
      hashed, unaltered and unreordered. What it does NOT prove: how mint
      order was assigned to token number — that is the launchpad's shuffle.
      Say only the first thing. */
-  provenance: "ea420f781e6cde2aab0180a912af129330e76bdf52c2ad0ebcd9f914dbaa16ee",
+  provenance: "97ad789cab86faf23c77028ae113d52d814043255d606ec79b0d69a20feee5c6",
 
   // Social + marketplace links.
   links: {
