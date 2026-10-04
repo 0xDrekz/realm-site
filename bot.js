@@ -64,7 +64,19 @@ function bar(n, total) {
 }
 
 /* the post itself; kept apart so it can be tried without a chain or a bot */
-function caption(D, { name, tier, owner, count, weight, tokens, minted }) {
+const DOT = { Common: "⚪", Uncommon: "🟢", Rare: "🔵", Epic: "🟣", Legendary: "🟠",
+              Mythic: "🔴", Entity: "🩵", God: "🟡", Source: "✨" };
+
+/* the wallet's beings, rarest first: "🟡 1 God" */
+function holdingLines(D, tiers) {
+  return D.TIERS.slice().reverse()
+    .filter(t => tiers[t.name])
+    .map(t => `   ${DOT[t.name] || "•"} ${fmt(tiers[t.name])} ${t.name}`);
+}
+
+function caption(D, { name, tier, owner, tiers, tokens, minted }) {
+  const count = Object.values(tiers).reduce((a, n) => a + n, 0);
+  const weight = D.TIERS.reduce((a, t) => a + t.weight * (tiers[t.name] || 0), 0);
   const m = multFor(D, tokens);
   const r = range(D, weight, m);
   const t = D.TIERS.find(x => x.name === tier);
@@ -76,6 +88,8 @@ function caption(D, { name, tier, owner, count, weight, tokens, minted }) {
     `Minted by <a href="https://solscan.io/account/${esc(owner)}">${esc(short(owner))}</a>`,
     ``,
     `Beings held: <b>${fmt(count)}</b>  ·  weight ${fmt(weight)}`,
+    ...holdingLines(D, tiers),
+    ``,
     `${esc(D.TOKEN_NAME)} held: <b>${fmt(tokens)}</b>  ·  ${m}×`,
     ``,
     `🎁 Reward at full mint: <b>${sol(r.typ)} SOL</b>`,
@@ -165,10 +179,11 @@ function start({ root, rpc, holdings, env }) {
     const owner = a.ownership && a.ownership.owner;
     if (!owner) return;
     const h = await holdings(owner);
-    const weight = h.beings.reduce((s, b) => s + ((D.TIERS.find(t => t.name === b.tier) || {}).weight || 0), 0);
+    const tiers = {};
+    h.beings.forEach(b => { if (b.tier) tiers[b.tier] = (tiers[b.tier] || 0) + 1; });
     const text = caption(D, {
       name: (a.content && a.content.metadata && a.content.metadata.name) || "A being",
-      tier: attr(a, "Tier") || "", owner, count: h.beings.length, weight, tokens: h.tokens, minted
+      tier: attr(a, "Tier") || "", owner, tiers, tokens: h.tokens, minted
     });
     const img = imageOf(a);
     const reply = /^https:\/\//.test(img)
@@ -227,11 +242,16 @@ async function test() {
    preview so nobody takes it for a real mint. Shares the once-a-minute
    limit with the connection check. */
 const SAMPLES = [
-  { pic: "common",   name: "Mushroom 37", tier: "Common",   count: 1,  weight: 1,   tokens: 0,         minted: 147 },
-  { pic: "uncommon", name: "Folk 19",     tier: "Uncommon", count: 2,  weight: 3,   tokens: 50000,     minted: 388 },
-  { pic: "epic",     name: "Deep 30",     tier: "Epic",     count: 4,  weight: 14,  tokens: 1000000,   minted: 612 },
-  { pic: "mythic",   name: "Mythic 27",   tier: "Mythic",   count: 5,  weight: 34,  tokens: 5000000,   minted: 905 },
-  { pic: "entity",   name: "Tide Priest", tier: "Entity",   count: 4,  weight: 41,  tokens: 12000000,  minted: 1104 }
+  { pic: "common",   name: "Mushroom 37", tier: "Common",   tokens: 0,        minted: 147,
+    tiers: { Common: 1 } },
+  { pic: "uncommon", name: "Folk 19",     tier: "Uncommon", tokens: 50000,    minted: 388,
+    tiers: { Uncommon: 1, Common: 1 } },
+  { pic: "epic",     name: "Deep 30",     tier: "Epic",     tokens: 1000000,  minted: 612,
+    tiers: { Epic: 2, Rare: 1, Common: 1 } },
+  { pic: "mythic",   name: "Mythic 27",   tier: "Mythic",   tokens: 5000000,  minted: 905,
+    tiers: { Mythic: 1, Epic: 1, Rare: 2, Common: 3 } },
+  { pic: "entity",   name: "Tide Priest", tier: "Entity",   tokens: 12000000, minted: 1104,
+    tiers: { God: 1, Entity: 1, Legendary: 1, Uncommon: 2, Common: 1 } }
 ];
 const FAKE_WALLETS = ["9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", "3Kz9pQ7mHn2aTq8vR4bY6cLw1xFgE5sJ8dUoP2iN7MkA",
   "Hb7t2sKq9VxZ3cL8mN4pR6wY1aE5fG7jD2uQ8iT3oPsX", "5mQ8nR2vT7xZ4cB9kL1pW6yH3aD8fG2jE5uS7iN4oMqV", "Dk4F8hJ2mN6qR9tV3xZ7cB1pL5wY8aE2gS6uI4oT9nMr"];
