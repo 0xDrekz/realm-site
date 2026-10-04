@@ -17,15 +17,8 @@ const CONFIG = {
   // Paste your launchpad mint link here. Leave as "" to show "opens soon".
   mintLink: "",
 
-  /* When the gate shuts whether or not it has sold out — an ISO date,
-     "2026-11-30", or "" while it is undecided.
-
-     THIS HAS TO BE DECIDED AND PUBLISHED BEFORE THE MINT OPENS. The pool
-     is a share of what was actually taken, so it can be paid on a part
-     mint — but only if people were told the closing date going in. While
-     this is "" the site says the date is still to be announced rather
-     than pretending there is one. */
-  mintCloses: "",
+  /* There is no closing date. The gate stays open until all 1,111 are
+     minted, and the holder pool is paid once, when the last one goes. */
 
   /* The provenance hash, printed by `python3 tools/drop.py` when the
      collection is generated.
@@ -98,7 +91,7 @@ const TOTAL_BEINGS = TIERS.reduce((a, t) => a + t.count, 0);   // 1,111
 /* ============================================================
    WHAT HOLDERS GET
 
-   When the mint closes, POOL_PERCENT of what it took is shared
+   When the last being is minted, POOL_PERCENT of the mint is shared
    among everybody holding a being.
 
    Your slice of it:

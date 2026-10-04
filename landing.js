@@ -34,12 +34,8 @@
   $$("[data-max]").forEach(n => n.textContent = MAX_PER_WALLET);
   $$("[data-tiers]").forEach(n => n.textContent = TIERS.length);
 
-  /* when the gate shuts whether or not it has sold out */
-  const closing = CONFIG.mintCloses
-    ? new Date(CONFIG.mintCloses + "T00:00:00Z").toLocaleDateString("en-GB",
-        { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
-    : "";
-  $$("[data-closes]").forEach(n => n.textContent = closing || "to be announced");
+  /* no closing date: the gate shuts when the last being is minted */
+  $$("[data-closes]").forEach(n => n.textContent = "when all " + TOTAL_BEINGS.toLocaleString() + " are minted");
 
   /* ---------- what is true right now, on the door ---------- */
   /* The creed directly above this already says "1,111 beings · one drop",
@@ -229,16 +225,15 @@
 
   const lede = $("[data-rw-lede]");
   if (lede) lede.textContent =
-    `When the mint closes, ${POOL_PERCENT}% of what it took is shared among the people `
+    `When the last of the ${TOTAL_BEINGS.toLocaleString()} is minted, ${POOL_PERCENT}% of the mint is shared among the people `
     + `holding beings. Your slice is two things multiplied together: the beings you `
     + `hold, and the ${TOKEN_NAME} you hold.`;
 
   const poolEl = $("[data-rw-pool]");
   if (poolEl) poolEl.textContent =
-    `${POOL_PERCENT}% of the mint goes back to holders. All ${TOTAL_BEINGS.toLocaleString()} `
-    + `at ${PRICE} SOL is ${POOL_FULL} SOL. It is a share of what was actually taken, not a `
-    + `fixed sum — if the drop does not fill, the pool is smaller in the same proportion, `
-    + `and it pays on whatever sold by the closing date.`;
+    `${POOL_PERCENT}% of the mint goes back to holders: ${POOL_PERCENT}% of ${TOTAL_BEINGS.toLocaleString()} `
+    + `at ${PRICE} SOL is ${POOL_FULL} SOL. There is no closing date: the gate stays open `
+    + `until every being is minted, and the pool is paid once, when the last one goes.`;
 
   /* This line used to be written by hand and it was false: it claimed the
      400 Commons outweighed every God and the Source together. They are 400

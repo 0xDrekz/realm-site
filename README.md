@@ -76,16 +76,10 @@ That single edit will:
 
 Commit it, and Railway redeploys in about a minute.
 
-### The closing date
+### No closing date
 
-```js
-mintCloses: "2026-11-30",
-```
-
-**This has to be decided and published before the mint opens.** The pool is
-a share of what the mint actually took, so it can be paid on a part mint —
-but only if people were told the closing date going in. While it is `""` the
-site says the date is still to be announced rather than inventing one.
+The gate stays open until all 1,111 are minted, and the holder pool is paid
+once, when the last one goes. The site says so wherever a date used to be.
 
 ### Turning the mint on
 
