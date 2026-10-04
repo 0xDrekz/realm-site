@@ -55,13 +55,22 @@ const sol = n => n >= 10 ? n.toFixed(1) : n >= 1 ? n.toFixed(2) : n.toFixed(3);
 const short = a => a.slice(0, 4) + "…" + a.slice(-4);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+const left = n => n <= 0 ? "the realm is full" : n === 1 ? "1 remains" : `${fmt(n)} remain`;
+
+/* ten blocks filling as the realm does */
+function bar(n, total) {
+  const k = Math.min(10, Math.floor(10 * n / total));
+  return "▰".repeat(k) + "▱".repeat(10 - k);
+}
+
 /* the post itself; kept apart so it can be tried without a chain or a bot */
 function caption(D, { name, tier, owner, count, weight, tokens, minted }) {
   const m = multFor(D, tokens);
   const r = range(D, weight, m);
   const t = D.TIERS.find(x => x.name === tier);
   return [
-    `🌀 <b>A being has crossed</b>  ·  ${fmt(minted)} of ${fmt(D.TOTAL_BEINGS)}`,
+    `🌀 <b>A being has crossed</b>`,
+    `${bar(minted, D.TOTAL_BEINGS)}  <b>${fmt(minted)} / ${fmt(D.TOTAL_BEINGS)}</b> minted  ·  ${left(D.TOTAL_BEINGS - minted)}`,
     ``,
     `<b>${esc(name)}</b>  ·  ${esc(tier)}${t ? ` (weight ${t.weight})` : ""}`,
     `Minted by <a href="https://solscan.io/account/${esc(owner)}">${esc(short(owner))}</a>`,
@@ -217,21 +226,37 @@ async function test() {
 /* What a mint post will look like, sent once to the group and marked as a
    preview so nobody takes it for a real mint. Shares the once-a-minute
    limit with the connection check. */
+const SAMPLES = [
+  { pic: "common",   name: "Mushroom 37", tier: "Common",   count: 1,  weight: 1,   tokens: 0,         minted: 147 },
+  { pic: "uncommon", name: "Folk 19",     tier: "Uncommon", count: 2,  weight: 3,   tokens: 50000,     minted: 388 },
+  { pic: "epic",     name: "Deep 30",     tier: "Epic",     count: 4,  weight: 14,  tokens: 1000000,   minted: 612 },
+  { pic: "mythic",   name: "Mythic 27",   tier: "Mythic",   count: 5,  weight: 34,  tokens: 5000000,   minted: 905 },
+  { pic: "entity",   name: "Tide Priest", tier: "Entity",   count: 4,  weight: 41,  tokens: 12000000,  minted: 1104 }
+];
+const FAKE_WALLETS = ["9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", "3Kz9pQ7mHn2aTq8vR4bY6cLw1xFgE5sJ8dUoP2iN7MkA",
+  "Hb7t2sKq9VxZ3cL8mN4pR6wY1aE5fG7jD2uQ8iT3oPsX", "5mQ8nR2vT7xZ4cB9kL1pW6yH3aD8fG2jE5uS7iN4oMqV", "Dk4F8hJ2mN6qR9tV3xZ7cB1pL5wY8aE2gS6uI4oT9nMr"];
+
+/* Five mint posts as they will look, one per tier, marked as previews so
+   nobody takes them for real mints. The wallets and holdings are made up.
+   Shares the once-a-minute limit with the connection check. */
 async function sample(root) {
   const token = envVar("TG_BOT_TOKEN"), chat = envVar("TG_CHAT_ID");
   if (!token || !chat) return { ok: false, problem: "TG_BOT_TOKEN and TG_CHAT_ID must both be set in Railway." };
   if (Date.now() - lastTest < 60_000) return { ok: false, problem: "Sent less than a minute ago. Wait a minute and try again." };
   lastTest = Date.now();
   const D = readData(root);
-  const text = "🧪 <b>PREVIEW: not a real mint.</b> This is how each mint will look.\n\n" + caption(D, {
-    name: "Sun Wraith", tier: "God", owner: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-    count: 3, weight: 62, tokens: 250000, minted: 342
-  });
-  const r = await telegram(token, "sendPhoto", {
-    chat_id: chat, photo: "https://dmt-realm.dev/preview/mint-sample.jpg", caption: text, parse_mode: "HTML", reply_markup: buttons(D)
-  });
-  return r.ok ? { ok: true, said: "Preview sent. Look in your Telegram group." }
-              : { ok: false, problem: "Telegram refused it.", telegram: r.description };
+  let sent = 0, last = "";
+  for (const [i, x] of SAMPLES.entries()) {
+    const text = "🧪 <b>PREVIEW: not a real mint.</b>\n\n" + caption(D, { ...x, owner: FAKE_WALLETS[i] });
+    const r = await telegram(token, "sendPhoto", {
+      chat_id: chat, photo: `https://dmt-realm.dev/preview/mint-sample-${x.pic}.jpg`,
+      caption: text, parse_mode: "HTML", reply_markup: buttons(D)
+    });
+    if (r.ok) sent++; else last = r.description;
+    await wait(SEND_GAP_MS);
+  }
+  return sent ? { ok: true, said: `${sent} previews sent. Look in your Telegram group.` }
+              : { ok: false, problem: "Telegram refused them.", telegram: last };
 }
 
 module.exports = { start, caption, readData, range, test, sample };
