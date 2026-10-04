@@ -249,9 +249,9 @@ const SAMPLES = [
   { pic: "epic",     name: "Deep 30",     tier: "Epic",     tokens: 1000000,  minted: 612,
     tiers: { Epic: 2, Rare: 1, Common: 1 } },
   { pic: "mythic",   name: "Mythic 27",   tier: "Mythic",   tokens: 5000000,  minted: 905,
-    tiers: { Mythic: 1, Epic: 1, Rare: 2, Common: 3 } },
+    tiers: { Mythic: 1, Epic: 1, Rare: 1, Common: 2 } },
   { pic: "entity",   name: "Tide Priest", tier: "Entity",   tokens: 12000000, minted: 1104,
-    tiers: { God: 1, Entity: 1, Legendary: 1, Uncommon: 2, Common: 1 } }
+    tiers: { God: 1, Entity: 1, Legendary: 1, Uncommon: 1, Common: 1 } }
 ];
 const FAKE_WALLETS = ["9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", "3Kz9pQ7mHn2aTq8vR4bY6cLw1xFgE5sJ8dUoP2iN7MkA",
   "Hb7t2sKq9VxZ3cL8mN4pR6wY1aE5fG7jD2uQ8iT3oPsX", "5mQ8nR2vT7xZ4cB9kL1pW6yH3aD8fG2jE5uS7iN4oMqV", "Dk4F8hJ2mN6qR9tV3xZ7cB1pL5wY8aE2gS6uI4oT9nMr"];
