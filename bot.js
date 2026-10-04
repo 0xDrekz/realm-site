@@ -173,4 +173,25 @@ function start({ root, rpc, holdings, env }) {
   })();
 }
 
-module.exports = { start, caption, readData, range };
+/* A one-off check that the token and group id in Railway work: posts a fixed
+   line to the group. At most once a minute, whoever asks, so the open
+   address cannot be used to spam the group. */
+let lastTest = 0;
+async function test() {
+  const token = process.env.TG_BOT_TOKEN || "", chat = process.env.TG_CHAT_ID || "";
+  if (!token) return { ok: false, problem: "TG_BOT_TOKEN is not set in Railway." };
+  if (!chat) return { ok: false, problem: "TG_CHAT_ID is not set in Railway." };
+  if (Date.now() - lastTest < 60_000) return { ok: false, problem: "Tested less than a minute ago. Wait a minute and try again." };
+  lastTest = Date.now();
+  const r = await telegram(token, "sendMessage", { chat_id: chat, text: "🌀 REALM mint bot connected. New mints will appear here." });
+  if (r.ok) return { ok: true, said: "Sent. Look in your Telegram group." };
+  const d = String(r.description || "");
+  const why = r.error_code === 401 || r.error_code === 404 ? "The token is wrong. Copy it again from @BotFather into TG_BOT_TOKEN."
+    : /migrate|upgraded/i.test(d) ? `The group became a supergroup. Change TG_CHAT_ID to ${(r.parameters || {}).migrate_to_chat_id}.`
+    : /chat not found/i.test(d) ? "Group not found. Check TG_CHAT_ID (try the -100 version) and that the bot is in the group."
+    : /not a member|kicked|forbidden/i.test(d) ? "The bot is not in the group. Add it as an admin."
+    : "Telegram refused it.";
+  return { ok: false, problem: why, telegram: d };
+}
+
+module.exports = { start, caption, readData, range, test };

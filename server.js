@@ -213,6 +213,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  /* ---- the mint bot's connection check ---- */
+  if (urlPath === "/api/bot-test") {
+    require("./bot").test()
+      .then(r => res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" })
+                    .end(JSON.stringify(r, null, 2)))
+      .catch(() => res.writeHead(502, { "Content-Type": TYPES[".json"] })
+                      .end(JSON.stringify({ ok: false, problem: "Could not reach Telegram." })));
+    return;
+  }
+
   /* ---- the checker ---- */
   if (urlPath === "/api/holdings") {
     const send = (code, obj) => res.writeHead(code, {
