@@ -101,8 +101,16 @@ const attr = (a, k) => ((a.content && a.content.metadata && a.content.metadata.a
 const imageOf = a => (a.content && a.content.links && a.content.links.image)
   || (a.content && a.content.files && a.content.files[0] && a.content.files[0].uri) || "";
 
+/* Railway variable names typed on a phone pick up stray spaces and odd
+   capitals; look them up forgivingly. */
+function envVar(name) {
+  if (process.env[name]) return process.env[name].trim();
+  const k = Object.keys(process.env).find(k => k.trim().toUpperCase() === name);
+  return k ? String(process.env[k]).trim() : "";
+}
+
 function start({ root, rpc, holdings, env }) {
-  const token = process.env.TG_BOT_TOKEN || "", chat = process.env.TG_CHAT_ID || "";
+  const token = envVar("TG_BOT_TOKEN"), chat = envVar("TG_CHAT_ID");
   if (!token || !chat || !env.key || !env.col) {
     console.log("mint bot: asleep (needs TG_BOT_TOKEN, TG_CHAT_ID, HELIUS_KEY and COLLECTION)");
     return;
@@ -178,9 +186,11 @@ function start({ root, rpc, holdings, env }) {
    address cannot be used to spam the group. */
 let lastTest = 0;
 async function test() {
-  const token = process.env.TG_BOT_TOKEN || "", chat = process.env.TG_CHAT_ID || "";
-  if (!token) return { ok: false, problem: "TG_BOT_TOKEN is not set in Railway." };
-  if (!chat) return { ok: false, problem: "TG_CHAT_ID is not set in Railway." };
+  const token = envVar("TG_BOT_TOKEN"), chat = envVar("TG_CHAT_ID");
+  const seen = Object.keys(process.env).filter(k => /^\s*(TG|TELEGRAM)/i.test(k)).map(k => JSON.stringify(k));
+  const names = seen.length ? "Telegram settings I can see: " + seen.join(", ") : "I can see no settings starting with TG.";
+  if (!token) return { ok: false, problem: "TG_BOT_TOKEN is not set in Railway.", names };
+  if (!chat) return { ok: false, problem: "TG_CHAT_ID is not set in Railway.", names };
   if (Date.now() - lastTest < 60_000) return { ok: false, problem: "Tested less than a minute ago. Wait a minute and try again." };
   lastTest = Date.now();
   const r = await telegram(token, "sendMessage", { chat_id: chat, text: "🌀 REALM mint bot connected. New mints will appear here." });
