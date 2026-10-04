@@ -32,7 +32,7 @@ const SEND_GAP_MS = 3_500;     // Telegram allows about 20 posts a minute in a g
 /* the numbers, out of data.js */
 function readData(root) {
   const src = fs.readFileSync(path.join(root, "data.js"), "utf8");
-  return vm.runInNewContext(src + "\n;({ TIERS, TOKEN_BANDS, TOKEN_NAME, TOTAL_BEINGS, TOTAL_WEIGHT, POOL_FULL, poolFrom });");
+  return vm.runInNewContext(src + "\n;({ TIERS, TOKEN_BANDS, TOKEN_NAME, TOTAL_BEINGS, TOTAL_WEIGHT, POOL_FULL, poolFrom, CONFIG });");
 }
 
 /* the same three figures as holders.js: low, typical, high */
@@ -75,6 +75,16 @@ function caption(D, { name, tier, owner, count, weight, tokens, minted }) {
     ``,
     `<i>An estimate, not a promise.</i> Check any wallet: dmt-realm.dev/holders`
   ].join("\n");
+}
+
+/* The buttons under every mint post. "Mint now" goes to the launchpad once
+   CONFIG.mintLink is set in data.js, and to the site until then. */
+function buttons(D) {
+  const link = (D.CONFIG && /^https:\/\//.test(D.CONFIG.mintLink || "")) ? D.CONFIG.mintLink : "https://dmt-realm.dev";
+  return { inline_keyboard: [[
+    { text: "🌀 Mint now", url: link },
+    { text: "Check a wallet", url: "https://dmt-realm.dev/holders" }
+  ]] };
 }
 
 function telegram(token, method, body) {
@@ -153,8 +163,8 @@ function start({ root, rpc, holdings, env }) {
     });
     const img = imageOf(a);
     const reply = /^https:\/\//.test(img)
-      ? await telegram(token, "sendPhoto", { chat_id: chat, photo: img, caption: text, parse_mode: "HTML" })
-      : await telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true });
+      ? await telegram(token, "sendPhoto", { chat_id: chat, photo: img, caption: text, parse_mode: "HTML", reply_markup: buttons(D) })
+      : await telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: buttons(D) });
     if (!reply.ok && reply.parameters && reply.parameters.retry_after) {
       await wait(reply.parameters.retry_after * 1000);
       throw new Error("rate limited");
@@ -218,7 +228,7 @@ async function sample(root) {
     count: 3, weight: 62, tokens: 250000, minted: 342
   });
   const r = await telegram(token, "sendPhoto", {
-    chat_id: chat, photo: "https://dmt-realm.dev/preview/mint-sample.jpg", caption: text, parse_mode: "HTML"
+    chat_id: chat, photo: "https://dmt-realm.dev/preview/mint-sample.jpg", caption: text, parse_mode: "HTML", reply_markup: buttons(D)
   });
   return r.ok ? { ok: true, said: "Preview sent. Look in your Telegram group." }
               : { ok: false, problem: "Telegram refused it.", telegram: r.description };
