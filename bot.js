@@ -74,11 +74,19 @@ function holdingLines(D, tiers) {
     .map(t => `   ${DOT[t.name] || "•"} ${fmt(tiers[t.name])} ${t.name}`);
 }
 
-function caption(D, { name, tier, owner, tiers, tokens, minted }) {
+/* One total for the wallet: its beings and its $DMT together. What the
+   token is worth depends on everybody else's, so the total is worked out
+   against "field": the multiplied weight of every other holder right now,
+   with beings not yet minted counted at 1x. Without it (the chain did not
+   answer) the field is assumed to match this wallet's band, which gives the
+   beings' reward alone. */
+function caption(D, { name, tier, owner, tiers, tokens, minted, field }) {
   const count = Object.values(tiers).reduce((a, n) => a + n, 0);
   const weight = D.TIERS.reduce((a, t) => a + t.weight * (tiers[t.name] || 0), 0);
   const m = multFor(D, tokens);
-  const r = range(D, weight, m);
+  const mine = weight * m;
+  const others = field == null ? (D.TOTAL_WEIGHT - weight) * m : field;
+  const total = mine ? D.POOL_FULL * mine / (mine + others) : 0;
   const t = D.TIERS.find(x => x.name === tier);
   return [
     `🌀 <b>A being has crossed</b>`,
@@ -92,11 +100,11 @@ function caption(D, { name, tier, owner, tiers, tokens, minted }) {
     ``,
     `${esc(D.TOKEN_NAME)} held: <b>${fmt(tokens)}</b>  ·  ${m}×`,
     ``,
-    `🎁 Reward at full mint: <b>${sol(r.typ)} SOL</b>`,
-    m > 1 ? `✨ ${esc(D.TOKEN_NAME)} boost: <b>up to +${sol(r.high - r.typ)} SOL</b>` : `✨ ${esc(D.TOKEN_NAME)} boost: none yet. Hold ${esc(D.TOKEN_NAME)} to multiply it`,
+    `💰 Total at full mint: <b>${sol(total)} SOL</b>`,
+    `<i>beings + ${esc(D.TOKEN_NAME)} together, worked out from what every holder holds right now</i>`,
     `Pool so far: ${sol(D.poolFrom(minted))} SOL`,
     ``,
-    `<i>Paid once, when all ${fmt(D.TOTAL_BEINGS)} are minted. The boost depends on what other holders have.</i>`
+    `<i>Paid once, when all ${fmt(D.TOTAL_BEINGS)} are minted. Moves as holders buy or sell ${esc(D.TOKEN_NAME)}.</i>`
   ].join("\n");
 }
 
@@ -175,6 +183,43 @@ function start({ root, rpc, holdings, env }) {
     for (const a of fresh) { seen.add(a.id); queue.push({ a, minted: seen.size }); }
   }
 
+  /* every holder's weight and every $DMT balance, for the total */
+  let fieldCache = null, fieldAt = 0, decimals = null;
+  async function holdersNow() {
+    if (fieldCache && Date.now() - fieldAt < 5 * 60_000) return fieldCache;
+    const weightOf = {}; let mintedWeight = 0;
+    for (let page = 1; page <= 10; page++) {
+      const items = await newest(page, 1000, "asc");
+      for (const a of items) {
+        const t = D.TIERS.find(x => x.name === attr(a, "Tier"));
+        const o = a.ownership && a.ownership.owner;
+        if (!t || !o) continue;
+        weightOf[o] = (weightOf[o] || 0) + t.weight; mintedWeight += t.weight;
+      }
+      if (items.length < 1000) break;
+    }
+    const balanceOf = {};
+    if (env.mint) {
+      if (decimals == null) decimals = Number(((await rpc("getTokenSupply", [env.mint])) || {}).value?.decimals || 0);
+      for (let page = 1; page <= 50; page++) {
+        const res = await rpc("getTokenAccounts", { mint: env.mint, page, limit: 1000 });
+        const items = (res && res.token_accounts) || [];
+        for (const acc of items) balanceOf[acc.owner] = (balanceOf[acc.owner] || 0) + Number(acc.amount) / 10 ** decimals;
+        if (items.length < 1000) break;
+      }
+    }
+    fieldCache = { weightOf, balanceOf, unminted: D.TOTAL_WEIGHT - mintedWeight };
+    fieldAt = Date.now();
+    return fieldCache;
+  }
+  async function fieldWithout(owner) {
+    const f = await holdersNow();
+    let sum = f.unminted;                   // not minted yet: counted at 1x
+    for (const [o, w] of Object.entries(f.weightOf))
+      if (o !== owner) sum += w * multFor(D, f.balanceOf[o] || 0);
+    return sum;
+  }
+
   async function post({ a, minted }) {
     const owner = a.ownership && a.ownership.owner;
     if (!owner) return;
@@ -183,7 +228,8 @@ function start({ root, rpc, holdings, env }) {
     h.beings.forEach(b => { if (b.tier) tiers[b.tier] = (tiers[b.tier] || 0) + 1; });
     const text = caption(D, {
       name: (a.content && a.content.metadata && a.content.metadata.name) || "A being",
-      tier: attr(a, "Tier") || "", owner, tiers, tokens: h.tokens, minted
+      tier: attr(a, "Tier") || "", owner, tiers, tokens: h.tokens, minted,
+      field: await fieldWithout(owner).catch(() => null)
     });
     const img = imageOf(a);
     const reply = /^https:\/\//.test(img)
@@ -267,7 +313,9 @@ async function sample(root) {
   const D = readData(root);
   let sent = 0, last = "";
   for (const [i, x] of SAMPLES.entries()) {
-    const text = "🧪 <b>PREVIEW: not a real mint.</b>\n\n" + caption(D, { ...x, owner: FAKE_WALLETS[i] });
+    const w = D.TIERS.reduce((a, t) => a + t.weight * (x.tiers[t.name] || 0), 0);
+    const text = "🧪 <b>PREVIEW: not a real mint.</b>\n\n"
+      + caption(D, { ...x, owner: FAKE_WALLETS[i], field: (D.TOTAL_WEIGHT - w) * 1.3 });
     const r = await telegram(token, "sendPhoto", {
       chat_id: chat, photo: `https://dmt-realm.dev/preview/mint-sample-${x.pic}.jpg`,
       caption: text, parse_mode: "HTML", reply_markup: buttons(D)
