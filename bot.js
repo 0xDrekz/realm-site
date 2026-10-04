@@ -204,4 +204,24 @@ async function test() {
   return { ok: false, problem: why, telegram: d };
 }
 
-module.exports = { start, caption, readData, range, test };
+/* What a mint post will look like, sent once to the group and marked as a
+   preview so nobody takes it for a real mint. Shares the once-a-minute
+   limit with the connection check. */
+async function sample(root) {
+  const token = envVar("TG_BOT_TOKEN"), chat = envVar("TG_CHAT_ID");
+  if (!token || !chat) return { ok: false, problem: "TG_BOT_TOKEN and TG_CHAT_ID must both be set in Railway." };
+  if (Date.now() - lastTest < 60_000) return { ok: false, problem: "Sent less than a minute ago. Wait a minute and try again." };
+  lastTest = Date.now();
+  const D = readData(root);
+  const text = "🧪 <b>PREVIEW: not a real mint.</b> This is how each mint will look.\n\n" + caption(D, {
+    name: "Sun Wraith", tier: "God", owner: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    count: 3, weight: 62, tokens: 250000, minted: 342
+  });
+  const r = await telegram(token, "sendPhoto", {
+    chat_id: chat, photo: "https://dmt-realm.dev/preview/mint-sample.jpg", caption: text, parse_mode: "HTML"
+  });
+  return r.ok ? { ok: true, said: "Preview sent. Look in your Telegram group." }
+              : { ok: false, problem: "Telegram refused it.", telegram: r.description };
+}
+
+module.exports = { start, caption, readData, range, test, sample };
