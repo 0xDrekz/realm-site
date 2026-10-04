@@ -78,11 +78,11 @@ function caption(D, { name, tier, owner, count, weight, tokens, minted }) {
     `Beings held: <b>${fmt(count)}</b>  ·  weight ${fmt(weight)}`,
     `${esc(D.TOKEN_NAME)} held: <b>${fmt(tokens)}</b>  ·  ${m}×`,
     ``,
-    `Est. share at a full mint: <b>~${sol(r.typ)} SOL</b>`,
-    `<i>range ${sol(r.low)} – ${sol(r.high)} SOL, depending on what everyone holds at the snapshot</i>`,
+    `🎁 Reward at full mint: <b>${sol(r.typ)} SOL</b>`,
+    m > 1 ? `✨ ${esc(D.TOKEN_NAME)} boost: <b>up to +${sol(r.high - r.typ)} SOL</b>` : `✨ ${esc(D.TOKEN_NAME)} boost: none yet. Hold ${esc(D.TOKEN_NAME)} to multiply it`,
     `Pool so far: ${sol(D.poolFrom(minted))} SOL`,
     ``,
-    `<i>An estimate, not a promise.</i> Check any wallet: dmt-realm.dev/holders`
+    `<i>Paid once, when all ${fmt(D.TOTAL_BEINGS)} are minted. The boost depends on what other holders have.</i>`
   ].join("\n");
 }
 

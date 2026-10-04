@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#03010a">
 <title>REALM — Holders</title>
-<meta name="description" content="What a wallet earns from the REALM holder pool: look up any address, or build a holding and see the range.">
+<meta name="description" content="What a wallet receives from the REALM holder pool: look up any address, or build a holding and see its reward.">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -82,18 +82,18 @@
       <p><b>Your payout</b> = the pool &times; your points &divide; everyone's points added up.</p>
     </div>
     <div class="h-weights" data-weights></div>
-    <p class="h-note">Because everyone else's <span data-token></span> counts against yours,
-    nobody can know their exact payout before the snapshot. That is why this page always
-    gives a range:</p>
     <ul class="h-range-key">
-      <li><b>Low</b> &mdash; every other holder is in the top <span data-token></span> band.</li>
-      <li><b>Typical</b> &mdash; everyone is in the same band as you. The multipliers cancel out,
-        so this is your weight's share of all the weight.</li>
-      <li><b>High</b> &mdash; nobody else holds any <span data-token></span>.</li>
+      <li><b>Reward</b> &mdash; what your beings receive. Rewards are paid once, when all
+        <span data-total></span> are minted, and by then the pool and the total weight are both
+        fixed: every weight point is worth the pool &divide; <span data-weight></span>.</li>
+      <li><b><span data-token></span> boost</b> &mdash; holding <span data-token></span> multiplies
+        your weight, so you take a bigger slice. How much bigger depends on everyone else: the
+        figure shown is the most it could add, if nobody else held any. If everyone holds the same
+        band, the multipliers cancel and you receive your reward. If others hold more
+        <span data-token></span> than you, some of your reward goes to them.</li>
     </ul>
-    <p class="h-note">All three assume every being is minted. A smaller mint means a smaller
-    pool, shared among fewer beings. <span data-token></span> on its own earns nothing; it only
-    multiplies beings. This is an estimate, not a promise, and not financial advice.</p>
+    <p class="h-note"><span data-token></span> on its own receives nothing; it only multiplies
+    beings. Not a promise, and not financial advice.</p>
   </section>
 </main>
 

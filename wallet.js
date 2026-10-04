@@ -168,14 +168,12 @@
         + '<div><span>Multiplier</span><b>' + mult.toFixed(1) + '×</b></div>'
       + '</div>'
       + '<div class="wal-pay">'
-        + '<div><span>Even field</span><b>' + even.toFixed(3) + ' SOL</b></div>'
-        + '<div><span>At ' + mult.toFixed(1) + '×</span><b>'
-          + best.toFixed(3) + ' SOL</b></div>'
+        + '<div><span>Reward</span><b>' + even.toFixed(3) + ' SOL</b></div>'
+        + '<div><span>' + TOKEN + ' boost</span><b>'
+          + (mult > 1 ? '+' + (best - even).toFixed(3) + ' SOL' : '—') + '</b></div>'
       + '</div>'
-      + '<p class="wal-note">Even field is what this weight earns if everybody carries '
-      + 'the same multiplier — they cancel, so it is the same at every band. The '
-      + 'second is this wallet at ' + mult.toFixed(1) + '× with nobody else '
-      + 'multiplied at all, which is a ceiling and falls as others buy in. What it '
-      + 'actually gets sits between them, and both assume the drop fills.</p>';
+      + '<p class="wal-note">Reward is what these beings receive once all '
+      + (typeof TOTAL_BEINGS !== "undefined" ? TOTAL_BEINGS : 1111).toLocaleString() + ' are minted. The ' + TOKEN + ' boost is the most '
+      + 'holding ' + TOKEN + ' could add, if nobody else held any; it shrinks as others buy in.</p>';
   }
 })();

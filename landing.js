@@ -408,8 +408,8 @@
     });
 
     table($("[data-ch-table]"), "1.3fr .62fr 1fr 1fr",
-      ["Holding", "Mint cost", "Even field",
-       `With ${band.mult.toFixed(1)}\u00d7`], body);
+      ["Holding", "Mint cost", "Reward",
+       `With ${band.mult.toFixed(1)}\u00d7 boost`], body);
 
     const chosen = $("[data-ch-chosen]");
     if (chosen) chosen.innerHTML = band.hold === 0
@@ -425,13 +425,15 @@
       + `${n_(POOL_PERCENT)}% coming back — and every holding that beats it is paid for by one `
       + `that does not. The small figure under each is what is left once the mint is paid.`
       + `<br><br>`
-      + `<b>Even field</b> is what your weight earns when every holder carries the same `
+      + `<b>Reward</b> is what the beings receive once all ${TOTAL_BEINGS.toLocaleString()} are `
+      + `minted: the pool and the total weight are fixed by then, so it is an exact figure for `
+      + `the beings. It is also what you receive when every holder carries the same `
       + `multiplier as you. <b>Notice it does not move when you change the band above.</b> `
       + `That is the mechanism being honest with you: ${TOKEN_NAME} multiplies your weight, `
       + `not the pool, so if everybody buys the same amount it cancels out and nobody has `
       + `gained a thing.`
       + `<br><br>`
-      + `<b>With ${band.mult.toFixed(1)}×</b> is the other end: you in this band with nobody `
+      + `<b>With ${band.mult.toFixed(1)}× boost</b> is the other end: you in this band with nobody `
       + `else holding any ${TOKEN_NAME} at all. It is a ceiling, not a forecast, and it falls `
       + `as other people buy in. What you actually get lands between the two columns — the `
       + `token is worth something only to the degree you hold more of it than the people `

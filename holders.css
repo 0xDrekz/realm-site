@@ -117,6 +117,9 @@ body.holders .topbar{position:sticky;top:0}
 
 .h-bar{position:relative;height:14px;margin:22px 0 8px;background:rgba(157,143,196,.12)}
 .h-span{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,rgba(157,143,196,.5),rgba(227,186,92,.75))}
+.h-figs2{grid-template-columns:repeat(2,1fr)}
+.h-boost{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(90deg,rgba(227,186,92,.55) 0 6px,rgba(227,186,92,.2) 6px 10px)}
+.h-span{background:linear-gradient(90deg,rgba(157,143,196,.5),rgba(227,186,92,.85))}
 .h-tick{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1px;background:var(--bone)}
 .h-cost{position:absolute;top:-8px;bottom:-8px;width:0;border-left:2px dashed #ff8a7a}
 .h-cost i{

@@ -74,28 +74,35 @@
     '<div style="--c:' + t.color + '"><img src="preview/' + t.key + '.png' + ART + '" alt="" loading="lazy">'
     + '<span>' + t.name + '</span><b class="num">' + t.weight + '</b></div>').join("");
 
-  /* ---------- the range, drawn ----------
-     One bar from nothing to the high figure: low and typical marked on it,
-     the mint cost marked too when there is one, so whether a holding pays
-     for itself is a thing you can see rather than work out. */
-  function rangeHTML(r, w, m, cost) {
+  /* ---------- the reward, drawn ----------
+     The headline is the reward: what the beings are worth once all 1,111
+     are minted. Pool and total weight are both fixed by then, so for the
+     beings alone it is an exact figure. The token is shown apart from it,
+     as a boost, because what a boost is worth depends on how much of the
+     token everybody else holds. The bar runs from nothing to the most the
+     boost could reach, with the reward marked and the mint cost too. */
+  function rewardHTML(r, w, m, cost) {
+    const boost = Math.max(0, r.high - r.typ);
     const top = Math.max(r.high, cost || 0) * 1.08 || 1;
     const at = x => (100 * x / top).toFixed(1) + "%";
     const share = (100 * r.typ / POOL);
     return '<div class="h-range">'
-      + '<div class="h-figs">'
-        + '<div class="lo"><span>Low</span><b class="num">' + sol(r.low) + '</b><i>SOL</i></div>'
-        + '<div class="ty"><span>Typical</span><b class="num">' + sol(r.typ) + '</b><i>SOL</i></div>'
-        + '<div class="hi"><span>High</span><b class="num">' + sol(r.high) + '</b><i>SOL</i></div>'
+      + '<div class="h-figs h-figs2">'
+        + '<div class="ty"><span>Reward</span><b class="num">' + sol(r.typ) + '</b><i>SOL, once all '
+          + fmt(TOTAL_BEINGS) + ' are minted</i></div>'
+        + '<div class="hi"><span>' + TOKEN + ' boost</span><b class="num">'
+          + (m > 1 ? '+' + sol(boost) : '—') + '</b><i>'
+          + (m > 1 ? 'SOL at most, at ' + m.toFixed(1) + '×' : 'no ' + TOKEN + ' held') + '</i></div>'
       + '</div>'
-      + '<div class="h-bar" role="img" aria-label="Payout between ' + sol(r.low) + ' and '
-        + sol(r.high) + ' SOL, typically ' + sol(r.typ) + '">'
-        + '<div class="h-span" style="left:' + at(r.low) + ';width:calc(' + at(r.high) + ' - ' + at(r.low) + ')"></div>'
+      + '<div class="h-bar" role="img" aria-label="Reward ' + sol(r.typ) + ' SOL'
+        + (m > 1 ? ', up to ' + sol(r.high) + ' SOL with the boost' : '') + '">'
+        + '<div class="h-span" style="left:0;width:' + at(r.typ) + '"></div>'
+        + (m > 1 ? '<div class="h-boost" style="left:' + at(r.typ) + ';width:calc(' + at(r.high) + ' - ' + at(r.typ) + ')"></div>' : "")
         + '<div class="h-tick ty" style="left:' + at(r.typ) + '"></div>'
         + (cost ? '<div class="h-cost' + (cost / top > 0.6 ? ' flip' : '') + '" style="left:' + at(cost) + '"><i>mint cost ' + sol(cost, 2) + '</i></div>' : "")
       + '</div>'
-      + '<p class="h-sub">' + share.toFixed(share < 1 ? 2 : 1) + '% of the pool typically &middot; '
-        + fmt(w) + ' weight &times; ' + m.toFixed(1) + '</p>'
+      + '<p class="h-sub">' + fmt(w) + ' weight of ' + fmt(W) + ' &middot; '
+        + share.toFixed(share < 1 ? 2 : 1) + '% of the pool</p>'
       + '</div>';
   }
 
@@ -160,11 +167,11 @@
     const cost = n * PRICE;
     const r = range(w, b.mult);
     const nb = nextBand(b.hold);
-    res.innerHTML = rangeHTML(r, w, b.mult, cost)
+    res.innerHTML = rewardHTML(r, w, b.mult, cost)
       + '<p class="h-note">' + fmt(n) + ' being' + (n > 1 ? "s" : "") + ', ' + sol(cost, 2)
       + ' SOL to mint. '
       + (nb ? 'Moving up to ' + fmt(nb.hold) + ' ' + TOKEN + ' (' + nb.mult.toFixed(1)
-        + '×) would raise the high figure to ' + sol(range(w, nb.mult).high) + ' SOL.'
+        + '×) would raise the most the boost could add to +' + sol(range(w, nb.mult).high - range(w, nb.mult).typ) + ' SOL.'
         : 'This is the top ' + TOKEN + ' band.') + '</p>';
   }
   draw();
@@ -237,7 +244,7 @@
         + '<div><span>' + TOKEN + '</span><b class="num">' + fmt(tokens) + '</b></div>'
         + '<div><span>Multiplier</span><b class="num">' + m.toFixed(1) + '×</b></div>'
       + '</div>'
-      + rangeHTML(range(w, m), w, m, 0)
+      + rewardHTML(range(w, m), w, m, 0)
       + (nb ? '<p class="h-note">Hold ' + fmt(nb.hold - tokens) + ' more ' + TOKEN
         + ' to reach ' + nb.mult.toFixed(1) + '×. This holding is now loaded into '
         + '<a href="#build">What if</a> below.</p>'
@@ -260,14 +267,14 @@
       if (!r.ok || !d.top) throw 0;
       const pool = d.minted ? poolFrom(d.minted) : POOL;
       const rows = d.top.map((o, i) => {
-        const share = d.weightHeld ? o.weight / d.weightHeld : 0;
+        const share = o.weight / W;
         return '<tr><td class="num">' + (i + 1) + '</td>'
           + '<td><button type="button" class="h-addr" data-a="' + esc(o.owner) + '">' + esc(short(String(o.owner))) + '</button></td>'
           + '<td class="num">' + Number(o.beings) + '</td>'
           + '<td class="num">' + Number(o.weight) + '</td>'
           + '<td class="num">' + (o.tokens == null ? "—" : multFor(o.tokens).toFixed(1) + "×") + '</td>'
           + '<td class="num">' + (100 * share).toFixed(1) + '%</td>'
-          + '<td class="num">' + sol(pool * share) + '</td></tr>';
+          + '<td class="num">' + sol(POOL * share) + '</td></tr>';
       }).join("");
       el.innerHTML = '<div class="h-sum">'
           + '<div><span>Holders</span><b class="num">' + fmt(d.holders) + '</b></div>'
@@ -275,9 +282,9 @@
           + '<div><span>Pool now</span><b class="num">' + sol(pool, 2) + '</b></div>'
         + '</div>'
         + '<div class="h-table"><table><thead><tr><th>#</th><th>Wallet</th><th>Beings</th>'
-        + '<th>Weight</th><th>Band</th><th>Share</th><th>SOL</th></tr></thead><tbody>'
+        + '<th>Weight</th><th>Band</th><th>Share</th><th>Reward</th></tr></thead><tbody>'
         + rows + '</tbody></table></div>'
-        + '<p class="h-note">Share and SOL are the typical figure, on what has been minted so far. '
+        + '<p class="h-note">Reward is each wallet&rsquo;s SOL from its beings once all ' + fmt(TOTAL_BEINGS) + ' are minted, before any ' + TOKEN + ' boost. '
         + 'Tap a wallet to look it up. Updated every few minutes.</p>';
       el.addEventListener("click", e => {
         const b = e.target.closest(".h-addr");
