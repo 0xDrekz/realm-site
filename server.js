@@ -273,4 +273,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`REALM is live on port ${PORT}`);
+  // posts every new mint to Telegram; sleeps unless its variables are set
+  require("./bot").start({ root: ROOT, rpc, holdings, env: ENV });
 });

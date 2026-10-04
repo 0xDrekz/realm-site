@@ -432,6 +432,27 @@ Tested: a bad address never leaves the browser; with a key set it is rejected
 before any RPC call; 30 requests pass and the 31st is refused; the rendered
 figures match the chart's own sums for the same holding.
 
+## The mint bot
+
+`bot.js`, started by `server.js`. Every new mint is posted to Telegram with
+the being's picture, who minted it, how many beings and how much $DMT that
+wallet holds, and its estimated share of the pool at a full mint — the same
+low / typical / high figures as the holders page, read from the same
+`data.js`.
+
+It sleeps until four Railway variables are set:
+
+| Variable | Where it comes from |
+|---|---|
+| `HELIUS_KEY`, `COLLECTION` | already used by the wallet checker |
+| `TG_BOT_TOKEN` | message @BotFather on Telegram, `/newbot` |
+| `TG_CHAT_ID` | the group's id (add the bot to the group as an admin first) |
+
+Every 20 seconds it asks for the newest beings and posts the ones it has not
+seen, one every 3.5 seconds so a busy mint does not trip Telegram's limit. On
+start it learns everything already minted without posting it, so a deploy
+never floods the group; a being minted during a restart is not announced.
+
 ## Note on the mint
 
 This site does not mint anything itself — the Mint button sends people to
