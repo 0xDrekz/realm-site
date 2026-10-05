@@ -206,7 +206,7 @@ body.intro .m-search, body.intro .m-hint, body.intro .m-preview { opacity: 0; po
 }
 .m-offer:hover { filter: brightness(1.08); }
 .m-offer.off { color: var(--dim); background: transparent; border-color: var(--line); box-shadow: none; pointer-events: none; font-weight: 400; }
-.m-share { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.m-share { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
 .m-share button, .m-share a {
   padding: 10px; text-align: center; font: inherit; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
   color: var(--bone); background: none; border: 1px solid var(--line); text-decoration: none; cursor: pointer;
@@ -239,3 +239,14 @@ body.intro .m-search, body.intro .m-hint, body.intro .m-preview { opacity: 0; po
 @media (prefers-reduced-motion: reduce) {
   .m-panel, .m-tops, .m-ticker li { animation: none; }
 }
+
+/* the offer stays at the foot of the panel however far it is scrolled */
+.m-dock {
+  position: sticky; bottom: calc(-24px - env(safe-area-inset-bottom)); z-index: 2;
+  margin: 18px -18px calc(-24px - env(safe-area-inset-bottom));
+  padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(rgba(7,4,15,.85), #07040f 30%);
+  border-top: 1px solid rgba(227,186,92,.22);
+}
+.m-dock .m-offer { margin-top: 0; width: 100%; box-sizing: border-box; font-family: inherit; cursor: pointer; }
+.m-soon { margin: 8px 0 0; text-align: center; font-size: .74rem; color: var(--dim); }

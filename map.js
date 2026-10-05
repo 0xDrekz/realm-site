@@ -522,11 +522,18 @@
         + '<div><span>' + TOKEN_NAME + '</span><b class="num">' + (tokens == null ? '…' : fmt(tokens)) + '</b><i>'
           + (tokens == null ? 'reading' : m.toFixed(1) + '×' + (m > 1 ? ' · boost up to +' + sol(high - reward) + ' SOL' : ' · no boost')) + '</i></div>'
       + '</div></div>'
-      + (offer
-        ? '<a class="m-offer" href="' + esc(offer) + '" target="_blank" rel="noopener">Make an offer</a>'
-        : '<span class="m-offer off">' + (live ? 'Offers open once the marketplace lists it' : 'Offers open after the mint') + '</span>')
       + '<div class="m-share"><button type="button" data-share>Share this being</button>'
-        + '<a href="https://x.com/intent/post?text=' + xText + '&url=' + encodeURIComponent(url) + '" target="_blank" rel="noopener">Post on X</a></div>';
+        + '<a href="https://x.com/intent/post?text=' + xText + '&url=' + encodeURIComponent(url) + '" target="_blank" rel="noopener">Post on X</a></div>'
+      /* the offer, pinned to the foot of the panel so it is always in reach */
+      + '<div class="m-dock">'
+        + (offer
+          ? '<a class="m-offer" href="' + esc(offer) + '" target="_blank" rel="noopener">Make an offer</a>'
+          : '<button type="button" class="m-offer" data-offer-soon>Make an offer</button>')
+        + '<p class="m-soon" data-soon hidden>' + (live
+          ? 'Offers open as soon as the marketplace lists this being.'
+          : 'Offers open once the collection is minted. This one is a preview.') + '</p>'
+      + '</div>';
+
 
     const hero = crop(b.n, 288); $("[data-art]", body).replaceWith(hero);
     const herd = $("[data-herd]", body);
@@ -540,6 +547,8 @@
       herd.appendChild(btn);
     });
     if (animate) countUp($("[data-reward]", body), reward);
+    const soon = $("[data-offer-soon]", body);
+    if (soon) soon.addEventListener("click", () => { $("[data-soon]", body).hidden = false; });
     $("[data-copy]", body).addEventListener("click", e => {
       navigator.clipboard && navigator.clipboard.writeText(b.owner).then(() => { e.target.textContent = "Copied"; });
     });
