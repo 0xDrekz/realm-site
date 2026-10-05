@@ -295,218 +295,90 @@
      b.mult.toFixed(1) + "×", i === TOKEN_BANDS.length - 1]));
 
   /* ============================================================
-     THE EARNINGS CHART
+     BUILD YOUR HOLDING
 
-     Two figures per holding, because one on its own would be a lie.
-     The token multiplier scales YOUR weight, not the pool, so what it
-     is worth depends on what everybody else is holding:
+     Pick the beings you hold, tier by tier, and the $DMT you hold with
+     them, and see what the wallet receives once all 1,111 are minted.
 
-       even field   every holder carrying the same multiplier as you.
-                    They cancel, and your slice is your weight over the
-                    collection's. This is the honest baseline, and it is
-                    the same at every band.
-       with N x     you in the chosen band with nobody else holding any
-                    token at all. A ceiling, not a forecast.
+     Reward is exact for the beings: by then the pool and the total weight
+     are both fixed. The $DMT boost is shown apart from it as the most the
+     token could add, if nobody else held any, because what it is really
+     worth depends on everybody else's.
+     ============================================================ */
+  const n_ = v => `<span class="num">${v}</span>`;
+  const sol3 = v => v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toFixed(3);
+  const shortHold = v => v === 0 ? "none" : v >= 1e6 ? (v / 1e6) + "M" : v >= 1e3 ? (v / 1e3) + "k" : String(v);
 
-     A real outcome sits between them, and nearer the first. Anything
-     that showed one number here would be picking an assumption about
-     everybody else's wallet and not saying so. */
-  const evenPay = (w, pool) => pool * w / TOTAL_WEIGHT;
+  const held = Object.fromEntries(TIERS.map(t => [t.key, 0]));
+  held.common = 1;                         // what somebody has before deciding anything
+  let pickBand = 0;
 
-  /* what a holding has to weigh before it returns its own mint price.
-     The price cancels out of both sides, so this does not depend on it —
-     only on how much of the drop sells. */
-  const breakEven = sold => TOTAL_WEIGHT / (sold * POOL_PERCENT / 100);
-
-  const n_  = v => `<span class="num">${v}</span>`;
-  const net = v => `<i class="num ${v < 0 ? "ch-down" : "ch-up"}">`
-                 + (v < 0 ? "−" : "+") + Math.abs(v).toFixed(3) + "</i>";
-  const takeaway = (got, cost) =>
-    ({ h: `<b class="num">${got.toFixed(3)}</b>` + net(got - cost), cls: "ch-v" });
-
-  function table(el, cols, head, body) {
-    if (!el) return;
-    el.innerHTML = "";
-    el.style.setProperty("--cols", cols);
-    const cell = (html, cls) => {
-      const d = document.createElement("div");
-      d.className = cls;
-      d.innerHTML = html;
-      return d;
-    };
-    head.forEach(h => el.appendChild(cell(h, "ch-h")));
-    body.forEach(row => row.cells.forEach((c, i) => {
-      const o = typeof c === "object" ? c : { h: c };
-      const d = cell(o.h, [i === 0 ? "ch-lab" : "", row.lit ? "ch-in" : "", o.cls || ""]
-        .filter(Boolean).join(" "));
-      if (i === 0 && row.color) d.style.color = row.color;
-      el.appendChild(d);
-    }));
+  const buildEl = $("[data-bh-tiers]");
+  if (buildEl) {
+    buildEl.innerHTML = TIERS.slice().reverse().map(t =>
+      `<div class="bh-tier" style="--c:${t.color}" data-k="${t.key}">`
+      + `<img src="preview/${t.key}.png?v=${String(CONFIG.provenance || "").slice(0, 8)}" alt="" loading="lazy">`
+      + `<span class="bh-name"><b>${t.name}</b><i>weight ${n_(t.weight)}</i></span>`
+      + `<span class="bh-step">`
+        + `<button type="button" data-d="-1" aria-label="One fewer ${t.name}">&minus;</button>`
+        + `<span class="num" data-n>0</span>`
+        + `<button type="button" data-d="1" aria-label="One more ${t.name}">+</button>`
+      + `</span></div>`).join("");
+    buildEl.addEventListener("click", e => {
+      const btn = e.target.closest("button[data-d]"); if (!btn) return;
+      const k = btn.closest(".bh-tier").dataset.k, t = TIERS.find(x => x.key === k);
+      const total = Object.values(held).reduce((a, x) => a + x, 0);
+      const d = Number(btn.dataset.d);
+      if (d > 0 && (total >= MAX_PER_WALLET || held[k] >= t.count)) return;
+      held[k] = Math.max(0, held[k] + d);
+      drawHolding();
+    });
   }
 
-  /* ---- how big the pool is, depending on how much of it sells ----
-     One drop has one risk the ten rounds did not, which is that it does
-     not fill. Hiding that would be the wrong call: it is printed. */
-  const SHARES = [0.25, 0.5, 0.75, 1];
-  const poolNote = $("[data-ch-poolnote]");
-  if (poolNote) poolNote.innerHTML =
-    `The pool is ${n_(POOL_PERCENT)}% of what the mint actually takes, so it depends on how `
-    + `much of the drop goes. Everything further down assumes a full ${
-      n_(TOTAL_BEINGS.toLocaleString())} — if less sells, every figure scales down with it.`;
-
-  table($("[data-ch-pools]"), "1fr .9fr 1fr 1.1fr",
-    ["Minted", "Gross", "Pool", "Per point"],
-    SHARES.map(f => {
-      const sold = Math.round(TOTAL_BEINGS * f);
-      return {
-        lit: f === 1,
-        cells: [`${n_(Math.round(f * 100))}%`,
-                n_((sold * PRICE).toFixed(2)),
-                n_(poolFrom(sold).toFixed(2)),
-                n_((poolFrom(sold) / TOTAL_WEIGHT).toFixed(5))]
-      };
-    }));
-
-  /* ---- every holding, at a chosen size and a chosen token band ----
-     Nine tiers times five quantities times six bands is 270 rows, which
-     nobody scrolls through on a phone. Both are chosen instead, and the
-     table stays ten rows long.
-
-     Moving the band deliberately does NOT move the even-field column, and
-     that is the most useful thing on the page rather than a flaw in it:
-     the token scales your weight, not the pool, so if everybody buys the
-     same band it cancels out completely and nobody has gained anything. */
-  const lede2 = $("[data-ch-lede]");
-  if (lede2) lede2.innerHTML =
-    `${n_(MAX_PER_WALLET)} beings is the most one wallet may mint. Choose what you hold and `
-    + `how much ${TOKEN_NAME} you hold with it.`;
-
-  const bandLabel = $("[data-ch-bandlabel]");
+  const bandsEl = $("[data-bh-bands]");
+  if (bandsEl) TOKEN_BANDS.forEach((b, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.innerHTML = (b.hold === 0 ? "none" : n_(shortHold(b.hold))) + `<i class="num">${b.mult.toFixed(1)}×</i>`;
+    btn.setAttribute("aria-label", (b.hold === 0 ? "no " + TOKEN_NAME : b.hold.toLocaleString() + " " + TOKEN_NAME) + ", " + b.mult.toFixed(1) + " times");
+    btn.addEventListener("click", () => { pickBand = i; drawHolding(); });
+    bandsEl.appendChild(btn);
+  });
+  const bandLabel = $("[data-bh-bandlabel]");
   if (bandLabel) bandLabel.textContent = TOKEN_NAME + " you hold";
 
-  /* short enough to sit on a button */
-  const shortHold = v =>
-    v === 0 ? "none" :
-    v >= 1e6 ? (v / 1e6) + "M" :
-    v >= 1e3 ? (v / 1e3) + "k" : String(v);
-
-  /* what your beings earn when YOU carry a multiplier and the rest of the
-     field carries none. The multiplier is applied to your weight, so the
-     denominator moves with it. */
-  const bandPay = (w, mult, pool) => {
-    const mine = w * mult;
-    return pool * mine / (TOTAL_WEIGHT - w + mine);
-  };
-
-  function detail(q, bandIndex) {
-    const pool = POOL_FULL;
-    const band = TOKEN_BANDS[bandIndex];
-    const body = [];
-
-    /* the anchor: what any holding returns on average, which is exactly
-       the 75% coming back. Everything that beats this line is paid for
-       by something that does not. */
-    const avgW = q * TOTAL_WEIGHT / TOTAL_BEINGS;
-    body.push({
-      lit: true,
-      cells: [`Any ${n_(q)}`, n_((q * PRICE).toFixed(2)),
-              takeaway(evenPay(avgW, pool), q * PRICE),
-              takeaway(bandPay(avgW, band.mult, pool), q * PRICE)]
+  function drawHolding() {
+    const n = Object.values(held).reduce((a, x) => a + x, 0);
+    const w = TIERS.reduce((a, t) => a + t.weight * held[t.key], 0);
+    const band = TOKEN_BANDS[pickBand], m = band.mult;
+    $$(".bh-tier").forEach(el => {
+      const k = el.dataset.k;
+      $("[data-n]", el).textContent = held[k];
+      el.classList.toggle("on", held[k] > 0);
+      const t = TIERS.find(x => x.key === k);
+      $('button[data-d="1"]', el).disabled = n >= MAX_PER_WALLET || held[k] >= t.count;
+      $('button[data-d="-1"]', el).disabled = held[k] === 0;
     });
+    if (bandsEl) [...bandsEl.children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === pickBand)));
 
-    TIERS.forEach(t => {
-      /* only one Source exists, so a wallet cannot hold two however
-         many it mints */
-      const held = Math.min(q, t.count);
-      const w = t.weight * held, cost = held * PRICE;
-      body.push({
-        color: t.color,
-        lit: t.key === "source",
-        cells: [`${t.name} <span class="num">\u00d7${held}</span>`,
-                n_(cost.toFixed(2)),
-                takeaway(evenPay(w, pool), cost),
-                takeaway(bandPay(w, band.mult, pool), cost)]
-      });
-    });
-
-    table($("[data-ch-table]"), "1.3fr .62fr 1fr 1fr",
-      ["Holding", "Mint cost", "Reward",
-       `With ${band.mult.toFixed(1)}\u00d7 boost`], body);
-
-    const chosen = $("[data-ch-chosen]");
-    if (chosen) chosen.innerHTML = band.hold === 0
-      ? `Holding no ${TOKEN_NAME}, your multiplier is <b>1.0×</b> — the last column is the `
-        + `same as the first, because there is nothing multiplying it.`
-      : `Holding <b>${band.hold.toLocaleString()} ${TOKEN_NAME}</b> puts you in the `
-        + `<b>${band.mult.toFixed(1)}×</b> band.`;
-
-    const foot = $("[data-ch-foot]");
-    if (foot) foot.innerHTML =
-      `All figures in SOL, assuming the drop fills. The first row is what any `
-      + `${n_(q)} being${q > 1 ? "s" : ""} return${q > 1 ? "" : "s"} on average — exactly the `
-      + `${n_(POOL_PERCENT)}% coming back — and every holding that beats it is paid for by one `
-      + `that does not. The small figure under each is what is left once the mint is paid.`
-      + `<br><br>`
-      + `<b>Reward</b> is what the beings receive once all ${TOTAL_BEINGS.toLocaleString()} are `
-      + `minted: the pool and the total weight are fixed by then, so it is an exact figure for `
-      + `the beings. It is also what you receive when every holder carries the same `
-      + `multiplier as you. <b>Notice it does not move when you change the band above.</b> `
-      + `That is the mechanism being honest with you: ${TOKEN_NAME} multiplies your weight, `
-      + `not the pool, so if everybody buys the same amount it cancels out and nobody has `
-      + `gained a thing.`
-      + `<br><br>`
-      + `<b>With ${band.mult.toFixed(1)}× boost</b> is the other end: you in this band with nobody `
-      + `else holding any ${TOKEN_NAME} at all. It is a ceiling, not a forecast, and it falls `
-      + `as other people buy in. What you actually get lands between the two columns — the `
-      + `token is worth something only to the degree you hold more of it than the people `
-      + `you are sharing the pool with.`
-      + `<br><br>`
-      + `A holding needs ${n_(breakEven(TOTAL_BEINGS).toFixed(1))} points to return its own `
-      + `mint price, so <b>${TIERS.find(t => t.weight >= breakEven(TOTAL_BEINGS)).name}</b> is `
-      + `the first tier that pays for itself on weight alone. And you do not choose your tier — `
-      + `it is whatever the mint hands you.`;
+    const out = $("[data-bh-result]");
+    if (!out) return;
+    if (!n) { out.innerHTML = `<p class="bh-empty">Add a being to see what it receives. ${TOKEN_NAME} on its own receives nothing.</p>`; return; }
+    const reward = POOL_FULL * w / TOTAL_WEIGHT;
+    const mine = w * m, high = POOL_FULL * mine / (TOTAL_WEIGHT - w + mine);
+    out.innerHTML =
+        `<div class="bh-figs">`
+        + `<div class="bh-main"><span>Reward</span><b class="num">${sol3(reward)}</b><i>SOL, once all ${TOTAL_BEINGS.toLocaleString()} are minted</i></div>`
+        + `<div><span>${TOKEN_NAME} boost</span><b class="num">${m > 1 ? "+" + sol3(high - reward) : "—"}</b>`
+          + `<i>${m > 1 ? "SOL at most, at " + m.toFixed(1) + "×" : "no " + TOKEN_NAME + " held"}</i></div>`
+      + `</div>`
+      + `<p class="bh-line">${n_(n)} being${n > 1 ? "s" : ""} &middot; weight ${n_(w)} of ${n_(TOTAL_WEIGHT.toLocaleString())} `
+        + `&middot; ${n_((PRICE * n).toFixed(2))} SOL to mint</p>`
+      + `<p class="bh-note">The reward is exact for the beings. The ${TOKEN_NAME} boost is the most it could add, `
+        + `if nobody else held any; if everyone holds the same band it cancels out. Up to `
+        + `${n_(MAX_PER_WALLET)} beings per wallet at mint.</p>`;
   }
-
-  /* the two pickers */
-  /* It used to open on five beings at the top token band — the most
-     flattering corner of the grid, on a panel whose whole argument is that
-     it does not flatter. It opens on one being and no tokens now, which is
-     what somebody actually has before they decide anything. Everything
-     better than that is one tap away. */
-  let pickQty = 1, pickBand = 0;
-
-  function picker(el, items, initial, onPick) {
-    if (!el) return;
-    items.forEach((it, i) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.innerHTML = it.html;
-      b.setAttribute("aria-pressed", String(i === initial));
-      b.setAttribute("aria-label", it.label);
-      b.addEventListener("click", () => {
-        [...el.children].forEach(c => c.setAttribute("aria-pressed", "false"));
-        b.setAttribute("aria-pressed", "true");
-        onPick(i);
-        detail(pickQty, pickBand);
-      });
-      el.appendChild(b);
-    });
-  }
-
-  picker($("[data-ch-qty]"),
-    [...Array(MAX_PER_WALLET)].map((_, i) => ({
-      html: n_(i + 1), label: (i + 1) + (i ? " beings" : " being")
-    })), 0, i => pickQty = i + 1);
-
-  picker($("[data-ch-band]"),
-    TOKEN_BANDS.map(b => ({
-      html: b.hold === 0 ? "none" : n_(shortHold(b.hold)),
-      label: (b.hold === 0 ? "no " + TOKEN_NAME
-                           : b.hold.toLocaleString() + " " + TOKEN_NAME)
-             + ", " + b.mult.toFixed(1) + " times"
-    })), 0, i => pickBand = i);
-
-  detail(pickQty, pickBand);
+  drawHolding();
 
   const fine = $("[data-rw-fine]");
   if (fine) fine.textContent =
