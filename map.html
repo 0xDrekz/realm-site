@@ -5,21 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#03010a">
 <title>REALM — The Map</title>
-<meta name="description" content="Every minted REALM being, drifting through the realm. Tap one to see who holds it, what else they hold, and make an offer.">
+<meta name="description" content="Every minted REALM being, alive in the realm. Tap one to see who holds it, everything they hold, and make an offer.">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <meta property="og:title" content="REALM — The Map">
-<meta property="og:description" content="Every minted REALM being, drifting through the realm.">
+<meta property="og:description" content="Every minted REALM being, alive in the realm.">
 <meta property="og:image" content="https://dmt-realm.dev/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="map.css">
 </head>
-<body class="map">
+<body class="map intro">
 
-<canvas id="world" aria-label="The map of the realm: every minted being, grouped by the wallet that holds it"></canvas>
+<canvas id="world" aria-label="The map of the realm: every minted being in the region of its tier, the Source at the centre"></canvas>
+
+<!-- the entrance: a title over the opening drift -->
+<div class="m-intro" data-intro aria-hidden="true">
+  <p class="m-intro-k">The Realm</p>
+  <p class="m-intro-t" data-intro-line>&nbsp;</p>
+</div>
 
 <header class="m-top">
   <a class="m-back" href="/">&larr; The realm</a>
@@ -27,22 +34,36 @@
     <b>The Map</b>
     <span class="num" data-count>&nbsp;</span>
   </div>
-  <a class="m-back" href="/holders">Holders</a>
+  <button class="m-back m-tops-btn" type="button" data-tops-open>Top<span class="m-wide"> holders</span></button>
 </header>
 
-<p class="m-preview" data-preview hidden>Preview: nothing is minted yet. These wallets and holdings are made up to show how the map works.</p>
+<p class="m-preview" data-preview hidden>Preview &middot; nothing is minted yet. These wallets are made up to show how the map works.</p>
+
+<!-- the tiers: a key that is also a filter -->
+<nav class="m-legend" data-legend aria-label="Show tiers"></nav>
+
+<!-- who crossed lately -->
+<ol class="m-ticker" data-ticker aria-live="polite"></ol>
 
 <form class="m-search" data-search role="search">
   <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-         placeholder="Wallet address or being number" aria-label="Find a wallet or a being number">
+         placeholder="Find a wallet or a #number" aria-label="Find a wallet or a being number">
   <button type="submit">Find</button>
   <p class="m-msg" data-msg aria-live="polite"></p>
 </form>
 
 <p class="m-hint" data-hint>Drag to move &middot; pinch or scroll to zoom &middot; tap a being</p>
 
+<div class="m-tip" data-tip hidden></div>
+
+<aside class="m-tops" data-tops hidden>
+  <button class="m-close" type="button" data-tops-close aria-label="Close">&times;</button>
+  <h2>Top holders</h2>
+  <ol data-tops-list></ol>
+</aside>
+
 <aside class="m-panel" data-panel hidden aria-live="polite">
-  <button class="m-close" type="button" aria-label="Close">&times;</button>
+  <button class="m-close" type="button" data-panel-close aria-label="Close">&times;</button>
   <div class="m-body" data-body></div>
 </aside>
 
