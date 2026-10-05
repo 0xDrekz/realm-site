@@ -528,10 +528,17 @@
      breathing zoom and getting a slightly different answer. */
   let at = null;
 
+  /* A phone is tall like the painting, so the painting covers it and you
+     see the whole tree. A wide screen used to cover the same way, which
+     blew the picture up until the doorway filled the window. On a wide
+     screen the tree is sized to the height instead, so you stand as far
+     back as on a phone, and the sides are filled with the same wood,
+     dimmed (see paintTree). */
+  const wide = () => W / H > art.width / art.height * 1.05;
   function frame(zoom) {
-    const cover = Math.max(W / art.width, H / art.height) * zoom;
+    const cover = (wide() ? (H / art.height) * 1.08 : Math.max(W / art.width, H / art.height)) * zoom;
     const w = art.width * cover, h = art.height * cover;
-    const y = Math.min(0, H * DOOR_AT - h * AIM.y);
+    const y = Math.max(H - h, Math.min(0, H * DOOR_AT - h * AIM.y));
     at = { x: (W - w) / 2, y, w, h };
     return at;
   }
@@ -671,7 +678,34 @@
       tc.translate(ax, ay); tc.scale(rush, rush); tc.translate(-ax, -ay);
       tc.globalAlpha = Math.max(0, 1 - Math.pow(pull, 2.4));
     }
+    if (w < W - 2) {
+      /* the sides of a wide screen: the same wood, far bigger and dimmed,
+         so the tree stands in its forest rather than in a black box */
+      const c2 = Math.max(W / art.width, H / art.height) * breathe;
+      const bw = art.width * c2, bh = art.height * c2;
+      tc.globalAlpha = 0.3 * (pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1);
+      tc.drawImage(art, (W - bw) / 2, Math.max(H - bh, Math.min(0, H * DOOR_AT - bh * AIM.y)), bw, bh);
+      tc.globalAlpha = pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1;
+      tc.fillStyle = "rgba(3,1,10,.62)";
+      tc.fillRect(0, 0, W, H);
+    }
     drawTree(t, pull, x, y, w, h);
+    if (w < W - 2) {
+      /* soften the tree's own edges into the dimmed wood */
+      /* starting a little outside the picture, past where the sway
+         pushes its edge, so no seam shows */
+      const fe = w * 0.22, out = w * 0.06;
+      for (const [a, b] of [[x - out, x + fe], [x + w + out, x + w - fe]]) {
+        const gr = tc.createLinearGradient(a, 0, b, 0);
+        gr.addColorStop(0, "rgba(3,1,10,.72)"); gr.addColorStop(.3, "rgba(3,1,10,.5)"); gr.addColorStop(1, "rgba(3,1,10,0)");
+        tc.fillStyle = gr;
+        tc.fillRect(Math.min(a, b), 0, fe + out, H);
+      }
+      // and beyond the picture, the same darkness as the feather's outer edge
+      tc.fillStyle = "rgba(3,1,10,.72)";
+      tc.fillRect(0, 0, Math.max(0, x - out), H);
+      tc.fillRect(x + w + out, 0, Math.max(0, W - (x + w + out)), H);
+    }
 
     /* The realm in the doorway. Drawn on its own canvas, over the gap
        rather than added to it, so it is not limited to brightening the
@@ -743,8 +777,10 @@
         // gathers quickly, holds through the middle, thins out at the top
         const fade = Math.min(1, u * 5) * Math.min(1, (1 - u) * 2.6);
         if (fade <= 0.01) continue;
-        const d = W * q.size * (0.45 + q.grow * u);
-        const px = q.x * W, py = q.y * H;
+        /* measured against the tree, not the window, so on a wide screen
+           the smoke rises off the roots instead of filling the dark sides */
+        const d = w * q.size * (0.45 + q.grow * u);
+        const px = x + q.x * w, py = q.y * H;
         if (px < -d || px > W + d || py < -d) continue;
 
         tc.globalAlpha = q.a * fade * air;
