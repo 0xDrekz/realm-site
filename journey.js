@@ -20,7 +20,8 @@ window.RealmJourney = (() => {
     { key: "beings",  label: "THE BEINGS", panel: "nfts" },
     { key: "rewards", label: "REWARDS",    panel: "rewards" },
     { key: "lore",    label: "LORE",       panel: "lore" },
-    { key: "holders", label: "HOLDERS",    href: "/holders" }
+    { key: "holders", label: "HOLDERS",    href: "/holders" },
+    { key: "map",     label: "THE MAP",    href: "/map" }
 
   ];
 
@@ -702,6 +703,7 @@ window.RealmJourney = (() => {
       case "rewards": return g_("POOL_PERCENT", 75) + "% of the mint";
       case "lore":    return "who they are";
       case "holders": return "what a wallet earns";
+      case "map":     return "every being, live";
       default:        return "";
     }
   }

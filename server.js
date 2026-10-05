@@ -231,6 +231,29 @@ async function readStats() {
   return { minted, dmt, at: Date.now() };
 }
 
+/* ---- the map ----
+   Every minted being as [token number, owner, asset id], read once every
+   five minutes for everybody. The number comes out of the name ("REALM #17"),
+   which is how the map finds the being's picture and traits in map-data.json. */
+let mapData = null, mapAt = 0, mapBusy = null;
+const MAP_MS = 5 * 60_000;
+
+async function readMap() {
+  const beings = [];
+  for (let page = 1; page <= 10; page++) {
+    const res = await rpc("getAssetsByGroup", { groupKey: "collection", groupValue: ENV.col, page, limit: 1000 });
+    const items = (res && res.items) || [];
+    for (const a of items) {
+      const name = (a.content && a.content.metadata && a.content.metadata.name) || "";
+      const n = Number((name.match(/#(\d+)/) || [])[1]);
+      const owner = a.ownership && a.ownership.owner;
+      if (n && owner) beings.push([n, owner, a.id]);
+    }
+    if (items.length < 1000) break;
+  }
+  return { ready: true, beings, at: Date.now() };
+}
+
 const server = http.createServer((req, res) => {
   // strip query string, decode, and block path traversal
   let urlPath;
@@ -244,6 +267,21 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/") urlPath = "/index.html";
 
   if (urlPath === "/holders") urlPath = "/holders.html";
+  if (urlPath === "/map") urlPath = "/map.html";
+
+  if (urlPath === "/api/map") {
+    const send = (code, obj) => res.writeHead(code, {
+      "Content-Type": TYPES[".json"], "Cache-Control": "no-store"
+    }).end(JSON.stringify(obj));
+    if (!ENV.key || !ENV.col) return send(503, { ready: false });
+    if (mapData && Date.now() - mapAt < MAP_MS) return send(200, mapData);
+    mapBusy = mapBusy || readMap()
+      .then(d => { mapData = d; mapAt = Date.now(); return d; })
+      .finally(() => { mapBusy = null; });
+    mapBusy.then(d => send(200, d))
+           .catch(() => mapData ? send(200, mapData) : send(502, { error: "Could not read the chain just now." }));
+    return;
+  }
 
   if (urlPath === "/api/holders") {
     const send = (code, obj) => res.writeHead(code, {
