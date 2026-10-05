@@ -183,6 +183,15 @@
      with the painting rather than trusting it was drawn to scale. */
   const GAP = { x0: 0.477, y0: 0.440, x1: 0.640, y1: 0.941 };
 
+  /* the forest either side of the tree, for wide screens only (tools/widewood.py) */
+  let wood = null;
+  if (window.innerWidth / window.innerHeight > 1.05) {
+    const wi = new Image();
+    wi.onload = () => { wood = wi; };
+    wi.src = "tree-wide.jpg";
+  }
+  const WOOD_FLANK = 760 / 640, WOOD_W = 2160 / 640, WOOD_BLEND = 150 / 640;
+
   const gapImg = new Image();
   let gapReady = false;
   gapImg.onload = () => { gapReady = true; };
@@ -678,33 +687,35 @@
       tc.translate(ax, ay); tc.scale(rush, rush); tc.translate(-ax, -ay);
       tc.globalAlpha = Math.max(0, 1 - Math.pow(pull, 2.4));
     }
+    const fadeOut = pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1;
     if (w < W - 2) {
-      /* the sides of a wide screen: the same wood, far bigger and dimmed,
-         so the tree stands in its forest rather than in a black box */
-      const c2 = Math.max(W / art.width, H / art.height) * breathe;
-      const bw = art.width * c2, bh = art.height * c2;
-      tc.globalAlpha = 0.3 * (pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1);
-      tc.drawImage(art, (W - bw) / 2, Math.max(H - bh, Math.min(0, H * DOOR_AT - bh * AIM.y)), bw, bh);
-      tc.globalAlpha = pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1;
-      tc.fillStyle = "rgba(3,1,10,.62)";
-      tc.fillRect(0, 0, W, H);
+      /* the sides of a wide screen: the painted forest either side of the
+         tree, at the tree's own scale and aligned to it */
+      tc.fillStyle = "#03010a"; tc.fillRect(0, 0, W, H);
+      if (wood) {
+        tc.globalAlpha = fadeOut;
+        tc.drawImage(wood, x - w * WOOD_FLANK, y, w * WOOD_W, h);
+        tc.globalAlpha = fadeOut;
+      }
     }
     drawTree(t, pull, x, y, w, h);
-    if (w < W - 2) {
-      /* soften the tree's own edges into the dimmed wood */
-      /* starting a little outside the picture, past where the sway
-         pushes its edge, so no seam shows */
-      const fe = w * 0.22, out = w * 0.06;
-      for (const [a, b] of [[x - out, x + fe], [x + w + out, x + w - fe]]) {
-        const gr = tc.createLinearGradient(a, 0, b, 0);
-        gr.addColorStop(0, "rgba(3,1,10,.72)"); gr.addColorStop(.3, "rgba(3,1,10,.5)"); gr.addColorStop(1, "rgba(3,1,10,0)");
-        tc.fillStyle = gr;
-        tc.fillRect(Math.min(a, b), 0, fe + out, H);
+    if (w < W - 2 && wood) {
+      /* the swaying tree's own edges, faded back into the forest: the
+         forest's blended edge laid over them in thin slices */
+      const bw = w * WOOD_BLEND, n = 14, sw = bw / n;
+      const iw = wood.width, sx = iw * WOOD_FLANK / WOOD_W, ss = iw / WOOD_W * WOOD_BLEND / n;
+      /* the sway carries the tree a little past its own edge: cover that
+         sliver solidly with the forest first */
+      const sway = w * 0.05, sk = iw / WOOD_W * 0.05, iy = wood.height;
+      tc.globalAlpha = fadeOut;
+      tc.drawImage(wood, sx - sk, 0, sk, iy, x - sway, y, sway, h);
+      tc.drawImage(wood, sx + iw / WOOD_W, 0, sk, iy, x + w, y, sway, h);
+      for (let i = 0; i < n; i++) {
+        tc.globalAlpha = fadeOut * Math.pow(1 - i / n, 1.4);
+        tc.drawImage(wood, sx + i * ss, 0, ss + .5, wood.height, x + i * sw, y, sw + .5, h);
+        tc.drawImage(wood, sx + (iw / WOOD_W) - (i + 1) * ss, 0, ss + .5, wood.height, x + w - (i + 1) * sw, y, sw + .5, h);
       }
-      // and beyond the picture, the same darkness as the feather's outer edge
-      tc.fillStyle = "rgba(3,1,10,.72)";
-      tc.fillRect(0, 0, Math.max(0, x - out), H);
-      tc.fillRect(x + w + out, 0, Math.max(0, W - (x + w + out)), H);
+      tc.globalAlpha = fadeOut;
     }
 
     /* The realm in the doorway. Drawn on its own canvas, over the gap

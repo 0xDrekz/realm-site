@@ -539,3 +539,19 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .sum-total span{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:#e3ba5c}
 .sum-total b{font-size:1.45rem;color:#f4efe4;font-weight:700}
 .sum-total i{flex-basis:100%;font-style:normal;font-size:.72rem;color:#9d8fc4}
+
+/* ---------- the card under the door ----------
+   The facts sat straight on the painting and the doorway's light ran
+   through them. They are held in one dark glass card now, edged in gold. */
+.gate-card{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:14px clamp(16px,4vw,28px) 16px;
+  background:rgba(5,2,12,.72);
+  -webkit-backdrop-filter:blur(10px) saturate(1.1);backdrop-filter:blur(10px) saturate(1.1);
+  border:1px solid rgba(227,186,92,.38);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 18px 50px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,236,170,.06);
+  max-width:min(92vw,520px);
+}
+.gate-card .creed{margin:0}
+.gate-card .standing-live{margin-top:0}
+.gate-card .peek{margin-top:2px}
