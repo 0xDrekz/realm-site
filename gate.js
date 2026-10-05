@@ -31,6 +31,7 @@
 
   const FULL = "tree.png";
   const SMALL = "tree-small.png";       // lighter, for narrow screens
+  const PHONE = "tree-phone.png?v=2", PHONE_SMALL = "tree-phone-small.png?v=2";
 
   const canvas = document.getElementById("sky");
   const tree   = document.getElementById("tree");
@@ -131,10 +132,15 @@
       if (portal) portal.classList.add("ready");
     };
     img.onerror = () => {
-      if (img.src.indexOf(SMALL) === -1) { img.src = SMALL; return; }
+      if (img.src.indexOf(SMALL) === -1) { img.src = SMALL; return; }   // the plain tree, if the phone one fails
     };
-    img.src = (window.innerWidth <= 700 || (window.devicePixelRatio || 1) < 2)
-      ? SMALL : FULL;
+    /* a tall screen can't step back far enough to see the forest either
+       side, so it gets the painting with mushrooms at its feet
+       (tools/phonewood.py); a wide one gets the plain tree, with the
+       forest drawn beside it */
+    const tall = window.innerWidth / window.innerHeight <= 1.05;
+    const small = window.innerWidth <= 700 || (window.devicePixelRatio || 1) < 2;
+    img.src = tall ? (small ? PHONE_SMALL : PHONE) : (small ? SMALL : FULL);
   })();
 
   /* Full bleed across, and the doorway held just above the middle so
