@@ -190,7 +190,7 @@
     wi.onload = () => { wood = wi; };
     wi.src = "tree-wide.jpg";
   }
-  const WOOD_FLANK = 760 / 640, WOOD_W = 2160 / 640, WOOD_BLEND = 150 / 640;
+  const WOOD_FLANK = 700 / 640, WOOD_W = 2040 / 640, WOOD_BLEND = 60 / 640;   // printed by tools/widewood.py
 
   const gapImg = new Image();
   let gapReady = false;
