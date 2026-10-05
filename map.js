@@ -521,7 +521,10 @@
         + '<div class="ty"><span>Reward</span><b class="num" data-reward>' + sol(reward) + '</b><i>SOL, once all ' + fmt(TOTAL_BEINGS) + ' are minted</i></div>'
         + '<div><span>' + TOKEN_NAME + '</span><b class="num">' + (tokens == null ? '…' : fmt(tokens)) + '</b><i>'
           + (tokens == null ? 'reading' : m.toFixed(1) + '×' + (m > 1 ? ' · boost up to +' + sol(high - reward) + ' SOL' : ' · no boost')) + '</i></div>'
-      + '</div></div>'
+      + '</div>'
+      + '<div class="sum-total"><span>Total</span><b class="num">' + (m > 1 ? 'up to ' : '') + sol(m > 1 ? high : reward) + ' SOL</b>'
+        + '<i>' + (m > 1 ? 'reward + ' + TOKEN_NAME + ' boost' : 'the reward; ' + TOKEN_NAME + ' would boost it') + '</i></div>'
+      + '</div>'
       + '<div class="m-share"><button type="button" data-share>Share this being</button>'
         + '<a href="https://x.com/intent/post?text=' + xText + '&url=' + encodeURIComponent(url) + '" target="_blank" rel="noopener">Post on X</a></div>'
       /* the offer, pinned to the foot of the panel so it is always in reach */

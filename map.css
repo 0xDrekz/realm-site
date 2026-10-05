@@ -250,3 +250,12 @@ body.intro .m-search, body.intro .m-hint, body.intro .m-preview { opacity: 0; po
 }
 .m-dock .m-offer { margin-top: 0; width: 100%; box-sizing: border-box; font-family: inherit; cursor: pointer; }
 .m-soon { margin: 8px 0 0; text-align: center; font-size: .74rem; color: var(--dim); }
+
+/* one figure for the two together */
+.sum-total{
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin-top:8px;
+  padding:11px 13px;border:1px solid #e3ba5c;background:linear-gradient(90deg,rgba(227,186,92,.16),rgba(227,186,92,.04));
+}
+.sum-total span{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:#e3ba5c}
+.sum-total b{font-size:1.45rem;color:#f4efe4;font-weight:700}
+.sum-total i{flex-basis:100%;font-style:normal;font-size:.72rem;color:#9d8fc4}

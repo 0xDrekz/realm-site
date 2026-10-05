@@ -372,6 +372,8 @@
         + `<div><span>${TOKEN_NAME} boost</span><b class="num">${m > 1 ? "+" + sol3(high - reward) : "—"}</b>`
           + `<i>${m > 1 ? "SOL at most, at " + m.toFixed(1) + "×" : "no " + TOKEN_NAME + " held"}</i></div>`
       + `</div>`
+      + `<div class="sum-total"><span>Total</span><b class="num">${m > 1 ? "up to " : ""}${sol3(m > 1 ? high : reward)} SOL</b>`
+        + `<i>${m > 1 ? "reward + " + TOKEN_NAME + " boost" : "your reward; add " + TOKEN_NAME + " to boost it"}</i></div>`
       + `<p class="bh-line">${n_(n)} being${n > 1 ? "s" : ""} &middot; weight ${n_(w)} of ${n_(TOTAL_WEIGHT.toLocaleString())} `
         + `&middot; ${n_((PRICE * n).toFixed(2))} SOL to mint</p>`
       + `<p class="bh-note">The reward is exact for the beings. The ${TOKEN_NAME} boost is the most it could add, `

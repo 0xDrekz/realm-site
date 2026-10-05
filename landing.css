@@ -530,3 +530,12 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .bh-note{margin:8px 0 0;font-size:.74rem;color:#6d6192;line-height:1.55}
 .bh-empty{color:#9d8fc4;font-size:.86rem}
 .bh-bands button[aria-pressed="true"] i{color:#4a3508}
+
+/* one figure for the two together */
+.sum-total{
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin-top:8px;
+  padding:11px 13px;border:1px solid #e3ba5c;background:linear-gradient(90deg,rgba(227,186,92,.16),rgba(227,186,92,.04));
+}
+.sum-total span{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:#e3ba5c}
+.sum-total b{font-size:1.45rem;color:#f4efe4;font-weight:700}
+.sum-total i{flex-basis:100%;font-style:normal;font-size:.72rem;color:#9d8fc4}

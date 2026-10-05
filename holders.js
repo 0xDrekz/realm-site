@@ -106,6 +106,8 @@
           + (m > 1 ? '+' + sol(boost) : '—') + '</b><i>'
           + (m > 1 ? 'SOL at most, at ' + m.toFixed(1) + '×' : 'no ' + TOKEN + ' held') + '</i></div>'
       + '</div>'
+      + '<div class="sum-total"><span>Total</span><b class="num">' + (m > 1 ? 'up to ' : '') + sol(m > 1 ? r.high : r.typ) + ' SOL</b>'
+        + '<i>' + (m > 1 ? 'reward + ' + TOKEN + ' boost' : 'your reward; add ' + TOKEN + ' to boost it') + '</i></div>'
       + '<div class="h-bar" role="img" aria-label="Reward ' + sol(r.typ) + ' SOL'
         + (m > 1 ? ', up to ' + sol(r.high) + ' SOL with the boost' : '') + '">'
         + '<div class="h-span" style="left:0;width:' + at(r.typ) + '"></div>'
