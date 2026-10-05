@@ -23,15 +23,17 @@
   /* ---------- the picture, and the two places that matter in it ----------
      Both are fractions: how far across, how far down. If the artwork is
      ever replaced, these two lines are what to re-measure. */
-  const AIM = { x: 0.559, y: 0.691 };   // the middle of the opening
-                                      // Measured off the art rather than
-                                      // guessed: the old value was 19px to
-                                      // the right of the actual arch.
-  const SUN = { x: 0.492, y: 0.298 };   // the burst in the canopy.
+  const AIM = { x: 0.526, y: 0.614 };   // the middle of the opening (tools/doorscene.py)
+  const SUN = { x: 0.485, y: 0.178 };   // the burst in the canopy.
 
-  const FULL = "tree.png";
-  const SMALL = "tree-small.png";       // lighter, for narrow screens
-  const PHONE = "tree-phone.png?v=3", PHONE_SMALL = "tree-phone-small.png?v=3";
+  /* the whole scene, phones and computers alike: the tree, the door and
+     the mushroom forest either side. Bump ?v= when it changes. */
+  const SCENE = "door.jpg?v=1";
+
+  /* The light, the smoke and the sway were tuned against the old painting,
+     a tall picture of the tree alone. Sized against the width that tree
+     would have at this height, they stay the size they were. */
+  const TREE_W = 640 / 862;
 
   const canvas = document.getElementById("sky");
   const tree   = document.getElementById("tree");
@@ -131,16 +133,7 @@
       tree.classList.add("ready");
       if (portal) portal.classList.add("ready");
     };
-    img.onerror = () => {
-      if (img.src.indexOf(SMALL) === -1) { img.src = SMALL; return; }   // the plain tree, if the phone one fails
-    };
-    /* a tall screen can't step back far enough to see the forest either
-       side, so it gets the painting with mushrooms at its feet
-       (tools/phonewood.py); a wide one gets the plain tree, with the
-       forest drawn beside it */
-    const tall = window.innerWidth / window.innerHeight <= 1.05;
-    const small = window.innerWidth <= 700 || (window.devicePixelRatio || 1) < 2;
-    img.src = tall ? (small ? PHONE_SMALL : PHONE) : (small ? SMALL : FULL);
+    img.src = SCENE;
   })();
 
   /* Full bleed across, and the doorway held just above the middle so
@@ -187,21 +180,12 @@
      the way through, so every rule either missed the edges or painted the
      floor. A hand-marked cut-out settles it, and the tool lines the mark up
      with the painting rather than trusting it was drawn to scale. */
-  const GAP = { x0: 0.477, y0: 0.440, x1: 0.640, y1: 0.941 };
-
-  /* the forest either side of the tree, for wide screens only (tools/widewood.py) */
-  let wood = null;
-  if (window.innerWidth / window.innerHeight > 1.05) {
-    const wi = new Image();
-    wi.onload = () => { wood = wi; };
-    wi.src = "tree-wide.jpg?v=3";   // bump when the forest changes: browsers keep images an hour
-  }
-  const WOOD_FLANK = 700 / 640, WOOD_W = 2040 / 640, WOOD_BLEND = 60 / 640;   // printed by tools/widewood.py
+  const GAP = { x0: 0.482, y0: 0.351, x1: 0.560, y1: 0.871 };
 
   const gapImg = new Image();
   let gapReady = false;
   gapImg.onload = () => { gapReady = true; };
-  gapImg.src = "door-mask.png";
+  gapImg.src = "door-mask.png?v=2";
 
   /* the cut-out of the mask that covers GAP, taken once.
      The shape lives in the mask's ALPHA, not its brightness: canvas masks
@@ -522,8 +506,8 @@
       /* How freely this height moves. The crown swings, the trunk barely
          does, the roots not at all — squared, so it falls away the way a
          trunk stiffens rather than in a straight line. */
-      const give = Math.max(0, 1 - f / 0.66);
-      const amp  = w * 0.013 * give * give * e2 * gust;
+      const give = Math.max(0, 1 - f / 0.33);   // the canopy only: the door must not move under its light
+      const amp  = h * TREE_W * 0.013 * give * give * e2 * gust;
 
       /* Three waves at different lengths and speeds, and each one lags
          further down the tree, so what you see is a bend travelling up
@@ -543,18 +527,21 @@
      breathing zoom and getting a slightly different answer. */
   let at = null;
 
-  /* A phone is tall like the painting, so the painting covers it and you
-     see the whole tree. A wide screen used to cover the same way, which
-     blew the picture up until the doorway filled the window. On a wide
-     screen the tree is sized to the height instead, so you stand as far
-     back as on a phone, and the sides are filled with the same wood,
-     dimmed (see paintTree). */
-  const wide = () => W / H > art.width / art.height * 1.05;
+  /* The scene covers a wide screen. A tall one can't take all of it: it
+     would shrink to a strip. So a phone sees a slice about 1.8 screens
+     wide, held on the doorway and standing just above the button, and
+     its top fades out into the dark above it, where the emblem stands
+     (.gate-emblem). */
+  const PHONE_SPAN = 1.8;   // landing.css sizes the emblem above it from this
   function frame(zoom) {
-    const cover = (wide() ? (H / art.height) * 1.08 : Math.max(W / art.width, H / art.height)) * zoom;
+    let cover = Math.max(W / art.width, H / art.height);
+    if (W < H) cover = Math.min(cover, W * PHONE_SPAN / art.width);
+    cover *= zoom;
     const w = art.width * cover, h = art.height * cover;
-    const y = Math.max(H - h, Math.min(0, H * DOOR_AT - h * AIM.y));
-    at = { x: (W - w) / 2, y, w, h };
+    const y = h >= H ? Math.max(H - h, Math.min(0, H * DOOR_AT - h * AIM.y))
+                     : Math.max(44, H * 0.84 - h);
+    const x = Math.max(W - w, Math.min(0, W / 2 - w * AIM.x));
+    at = { x, y, w, h };
     return at;
   }
 
@@ -686,6 +673,7 @@
     const { x, y, w, h } = frame(breathe);
 
     const ax = x + w * AIM.x, ay = y + h * AIM.y;
+    const tw = h * TREE_W;                         // see TREE_W
 
     tc.save();
     zoomed = pull > 0;
@@ -694,36 +682,18 @@
       tc.globalAlpha = Math.max(0, 1 - Math.pow(pull, 2.4));
     }
     const fadeOut = pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1;
-    if (w < W - 2) {
-      /* the sides of a wide screen: the painted forest either side of the
-         tree, at the tree's own scale and aligned to it */
-      tc.fillStyle = "#03010a"; tc.fillRect(0, 0, W, H);
-      if (wood) {
-        tc.globalAlpha = fadeOut;
-        tc.drawImage(wood, x - w * WOOD_FLANK, y, w * WOOD_W, h);
-        tc.globalAlpha = fadeOut;
-      }
-    }
     drawTree(t, pull, x, y, w, h);
-    if (w < W - 2 && wood) {
-      /* the swaying tree's own edges, faded back into the forest: the
-         forest's blended edge laid over them in thin slices */
-      const bw = w * WOOD_BLEND, n = 14, sw = bw / n;
-      const iw = wood.width, sx = iw * WOOD_FLANK / WOOD_W, ss = iw / WOOD_W * WOOD_BLEND / n;
-      /* the sway carries the tree a little past its own edge: cover that
-         sliver solidly with the forest first */
-      const sway = w * 0.05, sk = iw / WOOD_W * 0.05, iy = wood.height;
-      tc.globalAlpha = fadeOut;
-      tc.drawImage(wood, sx - sk, 0, sk, iy, x - sway, y, sway, h);
-      tc.drawImage(wood, sx + iw / WOOD_W, 0, sk, iy, x + w, y, sway, h);
-      for (let i = 0; i < n; i++) {
-        tc.globalAlpha = fadeOut * Math.pow(1 - i / n, 1.4);
-        tc.drawImage(wood, sx + i * ss, 0, ss + .5, wood.height, x + i * sw, y, sw + .5, h);
-        tc.drawImage(wood, sx + (iw / WOOD_W) - (i + 1) * ss, 0, ss + .5, wood.height, x + w - (i + 1) * sw, y, sw + .5, h);
-      }
-      tc.globalAlpha = fadeOut;
+    if (y > 0) {
+      /* the picture's top edge fades out into the dark above it: rubbed
+         out of the canvas, so whatever is behind shows through */
+      const top = tc.createLinearGradient(0, y, 0, y + h * 0.3);
+      top.addColorStop(0, "rgba(0,0,0,1)");
+      top.addColorStop(1, "rgba(0,0,0,0)");
+      tc.globalCompositeOperation = "destination-out";
+      tc.fillStyle = top;
+      tc.fillRect(0, y - h * 0.1, W, h * 0.4);
+      tc.globalCompositeOperation = "source-over";
     }
-
     /* The realm in the doorway. Drawn on its own canvas, over the gap
        rather than added to it, so it is not limited to brightening the
        colours the tree already has. */
@@ -736,25 +706,25 @@
     // the sun, flaring through the canopy
     const sx = x + w * SUN.x, sy = y + h * SUN.y;
     const flare = 0.34 + 0.12 * Math.sin(t * 0.7) + 0.05 * Math.sin(t * 2.3);
-    glow(tc, sx, sy, w * 0.26, 48, flare * 0.42, 92);
-    glow(tc, sx, sy, w * 0.07, 54, flare, 99);
+    glow(tc, sx, sy, tw * 0.26, 48, flare * 0.42, 92);
+    glow(tc, sx, sy, tw * 0.07, 54, flare, 99);
 
     tc.strokeStyle = `hsla(50,100%,92%,${0.13 * flare})`;
     tc.lineWidth = 1.4;
     for (let k = 0; k < 10; k++) {
       const ang = (k / 10) * Math.PI * 2 + t * 0.04;
-      const len = w * (0.14 + 0.07 * Math.sin(t * 1.3 + k));
+      const len = tw * (0.14 + 0.07 * Math.sin(t * 1.3 + k));
       tc.beginPath();
-      tc.moveTo(sx + Math.cos(ang) * w * 0.03, sy + Math.sin(ang) * w * 0.03);
+      tc.moveTo(sx + Math.cos(ang) * tw * 0.03, sy + Math.sin(ang) * tw * 0.03);
       tc.lineTo(sx + Math.cos(ang) * len, sy + Math.sin(ang) * len);
       tc.stroke();
     }
 
     // the light it throws into the room, in the tunnel's own colours
     const open = door + pull * 2.2;
-    glow(tc, ax, ay, w * 0.26, 282, open * 0.3, 74);
-    glow(tc, ax, ay, w * 0.10, 172, open * 0.5, 86);
-    glow(tc, ax, ay, w * 0.04, 300, open, 96);
+    glow(tc, ax, ay, tw * 0.26, 282, open * 0.3, 74);
+    glow(tc, ax, ay, tw * 0.10, 172, open * 0.5, 86);
+    glow(tc, ax, ay, tw * 0.04, 300, open, 96);
 
     tc.globalCompositeOperation = "source-over";
 
@@ -796,11 +766,14 @@
         if (fade <= 0.01) continue;
         /* measured against the tree, not the window, so on a wide screen
            the smoke rises off the roots instead of filling the dark sides */
-        const d = w * q.size * (0.45 + q.grow * u);
-        const px = x + q.x * w, py = q.y * H;
+        const d = tw * q.size * (0.45 + q.grow * u);
+        const px = x + w * AIM.x + (q.x - 0.5) * tw * 1.4, py = q.y * H;
         if (px < -d || px > W + d || py < -d) continue;
 
-        tc.globalAlpha = q.a * fade * air;
+        /* on a phone the picture stops partway up: no smoke over the dark */
+        const above = y > 0 ? Math.min(1, Math.max(0, (py - y - h * 0.1) / (h * 0.3))) : 1;
+        if (above <= 0) continue;
+        tc.globalAlpha = q.a * fade * air * above;
         tc.drawImage(PUFFS[q.spr], px - d / 2, py - d / 2, d, d);
       }
       tc.globalAlpha = 1;
