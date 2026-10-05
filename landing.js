@@ -41,8 +41,7 @@
   /* The creed directly above this already says "1,111 beings · one drop",
      so this carried the same sentence twice. It carries the price now,
      which is the other thing a stranger wants before deciding anything. */
-  const chapter = $("#st-chapter");
-  if (chapter) chapter.textContent = `${PRICE} SOL`;
+  $$("[data-price]").forEach(n => n.textContent = `${PRICE} SOL`);
 
   /* short enough that all three sit on one row on a phone */
   const supply = $("#st-supply");

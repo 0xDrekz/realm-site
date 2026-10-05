@@ -555,3 +555,50 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .gate-card .creed{margin:0}
 .gate-card .standing-live{margin-top:0}
 .gate-card .peek{margin-top:2px}
+
+/* ---------- the facts, along the top bar ----------
+   The door is left to the tree and the one button. What a stranger wants
+   to know (price, how many are gone, the pool, $DMT) sits in the bar as
+   small gold-edged chips. On a phone only the count fits; the rest sits
+   in one thin line under the button (.gate-facts). */
+.top-stats{
+  margin:0 0 0 clamp(8px,2vw,22px);display:flex;gap:8px;align-items:center;min-width:0;
+}
+.top-stats div{
+  display:flex;align-items:baseline;gap:7px;white-space:nowrap;
+  padding:5px 10px;border:1px solid rgba(227,186,92,.32);background:rgba(227,186,92,.04);
+}
+.top-stats dt{
+  margin:0;font-family:'Pixelify Sans',system-ui,sans-serif;
+  font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:#7b6ea0;
+}
+.top-stats dd{
+  margin:0;font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
+  font-size:.82rem;letter-spacing:.05em;color:#e3ba5c;
+}
+.top-stats #st-status{padding:0 6px;font-size:.74rem}
+
+.gate-facts{
+  display:none;margin:0;gap:6px 14px;justify-content:center;flex-wrap:wrap;
+  font-family:'Pixelify Sans',system-ui,sans-serif;font-size:.8rem;letter-spacing:.1em;
+  text-transform:uppercase;color:#b5a6d8;
+  text-shadow:0 0 12px #03010a,0 0 24px #03010a;
+}
+.gate-facts b{color:#e3ba5c;font-weight:700}
+.gate-facts > span + span::before{content:'\00b7';margin-right:14px;color:#6d6192}
+
+@media (max-width:1000px){
+  .top-stats .ts-wide{display:none}
+  .gate-facts{display:flex}
+}
+@media (max-width:420px){
+  .top-stats{margin-left:auto}
+  .top-stats div{padding:4px 7px;gap:5px}
+  .top-stats dt{display:none}
+  .top-links{margin-left:10px}
+}
+@media (max-width:420px){
+  .topbar{gap:8px}
+  .topbar .mark b{display:none}       /* the count needs the room; $DMT is under the button */
+  .top-links{gap:12px}
+}

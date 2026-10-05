@@ -45,6 +45,14 @@
     <img class="brandmark" src="logo-bar.png" width="96" height="96" alt="">
     <span class="mark">REALM <b data-ticker></b></span>
   </a>
+  <!-- what is true right now: filled from data.js, then live by landing.js -->
+  <dl class="top-stats">
+    <div class="ts-wide"><dt>Price</dt><dd data-price></dd></div>
+    <div><dt>Minted</dt><dd id="st-supply"></dd></div>
+    <div class="ts-wide"><dt>Mint</dt><dd id="st-status"></dd></div>
+    <div class="ts-wide"><dt>Pool</dt><dd data-live-pool>0 SOL</dd></div>
+    <div class="ts-wide"><dt><span data-token-name></span></dt><dd data-live-mcap>&mdash;</dd></div>
+  </dl>
   <nav class="top-links" aria-label="Elsewhere"></nav>
 </header>
 
@@ -62,25 +70,13 @@
     <button id="enter" class="enter" type="button">
       <span class="enter-in">Enter the realm</span>
     </button>
-    <!-- the facts, held in one dark glass card so they read over the doorway -->
-    <div class="gate-card">
     <p class="creed">1,111 beings &middot; one drop</p>
-
-    <!-- what a stranger needs to know, all of it from data.js -->
-    <dl class="standing">
-      <div><dt>Price</dt><dd id="st-chapter"></dd></div>
-      <div><dt>Minted</dt><dd id="st-supply"></dd></div>
-      <div><dt>Mint</dt><dd id="st-status"></dd></div>
-    </dl>
-    <!-- live: filled from /api/stats by landing.js -->
-    <dl class="standing standing-live">
-      <div><dt>Rewards pool</dt><dd data-live-pool>0 SOL</dd></div>
-      <div><dt><span data-token-name></span> mkt cap</dt><dd data-live-mcap>&mdash;</dd></div>
-    </dl>
-
-    <!-- what is actually behind the door. Filled by landing.js. -->
-    <div class="peek" data-peek aria-label="Beings from the collection"></div>
-    </div>
+    <!-- on a phone the bar only has room for the count; the rest sits here -->
+    <p class="gate-facts">
+      <span><span data-price></span></span>
+      <span>Pool <b data-live-pool>0 SOL</b></span>
+      <span><span data-token-name></span> <b data-live-mcap>&mdash;</b></span>
+    </p>
   </div>
 </main>
 
