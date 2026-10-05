@@ -487,3 +487,9 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .j-back:hover{border-color:#e3ba5c;color:#e3ba5c}
 
 
+
+/* on a phone the top bar is tight: Telegram becomes TG */
+@media (max-width: 480px) {
+  .top-links a[data-short] { font-size: 0; }
+  .top-links a[data-short]::after { content: attr(data-short); font-size: .82rem; }
+}

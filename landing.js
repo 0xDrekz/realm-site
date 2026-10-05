@@ -132,6 +132,7 @@
       const a = document.createElement("a");
       a.href = url; a.target = "_blank"; a.rel = "noopener";
       a.textContent = label;
+      if (key === "telegram") a.dataset.short = "TG";   // the long word does not fit beside the mark on a phone
       nest.appendChild(a);
     });
   }
