@@ -48,7 +48,12 @@ const CONFIG = {
      who opens the site. If the wallet panel ever needs a paid RPC, it goes
      behind a small endpoint in server.js reading process.env, and the key
      lives in Railway's variables where nobody can read it. */
-  collectionAddress: ""
+  collectionAddress: "",
+
+  /* Where 75% of every mint goes, and where the holder pool is paid from.
+     Shown on the site with its live balance, so the pool can be checked on
+     the chain. server.js reads it from here too. */
+  rewardsWallet: "FCMFa6LBXSezfBaN6gqbrw7RbMuPSqgMEkCSRAQhZuiM"
 };
 
 /* ============================================================

@@ -71,11 +71,11 @@ function allowed(ip) {
   return h.length <= LIMIT;
 }
 
-function rpc(method, params) {
+function rpc(method, params, url) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ jsonrpc: "2.0", id: "realm", method, params });
     const r = https.request(
-      `https://mainnet.helius-rpc.com/?api-key=${ENV.key}`,
+      url || `https://mainnet.helius-rpc.com/?api-key=${ENV.key}`,
       { method: "POST", headers: { "Content-Type": "application/json",
                                    "Content-Length": Buffer.byteLength(body) },
         timeout: 15_000 },
@@ -204,6 +204,12 @@ function getJSON(url) {
   });
 }
 
+/* The rewards wallet, read out of data.js so the address lives in one
+   place. Its balance is public on the chain; the site shows it so anybody
+   can watch the pool fill rather than take the number on trust. */
+const REWARDS = ((require("fs").readFileSync(path.join(ROOT, "data.js"), "utf8")
+  .match(/rewardsWallet:\s*"([1-9A-HJ-NP-Za-km-z]{32,44})"/) || [])[1]) || "";
+
 async function readStats() {
   let minted = null;
   if (ENV.key && ENV.col) {
@@ -228,7 +234,15 @@ async function readStats() {
       };
     } catch { /* unknown, not zero */ }
   }
-  return { minted, dmt, at: Date.now() };
+  let rewards = null;
+  if (REWARDS) {
+    try {
+      const r = await rpc("getBalance", [REWARDS],
+        ENV.key ? undefined : "https://api.mainnet-beta.solana.com");
+      rewards = { address: REWARDS, sol: Math.round((r.value / 1e9) * 100) / 100 };
+    } catch { /* unknown, not zero */ }
+  }
+  return { minted, dmt, rewards, at: Date.now() };
 }
 
 /* ---- the map ----

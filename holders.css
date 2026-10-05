@@ -172,3 +172,7 @@ body.holders .topbar{position:sticky;top:0}
 .sum-total span{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:#e3ba5c}
 .sum-total b{font-size:1.45rem;color:#f4efe4;font-weight:700}
 .sum-total i{flex-basis:100%;font-style:normal;font-size:.72rem;color:#9d8fc4}
+
+/* the rewards wallet link, live on Solscan */
+.h-stats i a{color:#e3ba5c;text-decoration:none}
+.h-stats i a:hover{text-decoration:underline}

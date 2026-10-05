@@ -66,6 +66,11 @@
   const showPool = n => $$("[data-live-pool]").forEach(el =>
     el.textContent = poolFrom(n).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " SOL");
   showPool(minted);
+  /* the rewards wallet: its address on Solscan at once, its balance once the server has read it */
+  if (CONFIG.rewardsWallet) {
+    $$("[data-rw-wallet]").forEach(el => el.hidden = false);
+    $$("[data-rw-link]").forEach(a => a.href = "https://solscan.io/account/" + CONFIG.rewardsWallet);
+  }
   fetch("/api/stats").then(r => r.json()).then(s => {
     if (s.minted != null) {
       const n = Math.min(s.minted, TOTAL_BEINGS);
@@ -75,6 +80,8 @@
       if (bar) bar.style.width = Math.min(100, (n / TOTAL_BEINGS) * 100) + "%";
     }
     if (s.dmt && s.dmt.mcap) $$("[data-live-mcap]").forEach(el => el.textContent = usd(s.dmt.mcap));
+    if (s.rewards && s.rewards.sol != null)
+      $$("[data-rw-bal]").forEach(el => el.textContent = s.rewards.sol.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " SOL");
   }).catch(() => {});
 
   /* ---------- mint ---------- */

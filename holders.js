@@ -72,6 +72,11 @@
   /* live: the pool raised so far and the $DMT market cap, from the server */
   const usd = n => n >= 1e9 ? "$" + (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M"
                  : n >= 1e3 ? "$" + (n / 1e3).toFixed(1) + "K" : "$" + Math.round(n);
+  /* the rewards wallet: its address on Solscan at once, its balance once the server has read it */
+  if (CONFIG.rewardsWallet) {
+    $$("[data-rw-wallet]").forEach(el => el.hidden = false);
+    $$("[data-rw-link]").forEach(a => a.href = "https://solscan.io/account/" + CONFIG.rewardsWallet);
+  }
   fetch("/api/stats").then(r => r.json()).then(s => {
     if (s.minted != null) {
       const n = Math.min(s.minted, TOTAL_BEINGS);
@@ -79,6 +84,8 @@
       $$("[data-live-minted]").forEach(el => el.textContent = fmt(n) + " of " + fmt(TOTAL_BEINGS) + " minted");
     }
     if (s.dmt && s.dmt.mcap) $$("[data-live-mcap]").forEach(el => el.textContent = usd(s.dmt.mcap));
+    if (s.rewards && s.rewards.sol != null)
+      $$("[data-rw-bal]").forEach(el => el.textContent = s.rewards.sol.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " SOL");
   }).catch(() => {});
 
   const wEl = $("[data-weights]");

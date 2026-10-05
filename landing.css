@@ -602,3 +602,8 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   .topbar .mark b{display:none}       /* the count needs the room; $DMT is under the button */
   .top-links{gap:12px}
 }
+
+/* the rewards wallet, under the pool */
+.rw-wallet b{color:#e3ba5c}
+.rw-wallet a{color:#e3ba5c;text-decoration:none}
+.rw-wallet a:hover{text-decoration:underline}
