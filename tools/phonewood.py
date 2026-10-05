@@ -24,7 +24,7 @@ FEET = 760     # where the clusters stand: above the button, which covers the bo
 # source box, left edge in the painting, width in the painting, and the band
 # (in painting x) over which it fades out toward the doorway
 CLUSTERS = [
-    ((0, 140, 390, 642),    95, 195, (212, 266)),
+    ((0, 140, 420, 642),    95, 210, (292, 312)),   # runs right up to the doorway, where the light covers the end
     ((770, 120, 1179, 642), 396, 205, (452, 414)),
 ]
 

@@ -31,7 +31,7 @@
 
   const FULL = "tree.png";
   const SMALL = "tree-small.png";       // lighter, for narrow screens
-  const PHONE = "tree-phone.png?v=2", PHONE_SMALL = "tree-phone-small.png?v=2";
+  const PHONE = "tree-phone.png?v=3", PHONE_SMALL = "tree-phone-small.png?v=3";
 
   const canvas = document.getElementById("sky");
   const tree   = document.getElementById("tree");
