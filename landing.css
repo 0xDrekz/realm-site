@@ -427,6 +427,9 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   font-size:.88rem;letter-spacing:.05em;color:#f4efe4;
 }
 .standing dd{white-space:nowrap}
+.standing-live{margin-top:12px}
+.standing-live dd{color:#e3ba5c}
+.live-line b{color:#e3ba5c}
 /* the mint's state as a small lit tag, so open/closed reads at a glance */
 #st-status{
   padding:1px 8px;border:1px solid rgba(124,232,190,.55);color:#9ff5d2;

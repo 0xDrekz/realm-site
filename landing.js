@@ -57,6 +57,27 @@
     status.classList.toggle("shut", !open);
   }
 
+  /* ---------- live: the pool raised so far, and the $DMT market cap ----------
+     Read from the server, which reads the chain and DexScreener. Until the
+     collection exists the pool shows what data.js says has been minted
+     (nothing), and the market cap shows a dash rather than a guess. */
+  $$("[data-token-name]").forEach(n => n.textContent = TOKEN_NAME);
+  const usd = n => n >= 1e9 ? "$" + (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M"
+                 : n >= 1e3 ? "$" + (n / 1e3).toFixed(1) + "K" : "$" + Math.round(n);
+  const showPool = n => $$("[data-live-pool]").forEach(el =>
+    el.textContent = poolFrom(n).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " SOL");
+  showPool(minted);
+  fetch("/api/stats").then(r => r.json()).then(s => {
+    if (s.minted != null) {
+      const n = Math.min(s.minted, TOTAL_BEINGS);
+      showPool(n);
+      if (supply) supply.textContent = `${n.toLocaleString()} / ${TOTAL_BEINGS.toLocaleString()}`;
+      $$("[data-minted]").forEach(el => el.textContent = n.toLocaleString());
+      if (bar) bar.style.width = Math.min(100, (n / TOTAL_BEINGS) * 100) + "%";
+    }
+    if (s.dmt && s.dmt.mcap) $$("[data-live-mcap]").forEach(el => el.textContent = usd(s.dmt.mcap));
+  }).catch(() => {});
+
   /* ---------- mint ---------- */
   const bar = $("[data-bar]");
   if (bar) {

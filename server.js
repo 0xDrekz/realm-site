@@ -185,6 +185,52 @@ async function holders() {
            top: list.slice(0, 25), at: Date.now() };
 }
 
+/* ---- the live numbers on the door ----
+   How many beings are minted (so the page can show the rewards pool raised
+   so far) and the market cap of $DMT. One shared answer, at most once a
+   minute, whoever asks. The market cap comes from DexScreener's public API:
+   the deepest pool for the token, its market cap, or its FDV where a market
+   cap is not given. Either half is null when it cannot be known yet. */
+let stats = null, statsAt = 0, statsBusy = null;
+const STATS_MS = 60_000;
+
+function getJSON(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { timeout: 10_000, headers: { "Accept": "application/json" } }, resp => {
+      let d = "";
+      resp.on("data", c => d += c);
+      resp.on("end", () => { try { resolve(JSON.parse(d)); } catch { reject(new Error("bad json")); } });
+    }).on("timeout", function () { this.destroy(new Error("timeout")); }).on("error", reject);
+  });
+}
+
+async function readStats() {
+  let minted = null;
+  if (ENV.key && ENV.col) {
+    minted = 0;
+    for (let page = 1; page <= 10; page++) {
+      const res = await rpc("getAssetsByGroup", { groupKey: "collection", groupValue: ENV.col, page, limit: 1000 });
+      const items = (res && res.items) || [];
+      minted += items.length;
+      if (items.length < 1000) break;
+    }
+  }
+  let dmt = null;
+  if (ENV.mint) {
+    try {
+      const d = await getJSON(`https://api.dexscreener.com/latest/dex/tokens/${ENV.mint}`);
+      const pairs = (d && d.pairs) || [];
+      const best = pairs.sort((a, b) => ((b.liquidity || {}).usd || 0) - ((a.liquidity || {}).usd || 0))[0];
+      if (best) dmt = {
+        mcap: Number(best.marketCap || best.fdv) || null,
+        price: Number(best.priceUsd) || null,
+        url: best.url || null
+      };
+    } catch { /* unknown, not zero */ }
+  }
+  return { minted, dmt, at: Date.now() };
+}
+
 const server = http.createServer((req, res) => {
   // strip query string, decode, and block path traversal
   let urlPath;
@@ -210,6 +256,19 @@ const server = http.createServer((req, res) => {
       .finally(() => { boardBusy = null; });
     boardBusy.then(d => send(200, d))
              .catch(() => board ? send(200, board) : send(502, { error: "Could not read the chain just now." }));
+    return;
+  }
+
+  if (urlPath === "/api/stats") {
+    const send = (code, obj) => res.writeHead(code, {
+      "Content-Type": TYPES[".json"], "Cache-Control": "no-store"
+    }).end(JSON.stringify(obj));
+    if (stats && Date.now() - statsAt < STATS_MS) return send(200, stats);
+    statsBusy = statsBusy || readStats()
+      .then(d => { stats = d; statsAt = Date.now(); return d; })
+      .finally(() => { statsBusy = null; });
+    statsBusy.then(d => send(200, d))
+             .catch(() => stats ? send(200, stats) : send(200, { minted: null, dmt: null }));
     return;
   }
 

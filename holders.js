@@ -69,6 +69,18 @@
     ? sol(poolFrom(minted), 2) + " SOL so far, " + fmt(minted) + " minted"
     : "if every being is minted");
 
+  /* live: the pool raised so far and the $DMT market cap, from the server */
+  const usd = n => n >= 1e9 ? "$" + (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M"
+                 : n >= 1e3 ? "$" + (n / 1e3).toFixed(1) + "K" : "$" + Math.round(n);
+  fetch("/api/stats").then(r => r.json()).then(s => {
+    if (s.minted != null) {
+      const n = Math.min(s.minted, TOTAL_BEINGS);
+      $$("[data-live-pool]").forEach(el => el.textContent = sol(poolFrom(n), 2) + " SOL");
+      $$("[data-live-minted]").forEach(el => el.textContent = fmt(n) + " of " + fmt(TOTAL_BEINGS) + " minted");
+    }
+    if (s.dmt && s.dmt.mcap) $$("[data-live-mcap]").forEach(el => el.textContent = usd(s.dmt.mcap));
+  }).catch(() => {});
+
   const wEl = $("[data-weights]");
   if (wEl) wEl.innerHTML = TIERS.map(t =>
     '<div style="--c:' + t.color + '"><img src="preview/' + t.key + '.png' + ART + '" alt="" loading="lazy">'

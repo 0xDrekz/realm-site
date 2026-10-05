@@ -70,6 +70,11 @@
       <div><dt>Minted</dt><dd id="st-supply"></dd></div>
       <div><dt>Mint</dt><dd id="st-status"></dd></div>
     </dl>
+    <!-- live: filled from /api/stats by landing.js -->
+    <dl class="standing standing-live">
+      <div><dt>Rewards pool</dt><dd data-live-pool>0 SOL</dd></div>
+      <div><dt><span data-token-name></span> mkt cap</dt><dd data-live-mcap>&mdash;</dd></div>
+    </dl>
 
     <!-- what is actually behind the door. Filled by landing.js. -->
     <div class="peek" data-peek aria-label="Beings from the collection"></div>
@@ -143,6 +148,7 @@
         <h3>The pool</h3>
         <p data-rw-pool></p>
         <p class="who">Paid when the last being is minted</p>
+        <p class="who live-line">Raised so far: <b data-live-pool>0 SOL</b></p>
       </article>
       <article class="card">
         <h3>Your beings</h3>
