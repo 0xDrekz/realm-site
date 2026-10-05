@@ -602,25 +602,3 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   .topbar .mark b{display:none}       /* the count needs the room; $DMT is under the button */
   .top-links{gap:12px}
 }
-
-/* ---------- the emblem, in the sky above the picture on a phone ----------
-   gate.js draws the scene 1.8 screens wide on a tall screen (PHONE_SPAN),
-   standing at 84% of the height, so it is 1.8 / 1.87 = 96.3% of the width
-   tall and the dark above it is what is left. The emblem is centred in
-   that. logo-sky.png is the logo with its black made see-through. */
-.gate-emblem{display:none}
-@media (orientation:portrait) and (max-aspect-ratio:3/4){
-  .gate-emblem{
-    display:block;position:absolute;left:50%;
-    --sky:calc(84vh - 96.3vw - 44px - env(safe-area-inset-top));
-    --size:max(0px,min(58vw,calc(var(--sky) * .78)));
-    width:var(--size);height:var(--size);
-    top:calc(44px + env(safe-area-inset-top) + (var(--sky) - var(--size)) * .4);
-    transform:translateX(-50%);
-    image-rendering:auto;pointer-events:none;
-    filter:drop-shadow(0 0 18px rgba(168,85,247,.35));
-    animation:emblem-breathe 6s ease-in-out infinite;
-  }
-}
-@keyframes emblem-breathe{50%{filter:drop-shadow(0 0 28px rgba(227,186,92,.4))}}
-@media (prefers-reduced-motion:reduce){.gate-emblem{animation:none}}

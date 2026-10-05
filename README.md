@@ -142,8 +142,8 @@ Telegram and a marketplace link appear the same way when they are real.
 | `journey.js` | the chamber — the room, everything alive in it, and the menu |
 | `landing.js` | fills the panels from `data.js` |
 | `forms.js` | draws a being for a tier |
-| `door.jpg` | the first screen: the tree, the door and the mushroom forest (`tools/doorscene.py`) |
-| `door-mask.png` | the doorway's opening, where the light is drawn |
+| `door.jpg`, `door-phone.jpg` | the first screen on computers and on phones: the tree, the door and the mushroom forest (`tools/doorscene.py`) |
+| `door-mask.png`, `door-mask-phone.png` | each doorway's opening, where the light is drawn |
 | `chamber.png` | the room you come out into, as pixel art |
 | `logo-bar.png` | the mark in the top bar |
 | `favicon-32.png`, `favicon-16.png` | the mark in the browser tab |
@@ -163,7 +163,7 @@ Each picture also has a `-small` version, used on phones.
 
 ## Replacing the artwork
 
-Run `python3 tools/doorscene.py new-picture.jpg`: it writes `door.jpg` and
+Run `python3 tools/doorscene.py new-picture.jpg` (add `phone` for the tall one): it writes `door.jpg` and
 `door-mask.png` and prints the AIM and GAP lines for `gate.js`.
 Two lines at the top of `gate.js` say where things are in it:
 

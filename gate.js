@@ -23,12 +23,21 @@
   /* ---------- the picture, and the two places that matter in it ----------
      Both are fractions: how far across, how far down. If the artwork is
      ever replaced, these two lines are what to re-measure. */
-  const AIM = { x: 0.526, y: 0.614 };   // the middle of the opening (tools/doorscene.py)
-  const SUN = { x: 0.485, y: 0.178 };   // the burst in the canopy.
-
-  /* the whole scene, phones and computers alike: the tree, the door and
-     the mushroom forest either side. Bump ?v= when it changes. */
-  const SCENE = "door.jpg?v=1";
+  /* Two pictures of the same scene: a wide one for computers, a tall one
+     for phones. aim is the middle of the opening and gap its box (both
+     from tools/doorscene.py), sun the burst in the canopy. Bump ?v= when
+     a picture changes. */
+  const SCENES = {
+    wide:  { src: "door.jpg?v=1", mask: "door-mask.png?v=2",
+             aim: { x: 0.526, y: 0.614 }, sun: { x: 0.485, y: 0.178 },
+             gap: { x0: 0.482, y0: 0.351, x1: 0.560, y1: 0.871 } },
+    phone: { src: "door-phone.jpg?v=1", mask: "door-mask-phone.png?v=1",
+             aim: { x: 0.557, y: 0.593 }, sun: { x: 0.504, y: 0.328 },
+             gap: { x0: 0.473, y0: 0.428, x1: 0.615, y1: 0.750 } },
+  };
+  const TALL = window.innerWidth / window.innerHeight < 0.8;
+  const SCENE = TALL ? SCENES.phone : SCENES.wide;
+  const AIM = SCENE.aim, SUN = SCENE.sun;
 
   /* The light, the smoke and the sway were tuned against the old painting,
      a tall picture of the tree alone. Sized against the width that tree
@@ -133,7 +142,7 @@
       tree.classList.add("ready");
       if (portal) portal.classList.add("ready");
     };
-    img.src = SCENE;
+    img.src = SCENE.src;
   })();
 
   /* Full bleed across, and the doorway held just above the middle so
@@ -180,12 +189,12 @@
      the way through, so every rule either missed the edges or painted the
      floor. A hand-marked cut-out settles it, and the tool lines the mark up
      with the painting rather than trusting it was drawn to scale. */
-  const GAP = { x0: 0.482, y0: 0.351, x1: 0.560, y1: 0.871 };
+  const GAP = SCENE.gap;
 
   const gapImg = new Image();
   let gapReady = false;
   gapImg.onload = () => { gapReady = true; };
-  gapImg.src = "door-mask.png?v=2";
+  gapImg.src = SCENE.mask;
 
   /* the cut-out of the mask that covers GAP, taken once.
      The shape lives in the mask's ALPHA, not its brightness: canvas masks
@@ -527,20 +536,16 @@
      breathing zoom and getting a slightly different answer. */
   let at = null;
 
-  /* The scene covers a wide screen. A tall one can't take all of it: it
-     would shrink to a strip. So a phone sees a slice about 1.8 screens
-     wide, held on the doorway and standing just above the button, and
-     its top fades out into the dark above it, where the emblem stands
-     (.gate-emblem). */
-  const PHONE_SPAN = 1.8;   // landing.css sizes the emblem above it from this
+  /* A computer: the wide picture covers the screen. A phone: the tall
+     picture, all of it, as wide as the screen and just under the top bar;
+     the button stands on the path at its foot. */
   function frame(zoom) {
-    let cover = Math.max(W / art.width, H / art.height);
-    if (W < H) cover = Math.min(cover, W * PHONE_SPAN / art.width);
-    cover *= zoom;
+    const cover = (TALL ? Math.min(W / art.width, (H - 44) / art.height)
+                        : Math.max(W / art.width, H / art.height)) * zoom;
     const w = art.width * cover, h = art.height * cover;
-    const y = h >= H ? Math.max(H - h, Math.min(0, H * DOOR_AT - h * AIM.y))
-                     : Math.max(44, H * 0.84 - h);
-    const x = Math.max(W - w, Math.min(0, W / 2 - w * AIM.x));
+    const y = TALL ? 44 - (h - h / zoom) / 2
+                   : Math.max(H - h, Math.min(0, H * DOOR_AT - h * AIM.y));
+    const x = w <= W ? (W - w) / 2 : Math.max(W - w, Math.min(0, W / 2 - w * AIM.x));
     at = { x, y, w, h };
     return at;
   }
@@ -683,17 +688,6 @@
     }
     const fadeOut = pull > 0 ? Math.max(0, 1 - Math.pow(pull, 2.4)) : 1;
     drawTree(t, pull, x, y, w, h);
-    if (y > 0) {
-      /* the picture's top edge fades out into the dark above it: rubbed
-         out of the canvas, so whatever is behind shows through */
-      const top = tc.createLinearGradient(0, y, 0, y + h * 0.3);
-      top.addColorStop(0, "rgba(0,0,0,1)");
-      top.addColorStop(1, "rgba(0,0,0,0)");
-      tc.globalCompositeOperation = "destination-out";
-      tc.fillStyle = top;
-      tc.fillRect(0, y - h * 0.1, W, h * 0.4);
-      tc.globalCompositeOperation = "source-over";
-    }
     /* The realm in the doorway. Drawn on its own canvas, over the gap
        rather than added to it, so it is not limited to brightening the
        colours the tree already has. */
@@ -770,10 +764,7 @@
         const px = x + w * AIM.x + (q.x - 0.5) * tw * 1.4, py = q.y * H;
         if (px < -d || px > W + d || py < -d) continue;
 
-        /* on a phone the picture stops partway up: no smoke over the dark */
-        const above = y > 0 ? Math.min(1, Math.max(0, (py - y - h * 0.1) / (h * 0.3))) : 1;
-        if (above <= 0) continue;
-        tc.globalAlpha = q.a * fade * air * above;
+        tc.globalAlpha = q.a * fade * air;
         tc.drawImage(PUFFS[q.spr], px - d / 2, py - d / 2, d, d);
       }
       tc.globalAlpha = 1;
