@@ -581,17 +581,15 @@
      screen is blown up; a dithered one breaks into the same pixels as
      everything else and reads as smoke made of them. */
   const PUFFS = [];
+  /* Soft puffs: big enough to be drawn smoothed, falling off gently,
+     so the smoke reads as smoke over the painted scene rather than as
+     blocks. (They used to be tiny dithered sprites blown up on purpose
+     into chunky pixels, which suited the old blocky tree and not the
+     detailed forest.) */
   function bakePuffs() {
     if (PUFFS.length) return;
-    const BAYER = [
-      [ 0,  8,  2, 10], [12,  4, 14,  6],
-      [ 3, 11,  1,  9], [15,  7, 13,  5]
-    ];
-    /* deliberately tiny: every puff is drawn bigger than this, so the
-       dither is magnified into the same chunky pixels as the rest
-       rather than being thrown away by shrinking it */
     for (let v = 0; v < 3; v++) {
-      const S = 11 + v * 5;
+      const S = 96;
       const cv = document.createElement("canvas");
       cv.width = cv.height = S;
       const g = cv.getContext("2d");
@@ -603,12 +601,9 @@
           const dx = (px - c) / c, dy = (py - c) / c;
           // a little squashed, and lumpier on one side than the other
           const r = Math.sqrt(dx * dx * (1 + v * 0.14) + dy * dy * 1.22);
-          const lump = 1 + 0.16 * Math.sin(Math.atan2(dy, dx) * (3 + v) + v * 2.1);
+          const lump = 1 + 0.12 * Math.sin(Math.atan2(dy, dx) * (3 + v) + v * 2.1);
           let a = 1 - r / lump;
-          a = a <= 0 ? 0 : Math.pow(a, 1.5);
-          // quantise through the dither table, so the edge crumbles
-          const step = (BAYER[py & 3][px & 3] + 0.5) / 16;
-          a = a * 6 - step > 0 ? Math.min(1, Math.round(a * 6 - step) / 6) : 0;
+          a = a <= 0 ? 0 : a * a * (3 - 2 * a) * 0.8;
           const i4 = (py * S + px) * 4;
           d[i4] = 226; d[i4 + 1] = 216; d[i4 + 2] = 255;
           d[i4 + 3] = a * 255;
@@ -618,6 +613,7 @@
       PUFFS.push(cv);
     }
   }
+
 
   let smoke = [];
 
@@ -746,7 +742,7 @@
       tc.globalCompositeOperation = "lighter";
 
       tc.globalCompositeOperation = "source-over";   // smoke blocks light
-      tc.imageSmoothingEnabled = false;             // and keeps its pixels
+      tc.imageSmoothingEnabled = true;              // and is soft, not blocky
       for (const q of smoke) {
         q.life += dt;
         if (q.life > q.span) { Object.assign(q, newPuff(0)); continue; }
