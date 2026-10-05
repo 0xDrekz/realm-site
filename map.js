@@ -355,7 +355,8 @@
 
   function drawBeing(b, p, t, alpha) {
     const [sx, sy] = toScreen(p.x, p.y), R = REGION[b.tier], tier = TIER[b.tier] || {};
-    const s = R.size * cam.z;
+    // the chosen wallet's beings stay big enough to see, however far out
+    const s = (focusOwner && b.o === focusOwner) ? Math.max(R.size * cam.z, 30) : R.size * cam.z;
     if (sx < -s * 2 || sy < -s * 2 || sx > vw + s * 2 || sy > vh + s * 2) return;
     const dimmed = (focusOwner && b.o !== focusOwner) || (filter.size && !filter.has(b.tier));
     const a = alpha * (dimmed ? .22 : 1);
@@ -404,7 +405,7 @@
     ptrs.set(e.pointerId, [e.clientX, e.clientY]);
     if (ptrs.size === 2 && pinch0) {
       const [a, b] = [...ptrs.values()], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, [wx, wy] = toWorld(mx, my);
-      cam.z = clampZ(pinch0.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch0.d);
+      cam.z = clampZ(pinch0.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch0.d); following = false;
       const [wx2, wy2] = toWorld(mx, my); cam.x += wx - wx2; cam.y += wy - wy2; moved += 10;
     } else if (ptrs.size === 1) {
       const dx = e.clientX - px, dy = e.clientY - py;
@@ -425,7 +426,7 @@
   cv.addEventListener("wheel", e => {
     e.preventDefault(); if (intro) skipIntro(); aim.on = false;
     const [wx, wy] = toWorld(e.clientX, e.clientY);
-    cam.z = clampZ(cam.z * Math.exp(-e.deltaY * .0015));
+    cam.z = clampZ(cam.z * Math.exp(-e.deltaY * .0015)); following = false;
     const [wx2, wy2] = toWorld(e.clientX, e.clientY); cam.x += wx - wx2; cam.y += wy - wy2;
     hideHint();
   }, { passive: false });
@@ -469,9 +470,25 @@
   function choose(b) {
     $("[data-tops]").hidden = true;
     if (focusOwner !== b.o) lineT = performance.now();
-    selected = b; focusOwner = b.o; following = true;
-    const p = pos(b.n, performance.now() / 1000);
-    aim.x = p.x; aim.y = p.y; aim.z = Math.max(cam.z, REGION[b.tier].size > 50 ? 1.2 : 1.7); aim.on = true;
+    selected = b; focusOwner = b.o;
+    const t = performance.now() / 1000;
+    if (b.o.members.length > 1) {
+      /* the whole constellation in view: every being this wallet holds */
+      const ps = b.o.members.map(x => pos(x.n, t));
+      const xs = ps.map(q => q.x), ys = ps.map(q => q.y);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      panel.hidden = false;                        // so the space it leaves is measured
+      const visW = vw - sideW() - 80, visH = (vw <= 640) ? Math.max(160, vh - panel.offsetHeight - 90) : vh - 300;
+      const pad = 140;
+      aim.x = (x0 + x1) / 2; aim.y = (y0 + y1) / 2;
+      aim.z = clampZ(Math.min(visW / (x1 - x0 + pad), visH / (y1 - y0 + pad), 1.7));
+      following = false;
+    } else {
+      const p = pos(b.n, t);
+      aim.x = p.x; aim.y = p.y; aim.z = Math.max(cam.z, REGION[b.tier].size > 50 ? 1.2 : 1.7);
+      following = true;
+    }
+    aim.on = true;
     history.replaceState(null, "", "?being=" + b.n);
     render(b);
     if (live && b.o.tokens == null) {
