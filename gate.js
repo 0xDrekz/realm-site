@@ -999,6 +999,17 @@
 
   window.RealmGate = { enter, land, where: () => at };
 
+  /* coming back from the map or the holders page: straight into the
+     chamber, not the door again. Waits for every script, so the chamber
+     is ready to start when it lands. */
+  if (location.hash === "#chamber") {
+    document.addEventListener("DOMContentLoaded", () => {
+      if (gate) gate.classList.add("gone");
+      land();
+      history.replaceState(null, "", location.pathname);
+    });
+  }
+
   resize();
   go("gate");
   requestAnimationFrame(loop);
