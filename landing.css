@@ -371,21 +371,22 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   color:#e3ba5c;
 }
 
+/* four doors in a square, low on the floor, so the eye and its light stay clear */
 .j-menu{
-  display:flex;flex-direction:column;gap:clamp(7px,1.5vh,11px);
-  width:min(92vw,430px);pointer-events:auto;
+  display:grid;grid-template-columns:1fr 1fr;gap:clamp(7px,1.4vh,10px);
+  width:min(92vw,460px);pointer-events:auto;
 }
 
 /* ---------- the slabs ----------
    Solid black, one hairline of gold, and the lettering from the door.
    Nothing else: the room behind them is doing the work. */
 .slab{
-  display:flex;align-items:baseline;justify-content:space-between;gap:14px;
-  width:100%;padding:clamp(11px,1.7vh,15px) clamp(15px,4vw,20px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  width:100%;padding:clamp(10px,1.6vh,14px) 10px;text-align:center;
   background:#000;
   border:1px solid rgba(227,186,92,.42);
   color:#f4efe4;text-decoration:none;cursor:pointer;
-  text-align:left;-webkit-tap-highlight-color:transparent;
+  -webkit-tap-highlight-color:transparent;
   transition:border-color .25s ease, transform .18s ease, background .25s ease;
 }
 .slab:hover,.slab:focus-visible{
@@ -470,12 +471,14 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   display:flex;gap:26px;justify-content:center;
   margin-top:2px;pointer-events:auto;
 }
-.j-more button{
+.j-more a,.j-more button{text-decoration:none;}
+.j-more button,.j-more a{
   background:none;border:0;padding:4px 2px;cursor:pointer;
   font-family:'Pixelify Sans',system-ui,sans-serif;
   font-size:.70rem;letter-spacing:.17em;text-transform:uppercase;color:#7b6ea0;
 }
-.j-more button:hover{color:#e3ba5c}
+.j-more button:hover,.j-more a:hover{color:#e3ba5c}
+.go-on{display:block;text-align:center;margin:14px 0 4px}
 
 .j-back{
   position:fixed;z-index:4;

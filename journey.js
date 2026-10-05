@@ -19,8 +19,6 @@ window.RealmJourney = (() => {
     { key: "mint",    label: "MINT",       panel: "mint" },
     { key: "beings",  label: "THE BEINGS", panel: "nfts" },
     { key: "rewards", label: "REWARDS",    panel: "rewards" },
-    { key: "lore",    label: "LORE",       panel: "lore" },
-    { key: "holders", label: "HOLDERS",    href: "/holders" },
     { key: "map",     label: "THE MAP",    href: "/map" }
 
   ];
@@ -699,8 +697,8 @@ window.RealmJourney = (() => {
     const gone = Math.min(Math.max(cfg.minted || 0, 0), all);
     switch (o.key) {
       case "mint":    return cfg.mintLink ? "open" : "shut";
-      case "beings":  return all.toLocaleString() + " in all";
-      case "rewards": return g_("POOL_PERCENT", 75) + "% of the mint";
+      case "beings":  return all.toLocaleString() + " & their lore";
+      case "rewards": return g_("POOL_PERCENT", 75) + "% · any wallet";
       case "lore":    return "who they are";
       case "holders": return "what a wallet earns";
       case "map":     return "every being, live";
