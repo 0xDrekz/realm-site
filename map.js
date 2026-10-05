@@ -388,12 +388,13 @@
 
   /* ---------- moving about ---------- */
   const ptrs = new Map();
-  let drag = false, moved = 0, pinch0 = null;
+  let drag = false, moved = 0, pinch0 = null, down0 = null, kind = "mouse";
   cv.addEventListener("pointerdown", e => {
     if (intro) skipIntro();
     cv.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, [e.clientX, e.clientY]);
-    moved = 0; drag = true; aim.on = false; cv.classList.add("dragging");
+    moved = 0; down0 = [e.clientX, e.clientY]; kind = e.pointerType || "mouse";
+    drag = true; aim.on = false; cv.classList.add("dragging");
     if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), z: cam.z }; }
     hideHint();
   });
@@ -407,7 +408,7 @@
       const [wx2, wy2] = toWorld(mx, my); cam.x += wx - wx2; cam.y += wy - wy2; moved += 10;
     } else if (ptrs.size === 1) {
       const dx = e.clientX - px, dy = e.clientY - py;
-      moved += Math.abs(dx) + Math.abs(dy);
+      moved = Math.max(moved, Math.hypot(e.clientX - down0[0], e.clientY - down0[1]));
       cam.x -= dx / cam.z; cam.y -= dy / cam.z;
       if (moved > 6) following = false;
     }
@@ -416,7 +417,7 @@
     const was = ptrs.size; ptrs.delete(e.pointerId);
     if (ptrs.size < 2) pinch0 = null;
     if (!ptrs.size) { drag = false; cv.classList.remove("dragging"); }
-    if (was === 1 && moved < 6) tap(e.clientX, e.clientY);
+    if (was === 1 && moved < (kind === "mouse" ? 6 : 14)) tap(e.clientX, e.clientY, kind);
   };
   cv.addEventListener("pointerup", up);
   cv.addEventListener("pointercancel", up);
@@ -429,14 +430,15 @@
     hideHint();
   }, { passive: false });
 
-  function hitAt(x, y) {
-    for (let i = hits.length - 1; i >= 0; i--) {
-      const [b, sx, sy, r] = hits[i];
-      if ((x - sx) ** 2 + (y - sy) ** 2 <= r * r) return b;
+  function hitAt(x, y, slop = 4) {
+    let best = null, bd = Infinity;
+    for (const [b, sx, sy, r] of hits) {
+      const d = Math.hypot(x - sx, y - sy);
+      if (d <= r + slop && d - r < bd) { bd = d - r; best = b; }
     }
-    return null;
+    return best;
   }
-  function tap(x, y) { const b = hitAt(x, y); b ? choose(b) : close(); }
+  function tap(x, y, how) { const b = hitAt(x, y, how === "mouse" ? 6 : 26); b ? choose(b) : close(); }
 
   const tip = $("[data-tip]");
   function hover(x, y) {
