@@ -188,7 +188,7 @@
   if (window.innerWidth / window.innerHeight > 1.05) {
     const wi = new Image();
     wi.onload = () => { wood = wi; };
-    wi.src = "tree-wide.jpg";
+    wi.src = "tree-wide.jpg?v=3";   // bump when the forest changes: browsers keep images an hour
   }
   const WOOD_FLANK = 700 / 640, WOOD_W = 2040 / 640, WOOD_BLEND = 60 / 640;   // printed by tools/widewood.py
 
