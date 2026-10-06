@@ -26,7 +26,7 @@ const path  = require("path");
 const vm    = require("vm");
 const https = require("https");
 
-const POLL_MS = 20_000;        // how often to look for new mints
+const POLL_MS = 15_000;        // how often to look for new mints
 const SEND_GAP_MS = 3_500;     // Telegram allows about 20 posts a minute in a group
 
 /* the numbers, out of data.js */
@@ -150,112 +150,112 @@ function envVar(name) {
   return k ? String(process.env[k]).trim() : "";
 }
 
-function start({ root, rpc, holdings, env }) {
+/* ---- the chain, read with the free public RPC: no paid API ----
+   The candy machine's minted count is a u64 at byte 104 of its account.
+   Every REALM being is a Metaplex Core asset whose update authority is the
+   collection: [0] key=1, [1..33] owner, [33] authority kind, [34..66]
+   collection, then name and uri as length-prefixed strings. */
+const PUBLIC_RPC = "https://api.mainnet-beta.solana.com";
+const CORE = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d";
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function b58(buf) {
+  let n = BigInt("0x" + (buf.toString("hex") || "0")), s = "";
+  while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n; }
+  for (const x of buf) { if (x) break; s = "1" + s; }
+  return s;
+}
+function pub(method, params) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method, params });
+    const r = https.request(PUBLIC_RPC, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }, timeout: 20_000 },
+      resp => { let d = ""; resp.on("data", c => d += c); resp.on("end", () => {
+        try { const j = JSON.parse(d); j.error ? reject(new Error(j.error.message)) : resolve(j.result); } catch { reject(new Error("bad rpc reply " + resp.statusCode)); } }); });
+    r.on("timeout", () => r.destroy(new Error("rpc timeout"))); r.on("error", reject); r.end(body);
+  });
+}
+function getJSON(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { timeout: 15_000 }, resp => {
+      if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) return getJSON(resp.headers.location).then(resolve, reject);
+      let d = ""; resp.on("data", c => d += c); resp.on("end", () => { try { resolve(JSON.parse(d)); } catch { reject(new Error("bad json")); } });
+    }).on("timeout", function () { this.destroy(new Error("timeout")); }).on("error", reject);
+  });
+}
+async function mintedCount(machine) {
+  const r = await pub("getAccountInfo", [machine, { encoding: "base64", dataSlice: { offset: 104, length: 8 } }]);
+  return Number(Buffer.from(r.value.data[0], "base64").readBigUInt64LE(0));
+}
+async function collectionAssets(collection) {
+  const res = await pub("getProgramAccounts", [CORE, { encoding: "base64", filters: [{ memcmp: { offset: 0, bytes: "2" } }, { memcmp: { offset: 34, bytes: collection } }] }]);
+  return res.map(({ pubkey, account }) => {
+    const d = Buffer.from(account.data[0], "base64");
+    const owner = b58(d.subarray(1, 33));
+    let o = 66; const nl = d.readUInt32LE(o); const name = d.subarray(o + 4, o + 4 + nl).toString("utf8"); o += 4 + nl;
+    const ul = d.readUInt32LE(o); const uri = d.subarray(o + 4, o + 4 + ul).toString("utf8");
+    return { id: pubkey, owner, name, uri };
+  });
+}
+
+function start({ root }) {
   const token = envVar("TG_BOT_TOKEN"), chat = envVar("TG_CHAT_ID");
-  if (!token || !chat || !env.key || !env.col) {
-    console.log("mint bot: asleep (needs TG_BOT_TOKEN, TG_CHAT_ID, HELIUS_KEY and COLLECTION)");
-    return;
-  }
+  if (!token || !chat) { console.log("mint bot: asleep (needs TG_BOT_TOKEN and TG_CHAT_ID)"); return; }
   const D = readData(root);
-  const seen = new Set();
-  const queue = [];
+  const machine = envVar("CANDY_MACHINE") || (D.CONFIG.chain && D.CONFIG.chain.machine) || "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7";
+  const collection = envVar("COLLECTION") || D.CONFIG.collectionAddress;
+  const tokenMint = envVar("TOKEN_MINT");
+  // a being's tier, from its number: map-data.json lists them in order, #1 first
+  let tierOf = () => "";
+  try { const md = JSON.parse(fs.readFileSync(path.join(root, "map-data.json"))); tierOf = id => (md.beings[id - 1] || [])[0] || ""; } catch {}
+  const idOf = name => Number((name.match(/#(\d+)/) || [])[1] || 0);
+  const seen = new Set(); const queue = []; let last = -1;
 
-  async function newest(page, limit, dir) {
-    const res = await rpc("getAssetsByGroup", {
-      groupKey: "collection", groupValue: env.col, page, limit,
-      sortBy: { sortBy: "created", sortDirection: dir }
-    });
-    return (res && res.items) || [];
+  async function tokensOf(owner) {
+    if (!tokenMint) return 0;
+    const r = await pub("getTokenAccountsByOwner", [owner, { mint: tokenMint }, { encoding: "jsonParsed" }]);
+    return r.value.reduce((a, x) => a + Number(x.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
   }
 
-  async function learn() {                 // everything already minted, posted to nobody
-    for (let page = 1; page <= 10; page++) {
-      const items = await newest(page, 1000, "asc");
-      items.forEach(a => seen.add(a.id));
-      if (items.length < 1000) break;
-    }
-    console.log(`mint bot: awake, ${seen.size} beings already minted`);
+  async function learn() {                 // what is already minted, posted to nobody
+    last = await mintedCount(machine);
+    if (last > 0) (await collectionAssets(collection)).forEach(a => seen.add(a.id));
+    console.log(`mint bot: awake (public RPC), ${last} already minted`);
   }
 
   async function poll() {
-    const items = await newest(1, 100, "desc");
-    const fresh = items.filter(a => !seen.has(a.id)).reverse();     // oldest first
-    for (const a of fresh) { seen.add(a.id); queue.push({ a, minted: seen.size }); }
+    const n = await mintedCount(machine);
+    if (n <= last) return;
+    const all = await collectionAssets(collection);
+    const fresh = all.filter(a => !seen.has(a.id)).sort((a, b) => idOf(a.name) - idOf(b.name));
+    let k = last;
+    for (const a of fresh) { seen.add(a.id); queue.push({ a, all, minted: Math.min(n, ++k) }); }
+    last = n;
   }
 
-  /* every holder's weight and every $DMT balance, for the total */
-  let fieldCache = null, fieldAt = 0, decimals = null;
-  async function holdersNow() {
-    if (fieldCache && Date.now() - fieldAt < 5 * 60_000) return fieldCache;
-    const weightOf = {}; let mintedWeight = 0;
-    for (let page = 1; page <= 10; page++) {
-      const items = await newest(page, 1000, "asc");
-      for (const a of items) {
-        const t = D.TIERS.find(x => x.name === attr(a, "Tier"));
-        const o = a.ownership && a.ownership.owner;
-        if (!t || !o) continue;
-        weightOf[o] = (weightOf[o] || 0) + t.weight; mintedWeight += t.weight;
-      }
-      if (items.length < 1000) break;
-    }
-    const balanceOf = {};
-    if (env.mint) {
-      if (decimals == null) decimals = Number(((await rpc("getTokenSupply", [env.mint])) || {}).value?.decimals || 0);
-      for (let page = 1; page <= 50; page++) {
-        const res = await rpc("getTokenAccounts", { mint: env.mint, page, limit: 1000 });
-        const items = (res && res.token_accounts) || [];
-        for (const acc of items) balanceOf[acc.owner] = (balanceOf[acc.owner] || 0) + Number(acc.amount) / 10 ** decimals;
-        if (items.length < 1000) break;
-      }
-    }
-    fieldCache = { weightOf, balanceOf, unminted: D.TOTAL_WEIGHT - mintedWeight };
-    fieldAt = Date.now();
-    return fieldCache;
-  }
-  async function fieldWithout(owner) {
-    const f = await holdersNow();
-    let sum = f.unminted;                   // not minted yet: counted at 1x
-    for (const [o, w] of Object.entries(f.weightOf))
-      if (o !== owner) sum += w * multFor(D, f.balanceOf[o] || 0);
-    return sum;
-  }
-
-  async function post({ a, minted }) {
-    const owner = a.ownership && a.ownership.owner;
-    if (!owner) return;
-    const h = await holdings(owner);
+  async function post({ a, all, minted }) {
     const tiers = {};
-    h.beings.forEach(b => { if (b.tier) tiers[b.tier] = (tiers[b.tier] || 0) + 1; });
-    const text = caption(D, {
-      name: (a.content && a.content.metadata && a.content.metadata.name) || "A being",
-      tier: attr(a, "Tier") || "", owner, tiers, tokens: h.tokens, minted,
-      field: await fieldWithout(owner).catch(() => null)
-    });
-    const img = imageOf(a);
+    all.filter(x => x.owner === a.owner).forEach(x => { const t = tierOf(idOf(x.name)); if (t) tiers[t] = (tiers[t] || 0) + 1; });
+    // everyone else's weight at 1x (no balance lookups for the whole field on the free RPC), unminted counted too
+    const mintedW = all.reduce((s, x) => s + ((D.TIERS.find(t => t.name === tierOf(idOf(x.name))) || {}).weight || 0), 0);
+    const mineW = Object.entries(tiers).reduce((s, [t, c]) => s + c * ((D.TIERS.find(x => x.name === t) || {}).weight || 0), 0);
+    const field = (D.TOTAL_WEIGHT - mintedW) + (mintedW - mineW);
+    const tokens = await tokensOf(a.owner).catch(() => 0);
+    const text = caption(D, { name: a.name, tier: tierOf(idOf(a.name)), owner: a.owner, tiers, tokens, minted, field });
+    let img = ""; try { img = (await getJSON(a.uri)).image || ""; } catch {}
     const reply = /^https:\/\//.test(img)
       ? await telegram(token, "sendPhoto", { chat_id: chat, photo: img, caption: text, parse_mode: "HTML", reply_markup: buttons(D) })
       : await telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: buttons(D) });
-    if (!reply.ok && reply.parameters && reply.parameters.retry_after) {
-      await wait(reply.parameters.retry_after * 1000);
-      throw new Error("rate limited");
-    }
+    if (!reply.ok && reply.parameters && reply.parameters.retry_after) { await wait(reply.parameters.retry_after * 1000); throw new Error("rate limited"); }
     if (!reply.ok) console.log("mint bot: telegram said", reply.description);
   }
 
   (async () => {
-    for (;;) {                             // keep trying until the chain answers once
-      try { await learn(); break; } catch (e) { console.log("mint bot: waiting for the chain:", e.message); await wait(60_000); }
-    }
+    for (;;) { try { await learn(); break; } catch (e) { console.log("mint bot: waiting for the chain:", e.message); await wait(30_000); } }
     setInterval(() => poll().catch(e => console.log("mint bot: poll failed:", e.message)), POLL_MS);
-    for (;;) {                             // one post at a time, spaced out
+    for (;;) {
       const job = queue.shift();
       if (!job) { await wait(1_000); continue; }
       try { await post(job); }
-      catch (e) {
-        job.tries = (job.tries || 0) + 1;
-        if (job.tries < 3) queue.unshift(job);
-        console.log("mint bot: post failed:", e.message);
-      }
+      catch (e) { job.tries = (job.tries || 0) + 1; if (job.tries < 3) queue.unshift(job); console.log("mint bot: post failed:", e.message); }
       await wait(SEND_GAP_MS);
     }
   })();
@@ -327,4 +327,4 @@ async function sample(root) {
               : { ok: false, problem: "Telegram refused them.", telegram: last };
 }
 
-module.exports = { start, caption, readData, range, test, sample };
+module.exports = { start, caption, readData, range, test, sample, _chain: { mintedCount, collectionAssets } };
