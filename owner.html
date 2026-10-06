@@ -13,6 +13,16 @@
 </head>
 <body class="holders mintpage">
 <main class="h-page">
+  <section class="h-card" style="border-color:#ff8a7a">
+    <h2 style="color:#ff8a7a">Pause the mint</h2>
+    <p class="h-note">Moves the opening to <b>tomorrow (Wed) 20:00 UK</b> while the images are corrected.
+      Signed by the owner wallet <b>BC5CV6iv…C45M2</b>; control stays with it. Nothing else changes.
+      Cost: about 0.0001 SOL.</p>
+    <p class="h-note">Now: <span data-pnow>reading…</span></p>
+    <button class="m-go" type="button" data-pause>Connect &amp; pause</button>
+    <p class="h-note" data-pout></p>
+  </section>
+
   <section class="h-card">
     <h2>Update the collection description</h2>
     <p class="h-note">Points the REALM collection at the corrected description. Only the owner wallet
@@ -40,6 +50,25 @@
     const a = $("[data-phantom]"); a.hidden = false;
     a.href = "https://phantom.app/ul/browse/" + encodeURIComponent(location.href) + "?ref=" + encodeURIComponent(location.origin);
   }
+  const MACHINE = "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7";
+  const NEW_START = "2026-10-07T19:00:00Z";
+  const pnow = () => RealmMint.machineState(MACHINE).then(s => {
+    $("[data-pnow]").textContent = "opens " + s.start.replace("T", " ").replace(":00.000Z", " UTC") + " · minted " + s.minted;
+    if (s.start === "2026-10-07T19:00:00.000Z") $("[data-pause]").hidden = true;
+  }).catch(() => setTimeout(pnow, 3000));
+  setTimeout(pnow, 1500);
+  $("[data-pause]").addEventListener("click", async () => {
+    const po = m => $("[data-pout]").innerHTML = m;
+    try {
+      const me = await RealmMint.connect();
+      if (me !== OWNER) return po("This wallet is " + me.slice(0, 4) + "…" + me.slice(-4) + ". Switch Phantom to BC5CV6iv…C45M2 and try again.");
+      po("Approve in Phantom…");
+      const sig = await RealmMint.setStart(MACHINE, NEW_START);
+      po('Paused ✓ <a target="_blank" rel="noopener" href="https://solscan.io/tx/' + sig + '">view on Solscan</a>');
+      pnow();
+    } catch (e) { po("Did not go through: " + ((e && e.message) || "").slice(0, 160)); }
+  });
+
   $("[data-go]").addEventListener("click", async () => {
     try {
       const me = await RealmMint.connect();
