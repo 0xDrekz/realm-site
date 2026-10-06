@@ -185,7 +185,7 @@ const WEIGHTS = (() => {
   } catch { return {}; }
 })();
 let board = null, boardAt = 0, boardBusy = null;
-const BOARD_MS = 10 * 60_000;
+const BOARD_MS = 90_000;
 
 async function holders() {
   const owners = new Map();
@@ -292,7 +292,7 @@ async function readStats() {
    five minutes for everybody. The number comes out of the name ("REALM #17"),
    which is how the map finds the being's picture and traits in map-data.json. */
 let mapData = null, mapAt = 0, mapBusy = null;
-const MAP_MS = 5 * 60_000;
+const MAP_MS = 45_000;      // the chain read underneath is shared and cached a minute
 
 async function readMap() {
   const beings = (await chainBeings()).map(b => [b.n, b.owner, b.id]);

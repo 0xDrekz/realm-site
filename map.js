@@ -686,7 +686,7 @@
     }
     requestAnimationFrame(draw);
 
-    if (live) setInterval(refresh, 60_000);
+    if (live) setInterval(refresh, 30_000);
     else setTimeout(function demo() {         // the preview plays an arrival now and then
       if (!preview.rest.length) return;
       const n2 = preview.rest.shift(), wl = preview.wallets[Math.floor(preview.r() * preview.wallets.length)];
