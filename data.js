@@ -15,7 +15,7 @@ const CONFIG = {
   minted: 0,
 
   // Paste your launchpad mint link here. Leave as "" to show "opens soon".
-  mintLink: "",
+  mintLink: "https://dmt-realm.dev/mint",
 
   /* There is no closing date. The gate stays open until all 1,111 are
      minted, and the holder pool is paid once, when the last one goes. */
@@ -48,7 +48,7 @@ const CONFIG = {
      who opens the site. If the wallet panel ever needs a paid RPC, it goes
      behind a small endpoint in server.js reading process.env, and the key
      lives in Railway's variables where nobody can read it. */
-  collectionAddress: "",
+  collectionAddress: "DyzuV3bcNthHcYVrVZbrJzJG64FpMT3jUAQyyyw3xAa1",
 
   /* Where 75% of every mint goes, and where the holder pool is paid from.
      Shown on the site with its live balance, so the pool can be checked on
@@ -60,7 +60,7 @@ const CONFIG = {
      `test` is the rehearsal on Solana's test network, opened with
      /mint?net=devnet, so the page can be tried with nothing real at stake. */
   chain: {
-    machine: "",
+    machine: "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7",
     test: { machine: "Ak8iQwvCfzkqyEwe2Qf61NWLt3ERGqmq3D5TmpQVjU31" }
   }
 };

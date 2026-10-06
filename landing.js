@@ -103,10 +103,8 @@
   if (mintBtn && mintNote) {
     if (CONFIG.mintLink && !soldOut) {
       mintBtn.href = CONFIG.mintLink;
-      mintBtn.target = "_blank";
-      mintBtn.rel = "noopener";
-      mintBtn.textContent = "Mint on the launchpad";
-      mintNote.textContent = "Opens the official mint page. Connect your Solana wallet there.";
+      mintBtn.textContent = "Go to the mint";
+      mintNote.textContent = "The only official mint page. Connect your Solana wallet there.";
     } else {
       /* nothing to choose while the gate is shut — offering a quantity
          would suggest there is something to take */
