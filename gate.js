@@ -687,6 +687,14 @@
   });
   const LAST = SPARKS.reduce((m, k) => Math.max(m, k.land), 0);
 
+  /* the explosion of light when the star flares: 0 to 1, up in an
+     instant, then ebbing away over a couple of seconds */
+  function boom(t) {
+    const since = (t % GATHER) - LAST;
+    if (since < 0) return 0;
+    return Math.min(1, since / 0.07) * Math.exp(-since * 1.25);
+  }
+
   function gather(t, x, y, w, h, tw, sx, sy, fade) {
     if (!SPARKS.length) return 0;
     const p = t % GATHER;
@@ -790,6 +798,27 @@
     const sx = x + w * SUN.x, sy = y + h * SUN.y;
     const fed = gather(t, x, y, w, h, tw, sx, sy, Math.max(0, 1 - pull * 3));
     const flare = 0.34 + 0.12 * Math.sin(t * 0.7) + 0.05 * Math.sin(t * 2.3) + 0.9 * fed;
+
+    /* and the forest lit by it: the picture itself brightened, so the
+       leaves, trunks and mushrooms catch the light rather than being
+       fogged over, then a warm wash spreading out from the star */
+    const lit = boom(t) * Math.max(0, 1 - pull * 3);
+    if (lit > 0.01) {
+      tc.globalAlpha = 0.85 * lit;
+      tc.drawImage(art, x, y, w, h);
+      tc.globalAlpha = 1;
+      // the first instant: a white flash over everything
+      const flash = Math.max(0, lit - 0.6) / 0.4;
+      if (flash > 0) { tc.fillStyle = `rgba(255,248,225,${0.22 * flash})`; tc.fillRect(0, 0, W, H); }
+      const R = Math.hypot(W, H) * (0.7 + 0.5 * (1 - lit));
+      const wash = tc.createRadialGradient(sx, sy, 0, sx, sy, R);
+      wash.addColorStop(0,    `hsla(48,100%,92%,${0.7 * lit})`);
+      wash.addColorStop(0.25, `hsla(42,100%,70%,${0.36 * lit})`);
+      wash.addColorStop(0.6,  `hsla(30,100%,55%,${0.10 * lit})`);
+      wash.addColorStop(1,    "hsla(0,0%,0%,0)");
+      tc.fillStyle = wash;
+      tc.fillRect(0, 0, W, H);
+    }
     glow(tc, sx, sy, tw * 0.26, 48, flare * 0.42, 92);
     glow(tc, sx, sy, tw * 0.07, 54, flare, 99);
 
