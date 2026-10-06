@@ -95,7 +95,50 @@ function rpc(method, params, url) {
   });
 }
 
+/* Every REALM being, read straight from the chain over the free public RPC
+   (Metaplex Core assets in the collection), with each one's number, tier and
+   being name from map-data.json. Shared by the map, the leaderboard and the
+   wallet checker; read at most once a minute. */
+const PUBLIC_RPC = "https://api.mainnet-beta.solana.com";
+const COLLECTION_ADDR = () => ENV.col || (readConfig().collectionAddress || "");
+let MAPDATA = null;
+function readConfig() {
+  try { return { collectionAddress: (fs.readFileSync(path.join(ROOT, "data.js"), "utf8").match(/collectionAddress:\s*"([^"]*)"/) || [])[1] || "" }; }
+  catch { return {}; }
+}
+let chainCache = null, chainAt = 0, chainBusy = null;
+async function chainBeings() {
+  if (chainCache && Date.now() - chainAt < 60_000) return chainCache;
+  chainBusy = chainBusy || (async () => {
+    if (!MAPDATA) MAPDATA = JSON.parse(fs.readFileSync(path.join(ROOT, "map-data.json"))).beings;
+    const assets = await require("./bot")._chain.collectionAssets(COLLECTION_ADDR());
+    const out = assets.map(a => {
+      const n = Number((a.name.match(/#(\d+)/) || [])[1] || 0);
+      const md = MAPDATA[n - 1] || [];
+      return { n, id: a.id, owner: a.owner, name: a.name, uri: a.uri, tier: md[0] || "", being: md[1] || "" };
+    }).filter(b => b.n);
+    chainCache = out; chainAt = Date.now(); return out;
+  })().finally(() => { chainBusy = null; });
+  return chainBusy;
+}
+async function tokensOf(address) {
+  if (!ENV.mint) return 0;
+  const res = await rpc("getTokenAccountsByOwner", [address, { mint: ENV.mint }, { encoding: "jsonParsed" }], PUBLIC_RPC);
+  let tokens = 0;
+  for (const acc of (res && res.value) || []) { const t = acc.account.data.parsed.info.tokenAmount; tokens += Math.floor(Number(t.amount) / 10 ** Number(t.decimals)); }
+  return tokens;
+}
+
 async function holdings(address) {
+  const mine = (await chainBeings()).filter(b => b.owner === address);
+  const beings = await Promise.all(mine.map(async b => {
+    let image = ""; try { image = (await (await fetch(b.uri, { redirect: "follow" })).json()).image || ""; } catch {}
+    return { tier: b.tier, name: b.name, being: b.being, image };
+  }));
+  return { beings, tokens: await tokensOf(address).catch(() => 0) };
+}
+
+async function holdingsHelius(address) {
   const beings = [];
   for (let page = 1; page <= 10; page++) {
     const res = await rpc("searchAssets", {
@@ -147,24 +190,12 @@ const BOARD_MS = 10 * 60_000;
 async function holders() {
   const owners = new Map();
   let minted = 0;
-  for (let page = 1; page <= 10; page++) {
-    const res = await rpc("getAssetsByGroup", {
-      groupKey: "collection", groupValue: ENV.col, page, limit: 1000
-    });
-    const items = (res && res.items) || [];
-    for (const a of items) {
-      const attrs = (a.content && a.content.metadata && a.content.metadata.attributes) || [];
-      const tier = (attrs.find(t => t.trait_type === "Tier") || {}).value;
-      const owner = a.ownership && a.ownership.owner;
-      if (!tier || !owner) continue;
-      minted++;
-      const o = owners.get(owner) || { owner, weight: 0, beings: 0, tiers: {} };
-      o.weight += WEIGHTS[tier] || 0;
-      o.beings += 1;
-      o.tiers[tier] = (o.tiers[tier] || 0) + 1;
-      owners.set(owner, o);
-    }
-    if (items.length < 1000) break;
+  for (const x of await chainBeings()) {
+    if (!x.tier) continue;
+    minted++;
+    const o = owners.get(x.owner) || { owner: x.owner, weight: 0, beings: 0, tiers: {} };
+    o.weight += WEIGHTS[x.tier] || 0; o.beings += 1; o.tiers[x.tier] = (o.tiers[x.tier] || 0) + 1;
+    owners.set(x.owner, o);
   }
   const list = [...owners.values()].sort((a, b) => b.weight - a.weight);
   // token balances only for the top of the board: one call each
@@ -172,7 +203,7 @@ async function holders() {
     for (const o of list.slice(0, 25)) {
       try {
         const res = await rpc("getTokenAccountsByOwner",
-          [o.owner, { mint: ENV.mint }, { encoding: "jsonParsed" }]);
+          [o.owner, { mint: ENV.mint }, { encoding: "jsonParsed" }], PUBLIC_RPC);
         o.tokens = 0;
         for (const acc of (res && res.value) || []) {
           const t = acc.account.data.parsed.info.tokenAmount;
@@ -264,18 +295,7 @@ let mapData = null, mapAt = 0, mapBusy = null;
 const MAP_MS = 5 * 60_000;
 
 async function readMap() {
-  const beings = [];
-  for (let page = 1; page <= 10; page++) {
-    const res = await rpc("getAssetsByGroup", { groupKey: "collection", groupValue: ENV.col, page, limit: 1000 });
-    const items = (res && res.items) || [];
-    for (const a of items) {
-      const name = (a.content && a.content.metadata && a.content.metadata.name) || "";
-      const n = Number((name.match(/#(\d+)/) || [])[1]);
-      const owner = a.ownership && a.ownership.owner;
-      if (n && owner) beings.push([n, owner, a.id]);
-    }
-    if (items.length < 1000) break;
-  }
+  const beings = (await chainBeings()).map(b => [b.n, b.owner, b.id]);
   return { ready: true, beings, at: Date.now() };
 }
 
@@ -345,7 +365,7 @@ const server = http.createServer((req, res) => {
     const send = (code, obj) => res.writeHead(code, {
       "Content-Type": TYPES[".json"], "Cache-Control": "no-store"
     }).end(JSON.stringify(obj));
-    if (!ENV.key || !ENV.col) return send(503, { ready: false });
+    if (!COLLECTION_ADDR()) return send(503, { ready: false });
     if (mapData && Date.now() - mapAt < MAP_MS) return send(200, mapData);
     mapBusy = mapBusy || readMap()
       .then(d => { mapData = d; mapAt = Date.now(); return d; })
@@ -359,7 +379,7 @@ const server = http.createServer((req, res) => {
     const send = (code, obj) => res.writeHead(code, {
       "Content-Type": TYPES[".json"], "Cache-Control": "no-store"
     }).end(JSON.stringify(obj));
-    if (!ENV.key || !ENV.col) return send(503, { ready: false });
+    if (!COLLECTION_ADDR()) return send(503, { ready: false });
     if (board && Date.now() - boardAt < BOARD_MS) return send(200, board);
     boardBusy = boardBusy || holders()
       .then(d => { board = d; boardAt = Date.now(); return d; })
@@ -418,7 +438,7 @@ const server = http.createServer((req, res) => {
 
     const address = new URL(req.url, "http://x").searchParams.get("address") || "";
 
-    if (!ENV.key || !ENV.col) return send(503, { ready: false });
+    if (!COLLECTION_ADDR()) return send(503, { ready: false });
     if (!ADDRESS.test(address)) return send(400, { error: "That is not a Solana address." });
 
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim()
