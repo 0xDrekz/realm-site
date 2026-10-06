@@ -210,9 +210,20 @@ function getJSON(url) {
 const REWARDS = ((require("fs").readFileSync(path.join(ROOT, "data.js"), "utf8")
   .match(/rewardsWallet:\s*"([1-9A-HJ-NP-Za-km-z]{32,44})"/) || [])[1]) || "";
 
+/* the candy machine REALM sells from. How many it has minted is a u64 at
+   byte 104 of its account, so the public RPC can count it: no paid API needed. */
+const MACHINE = process.env.CANDY_MACHINE || "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7";
+async function mintedFromMachine() {
+  const r = await rpc("getAccountInfo", [MACHINE, { encoding: "base64", dataSlice: { offset: 104, length: 8 } }],
+    "https://api.mainnet-beta.solana.com");
+  const b = Buffer.from(r.value.data[0], "base64");
+  return Number(b.readBigUInt64LE(0));
+}
+
 async function readStats() {
   let minted = null;
-  if (ENV.key && ENV.col) {
+  try { minted = await mintedFromMachine(); } catch { /* unknown, not zero */ }
+  if (minted === null && ENV.key && ENV.col) {
     minted = 0;
     for (let page = 1; page <= 10; page++) {
       const res = await rpc("getAssetsByGroup", { groupKey: "collection", groupValue: ENV.col, page, limit: 1000 });
