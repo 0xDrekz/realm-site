@@ -23,6 +23,16 @@
     <p class="h-note" data-pout></p>
   </section>
 
+  <section class="h-card" style="border-color:#e3ba5c">
+    <h2>Fix the images in one approval</h2>
+    <p class="h-note">Lends <b>only the mint contract's item list</b> to the fix key <b>9a83KDhM…pqVyZ</b> and sends it
+      <b>0.003 SOL</b> for fees, so the 75 corrections can be written without 75 approvals. The item list is handed
+      straight back to BC5CV6iv… afterwards. The price, where the money goes, the 5-per-wallet limit, the opening
+      time and the collection all stay with BC5CV6iv… throughout. One approval.</p>
+    <button class="m-go" type="button" data-lend>Connect &amp; lend the item list</button>
+    <p class="h-note" data-lout></p>
+  </section>
+
   <section class="h-card" style="border-color:#7ce8be">
     <h2 style="color:#9ff5d2">Fix the images</h2>
     <p class="h-note">Writes the corrected links for all 1,111 beings into the mint contract
@@ -81,6 +91,19 @@
       po('Paused ✓ <a target="_blank" rel="noopener" href="https://solscan.io/tx/' + sig + '">view on Solscan</a>');
       pnow();
     } catch (e) { po("Did not go through: " + ((e && e.message) || "").slice(0, 160)); }
+  });
+
+  /* ---- lend the item list to the fix key ---- */
+  $("[data-lend]").addEventListener("click", async () => {
+    const lo = m => $("[data-lout]").innerHTML = m;
+    try {
+      const me = await RealmMint.connect();
+      if (me !== OWNER) return lo("This wallet is " + me.slice(0, 4) + "…" + me.slice(-4) + ". Switch to BC5CV6iv…C45M2 and try again.");
+      lo("Approve in your wallet…");
+      const sig = await RealmMint.lendItemList(MACHINE, "9a83KDhMySWNj1TzwtYTFsmyahfUny8AbpUfydJpqVyZ", 0.003);
+      lo('Done ✓ <a target="_blank" rel="noopener" href="https://solscan.io/tx/' + sig + '">view on Solscan</a>. Tell Claude: it takes it from here.');
+      $("[data-lend]").hidden = true;
+    } catch (e) { lo("Did not go through: " + ((e && e.message) || "").slice(0, 160)); }
   });
 
   /* ---- fix the images ---- */
