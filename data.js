@@ -15,7 +15,7 @@ const CONFIG = {
   minted: 0,
 
   // Paste your launchpad mint link here. Leave as "" to show "opens soon".
-  mintLink: "",
+  mintLink: "https://dmt-realm.dev/mint",
 
   /* There is no closing date. The gate stays open until all 1,111 are
      minted, and the holder pool is paid once, when the last one goes. */
@@ -60,7 +60,7 @@ const CONFIG = {
      `test` is the rehearsal on Solana's test network, opened with
      /mint?net=devnet, so the page can be tried with nothing real at stake. */
   chain: {
-    machine: "",   // paused: 5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7 is being corrected
+    machine: "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7",
     test: { machine: "Ak8iQwvCfzkqyEwe2Qf61NWLt3ERGqmq3D5TmpQVjU31" }
   }
 };
