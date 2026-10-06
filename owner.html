@@ -45,11 +45,14 @@
   RealmMint.init({ rpc: location.origin + "/api/rpc", machine: "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7" })
     .then(() => RealmMint.collectionUri(COLLECTION))
     .then(c => { $("[data-now]").textContent = c.uri === NEW ? "already updated ✓" : c.uri; if (c.uri === NEW) $("[data-go]").hidden = true; });
-  if (!RealmMint.hasWallet()) {
-    $("[data-go]").hidden = true;
+  // wallets announce themselves a moment after the page loads
+  setTimeout(() => {
+    if (RealmMint.hasWallet()) return;
+    $("[data-go]").hidden = true; $("[data-pause]").hidden = true;
     const a = $("[data-phantom]"); a.hidden = false;
-    a.href = "https://phantom.app/ul/browse/" + encodeURIComponent(location.href) + "?ref=" + encodeURIComponent(location.origin);
-  }
+    a.textContent = "Open in MetaMask";
+    a.href = "https://metamask.app.link/dapp/" + location.host + location.pathname;
+  }, 1500);
   const MACHINE = "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7";
   const NEW_START = "2026-10-07T19:00:00Z";
   const pnow = () => RealmMint.machineState(MACHINE).then(s => {
