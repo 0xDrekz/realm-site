@@ -314,10 +314,18 @@ const server = http.createServer((req, res) => {
       // ?net=devnet is the rehearsal on Solana's free test network
       const target = /[?&]net=devnet\b/.test(req.url) ? "https://api.devnet.solana.com"
         : ENV.key ? `https://mainnet.helius-rpc.com/?api-key=${ENV.key}` : "https://api.mainnet-beta.solana.com";
-      const out = https.request(target, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }, timeout: 20_000 },
-        r => { res.writeHead(r.statusCode || 502, { "Content-Type": "application/json", "Cache-Control": "no-store" }); r.pipe(res); });
-      out.on("timeout", () => out.destroy()).on("error", () => { if (!res.headersSent) res.writeHead(502).end(); });
-      out.end(body);
+      // if the paid RPC turns us away (a bad or missing key), fall back to the public one
+      const PUBLIC = /[?&]net=devnet\b/.test(req.url) ? "https://api.devnet.solana.com" : "https://api.mainnet-beta.solana.com";
+      const go = (url, retry) => {
+        const out = https.request(url, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }, timeout: 20_000 },
+          r => {
+            if (retry && (r.statusCode === 401 || r.statusCode === 403 || r.statusCode === 429)) { r.resume(); return go(PUBLIC, false); }
+            res.writeHead(r.statusCode || 502, { "Content-Type": "application/json", "Cache-Control": "no-store" }); r.pipe(res);
+          });
+        out.on("timeout", () => out.destroy()).on("error", () => { if (retry) return go(PUBLIC, false); if (!res.headersSent) res.writeHead(502).end(); });
+        out.end(body);
+      };
+      go(target, target !== PUBLIC);
     });
     return;
   }
