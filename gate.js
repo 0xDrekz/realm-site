@@ -30,10 +30,18 @@
   const SCENES = {
     wide:  { src: "door.jpg?v=1", mask: "door-mask.png?v=2",
              aim: { x: 0.526, y: 0.614 }, sun: { x: 0.485, y: 0.178 },
-             gap: { x0: 0.482, y0: 0.351, x1: 0.560, y1: 0.871 } },
+             gap: { x0: 0.482, y0: 0.351, x1: 0.560, y1: 0.871 },
+             /* the two painted sparkles, top right, and four drawn in to
+                balance them on the left (drawn: true gets its own glint) */
+             sparks: [[0.907, 0.142], [0.946, 0.212],
+                      [0.120, 0.090, true], [0.250, 0.050, true],
+                      [0.330, 0.330, true], [0.730, 0.070, true]] },
     phone: { src: "door-phone.jpg?v=1", mask: "door-mask-phone.png?v=1",
              aim: { x: 0.557, y: 0.593 }, sun: { x: 0.504, y: 0.328 },
-             gap: { x0: 0.473, y0: 0.428, x1: 0.615, y1: 0.750 } },
+             gap: { x0: 0.473, y0: 0.428, x1: 0.615, y1: 0.750 },
+             /* the sparkles painted in the canopy, found by eye and colour */
+             sparks: [[0.119, 0.060], [0.188, 0.122], [0.869, 0.084], [0.799, 0.140],
+                      [0.056, 0.363], [0.121, 0.401], [0.921, 0.338], [0.876, 0.411]] },
   };
   const TALL = window.innerWidth / window.innerHeight < 0.8;
   const SCENE = TALL ? SCENES.phone : SCENES.wide;
@@ -662,6 +670,91 @@
     g.fillRect(x - r, y - r, r * 2, r * 2);
   }
 
+  /* ---------- the sparkles feeding the star ----------
+     Like the pulse that climbs to the eye in the chamber: every few
+     seconds each sparkle in the canopy lets go a mote of light, which
+     curves in to the star, slow at first and quickening, cooling from
+     the sparkle's blue-white through violet to the star's gold. They arrive close
+     together, and when the last one lands the star flares and sends a
+     ring out. Returns how hard the star is flaring, for the sun's own glow. */
+  const GATHER = 5.6;                      // seconds from one flare to the next
+  const LAND = 3.2;                        // when, in each round, the motes land
+  const SPARKS = (SCENE.sparks || []).map(([fx, fy, drawn], i) => {
+    const dur = 1.5 + 0.35 * ((i * 7) % 5) / 4;          // some take longer than others
+    const land = LAND - 0.32 + 0.64 * ((i * 3) % 4) / 3; // and land a little apart
+    return { fx, fy, drawn: !!drawn, dur, go: land - dur, land,
+             bend: (i % 2 ? 1 : -1) * (0.12 + 0.1 * ((i * 5) % 3) / 2), ph: i * 1.7 };
+  });
+  const LAST = SPARKS.reduce((m, k) => Math.max(m, k.land), 0);
+
+  function gather(t, x, y, w, h, tw, sx, sy, fade) {
+    if (!SPARKS.length) return 0;
+    const p = t % GATHER;
+    let hit = 0;
+    for (const k of SPARKS) {
+      const px = x + w * k.fx, py = y + h * k.fy;
+      // the sparkle itself: drawn ones always glint; all of them flash as they let go
+      const flash = p >= k.go ? Math.exp(-(p - k.go) * 3.2) : 0;
+      const tw8 = 0.5 + 0.5 * Math.sin(t * 2.1 + k.ph);
+      const glint = (k.drawn ? 0.35 + 0.35 * tw8 : 0) + 0.9 * flash;
+      if (glint > 0.02) {
+        glow(tc, px, py, tw * 0.05, 200, 0.22 * glint * fade, 92);
+        glow(tc, px, py, tw * 0.012, 210, 0.9 * glint * fade, 99);
+        const L = tw * (0.03 + 0.03 * glint);
+        tc.strokeStyle = `hsla(205,100%,95%,${0.7 * glint * fade})`;
+        tc.lineWidth = 1.2;
+        tc.beginPath();
+        tc.moveTo(px - L, py); tc.lineTo(px + L, py);
+        tc.moveTo(px, py - L * 1.3); tc.lineTo(px, py + L * 1.3);
+        tc.stroke();
+      }
+      // the star brightens a little with each mote that lands
+      if (p >= k.land) hit += 0.18 * Math.exp(-(p - k.land) * 2.4);
+      const u = (p - k.go) / k.dur;
+      if (u < 0 || u >= 1) continue;
+      // a gentle curve in to the star, bowed to one side
+      const mx = (px + sx) / 2, my = (py + sy) / 2;
+      const dx = sx - px, dy = sy - py;
+      const cxp = mx - dy * k.bend, cyp = my + dx * k.bend;
+      const at = f => {
+        const a = 1 - f;
+        return [a * a * px + 2 * a * f * cxp + f * f * sx, a * a * py + 2 * a * f * cyp + f * f * sy];
+      };
+      const ease = v => v * v * (1.6 - 0.6 * v);       // slow to leave, quick to arrive
+      const hueAt = v => (210 + 195 * v) % 360;           // blue, violet, magenta, gold: never green
+      const f = ease(u);
+      const a = Math.min(1, u * 6) * Math.min(1, (1 - u) * 14) * fade;
+      // the thread it travels, faintly lit while it is on it
+      tc.strokeStyle = `hsla(${hueAt(f)},100%,85%,${0.13 * Math.sin(Math.PI * u) * fade})`;
+      tc.lineWidth = 1;
+      tc.beginPath(); tc.moveTo(px, py); tc.quadraticCurveTo(cxp, cyp, sx, sy); tc.stroke();
+      // the trail, then the mote
+      for (let j = 10; j >= 1; j--) {
+        const fj = ease(Math.max(0, u - j * 0.032));
+        const [qx, qy] = at(fj);
+        glow(tc, qx, qy, tw * 0.03 * (1 - j / 12), hueAt(fj), 0.5 * a * (1 - j / 11), 88);
+      }
+      const [hx, hy] = at(f);
+      const hue = hueAt(f);
+      glow(tc, hx, hy, tw * 0.11, hue, 0.3 * a, 80);
+      glow(tc, hx, hy, tw * 0.035, hue, 0.9 * a, 96);
+      glow(tc, hx, hy, tw * 0.012, 50, 1.0 * a, 100);     // a white-hot core
+    }
+    // the flare, when the last of them lands, and the ring it sends out
+    const since = p - LAST;
+    if (since >= 0) {
+      const burst = Math.exp(-since * 1.5) * Math.min(1, since / 0.06);
+      hit += burst;
+      if (since < 1.3) {
+        const r = tw * (0.05 + 0.42 * Math.pow(since / 1.3, 0.7));
+        tc.strokeStyle = `hsla(46,100%,82%,${0.45 * (1 - since / 1.3) * fade})`;
+        tc.lineWidth = 2;
+        tc.beginPath(); tc.arc(sx, sy, r, 0, Math.PI * 2); tc.stroke();
+      }
+    }
+    return Math.min(1.4, hit) * fade;
+  }
+
   /* ---------- one frame of the tree ---------- */
   function paintTree(t, dt, pull) {
     tc.setTransform(GW / W, 0, 0, GH / H, 0, 0);
@@ -693,9 +786,10 @@
     /* ---------- light ---------- */
     tc.globalCompositeOperation = "lighter";
 
-    // the sun, flaring through the canopy
+    // the sun, flaring through the canopy, fed by the sparkles around it
     const sx = x + w * SUN.x, sy = y + h * SUN.y;
-    const flare = 0.34 + 0.12 * Math.sin(t * 0.7) + 0.05 * Math.sin(t * 2.3);
+    const fed = gather(t, x, y, w, h, tw, sx, sy, Math.max(0, 1 - pull * 3));
+    const flare = 0.34 + 0.12 * Math.sin(t * 0.7) + 0.05 * Math.sin(t * 2.3) + 0.9 * fed;
     glow(tc, sx, sy, tw * 0.26, 48, flare * 0.42, 92);
     glow(tc, sx, sy, tw * 0.07, 54, flare, 99);
 
@@ -703,7 +797,7 @@
     tc.lineWidth = 1.4;
     for (let k = 0; k < 10; k++) {
       const ang = (k / 10) * Math.PI * 2 + t * 0.04;
-      const len = tw * (0.14 + 0.07 * Math.sin(t * 1.3 + k));
+      const len = tw * (0.14 + 0.07 * Math.sin(t * 1.3 + k) + 0.12 * fed);
       tc.beginPath();
       tc.moveTo(sx + Math.cos(ang) * tw * 0.03, sy + Math.sin(ang) * tw * 0.03);
       tc.lineTo(sx + Math.cos(ang) * len, sy + Math.sin(ang) * len);
@@ -711,7 +805,7 @@
     }
 
     // the light it throws into the room, in the tunnel's own colours
-    const open = door + pull * 2.2;
+    const open = door + pull * 2.2 + 0.25 * fed;          // the doorway answers the star
     glow(tc, ax, ay, tw * 0.26, 282, open * 0.3, 74);
     glow(tc, ax, ay, tw * 0.10, 172, open * 0.5, 86);
     glow(tc, ax, ay, tw * 0.04, 300, open, 96);
