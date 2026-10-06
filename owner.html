@@ -13,6 +13,15 @@
 </head>
 <body class="holders mintpage">
 <main class="h-page">
+  <section class="h-card" style="border-color:#9ff5d2">
+    <h2 style="color:#9ff5d2">Open the mint now</h2>
+    <p class="h-note">Moves the opening to <b>right now</b>. From the moment this lands, <b>anyone</b> can mint at
+      dmt-realm.dev/mint. Signed by <b>BC5CV6iv…C45M2</b>; nothing else changes (price split, 5 per wallet and
+      control all stay the same). Cost: about 0.0001 SOL.</p>
+    <button class="m-go" type="button" data-open>Connect &amp; open the mint now</button>
+    <p class="h-note" data-oout></p>
+  </section>
+
   <section class="h-card" style="border-color:#ff8a7a">
     <h2 style="color:#ff8a7a">Pause the mint</h2>
     <p class="h-note">Moves the opening to <b>tomorrow (Wed) 20:00 UK</b> while the images are corrected.
@@ -91,6 +100,19 @@
       po('Paused ✓ <a target="_blank" rel="noopener" href="https://solscan.io/tx/' + sig + '">view on Solscan</a>');
       pnow();
     } catch (e) { po("Did not go through: " + ((e && e.message) || "").slice(0, 160)); }
+  });
+
+  /* ---- open now: the start a minute in the past, so it is open the moment it lands ---- */
+  $("[data-open]").addEventListener("click", async () => {
+    const oo = m => $("[data-oout]").innerHTML = m;
+    try {
+      const me = await RealmMint.connect();
+      if (me !== OWNER) return oo("This wallet is " + me.slice(0, 4) + "…" + me.slice(-4) + ". Switch to BC5CV6iv…C45M2 and try again.");
+      oo("Approve in your wallet…");
+      const sig = await RealmMint.setStart(MACHINE, new Date(Date.now() - 60000).toISOString().replace(/\.\d+Z$/, "Z"));
+      oo('The mint is OPEN ✓ <a target="_blank" rel="noopener" href="https://solscan.io/tx/' + sig + '">view on Solscan</a>. Go to <a href="/mint">dmt-realm.dev/mint</a>.');
+      $("[data-open]").hidden = true; pnow();
+    } catch (e) { oo("Did not go through: " + ((e && e.message) || "").slice(0, 160)); }
   });
 
   /* ---- lend the item list to the fix key ---- */
