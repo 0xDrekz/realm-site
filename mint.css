@@ -1,0 +1,31 @@
+/* ---------- the mint page ---------- */
+.m-test{margin:0;padding:8px 12px;border:1px dashed #7ce8be;color:#9ff5d2;text-align:center;letter-spacing:.14em;text-transform:uppercase;font-size:.74rem}
+.m-head{text-align:center}
+.m-cycle{width:min(62vw,260px);aspect-ratio:1;margin:8px auto 14px;border:1px solid var(--gold);box-shadow:0 0 40px rgba(168,85,247,.35)}
+.m-cycle img{width:100%;height:100%;display:block;image-rendering:pixelated}
+.m-count{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.m-count b{font-size:1.9rem;color:var(--gold)}
+.m-count span{color:var(--dim)}
+.m-count i{margin-left:auto;font-style:normal;color:var(--bone);font-size:.9rem}
+.m-bar{height:10px;border:1px solid var(--line);margin:8px 0 16px;background:#000}
+.m-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7c3aed,#e3ba5c);transition:width .6s}
+.m-state{color:var(--dim);text-align:center;margin:6px 0 12px;min-height:1.4em}
+.m-state b{color:var(--bone)}
+.m-who{color:var(--dim);font-size:.86rem;text-align:center;margin-bottom:10px}
+.m-who b{color:var(--bone)}
+.m-qty{display:flex;justify-content:center;align-items:center;gap:18px;margin:6px 0 14px}
+.m-qty button{width:46px;height:46px;font-size:1.4rem;background:transparent;color:var(--bone);border:1px solid var(--gold);cursor:pointer}
+.m-qty button:disabled{opacity:.3;cursor:default}
+.m-qty b{font-size:1.8rem;min-width:2ch;text-align:center;color:var(--bone)}
+.m-go{display:block;width:100%;padding:16px;font:inherit;font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;font-size:1.05rem;text-align:center;text-decoration:none;cursor:pointer;
+  color:#1a1206;background:linear-gradient(180deg,#f2d27e,#e3ba5c);border:0;box-shadow:0 0 24px rgba(227,186,92,.35)}
+.m-go:disabled{opacity:.45;cursor:default;box-shadow:none}
+.m-act .h-note{text-align:center}
+.m-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.m-grid a{display:block;text-decoration:none;color:var(--bone);border:1px solid var(--line);background:#000}
+.m-grid img{width:100%;display:block;image-rendering:pixelated}
+.m-grid span{display:block;padding:6px 8px;font-size:.8rem}
+.m-grid .bad{padding:12px;color:#ff8a7a;font-size:.8rem}
+
+.mintpage [hidden]{display:none !important}

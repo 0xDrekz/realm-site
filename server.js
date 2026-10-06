@@ -268,6 +268,15 @@ async function readMap() {
   return { ready: true, beings, at: Date.now() };
 }
 
+/* the mint page polls while a mint lands: generous, but not a free RPC */
+const rpcHits = new Map();
+function rpcAllowed(ip) {
+  const now = Date.now(), w = rpcHits.get(ip) || [];
+  const recent = w.filter(t => now - t < 60_000); recent.push(now); rpcHits.set(ip, recent);
+  if (rpcHits.size > 5000) rpcHits.clear();
+  return recent.length <= 240;
+}
+
 const server = http.createServer((req, res) => {
   // strip query string, decode, and block path traversal
   let urlPath;
@@ -282,6 +291,34 @@ const server = http.createServer((req, res) => {
 
   if (urlPath === "/holders") urlPath = "/holders.html";
   if (urlPath === "/map") urlPath = "/map.html";
+  if (urlPath === "/mint") urlPath = "/mint.html";
+
+  /* ---- the mint page's line to Solana ----
+     The page in the visitor's browser reads the candy machine and sends the
+     transactions their wallet has signed. It goes through here so it can use
+     the paid RPC (whose key stays in Railway) instead of the public one, which
+     turns browsers away. Only the calls minting needs are let through. */
+  if (urlPath === "/api/rpc" && req.method === "POST") {
+    const ALLOW = new Set(["getAccountInfo", "getMultipleAccounts", "getLatestBlockhash", "sendTransaction",
+      "getSignatureStatuses", "getBalance", "getMinimumBalanceForRentExemption", "simulateTransaction", "getSlot", "getBlockHeight"]);
+    let body = "";
+    req.on("data", c => { body += c; if (body.length > 200_000) req.destroy(); });
+    req.on("end", () => {
+      let j; try { j = JSON.parse(body); } catch { return res.writeHead(400).end(); }
+      const calls = Array.isArray(j) ? j : [j];
+      if (!calls.length || calls.length > 20 || calls.some(c => !c || !ALLOW.has(c.method))) return res.writeHead(403).end();
+      const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
+      if (!rpcAllowed(ip)) return res.writeHead(429).end();
+      // ?net=devnet is the rehearsal on Solana's free test network
+      const target = /[?&]net=devnet\b/.test(req.url) ? "https://api.devnet.solana.com"
+        : ENV.key ? `https://mainnet.helius-rpc.com/?api-key=${ENV.key}` : "https://api.mainnet-beta.solana.com";
+      const out = https.request(target, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }, timeout: 20_000 },
+        r => { res.writeHead(r.statusCode || 502, { "Content-Type": "application/json", "Cache-Control": "no-store" }); r.pipe(res); });
+      out.on("timeout", () => out.destroy()).on("error", () => { if (!res.headersSent) res.writeHead(502).end(); });
+      out.end(body);
+    });
+    return;
+  }
 
   if (urlPath === "/api/map") {
     const send = (code, obj) => res.writeHead(code, {

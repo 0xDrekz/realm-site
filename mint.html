@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03010a">
+<title>REALM — Mint</title>
+<meta name="description" content="Mint a REALM being: 1,111 in all, one price, a random being every time. 75% of every mint goes straight to the holder rewards wallet.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta property="og:title" content="REALM — Mint">
+<meta property="og:description" content="1,111 beings. One drop. Step through.">
+<meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="landing.css">
+<link rel="stylesheet" href="holders.css">
+<link rel="stylesheet" href="mint.css">
+</head>
+<body class="holders mintpage">
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="REALM — back to the door">
+    <img class="brandmark" src="logo-bar.png" width="96" height="96" alt="">
+    <span class="mark">REALM <b data-ticker></b></span>
+  </a>
+  <nav class="top-links" aria-label="Elsewhere"><a class="h-back" href="/#chamber">&larr; The realm</a></nav>
+</header>
+
+<main class="h-page">
+  <p class="m-test" data-test hidden>Test network &middot; nothing here is real</p>
+
+  <section class="h-head m-head">
+    <p class="eyebrow">The mint</p>
+    <h1>Step through</h1>
+    <div class="m-cycle" aria-hidden="true"><img data-cycle alt=""></div>
+    <p class="lede">A random being every time, from Common to the single Source. <b>0.25 SOL</b> each, up to <b>5 per wallet</b>.</p>
+  </section>
+
+  <section class="h-card m-card">
+    <div class="m-count">
+      <b class="num" data-minted>&mdash;</b><span> / <span data-total>1,111</span> minted</span>
+      <i data-left></i>
+    </div>
+    <div class="m-bar"><i data-bar></i></div>
+
+    <div class="m-state" data-state>Reading the realm&hellip;</div>
+
+    <div class="m-act" data-act hidden>
+      <div class="m-who" data-who></div>
+      <div class="m-qty">
+        <button type="button" data-step="-1" aria-label="One fewer">&minus;</button>
+        <b data-qty>1</b>
+        <button type="button" data-step="1" aria-label="One more">+</button>
+      </div>
+      <button class="m-go" type="button" data-go>Mint</button>
+      <p class="h-note" data-mine></p>
+    </div>
+
+    <button class="m-go" type="button" data-connect hidden>Connect wallet</button>
+    <a class="m-go" data-phantom hidden>Open in Phantom</a>
+    <p class="h-bad" data-err hidden></p>
+  </section>
+
+  <section class="h-card m-got" data-got hidden>
+    <h2>Through the door</h2>
+    <div class="m-grid" data-grid></div>
+  </section>
+
+  <section class="h-card">
+    <h2>Where your SOL goes</h2>
+    <p class="h-note">Straight from your wallet, in the same transaction: <b>0.1875 SOL</b> to the
+      <a data-rw target="_blank" rel="noopener">holder rewards wallet</a> and 0.0625 SOL to the team. Nothing passes through
+      anyone's hands. The pool is paid out once all 1,111 are minted.</p>
+    <p class="h-note">Mint only here. Any other "REALM mint" link is not us.</p>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script src="mint-chain.js"></script>
+<script src="mint.js"></script>
+</body>
+</html>

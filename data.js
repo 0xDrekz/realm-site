@@ -53,7 +53,16 @@ const CONFIG = {
   /* Where 75% of every mint goes, and where the holder pool is paid from.
      Shown on the site with its live balance, so the pool can be checked on
      the chain. server.js reads it from here too. */
-  rewardsWallet: "FCMFa6LBXSezfBaN6gqbrw7RbMuPSqgMEkCSRAQhZuiM"
+  rewardsWallet: "FCMFa6LBXSezfBaN6gqbrw7RbMuPSqgMEkCSRAQhZuiM",
+
+  /* The mint, on chain: the candy machine dmt-realm.dev/mint sells from.
+     Empty until it is created; the page then says the gate opens soon.
+     `test` is the rehearsal on Solana's test network, opened with
+     /mint?net=devnet, so the page can be tried with nothing real at stake. */
+  chain: {
+    machine: "",
+    test: { machine: "Ak8iQwvCfzkqyEwe2Qf61NWLt3ERGqmq3D5TmpQVjU31" }
+  }
 };
 
 /* ============================================================
