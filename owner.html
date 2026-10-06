@@ -110,7 +110,8 @@
       const start = await showFix();
       if (start === null || start >= FIX.batches.length) return;
       await RealmMint.writeLines(MACHINE, FIX.batches, start, p => {
-        if (p.stage === "sign") fout("Approve round " + (Math.floor(p.from / 25) + 1) + " of " + Math.ceil(FIX.batches.length / 25) + " in your wallet…");
+        if (p.stage === "sign1") fout("Approve " + (p.at + 1) + " of " + FIX.batches.length + " in your wallet…");
+        else if (p.stage === "sign") fout("Approve round " + (Math.floor(p.from / 25) + 1) + " of " + Math.ceil(FIX.batches.length / 25) + " in your wallet…");
         else { fprog(p.next + " of " + FIX.batches.length + " transactions done"); fout("Round confirmed. Next one coming…"); }
       });
       fout("Checking every link against the contract…");
