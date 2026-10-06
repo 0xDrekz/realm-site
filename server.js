@@ -313,7 +313,7 @@ const server = http.createServer((req, res) => {
       if (!rpcAllowed(ip)) return res.writeHead(429).end();
       // ?net=devnet is the rehearsal on Solana's free test network
       const target = /[?&]net=devnet\b/.test(req.url) ? "https://api.devnet.solana.com"
-        : ENV.key ? `https://mainnet.helius-rpc.com/?api-key=${ENV.key}` : "https://api.mainnet-beta.solana.com";
+        : "https://api.mainnet-beta.solana.com";      // the public mainnet RPC, as asked
       // if the paid RPC turns us away (a bad or missing key), fall back to the public one
       const PUBLIC = /[?&]net=devnet\b/.test(req.url) ? "https://api.devnet.solana.com" : "https://api.mainnet-beta.solana.com";
       const go = (url, retry) => {
