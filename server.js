@@ -292,6 +292,7 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/holders") urlPath = "/holders.html";
   if (urlPath === "/map") urlPath = "/map.html";
   if (urlPath === "/mint") urlPath = "/mint.html";
+  if (urlPath === "/owner") urlPath = "/owner.html";
 
   /* ---- the mint page's line to Solana ----
      The page in the visitor's browser reads the candy machine and sends the
@@ -300,7 +301,8 @@ const server = http.createServer((req, res) => {
      turns browsers away. Only the calls minting needs are let through. */
   if (urlPath === "/api/rpc" && req.method === "POST") {
     const ALLOW = new Set(["getAccountInfo", "getMultipleAccounts", "getLatestBlockhash", "sendTransaction",
-      "getSignatureStatuses", "getBalance", "getMinimumBalanceForRentExemption", "simulateTransaction", "getSlot", "getBlockHeight"]);
+      "getSignatureStatuses", "getBalance", "getMinimumBalanceForRentExemption", "simulateTransaction", "getSlot", "getBlockHeight",
+      "isBlockhashValid", "getEpochInfo"]);
     let body = "";
     req.on("data", c => { body += c; if (body.length > 200_000) req.destroy(); });
     req.on("end", () => {
