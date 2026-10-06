@@ -27,8 +27,8 @@
     <h2 style="color:#9ff5d2">Fix the images</h2>
     <p class="h-note">Writes the corrected links for all 1,111 beings into the mint contract
       (818 change; the rest are rewritten unchanged). Every link was checked first: each image matches
-      provenance.json. Signed by <b>BC5CV6iv…C45M2</b> in <b>7 rounds</b> of up to 16 transactions.
-      Cost: about 0.0012 SOL in total. If it stops, tap again: it carries on where it left off.</p>
+      provenance.json. Signed by <b>BC5CV6iv…C45M2</b>: 75 transactions, in 3 rounds of up to 25. Phantom asks once per round; MetaMask asks for each one.
+      Cost: about 0.0008 SOL in total. If it stops, tap again: it carries on where it left off.</p>
     <p class="h-note">Progress: <span data-fprog>reading…</span></p>
     <button class="m-go" type="button" data-fix>Connect &amp; fix the images</button>
     <p class="h-note" data-fout></p>
@@ -102,7 +102,7 @@
       return b;
     } catch (e) { fprog("could not read the contract, refresh to retry"); return null; }
   }
-  fetch("fix-lines.json?v=1").then(r => r.json()).then(j => { FIX = j; setTimeout(showFix, 2000); });
+  fetch("fix-lines.json?v=2").then(r => r.json()).then(j => { FIX = j; setTimeout(showFix, 2000); });
   $("[data-fix]").addEventListener("click", async () => {
     try {
       const me = await RealmMint.connect();
@@ -110,7 +110,7 @@
       const start = await showFix();
       if (start === null || start >= FIX.batches.length) return;
       await RealmMint.writeLines(MACHINE, FIX.batches, start, p => {
-        if (p.stage === "sign") fout("Approve round " + (Math.floor(p.from / 16) + 1) + " of " + Math.ceil(FIX.batches.length / 16) + " in your wallet…");
+        if (p.stage === "sign") fout("Approve round " + (Math.floor(p.from / 25) + 1) + " of " + Math.ceil(FIX.batches.length / 25) + " in your wallet…");
         else { fprog(p.next + " of " + FIX.batches.length + " transactions done"); fout("Round confirmed. Next one coming…"); }
       });
       fout("Checking every link against the contract…");
