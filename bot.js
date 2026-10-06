@@ -261,6 +261,37 @@ function start({ root }) {
   })();
 }
 
+/* Post one already-minted being by hand (one the bot missed, e.g. minted before it woke).
+   Only REALM beings, each at most once per run, at most once a minute. */
+const announced = new Set(); let lastAnnounce = 0;
+async function announce(root, assetId) {
+  const token = envVar("TG_BOT_TOKEN"), chat = envVar("TG_CHAT_ID");
+  if (!token || !chat) return { ok: false, problem: "TG_BOT_TOKEN / TG_CHAT_ID not set" };
+  if (announced.has(assetId)) return { ok: false, problem: "already posted" };
+  if (Date.now() - lastAnnounce < 60_000) return { ok: false, problem: "wait a minute" };
+  const D = readData(root);
+  const collection = envVar("COLLECTION") || D.CONFIG.collectionAddress;
+  const machine = envVar("CANDY_MACHINE") || (D.CONFIG.chain && D.CONFIG.chain.machine) || "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7";
+  const all = await collectionAssets(collection);
+  const a = all.find(x => x.id === assetId);
+  if (!a) return { ok: false, problem: "not a REALM being" };
+  lastAnnounce = Date.now(); announced.add(assetId);
+  let tierOf = () => "";
+  try { const md = JSON.parse(fs.readFileSync(path.join(root, "map-data.json"))); tierOf = id => (md.beings[id - 1] || [])[0] || ""; } catch {}
+  const idOf = name => Number((name.match(/#(\d+)/) || [])[1] || 0);
+  const tiers = {};
+  all.filter(x => x.owner === a.owner).forEach(x => { const t = tierOf(idOf(x.name)); if (t) tiers[t] = (tiers[t] || 0) + 1; });
+  const mintedW = all.reduce((s, x) => s + ((D.TIERS.find(t => t.name === tierOf(idOf(x.name))) || {}).weight || 0), 0);
+  const mineW = Object.entries(tiers).reduce((s, [t, c]) => s + c * ((D.TIERS.find(x => x.name === t) || {}).weight || 0), 0);
+  const minted = await mintedCount(machine);
+  const text = caption(D, { name: a.name, tier: tierOf(idOf(a.name)), owner: a.owner, tiers, tokens: 0, minted, field: (D.TOTAL_WEIGHT - mintedW) + (mintedW - mineW) });
+  let img = ""; try { img = (await getJSON(a.uri)).image || ""; } catch {}
+  const reply = /^https:\/\//.test(img)
+    ? await telegram(token, "sendPhoto", { chat_id: chat, photo: img, caption: text, parse_mode: "HTML", reply_markup: buttons(D) })
+    : await telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: buttons(D) });
+  return reply.ok ? { ok: true, said: "Posted " + a.name + " to the Telegram group." } : { ok: false, problem: reply.description };
+}
+
 /* A one-off check that the token and group id in Railway work: posts a fixed
    line to the group. At most once a minute, whoever asks, so the open
    address cannot be used to spam the group. */
@@ -327,4 +358,4 @@ async function sample(root) {
               : { ok: false, problem: "Telegram refused them.", telegram: last };
 }
 
-module.exports = { start, caption, readData, range, test, sample, _chain: { mintedCount, collectionAssets } };
+module.exports = { start, caption, readData, range, test, sample, announce, _chain: { mintedCount, collectionAssets } };
