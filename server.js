@@ -42,7 +42,8 @@ const TYPES = {
    ============================================================ */
 
 const ENV = {
-  key:   process.env.HELIUS_KEY || "",
+  // the key alone, or the whole Helius RPC URL pasted in (the key is taken from its api-key=)
+  key:   (((process.env.HELIUS_KEY || "").match(/api-key=([A-Za-z0-9-]+)/) || [])[1] || (process.env.HELIUS_KEY || "")).trim(),
   col:   process.env.COLLECTION || "",
   mint:  process.env.TOKEN_MINT || ""
 };
@@ -344,7 +345,7 @@ const server = http.createServer((req, res) => {
       if (!rpcAllowed(ip)) return res.writeHead(429).end();
       // ?net=devnet is the rehearsal on Solana's free test network
       const target = /[?&]net=devnet\b/.test(req.url) ? "https://api.devnet.solana.com"
-        : "https://api.mainnet-beta.solana.com";      // the public mainnet RPC, as asked
+        : ENV.key ? `https://mainnet.helius-rpc.com/?api-key=${ENV.key}` : "https://api.mainnet-beta.solana.com";
       // if the paid RPC turns us away (a bad or missing key), fall back to the public one
       const PUBLIC = /[?&]net=devnet\b/.test(req.url) ? "https://api.devnet.solana.com" : "https://api.mainnet-beta.solana.com";
       const go = (url, retry) => {
