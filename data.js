@@ -61,7 +61,7 @@ const CONFIG = {
      /mint?net=devnet, so the page can be tried with nothing real at stake. */
   chain: {
     machine: "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7",
-    test: { machine: "Ak8iQwvCfzkqyEwe2Qf61NWLt3ERGqmq3D5TmpQVjU31" }
+    test: { machine: "6xZeuoerktGWJDXmRHxiQPRHWouXacyVJPWip6ZHxiC2" }
   }
 };
 
