@@ -45,7 +45,7 @@ const ENV = {
   // the key alone, or the whole Helius RPC URL pasted in (the key is taken from its api-key=)
   key:   (((process.env.HELIUS_KEY || "").match(/api-key=([A-Za-z0-9-]+)/) || [])[1] || (process.env.HELIUS_KEY || "")).trim(),
   col:   process.env.COLLECTION || "",
-  mint:  process.env.TOKEN_MINT || ""
+  mint:  process.env.TOKEN_MINT || ((() => { try { return (require("fs").readFileSync(require("path").join(__dirname, "data.js"), "utf8").match(/tokenMint:\s*"([1-9A-HJ-NP-Za-km-z]{32,44})"/) || [])[1] || ""; } catch { return ""; } })())
 };
 
 /* base58 has no 0, O, I or l, and a Solana address is 32 bytes, which

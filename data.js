@@ -54,6 +54,10 @@ const CONFIG = {
      who opens the site. If the wallet panel ever needs a paid RPC, it goes
      behind a small endpoint in server.js reading process.env, and the key
      lives in Railway's variables where nobody can read it. */
+  /* $DMT, launched on pump.fun 7 Oct 2026 by BC5CV6iv…C45M2. Public on the chain.
+     A TOKEN_MINT variable in Railway, if set, takes precedence. */
+  tokenMint: "Bn7ga2URqhCaT23HfLRZNHhVBpxxhycVdUSQAVpYpump",
+
   collectionAddress: "DyzuV3bcNthHcYVrVZbrJzJG64FpMT3jUAQyyyw3xAa1",
 
   /* Where 75% of every mint goes, and where the holder pool is paid from.

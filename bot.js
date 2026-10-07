@@ -238,7 +238,7 @@ function start({ root }) {
   const D = readData(root);
   const machine = envVar("CANDY_MACHINE") || (D.CONFIG.chain && D.CONFIG.chain.machine) || "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7";
   const collection = envVar("COLLECTION") || D.CONFIG.collectionAddress;
-  const tokenMint = envVar("TOKEN_MINT");
+  const tokenMint = envVar("TOKEN_MINT") || ((D.CONFIG && D.CONFIG.tokenMint) || "");
   // a being's tier, from its number: map-data.json lists them in order, #1 first
   let tierOf = () => "";
   try { const md = JSON.parse(fs.readFileSync(path.join(root, "map-data.json"))); tierOf = id => (md.beings[id - 1] || [])[0] || ""; } catch {}
