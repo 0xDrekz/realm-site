@@ -607,3 +607,6 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .rw-wallet b{color:#e3ba5c}
 .rw-wallet a{color:#e3ba5c;text-decoration:none}
 .rw-wallet a:hover{text-decoration:underline}
+.wal-full{display:block;margin-top:14px;padding:12px 14px;text-align:center;text-decoration:none;
+  background:var(--gold,#e3ba5c);color:#05030b;font-family:'Space Grotesk',system-ui,sans-serif;
+  font-weight:700;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase}

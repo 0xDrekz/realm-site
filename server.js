@@ -135,13 +135,23 @@ async function tokensOf(address) {
   return tokens;
 }
 
+/* a being's picture link, read from its metadata once and kept: it never changes */
+const imageOf = new Map();
 async function holdings(address) {
-  const mine = (await chainBeings()).filter(b => b.owner === address);
+  const all = await chainBeings();
+  const mine = all.filter(b => b.owner === address);
   const beings = await Promise.all(mine.map(async b => {
-    let image = ""; try { image = (await (await fetch(b.uri, { redirect: "follow" })).json()).image || ""; } catch {}
-    return { tier: b.tier, name: b.name, being: b.being, image };
+    let image = imageOf.get(b.uri) || "";
+    if (!image) { try { image = (await (await fetch(b.uri, { redirect: "follow" })).json()).image || ""; if (image) imageOf.set(b.uri, image); } catch {} }
+    return { n: b.n, id: b.id, tier: b.tier, name: b.name, being: b.being, image };
   }));
-  return { beings, tokens: await tokensOf(address).catch(() => 0) };
+  // where this wallet stands: holders ranked by weight, ties share a place
+  const w = new Map();
+  for (const b of all) if (b.tier) w.set(b.owner, (w.get(b.owner) || 0) + (WEIGHTS[b.tier] || 0));
+  const mineW = w.get(address) || 0;
+  const rank = mineW ? 1 + [...w.values()].filter(x => x > mineW).length : null;
+  return { beings, tokens: await tokensOf(address).catch(() => 0),
+           rank, holders: w.size, minted: all.filter(b => b.tier).length };
 }
 
 async function holdingsHelius(address) {
@@ -328,6 +338,7 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/map") urlPath = "/map.html";
   if (urlPath === "/mint") urlPath = "/mint.html";
   if (urlPath === "/owner") urlPath = "/owner.html";
+  if (urlPath === "/wallet") urlPath = "/wallet.html";
 
   /* ---- the mint page's line to Solana ----
      The page in the visitor's browser reads the candy machine and sends the

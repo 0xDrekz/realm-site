@@ -257,7 +257,7 @@
         + '<figcaption>' + esc(t.name || b.tier) + '</figcaption></figure>';
     }).join("") + (beings.length > 24 ? '<p class="h-more">+' + (beings.length - 24) + ' more</p>' : "");
 
-    return '<p class="h-who"><b>' + short(addr) + '</b></p>'
+    return '<p class="h-who"><b>' + short(addr) + '</b> &middot; <a href="/wallet?a=' + esc(addr) + '">open the full wallet page &rarr;</a></p>'
       + '<div class="h-grid">' + grid + '</div>'
       + '<div class="h-sum">'
         + '<div><span>Beings</span><b class="num">' + fmt(beings.length) + '</b></div>'

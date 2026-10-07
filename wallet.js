@@ -114,7 +114,7 @@
           say('<p class="wal-bad">' + (d.error || "Could not read the chain just now.")
               + '</p>');
         } else {
-          say(render(d));
+          say(render(d) + '<a class="wal-full" href="/wallet?a=' + address + '">See every being and the full breakdown &rarr;</a>');
         }
       } catch {
         say('<p class="wal-bad">Could not reach the chain. Try again in a moment.</p>');
