@@ -413,6 +413,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  /* does the Helius key in Railway work? Says yes or no, never shows the key */
+  if (urlPath === "/api/helius-check") {
+    const send = o => res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(o));
+    if (!ENV.key) return send({ helius: "not set" });
+    rpc("getSlot", []).then(slot => send({ helius: "works", slot }))
+      .catch(e => send({ helius: "rejected", reason: String(e.message || e).replace(ENV.key, "…").slice(0, 120) }));
+    return;
+  }
+
   if (urlPath === "/api/bot-announce") {
     const id = new URL(req.url, "http://x").searchParams.get("asset") || "";
     if (!ADDRESS.test(id)) return res.writeHead(400).end();
