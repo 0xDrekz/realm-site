@@ -252,7 +252,7 @@
 
     const grid = beings.slice(0, 24).map(b => {
       const t = tierOf(b.tier) || {};
-      const src = safeUrl(b.image).replace(/^ipfs:\/\//i, "https://ipfs.io/ipfs/")
+      const src = safeUrl(b.image).replace(/^https:\/\/(?:gateway\.irys\.xyz|arweave\.net)\/([A-Za-z0-9_-]{43,44})$/, "/img/$1").replace(/^ipfs:\/\//i, "https://ipfs.io/ipfs/")
                                   .replace(/^ar:\/\//i, "https://arweave.net/")
                || ("preview/" + (t.key || "common") + ".png" + ART);
       return '<figure style="--c:' + (t.color || "#9d8fc4") + '">'

@@ -330,6 +330,9 @@ const PAYOUT = (() => {
   });
 })();
 
+/* the last 120 pictures fetched, so a busy wallet page costs one fetch each */
+const IMGS = new Map();
+
 /* the mint page polls while a mint lands: generous, but not a free RPC */
 const rpcHits = new Map();
 function rpcAllowed(ip) {
@@ -487,6 +490,32 @@ const server = http.createServer((req, res) => {
     PAYOUT.status(a || null)
       .then(d => res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(d)))
       .catch(() => res.writeHead(502, { "Content-Type": TYPES[".json"] }).end(JSON.stringify({ error: "Could not read the payout just now." })));
+    return;
+  }
+
+  /* ---- being pictures, served from our own address ----
+     The Arweave gateway redirects to CDN hosts some browsers, blockers and
+     mobile networks refuse, so the pictures come through here instead. An
+     Arweave id never changes what it points to, so it can be cached forever. */
+  const img = urlPath.match(/^\/img\/([A-Za-z0-9_-]{43,44})$/);
+  if (img) {
+    const id = img[1], hit = IMGS.get(id);
+    const send = (buf, type) => res.writeHead(200, { "Content-Type": type, "Cache-Control": "public, max-age=31536000, immutable" }).end(buf);
+    if (hit) return send(hit.buf, hit.type);
+    (async () => {
+      for (const base of ["https://gateway.irys.xyz/", "https://arweave.net/"]) {
+        try {
+          const r = await fetch(base + id, { redirect: "follow", signal: AbortSignal.timeout(15_000) });
+          const type = r.headers.get("content-type") || "";
+          if (!r.ok || !/^image\//.test(type)) continue;
+          const buf = Buffer.from(await r.arrayBuffer());
+          if (buf.length > 3_000_000) continue;
+          IMGS.set(id, { buf, type }); if (IMGS.size > 120) IMGS.delete(IMGS.keys().next().value);
+          return send(buf, type);
+        } catch { /* try the next gateway */ }
+      }
+      res.writeHead(502).end();
+    })();
     return;
   }
 

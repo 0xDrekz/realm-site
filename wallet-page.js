@@ -22,6 +22,8 @@
     c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const safeUrl = u => /^https:\/\//i.test(String(u || "")) ? String(u) : "";
 
+  // pictures through our own address (see /img/ in server.js); the original link is the fallback
+  const viaUs = u => { const m = String(u || "").match(/^https:\/\/(?:gateway\.irys\.xyz|arweave\.net)\/([A-Za-z0-9_-]{43,44})$/); return m ? "/img/" + m[1] : u; };
   const W = TOTAL_WEIGHT, POOL = POOL_FULL, TOKEN = TOKEN_NAME;
   const tierOf = name => TIERS.find(t => t.name === name || t.key === name) || { name, weight: 0, color: "#9d8fc4" };
   const multFor = bal => TOKEN_BANDS.reduce((m, b) => bal >= b.hold ? b.mult : m, 1);
@@ -127,10 +129,10 @@
 
     const grid = beings.map(b => {
       const t = tierOf(b.tier);
-      const src = safeUrl(b.image);
+      const src = safeUrl(b.image) ? viaUs(b.image) : "";
       const link = b.id ? 'https://solscan.io/token/' + esc(b.id) : '#';
       return '<a class="w-being" style="--c:' + t.color + '" href="' + link + '" target="_blank" rel="noopener">'
-        + '<div class="w-pic">' + (src ? '<img src="' + esc(src) + '" alt="' + esc(b.name) + '" loading="lazy">' : '')
+        + '<div class="w-pic">' + (src ? '<img src="' + esc(src) + '" data-orig="' + esc(b.image) + '" alt="' + esc(b.name) + '" loading="lazy">' : '')
           + '<div class="ph"' + (src ? ' hidden' : '') + '>#' + esc(b.n || "") + '</div>'
           + '<span class="w-tag">' + esc(t.name) + '</span></div>'
         + '<div class="w-cap"><b>' + esc(b.name) + '</b><i>' + esc(b.being || "")
@@ -184,6 +186,7 @@
 
   function wire(a, d) {
     out.querySelectorAll(".w-pic img").forEach(img => img.addEventListener("error", () => {
+      if (img.dataset.orig && img.src.indexOf(img.dataset.orig) < 0) { img.src = img.dataset.orig; return; }
       img.remove(); const ph = img.parentNode && img.parentNode.querySelector(".ph"); if (ph) ph.hidden = false;
     }));
     const copy = (txt, btn, done) => {
