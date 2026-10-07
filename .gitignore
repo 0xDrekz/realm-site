@@ -2,3 +2,4 @@ node_modules/
 round*/
 __pycache__/
 snapshot-data/
+posts/*.mp4
