@@ -79,7 +79,10 @@
       $$("[data-minted]").forEach(el => el.textContent = n.toLocaleString());
       if (bar) bar.style.width = Math.min(100, (n / TOTAL_BEINGS) * 100) + "%";
     }
-    if (s.dmt && s.dmt.mcap) $$("[data-live-mcap]").forEach(el => el.textContent = usd(s.dmt.mcap));
+    if (s.token) $$("[data-live-mcap]").forEach(el => {
+      el.innerHTML = '<a href="https://pump.fun/coin/' + encodeURIComponent(s.token) + '" target="_blank" rel="noopener" style="color:inherit">'
+        + (s.dmt && s.dmt.mcap ? usd(s.dmt.mcap) : "LIVE") + ' &nearr;</a>';
+    });
     if (s.rewards && s.rewards.sol != null)
       $$("[data-rw-bal]").forEach(el => el.textContent = s.rewards.sol.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " SOL");
   }).catch(() => {});

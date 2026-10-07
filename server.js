@@ -298,7 +298,7 @@ async function readStats() {
       rewards = { address: REWARDS, sol: Math.round((r.value / 1e9) * 100) / 100 };
     } catch { /* unknown, not zero */ }
   }
-  return { minted, dmt, rewards, at: Date.now() };
+  return { minted, dmt, rewards, token: ENV.mint || null, at: Date.now() };
 }
 
 /* ---- the map ----

@@ -117,8 +117,8 @@
     const statsRow = '<section class="w-stats">'
       + '<div><span>Beings</span><b class="num">' + fmt(beings.length) + '</b><i>held</i></div>'
       + '<div><span>Weight</span><b class="num">' + fmt(w) + '</b><i>points</i></div>'
-      + '<div><span>' + TOKEN + '</span><b class="num">' + (stats && stats.dmt != null ? fmt(tokens) : '&mdash;') + '</b><i>'
-        + (stats && stats.dmt != null ? 'held' : 'launches after the mint') + '</i></div>'
+      + '<div><span>' + TOKEN + '</span><b class="num">' + (stats && stats.token ? fmt(tokens) : '&mdash;') + '</b><i>'
+        + (stats && stats.token ? 'held' : 'not launched yet') + '</i></div>'
       + '<div><span>Multiplier</span><b class="num">' + m.toFixed(1) + '&times;</b><i>' + (m > 1 ? 'from ' + TOKEN : 'no ' + TOKEN + ' yet') + '</i></div>'
       + '</section>';
 
@@ -169,6 +169,7 @@
       + '<section class="h-card"><h2>With ' + TOKEN + '</h2>'
         + '<p class="h-note">' + TOKEN + ' multiplies every being in the wallet. What this holding could receive at each band:</p>'
         + '<div class="w-bands">' + bands + '</div>'
+        + (stats && stats.token ? '<div class="w-share" style="margin-top:12px"><a class="w-btn" href="https://pump.fun/coin/' + esc(stats.token) + '" target="_blank" rel="noopener">Buy ' + TOKEN + ' on pump.fun</a></div>' : '')
         + '<p class="w-fine">"Up to" is the most it could reach, if no other holder had ' + TOKEN + '. The more others hold, the closer it comes back to the first row.</p></section>'
       + pool
       + '<section class="h-card"><h2>Share</h2><div class="w-share">'
