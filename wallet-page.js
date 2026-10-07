@@ -45,8 +45,11 @@
   const start = new URLSearchParams(location.search).get("a") || "";
   if (start) { input.value = start; if (ADDR.test(start)) load(start); }
 
-  let stats = null;
-  const statsP = fetch("/api/stats").then(r => r.json()).then(s => (stats = s)).catch(() => null);
+  let stats = null, RANK = {};
+  const statsP = Promise.all([
+    fetch("/api/stats").then(r => r.json()).then(s => (stats = s)).catch(() => null),
+    fetch("rarity.json").then(r => r.json()).then(r => (RANK = r)).catch(() => null)   // rarity rank by number, from tools/rarity.py
+  ]);
 
   async function load(a) {
     say('<section class="h-card"><p class="h-note">Reading the chain…</p></section>');
@@ -130,7 +133,8 @@
         + '<div class="w-pic">' + (src ? '<img src="' + esc(src) + '" alt="' + esc(b.name) + '" loading="lazy">' : '')
           + '<div class="ph"' + (src ? ' hidden' : '') + '>#' + esc(b.n || "") + '</div>'
           + '<span class="w-tag">' + esc(t.name) + '</span></div>'
-        + '<div class="w-cap"><b>' + esc(b.name) + '</b><i>' + esc(b.being || "") + '</i>'
+        + '<div class="w-cap"><b>' + esc(b.name) + '</b><i>' + esc(b.being || "")
+          + (RANK[b.n] ? ' &middot; Rank #' + fmt(RANK[b.n]) : '') + '</i>'
           + '<em class="num">' + t.weight + (t.weight === 1 ? ' pt' : ' pts') + ' &middot; &asymp; ' + sol(t.weight * PT) + ' SOL</em></div>'
         + '</a>';
     }).join("");

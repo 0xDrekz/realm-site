@@ -80,6 +80,13 @@ function holdingLines(D, tiers) {
    with beings not yet minted counted at 1x. Without it (the chain did not
    answer) the field is assumed to match this wallet's band, which gives the
    beings' reward alone. */
+/* rarity rank by number (rarity.json, made by tools/rarity.py) */
+let RANKS = null;
+function rankOf(name) {
+  if (!RANKS) { try { RANKS = JSON.parse(fs.readFileSync(path.join(__dirname, "rarity.json"), "utf8")); } catch { RANKS = {}; } }
+  return RANKS[(String(name).match(/#(\d+)/) || [])[1]] || null;
+}
+
 function caption(D, { name, tier, owner, tiers, tokens, minted, field }) {
   const count = Object.values(tiers).reduce((a, n) => a + n, 0);
   const weight = D.TIERS.reduce((a, t) => a + t.weight * (tiers[t.name] || 0), 0);
@@ -92,7 +99,7 @@ function caption(D, { name, tier, owner, tiers, tokens, minted, field }) {
     `🌀 <b>A being has crossed</b>`,
     `${bar(minted, D.TOTAL_BEINGS)}  <b>${fmt(minted)} / ${fmt(D.TOTAL_BEINGS)}</b> minted  ·  ${left(D.TOTAL_BEINGS - minted)}`,
     ``,
-    `<b>${esc(name)}</b>  ·  ${esc(tier)}${t ? ` (weight ${t.weight})` : ""}`,
+    `<b>${esc(name)}</b>  ·  ${esc(tier)}${t ? ` (weight ${t.weight})` : ""}${rankOf(name) ? `  ·  Rank #${fmt(rankOf(name))} of ${fmt(D.TOTAL_BEINGS)}` : ""}`,
     `Minted by <a href="https://solscan.io/account/${esc(owner)}">${esc(short(owner))}</a>`,
     ``,
     `Beings held: <b>${fmt(count)}</b>  ·  weight ${fmt(weight)}`,

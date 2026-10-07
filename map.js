@@ -23,6 +23,9 @@
 
 (() => {
   "use strict";
+  // rarity rank by number (rarity.json, made by tools/rarity.py)
+  let RARITY = {};
+  fetch("rarity.json").then(r => r.json()).then(r => { RARITY = r; }).catch(() => {});
 
   const $ = (s, r = document) => r.querySelector(s);
   const ART = "?v=" + String(CONFIG.provenance || "").slice(0, 8);
@@ -524,7 +527,7 @@
       + '<div class="m-head">'
         + '<p class="m-rank" style="color:' + tier.color + '">' + esc(b.tier) + ' &middot; ' + rank + '</p>'
         + '<h2 class="m-name">' + esc(b.being) + '</h2>'
-        + '<p class="m-num">REALM #' + b.n + ' &middot; weight ' + (tier.weight || 0) + ' &middot; ' + esc(REGION[b.tier].name) + '</p>'
+        + '<p class="m-num">REALM #' + b.n + (RARITY[b.n] ? ' &middot; rank #' + fmt(RARITY[b.n]) : '') + ' &middot; weight ' + (tier.weight || 0) + ' &middot; ' + esc(REGION[b.tier].name) + '</p>'
       + '</div>'
       + (traits ? '<div class="m-traits">' + traits + '</div>' : '')
       + '<div class="m-sec"><h3>Held by</h3><div class="m-owner"><code>' + esc(short(b.owner)) + '</code>'
