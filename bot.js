@@ -198,7 +198,22 @@ async function mintedCount(machine) {
   return Number(Buffer.from(r.value.data[0], "base64").readBigUInt64LE(0));
 }
 async function collectionAssets(collection) {
-  const res = await pub("getProgramAccounts", [CORE, { encoding: "base64", filters: [{ memcmp: { offset: 0, bytes: "2" } }, { memcmp: { offset: 34, bytes: collection } }] }]);
+  /* with Helius: its index of a collection's NFTs (one fast call per 1,000) */
+  const h = heliusUrl();
+  if (h) {
+    try {
+      const out = [];
+      for (let page = 1; page <= 3; page++) {
+        const r = await rpcAt(h, "getAssetsByGroup", { groupKey: "collection", groupValue: collection, page, limit: 1000 });
+        const items = (r && r.items) || [];
+        for (const a of items) out.push({ id: a.id, owner: a.ownership && a.ownership.owner,
+          name: (a.content && a.content.metadata && a.content.metadata.name) || "", uri: (a.content && a.content.json_uri) || "" });
+        if (items.length < 1000) break;
+      }
+      return out;
+    } catch { /* fall back to reading the accounts directly */ }
+  }
+  const res = await rpcAt(PUBLIC_RPC, "getProgramAccounts", [CORE, { encoding: "base64", filters: [{ memcmp: { offset: 0, bytes: "2" } }, { memcmp: { offset: 34, bytes: collection } }] }]);
   return res.map(({ pubkey, account }) => {
     const d = Buffer.from(account.data[0], "base64");
     const owner = b58(d.subarray(1, 33));
@@ -240,7 +255,9 @@ function start({ root }) {
     const fresh = all.filter(a => !seen.has(a.id)).sort((a, b) => idOf(a.name) - idOf(b.name));
     let k = last;
     for (const a of fresh) { seen.add(a.id); queue.push({ a, all, minted: Math.min(n, ++k) }); }
-    last = n;
+    // only what was actually seen counts as handled: an index a few seconds
+    // behind the chain just means the rest are picked up on the next look
+    last = Math.min(n, k);
   }
 
   async function post({ a, all, minted }) {
