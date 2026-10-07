@@ -26,7 +26,7 @@ const path  = require("path");
 const vm    = require("vm");
 const https = require("https");
 
-const POLL_MS = 15_000;        // how often to look for new mints
+const POLL_MS = 6_000;         // how often to look for new mints (cheap: one small read)
 const SEND_GAP_MS = 3_500;     // Telegram allows about 20 posts a minute in a group
 
 /* the numbers, out of data.js */
@@ -164,14 +164,26 @@ function b58(buf) {
   for (const x of buf) { if (x) break; s = "1" + s; }
   return s;
 }
-function pub(method, params) {
+/* Helius when its key is set (faster, higher limits), the public RPC if Helius
+   is missing or refuses. HELIUS_KEY may hold the key or the whole RPC URL. */
+function heliusUrl() {
+  const raw = envVar("HELIUS_KEY");
+  const key = ((raw.match(/api-key=([A-Za-z0-9-]+)/) || [])[1] || raw).trim();
+  return key ? `https://mainnet.helius-rpc.com/?api-key=${key}` : "";
+}
+function rpcAt(url, method, params) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method, params });
-    const r = https.request(PUBLIC_RPC, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }, timeout: 20_000 },
+    const r = https.request(url, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }, timeout: 20_000 },
       resp => { let d = ""; resp.on("data", c => d += c); resp.on("end", () => {
         try { const j = JSON.parse(d); j.error ? reject(new Error(j.error.message)) : resolve(j.result); } catch { reject(new Error("bad rpc reply " + resp.statusCode)); } }); });
     r.on("timeout", () => r.destroy(new Error("rpc timeout"))); r.on("error", reject); r.end(body);
   });
+}
+async function pub(method, params) {
+  const h = heliusUrl();
+  if (h) { try { return await rpcAt(h, method, params); } catch { /* fall back */ } }
+  return rpcAt(PUBLIC_RPC, method, params);
 }
 function getJSON(url) {
   return new Promise((resolve, reject) => {

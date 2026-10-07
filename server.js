@@ -101,6 +101,11 @@ function rpc(method, params, url) {
    being name from map-data.json. Shared by the map, the leaderboard and the
    wallet checker; read at most once a minute. */
 const PUBLIC_RPC = "https://api.mainnet-beta.solana.com";
+/* Helius first when its key is set, the public RPC if it is missing or refuses */
+async function rpcBest(method, params) {
+  if (ENV.key) { try { return await rpc(method, params); } catch { /* fall back */ } }
+  return rpc(method, params, PUBLIC_RPC);
+}
 const COLLECTION_ADDR = () => ENV.col || (readConfig().collectionAddress || "");
 let MAPDATA = null;
 function readConfig() {
@@ -109,7 +114,7 @@ function readConfig() {
 }
 let chainCache = null, chainAt = 0, chainBusy = null;
 async function chainBeings() {
-  if (chainCache && Date.now() - chainAt < 60_000) return chainCache;
+  if (chainCache && Date.now() - chainAt < (ENV.key ? 10_000 : 60_000)) return chainCache;
   chainBusy = chainBusy || (async () => {
     if (!MAPDATA) MAPDATA = JSON.parse(fs.readFileSync(path.join(ROOT, "map-data.json"))).beings;
     const assets = await require("./bot")._chain.collectionAssets(COLLECTION_ADDR());
@@ -124,7 +129,7 @@ async function chainBeings() {
 }
 async function tokensOf(address) {
   if (!ENV.mint) return 0;
-  const res = await rpc("getTokenAccountsByOwner", [address, { mint: ENV.mint }, { encoding: "jsonParsed" }], PUBLIC_RPC);
+  const res = await rpcBest("getTokenAccountsByOwner", [address, { mint: ENV.mint }, { encoding: "jsonParsed" }]);
   let tokens = 0;
   for (const acc of (res && res.value) || []) { const t = acc.account.data.parsed.info.tokenAmount; tokens += Math.floor(Number(t.amount) / 10 ** Number(t.decimals)); }
   return tokens;
@@ -186,7 +191,7 @@ const WEIGHTS = (() => {
   } catch { return {}; }
 })();
 let board = null, boardAt = 0, boardBusy = null;
-const BOARD_MS = 90_000;
+const BOARD_MS = 20_000;
 
 async function holders() {
   const owners = new Map();
@@ -203,8 +208,8 @@ async function holders() {
   if (ENV.mint) {
     for (const o of list.slice(0, 25)) {
       try {
-        const res = await rpc("getTokenAccountsByOwner",
-          [o.owner, { mint: ENV.mint }, { encoding: "jsonParsed" }], PUBLIC_RPC);
+        const res = await rpcBest("getTokenAccountsByOwner",
+          [o.owner, { mint: ENV.mint }, { encoding: "jsonParsed" }]);
         o.tokens = 0;
         for (const acc of (res && res.value) || []) {
           const t = acc.account.data.parsed.info.tokenAmount;
@@ -224,7 +229,7 @@ async function holders() {
    the deepest pool for the token, its market cap, or its FDV where a market
    cap is not given. Either half is null when it cannot be known yet. */
 let stats = null, statsAt = 0, statsBusy = null;
-const STATS_MS = 60_000;
+const STATS_MS = 15_000;
 
 function getJSON(url) {
   return new Promise((resolve, reject) => {
@@ -246,8 +251,7 @@ const REWARDS = ((require("fs").readFileSync(path.join(ROOT, "data.js"), "utf8")
    byte 104 of its account, so the public RPC can count it: no paid API needed. */
 const MACHINE = process.env.CANDY_MACHINE || "5qG2B6RssAkpsg3KLJTbgLTbQUc6B6HBroPDh8UoCbd7";
 async function mintedFromMachine() {
-  const r = await rpc("getAccountInfo", [MACHINE, { encoding: "base64", dataSlice: { offset: 104, length: 8 } }],
-    "https://api.mainnet-beta.solana.com");
+  const r = await rpcBest("getAccountInfo", [MACHINE, { encoding: "base64", dataSlice: { offset: 104, length: 8 } }]);
   const b = Buffer.from(r.value.data[0], "base64");
   return Number(b.readBigUInt64LE(0));
 }
@@ -280,8 +284,7 @@ async function readStats() {
   let rewards = null;
   if (REWARDS) {
     try {
-      const r = await rpc("getBalance", [REWARDS],
-        ENV.key ? undefined : "https://api.mainnet-beta.solana.com");
+      const r = await rpcBest("getBalance", [REWARDS]);
       rewards = { address: REWARDS, sol: Math.round((r.value / 1e9) * 100) / 100 };
     } catch { /* unknown, not zero */ }
   }
@@ -293,7 +296,7 @@ async function readStats() {
    five minutes for everybody. The number comes out of the name ("REALM #17"),
    which is how the map finds the being's picture and traits in map-data.json. */
 let mapData = null, mapAt = 0, mapBusy = null;
-const MAP_MS = 45_000;      // the chain read underneath is shared and cached a minute
+const MAP_MS = 8_000;      // the chain read underneath is shared and cached a minute
 
 async function readMap() {
   const beings = (await chainBeings()).map(b => [b.n, b.owner, b.id]);
