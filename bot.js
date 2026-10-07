@@ -387,4 +387,11 @@ async function sample(root) {
               : { ok: false, problem: "Telegram refused them.", telegram: last };
 }
 
-module.exports = { start, caption, readData, range, test, sample, announce, _chain: { mintedCount, collectionAssets } };
+/* a plain message to the group, for the snapshot and the payout */
+async function notify(text) {
+  const token = envVar("TG_BOT_TOKEN"), chat = envVar("TG_CHAT_ID");
+  if (!token || !chat) return;
+  try { await telegram(token, "sendMessage", { chat_id: chat, text, disable_web_page_preview: true }); } catch { /* the payout carries on regardless */ }
+}
+
+module.exports = { start, caption, readData, range, test, sample, announce, notify, envVar, _chain: { mintedCount, collectionAssets, pub } };

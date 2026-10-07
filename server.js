@@ -313,6 +313,23 @@ async function readMap() {
   return { ready: true, beings, at: Date.now() };
 }
 
+/* ---- the snapshot at mint-out, and the holder payout (payout.js) ---- */
+const PAYOUT = (() => {
+  const bot = require("./bot"), D = bot.readData(ROOT);
+  const multFor = bal => D.TOKEN_BANDS.reduce((m, b) => bal >= b.hold ? b.mult : m, 1);
+  return require("./payout").create({
+    root: ROOT, rpc: rpcBest, envVar: bot.envVar, notify: bot.notify,
+    totalBeings: D.TOTAL_BEINGS, price: D.POOL_FULL / D.TOTAL_BEINGS, poolPercent: 100,
+    minted: () => bot._chain.mintedCount(MACHINE),
+    snapshotFrom: () => {
+      if (!MAPDATA) MAPDATA = JSON.parse(fs.readFileSync(path.join(ROOT, "map-data.json"))).beings;
+      return { rpc: rpcBest, collection: COLLECTION_ADDR(), tokenMint: ENV.mint,
+        assets: () => bot._chain.collectionAssets(COLLECTION_ADDR()),
+        tierOf: n => (MAPDATA[n - 1] || [])[0] || "", weightOf: t => WEIGHTS[t] || 0, multFor };
+    }
+  });
+})();
+
 /* the mint page polls while a mint lands: generous, but not a free RPC */
 const rpcHits = new Map();
 function rpcAllowed(ip) {
@@ -339,6 +356,9 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/mint") urlPath = "/mint.html";
   if (urlPath === "/owner") urlPath = "/owner.html";
   if (urlPath === "/wallet") urlPath = "/wallet.html";
+  if (urlPath === "/payout") urlPath = "/payout.html";
+  // the saved snapshot is served through /api/snapshot only, after its hash is checked
+  if (urlPath.startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
 
   /* ---- the mint page's line to Solana ----
      The page in the visitor's browser reads the candy machine and sends the
@@ -454,6 +474,22 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  /* ---- the snapshot and the payout, for anyone to check ---- */
+  if (urlPath === "/api/snapshot") {
+    const snap = PAYOUT.snapshot();
+    if (!snap) return res.writeHead(404, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify({ ready: false }));
+    return res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store",
+      "Content-Disposition": 'inline; filename="realm-snapshot.json"' }).end(JSON.stringify(snap, null, 1));
+  }
+  if (urlPath === "/api/payout") {
+    const a = new URL(req.url, "http://x").searchParams.get("address") || "";
+    if (a && !ADDRESS.test(a)) return res.writeHead(400).end();
+    PAYOUT.status(a || null)
+      .then(d => res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(d)))
+      .catch(() => res.writeHead(502, { "Content-Type": TYPES[".json"] }).end(JSON.stringify({ error: "Could not read the payout just now." })));
+    return;
+  }
+
   /* ---- the checker ---- */
   if (urlPath === "/api/holdings") {
     const send = (code, obj) => res.writeHead(code, {
@@ -516,4 +552,5 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`REALM is live on port ${PORT}`);
   // posts every new mint to Telegram; sleeps unless its variables are set
   require("./bot").start({ root: ROOT, rpc, holdings, env: ENV });
+  PAYOUT.start();
 });

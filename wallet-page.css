@@ -100,3 +100,6 @@
 .wpage [data-out]:empty{display:none}
 .w-pic .ph[hidden]{display:none}
 .wpage .h-note{font-family:'Space Grotesk',system-ui,sans-serif;line-height:1.55}
+.wpage .w-hero a,.wpage td a,.wpage .w-fine a{color:var(--gold);font-family:'Space Grotesk',system-ui,sans-serif}
+.w-kv{display:flex;justify-content:space-between;gap:14px;padding:10px 2px;border-bottom:1px solid rgba(227,186,92,.12);font-family:'Space Grotesk',system-ui,sans-serif}
+.w-kv span{color:var(--dim)}.w-kv b{color:var(--bone);font-weight:500;text-align:right}

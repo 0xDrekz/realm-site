@@ -56,7 +56,8 @@
       if (r.status === 503 || d.ready === false) return say('<section class="h-card"><p class="h-note">Nothing has been minted yet.</p></section>');
       if (!r.ok) return say('<section class="h-card"><p class="h-bad">' + esc(d.error || "Could not read the chain just now.") + '</p></section>');
       await statsP;
-      say(page(a, d));
+      const pay = await fetch("/api/payout?address=" + encodeURIComponent(a)).then(r => r.json()).catch(() => null);
+      say(page(a, d, pay));
       wire(a, d);
       document.title = "REALM — " + short(a);
     } catch {
@@ -64,7 +65,22 @@
     }
   }
 
-  function page(a, d) {
+  /* once the snapshot exists, the payout decides: show it first */
+  function payCard(pay) {
+    if (!pay || !pay.snapshot) return "";
+    const h = pay.holder;
+    if (!h) return '<section class="h-card"><h2>Payout</h2><p class="h-note">This wallet held no beings at the snapshot, so it is not in the payout. '
+      + '<a href="/payout">See the snapshot</a></p></section>';
+    const due = pay.dueAt ? new Date(pay.dueAt).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+    return '<section class="w-hero"><span>' + (h.paid ? 'Paid to this wallet' : 'Share in the payout') + '</span>'
+      + '<b class="num">' + (h.sol < 1 ? h.sol.toFixed(4) : h.sol.toFixed(3)) + '<small>SOL</small></b>'
+      + '<p>' + (h.paid ? 'Sent from the payout wallet. <a href="https://solscan.io/account/' + esc(pay.payoutWallet || "") + '" target="_blank" rel="noopener">See it on Solscan</a>'
+        : !h.payable ? 'Held back: this address is a program account (a marketplace listing, say), so it is settled by hand.'
+        : 'Due ' + esc(due) + '. Nothing to claim: it arrives in this wallet.') + '</p>'
+      + '<p><i>From the snapshot of ' + esc(new Date(pay.snapshot.takenAt).toLocaleDateString()) + ' &middot; <a href="/payout">every share</a></i></p></section>';
+  }
+
+  function page(a, d, pay) {
     const beings = (d.beings || []).slice();
     const tokens = d.tokens || 0;
     const head = '<section class="w-head">'
@@ -77,7 +93,7 @@
       + '</div></section>';
 
     if (!beings.length) {
-      return head + '<section class="h-card w-empty"><b>No beings in this wallet yet</b>'
+      return head + payCard(pay) + '<section class="h-card w-empty"><b>No beings in this wallet' + (pay && pay.snapshot ? ' now' : ' yet') + '</b>'
         + '<p class="h-note">' + (tokens ? 'It holds ' + fmt(tokens) + ' ' + TOKEN + ', which multiplies beings but earns nothing on its own. ' : '')
         + 'Each being carries weight, and weight is what the holder pool pays on.</p>'
         + '<div class="w-share"><a class="w-btn" href="/mint">Mint a being</a></div></section>';
@@ -145,7 +161,7 @@
       + '<p class="h-note">Paid once, from a snapshot of every wallet, when #' + fmt(TOTAL_BEINGS) + ' is minted. Nothing to claim: hold your beings and it comes to you. '
       + '<a href="https://solscan.io/account/' + CONFIG.rewardsWallet + '" target="_blank" rel="noopener">Rewards wallet on Solscan &nearr;</a></p></section>';
 
-    return head + hero + statsRow
+    return head + payCard(pay) + (pay && pay.snapshot ? "" : hero) + statsRow
       + '<section class="h-card"><h2>Beings</h2><div class="w-grid">' + grid + '</div>'
         + '<p class="w-fine">Tap a being to see it on Solscan.</p></section>'
       + '<section class="h-card"><h2>By tier</h2><div class="w-tiers">' + tierRows + '</div>'
