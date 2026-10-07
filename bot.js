@@ -32,7 +32,7 @@ const SEND_GAP_MS = 3_500;     // Telegram allows about 20 posts a minute in a g
 /* the numbers, out of data.js */
 function readData(root) {
   const src = fs.readFileSync(path.join(root, "data.js"), "utf8");
-  return vm.runInNewContext(src + "\n;({ TIERS, TOKEN_BANDS, TOKEN_NAME, TOTAL_BEINGS, TOTAL_WEIGHT, POOL_FULL, poolFrom, CONFIG });");
+  return vm.runInNewContext(src + "\n;({ TIERS, TOKEN_BANDS, TOKEN_NAME, TOTAL_BEINGS, TOTAL_WEIGHT, POOL_FULL, poolFrom, CONFIG, beingLink });");
 }
 
 /* the same three figures as holders.js: low, typical, high */
@@ -100,7 +100,7 @@ function caption(D, { name, tier, owner, tiers, tokens, minted, field }) {
     `${bar(minted, D.TOTAL_BEINGS)}  <b>${fmt(minted)} / ${fmt(D.TOTAL_BEINGS)}</b> minted  ·  ${left(D.TOTAL_BEINGS - minted)}`,
     ``,
     `<b>${esc(name)}</b>  ·  ${esc(tier)}${t ? ` (weight ${t.weight})` : ""}${rankOf(name) ? `  ·  Rank #${fmt(rankOf(name))} of ${fmt(D.TOTAL_BEINGS)}` : ""}`,
-    `Minted by <a href="https://solscan.io/account/${esc(owner)}">${esc(short(owner))}</a>`,
+    `Minted by <a href="https://dmt-realm.dev/wallet?a=${esc(owner)}">${esc(short(owner))}</a>`,
     ``,
     `Beings held: <b>${fmt(count)}</b>  ·  weight ${fmt(weight)}`,
     ...holdingLines(D, tiers),
@@ -117,11 +117,13 @@ function caption(D, { name, tier, owner, tiers, tokens, minted, field }) {
 
 /* The buttons under every mint post. "Mint now" goes to the launchpad once
    CONFIG.mintLink is set in data.js, and to the site until then. */
-function buttons(D) {
+function buttons(D, a) {
   const link = (D.CONFIG && /^https:\/\//.test(D.CONFIG.mintLink || "")) ? D.CONFIG.mintLink : "https://dmt-realm.dev";
+  // a being's own post gets a button to its art (wallet page now, the marketplace once listed)
+  const view = a && a.owner && D.beingLink ? [{ text: "View this being", url: D.beingLink(a.id, a.owner, (String(a.name).match(/#(\d+)/) || [])[1]) }] : [];
   return { inline_keyboard: [[
     { text: "🌀 Mint now", url: link },
-    { text: "Check a wallet", url: "https://dmt-realm.dev/holders" }
+    ...(view.length ? view : [{ text: "Check a wallet", url: "https://dmt-realm.dev/wallet" }])
   ]] };
 }
 
@@ -278,8 +280,8 @@ function start({ root }) {
     const text = caption(D, { name: a.name, tier: tierOf(idOf(a.name)), owner: a.owner, tiers, tokens, minted, field });
     let img = ""; try { img = (await getJSON(a.uri)).image || ""; } catch {}
     const reply = /^https:\/\//.test(img)
-      ? await telegram(token, "sendPhoto", { chat_id: chat, photo: img, caption: text, parse_mode: "HTML", reply_markup: buttons(D) })
-      : await telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: buttons(D) });
+      ? await telegram(token, "sendPhoto", { chat_id: chat, photo: img, caption: text, parse_mode: "HTML", reply_markup: buttons(D, a) })
+      : await telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: buttons(D, a) });
     if (!reply.ok && reply.parameters && reply.parameters.retry_after) { await wait(reply.parameters.retry_after * 1000); throw new Error("rate limited"); }
     if (!reply.ok) console.log("mint bot: telegram said", reply.description);
   }
@@ -323,8 +325,8 @@ async function announce(root, assetId) {
   const text = caption(D, { name: a.name, tier: tierOf(idOf(a.name)), owner: a.owner, tiers, tokens: 0, minted, field: (D.TOTAL_WEIGHT - mintedW) + (mintedW - mineW) });
   let img = ""; try { img = (await getJSON(a.uri)).image || ""; } catch {}
   const reply = /^https:\/\//.test(img)
-    ? await telegram(token, "sendPhoto", { chat_id: chat, photo: img, caption: text, parse_mode: "HTML", reply_markup: buttons(D) })
-    : await telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: buttons(D) });
+    ? await telegram(token, "sendPhoto", { chat_id: chat, photo: img, caption: text, parse_mode: "HTML", reply_markup: buttons(D, a) })
+    : await telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: buttons(D, a) });
   return reply.ok ? { ok: true, said: "Posted " + a.name + " to the Telegram group." } : { ok: false, problem: reply.description };
 }
 

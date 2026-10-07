@@ -91,7 +91,9 @@
       out.forEach(r => {
         const el = document.createElement(r.ok ? "a" : "div");
         if (r.ok) {
-          el.href = "https://solscan.io/token/" + r.asset + cluster; el.target = "_blank"; el.rel = "noopener";
+          // the art, not an explorer: the wallet page now, the marketplace once listed (beingLink in data.js)
+          el.href = cluster ? "https://solscan.io/token/" + r.asset + cluster : beingLink(r.asset, me, (String(r.name).match(/#(\d+)/) || [])[1]);
+          el.target = "_blank"; el.rel = "noopener";
           el.innerHTML = (r.image ? '<img alt="" src="' + r.image + '">' : "") + "<span>" + r.name + "</span>";
         } else { el.className = "bad"; el.textContent = r.taxed ? "Not minted: the mint refused this one (0.01 SOL kept). If you have not hit 5 or the mint is open, tell the team in Telegram with your wallet address." : "Did not go through. Nothing was taken but the fee."; }
         grid.prepend(el);

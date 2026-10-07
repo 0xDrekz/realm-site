@@ -64,6 +64,8 @@
       const pay = await fetch("/api/payout?address=" + encodeURIComponent(a)).then(r => r.json()).catch(() => null);
       say(page(a, d, pay));
       wire(a, d);
+      const hit = location.hash && document.getElementById(location.hash.slice(1));
+      if (hit) { hit.scrollIntoView({ behavior: "smooth", block: "center" }); hit.classList.add("w-hit"); }
       document.title = "REALM — " + short(a);
     } catch {
       say('<section class="h-card"><p class="h-bad">Could not reach the chain. Try again in a moment.</p></section>');
@@ -130,8 +132,10 @@
     const grid = beings.map(b => {
       const t = tierOf(b.tier);
       const src = safeUrl(b.image) ? viaUs(b.image) : "";
-      const link = b.id ? 'https://solscan.io/token/' + esc(b.id) : '#';
-      return '<a class="w-being" style="--c:' + t.color + '" href="' + link + '" target="_blank" rel="noopener">'
+      const m = (CONFIG.links && CONFIG.links.marketplace) || "";
+      // tap: the marketplace item once listed, the full-size picture until then
+      const link = m && b.id ? esc(m.replace("{mint}", b.id)) : src ? esc(src) : "#";
+      return '<a class="w-being" id="being-' + esc(b.n || "") + '" style="--c:' + t.color + '" href="' + link + '" target="_blank" rel="noopener">'
         + '<div class="w-pic">' + (src ? '<img src="' + esc(src) + '" data-orig="' + esc(b.image) + '" alt="' + esc(b.name) + '" loading="lazy">' : '')
           + '<div class="ph"' + (src ? ' hidden' : '') + '>#' + esc(b.n || "") + '</div>'
           + '<span class="w-tag">' + esc(t.name) + '</span></div>'
@@ -169,7 +173,7 @@
 
     return head + payCard(pay) + (pay && pay.snapshot ? "" : hero) + statsRow
       + '<section class="h-card"><h2>Beings</h2><div class="w-grid">' + grid + '</div>'
-        + '<p class="w-fine">Tap a being to see it on Solscan.</p></section>'
+        + '<p class="w-fine">Tap a being to see it on ' + ((CONFIG.links && CONFIG.links.marketplace) ? 'the marketplace' : 'Solscan') + '.</p></section>'
       + '<section class="h-card"><h2>By tier</h2><div class="w-tiers">' + tierRows + '</div>'
         + '<p class="w-fine">1 weight point &asymp; ' + PT.toFixed(4) + ' SOL at mint-out (' + sol(POOL, 2) + ' SOL &divide; ' + fmt(W) + ' points), before ' + TOKEN + '.</p></section>'
       + '<section class="h-card"><h2>With ' + TOKEN + '</h2>'

@@ -37,6 +37,12 @@ const CONFIG = {
   links: {
     x: "https://x.com/dmt_realm",
     telegram: "https://t.me/DMT_REALM",
+    /* Where "view this being" goes, everywhere (mint page, wallet pages, the
+       Telegram bot). Empty: the owner's wallet page on this site, which shows
+       the art. Once the collection is listed, put the item page here with
+       {mint} where the asset address goes, e.g.
+         "https://magiceden.io/item-details/{mint}"
+         "https://www.tensor.trade/item/{mint}"                          */
     marketplace: ""
   },
 
@@ -85,6 +91,14 @@ const ROYALTY_PERCENT = 5;
    smaller unit they are divided into — and they must add up to
    TOTAL_BEINGS.
    ============================================================ */
+/* The link for one being: the marketplace item page once CONFIG.links.marketplace
+   is set, the owner's wallet page on this site (scrolled to the being) until then. */
+function beingLink(asset, owner, n) {
+  const m = (CONFIG.links && CONFIG.links.marketplace) || "";
+  if (m && asset) return m.replace("{mint}", asset);
+  return "https://dmt-realm.dev/wallet?a=" + owner + (n ? "#being-" + n : "");
+}
+
 const TIERS = [
   { name: "Common",    key: "common",    count: 400, weight:   1, color: "#9ca3af", accent: "#e5e7eb" },
   { name: "Uncommon",  key: "uncommon",  count: 280, weight:   2, color: "#34d399", accent: "#a7f3d0" },
