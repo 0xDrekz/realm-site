@@ -15,10 +15,11 @@
    rounds 1 and 3, the rival in round 2. Most rounds wins the duel.
 
    A run: duel after duel against rival teams that grow rarer each stage,
-   until the first loss, with a fresh hand of three dealt every stage. A
-   wallet's best run of the week is its place on the board. A wallet is
-   dealt from the beings it holds; anyone else is dealt borrowed spirits
-   drawn from all 1,111 at random, weaker, and off the board.
+   until the first loss. Every round the player is dealt a fresh hand of
+   three and plays one. A wallet's best run of the week is its place on
+   the board. A wallet is dealt from the beings it holds; anyone else is
+   dealt borrowed spirits drawn from all 1,111 at random, weaker, and off
+   the board.
 
    The rival's card is chosen before it knows the player's, so nothing is
    rigged; every number is decided here, so no score can be typed in.
@@ -109,7 +110,7 @@ function create({ root, beings, envVar, log = console.log }) {
     return team.map(n => card(n));
   }
 
-  /* a fresh hand every stage: three of the wallet's own beings at random
+  /* a fresh hand every round: three of the wallet's own beings at random
      (topped up with borrowed spirits if it holds fewer), or for a guest any
      three of all 1,111 */
   function deal(run) {
@@ -158,7 +159,7 @@ function create({ root, beings, envVar, log = console.log }) {
     if (run.over) return { error: "This run is over." };
     run.touched = Date.now();
     ci = Number(ci);
-    if (!(ci >= 0 && ci < 3) || run.used.includes(ci)) return { error: "Pick a card you have not played yet." };
+    if (!(ci >= 0 && ci < 3)) return { error: "Pick one of the three cards in your hand." };
     const youCall = run.round !== 2;
     if (youCall && !STATS.includes(stat)) return { error: "Name a stat: magic, spirit, knowledge, light or dark." };
     const mine = run.team[ci];
@@ -172,7 +173,7 @@ function create({ root, beings, envVar, log = console.log }) {
     if (!youCall) stat = STATS.reduce((a, b) => theirs[b] > theirs[a] ? b : a);    // the rival calls its best
 
     let won = mine[stat] > theirs[stat] || (mine[stat] === theirs[stat] && mine.total >= theirs.total);
-    run.used.push(ci); run.rivalUsed.push(ri);
+    run.rivalUsed.push(ri);
     if (won) run.wins++; else run.losses++;
     const margin = Math.abs(mine[stat] - theirs[stat]);
     run.log.push({ round: run.round, caller: youCall ? "you" : "rival", stat, you: mine.n, rival: theirs.n, yours: mine[stat], theirs: theirs[stat], won });
@@ -183,17 +184,19 @@ function create({ root, beings, envVar, log = console.log }) {
       if (run.wins > run.losses) {
         result = "won"; run.score += 50 * run.stage;
         record(run);
-        const out = view(run, { result, last: run.log[run.log.length - 1] });
+        const out = view(run, { result, last: run.log[run.log.length - 1], played: mine });
         newDuel(run);
         out.next = view(run);
         return out;
       }
       result = "lost"; run.over = true; run.stage -= 1;   // the stage reached is the last one won
       record(run);
-      return view(run, { result, last: run.log[run.log.length - 1], best: run.wallet ? (board[week()] || {})[run.wallet] : null });
+      return view(run, { result, last: run.log[run.log.length - 1], played: mine, best: run.wallet ? (board[week()] || {})[run.wallet] : null });
     }
     run.round += 1;
-    return view(run, { last: run.log[run.log.length - 1] });
+    const played = mine;
+    deal(run);                                   // a fresh hand for the next round
+    return view(run, { last: run.log[run.log.length - 1], played });
   }
 
   return { start, play, card, top, week, runs: () => runs.size };

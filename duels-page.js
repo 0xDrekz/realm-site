@@ -52,9 +52,9 @@
       if (!cards.length) return err("This wallet holds no beings yet. Play with borrowed spirits below, or mint one at dmt-realm.dev/mint.");
       $("[data-mine]").innerHTML = cards.map(c => cardHTML(c)).join("");
       $("[data-pick-note]").textContent = cards.length > 3
-        ? "Your deck: all " + cards.length + " of your beings. Every stage you are dealt three of them at random."
-        : cards.length === 3 ? "Your deck: your three beings, dealt every stage."
-        : "Your deck: your " + (cards.length === 1 ? "being" : cards.length + " beings") + ", topped up with borrowed spirits from all 1,111 each stage.";
+        ? "Your deck: all " + cards.length + " of your beings. Every round you are dealt three of them at random."
+        : cards.length === 3 ? "Your deck: your three beings, dealt every round."
+        : "Your deck: your " + (cards.length === 1 ? "being" : cards.length + " beings") + ", topped up with borrowed spirits from all 1,111 each round.";
       $("[data-go]").disabled = false; $("[data-go]").textContent = "Enter the realm";
       $("[data-pick]").hidden = false;
     } catch (e) { err(e.message); }
@@ -69,15 +69,15 @@
     $("[data-score]").textContent = S.score;
     $("[data-rounds]").textContent = S.wins + " – " + S.losses;
     $("[data-rival]").innerHTML = S.rival.map((c, i) => '<div class="d-slot' + (c.hidden ? "" : " used") + '">' + cardHTML(c) + '</div>').join("");
-    $("[data-hand]").innerHTML = S.team.map((c, i) => '<div class="d-slot' + (S.used.includes(i) ? " used" : "") + (chosen === i ? " chosen" : "") + '" data-i="' + i + '">' + cardHTML(c) + '</div>').join("");
+    $("[data-hand]").innerHTML = S.team.map((c, i) => '<div class="d-slot' + (chosen === i ? " chosen" : "") + '" data-i="' + i + '">' + cardHTML(c) + '</div>').join("");
     const youCall = S.caller === "you";
-    $("[data-call]").innerHTML = '<b>Round ' + S.round + ' of 3</b>' + (youCall ? "You call the stat. Pick a card, then name the stat." : "The rival calls the stat this round. Pick the card you think can stand up to it.");
+    $("[data-call]").innerHTML = '<b>Round ' + S.round + ' of 3</b>' + (youCall ? "A fresh hand. You call the stat: pick a card, then name the stat." : "A fresh hand. The rival calls the stat this round: pick the card you think can stand up to it.");
     $("[data-stats]").hidden = !(youCall && chosen != null);
     $("[data-play]").hidden = !(!youCall && chosen != null);
   }
   $("[data-hand]").addEventListener("click", e => {
     const el = e.target.closest("[data-i]"); if (!el || busy || !$("[data-arena]").hidden) return;
-    const i = Number(el.dataset.i); if (S.used.includes(i)) return;
+    const i = Number(el.dataset.i);
     chosen = i; paint();
     if (window.innerWidth < 700) $(S.caller === "you" ? "[data-stats]" : "[data-play]").scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
@@ -94,7 +94,7 @@
 
   let after = null;
   function reveal(d) {
-    const L = d.last, mine = S.team.find(c => c.n === L.you), theirs = d.rival.find(c => !c.hidden && c.n === L.rival);
+    const L = d.last, mine = d.played || S.team.find(c => c.n === L.you), theirs = d.rival.find(c => !c.hidden && c.n === L.rival);
     $("[data-stats]").hidden = true; $("[data-play]").hidden = true;
     const a = $("[data-arena]");
     a.innerHTML = '<p class="d-said">' + (L.caller === "you" ? "You call" : "The rival calls") + ' <b>' + NAME[L.stat] + '</b></p>'
@@ -106,7 +106,7 @@
     const nx = $("[data-next]");
     if (d.result === "won") { nx.textContent = "Stage " + d.stage + " cleared. Deal stage " + d.next.stage; after = () => { S = d.next; }; }
     else if (d.result === "lost") { nx.textContent = "See your run"; after = () => over(d); }
-    else { nx.textContent = "Next round"; after = () => {}; }
+    else { const fresh = d.team; nx.textContent = "Deal round " + d.round; after = () => { S.team = fresh; }; }
     nx.hidden = false;
   }
   $("[data-next]").addEventListener("click", () => {
