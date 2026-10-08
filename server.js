@@ -330,6 +330,15 @@ const PAYOUT = (() => {
   });
 })();
 
+/* ---- the 5-mint bonus: the first wallets to mint 5 are sent $DMT (bonus.js) ---- */
+const BONUS = (() => {
+  const bot = require("./bot");
+  return require("./bonus").create({
+    rpc: rpcBest, envVar: bot.envVar, notify: bot.notify, machine: MACHINE, mint: ENV.mint,
+    exclude: ["BC5CV6ivBkWW2wL5YMsZovoYXBreM8mgdfL2cSjC45M2", REWARDS].filter(Boolean)   // the team's own wallets never qualify
+  });
+})();
+
 /* the last 120 pictures fetched, so a busy wallet page costs one fetch each */
 const IMGS = new Map();
 
@@ -493,6 +502,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (urlPath === "/api/bonus") {
+    return res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(BONUS.status()));
+  }
+
   /* ---- being pictures, served from our own address ----
      The Arweave gateway redirects to CDN hosts some browsers, blockers and
      mobile networks refuse, so the pictures come through here instead. An
@@ -582,4 +595,5 @@ server.listen(PORT, "0.0.0.0", () => {
   // posts every new mint to Telegram; sleeps unless its variables are set
   require("./bot").start({ root: ROOT, rpc, holdings, env: ENV });
   PAYOUT.start();
+  BONUS.start();
 });
