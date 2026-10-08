@@ -87,3 +87,17 @@
 .c-board li span{color:var(--dim)}.c-board li a{color:var(--bone);text-decoration:none}.c-board li a em{font-style:normal;color:var(--gold);font-size:.75rem}
 .c-board li b{color:var(--gold)}.c-board li i{grid-column:2 / -1;font-style:normal;color:var(--dim);font-size:.75rem}
 @media (max-width:480px){.c-name i{display:none}.c-stats button span{font-size:.56rem}.c-rite{flex-basis:138px}}
+
+/* ---------- kept simple: HP and Attack, one move a turn ---------- */
+.c-atk{position:absolute;left:3px;bottom:3px;height:30px;padding:0 8px;border-radius:15px;display:flex;align-items:center;background:#e3ba5c;color:#1a1206;
+  font-style:normal;font-weight:700;font-size:.95rem;display:grid;place-items:center;box-shadow:0 0 0 2px #120a1f}
+.c-atk::before{content:"\2694\FE0E";font-size:.8rem;margin-right:3px}
+.c-blk{position:absolute;right:3px;top:3px;width:26px;height:26px;border-radius:50%;background:#59a8ff;color:#08122a;font-style:normal;display:grid;place-items:center;font-size:.9rem}
+.c-hp{height:20px}.c-hp span{line-height:19px;font-size:.76rem}
+.c-label{margin:2px 2px -6px;font-family:'Space Grotesk',system-ui,sans-serif;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.c-hand{display:grid;grid-template-columns:repeat(3,1fr);overflow:visible}
+.c-rite{flex:none}
+.c-rite b{padding-left:0;min-height:0;font-size:.82rem;margin-bottom:2px}
+.c-rite p{font-size:.74rem}
+.cpage .c-btn[data-cancel]{width:100%}
+@media (max-width:480px){.c-rite b{font-size:.72rem}.c-rite p{font-size:.66rem}}

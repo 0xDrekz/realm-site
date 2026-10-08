@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#03010a">
 <title>REALM Card Game</title>
-<meta name="description" content="REALM: The Card Game. Your beings are your champions, the First Rites are your spells. Holders of beings and $DMT are blessed.">
+<meta name="description" content="REALM: The Card Game. Your beings are your champions. One move a turn: attack or cast a spell. Hold $DMT and your champions get stronger.">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <meta property="og:title" content="REALM: The Card Game">
@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="landing.css">
 <link rel="stylesheet" href="holders.css">
-<link rel="stylesheet" href="cards.css?v=1">
+<link rel="stylesheet" href="cards.css?v=2">
 </head>
 <body class="holders cpage">
 
@@ -36,29 +36,28 @@
     <div class="c-hero">
       <p class="eyebrow">REALM</p>
       <h1>The Card Game</h1>
-      <p class="lede">Your beings are your champions. The First Rites are your spells. Knock out all three of the rival's champions to win.</p>
+      <p class="lede">Your beings are your champions. One move a turn. Knock out all three to win.</p>
     </div>
 
     <div class="h-card c-how">
       <h2>How to play</h2>
       <ol>
-        <li><b>Champions.</b> You field three beings. Their HP and attacks come from their five stats; rarer beings last longer and hit harder.</li>
-        <li><b>Essence.</b> You get one more every turn (up to 8). Spend it on ritual cards: damage, heals, shields and tricks.</li>
-        <li><b>Attack once a turn.</b> Tap a champion, pick a stat, pick a target. You hit for a quarter of that stat.</li>
-        <li><b>Elements.</b> Light beats Dark, Dark beats Spirit, Spirit beats Magic, Magic beats Knowledge, Knowledge beats Light: 1.5x damage. A champion's element is its highest stat.</li>
+        <li>You and the rival each have <b>three champions</b>. Each has <b>HP</b> and <b>Attack</b>; rarer beings have more of both.</li>
+        <li>On your turn, do <b>one thing</b>: tap one of your champions then an enemy to <b>attack</b>, or play a <b>spell</b>.</li>
+        <li>Knock out all three rival champions to win.</li>
       </ol>
     </div>
 
     <div class="h-card c-bless">
       <h2>The $DMT Blessing</h2>
-      <p class="h-note">Hold beings and $DMT in the same wallet and your champions are blessed.</p>
+      <p class="h-note">Your beings are the car. $DMT is the fuel. Hold both in the same wallet and your champions get stronger.</p>
       <table>
-        <tr><th>$DMT held</th><th>Blessing</th></tr>
-        <tr data-lv="1"><td>50K</td><td>Lv 1 · +5% HP and damage</td></tr>
-        <tr data-lv="2"><td>250K</td><td>Lv 2 · +10% HP and damage</td></tr>
-        <tr data-lv="3"><td>1M</td><td>Lv 3 · +15%, and +1 Essence every turn</td></tr>
-        <tr data-lv="4"><td>5M</td><td>Lv 4 · +20%, +1 Essence</td></tr>
-        <tr data-lv="5"><td>10M</td><td>Lv 5 · +25%, +1 Essence, an extra card to start</td></tr>
+        <tr><th>$DMT held</th><th>Champion HP and Attack</th></tr>
+        <tr data-lv="1"><td>50K</td><td>+3%</td></tr>
+        <tr data-lv="2"><td>250K</td><td>+6%</td></tr>
+        <tr data-lv="3"><td>1M</td><td>+9%</td></tr>
+        <tr data-lv="4"><td>5M</td><td>+12%</td></tr>
+        <tr data-lv="5"><td>10M</td><td>+15%</td></tr>
       </table>
     </div>
 
@@ -80,7 +79,7 @@
 
     <div class="h-card">
       <h2>No beings yet?</h2>
-      <p class="h-note">Play with three borrowed spirits from all 1,111. They are weaker than real beings, unblessed, and off the board.</p>
+      <p class="h-note">Play with three borrowed spirits from all 1,111. They are weaker than real beings and off the board.</p>
       <button class="c-btn ghost" type="button" data-guest>Play with borrowed spirits</button>
     </div>
 
@@ -93,24 +92,18 @@
   <!-- 2. the match -->
   <section data-screen="match" hidden>
     <div class="c-side rival">
-      <div class="c-info"><span>The rival</span><span data-rhand></span></div>
+      <div class="c-info"><span>The rival</span></div>
       <div class="c-row" data-rival></div>
     </div>
     <div class="c-log" data-log aria-live="polite"></div>
     <div class="c-side you">
       <div class="c-row" data-you></div>
-      <div class="c-info">
-        <span class="c-ess" data-ess></span>
-        <span data-meta></span>
-      </div>
+      <div class="c-info"><span>Your champions</span><span data-meta></span></div>
     </div>
     <div class="c-prompt" data-prompt></div>
-    <div class="c-stats" data-stats hidden></div>
+    <p class="c-label">Your spells</p>
     <div class="c-hand" data-hand></div>
-    <div class="c-actions">
-      <button class="c-btn ghost" type="button" data-cancel hidden>Cancel</button>
-      <button class="m-go" type="button" data-end>End turn</button>
-    </div>
+    <button class="c-btn ghost" type="button" data-cancel hidden>Cancel</button>
   </section>
 
   <!-- 3. the end -->
@@ -127,6 +120,6 @@
   </section>
 </main>
 
-<script src="cards-page.js?v=1"></script>
+<script src="cards-page.js?v=2"></script>
 </body>
 </html>
