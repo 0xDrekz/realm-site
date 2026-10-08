@@ -342,6 +342,15 @@ const BONUS = (() => {
   });
 })();
 
+/* ---- REALM Duels ---- */
+const DUELS = require("./duels").create({ root: ROOT, beings: chainBeings, envVar: require("./bot").envVar });
+const duelHits = new Map();
+function duelAllowed(ip) {                 // ten new runs a minute per caller is plenty for a person
+  const now = Date.now(), w = (duelHits.get(ip) || []).filter(t => now - t < 60_000); w.push(now); duelHits.set(ip, w);
+  if (duelHits.size > 5000) duelHits.clear();
+  return w.length <= 10;
+}
+
 /* the last 120 pictures fetched, so a busy wallet page costs one fetch each */
 const IMGS = new Map();
 
@@ -372,6 +381,7 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/owner") urlPath = "/owner.html";
   if (urlPath === "/wallet") urlPath = "/wallet.html";
   if (urlPath === "/payout") urlPath = "/payout.html";
+  if (urlPath === "/duels") urlPath = "/duels.html";
   // the saved snapshot is served through /api/snapshot only, after its hash is checked
   if (urlPath.startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
 
@@ -502,6 +512,36 @@ const server = http.createServer((req, res) => {
     PAYOUT.status(a || null)
       .then(d => res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(d)))
       .catch(() => res.writeHead(502, { "Content-Type": TYPES[".json"] }).end(JSON.stringify({ error: "Could not read the payout just now." })));
+    return;
+  }
+
+  /* ---- REALM Duels (duels.js): every result decided here ---- */
+  if (urlPath.startsWith("/api/duel/")) {
+    const send = (code, obj) => res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(obj));
+    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
+    const q = new URL(req.url, "http://x").searchParams;
+    if (urlPath === "/api/duel/board") return send(200, { week: DUELS.week(), top: DUELS.top() });
+    if (urlPath === "/api/duel/cards") {
+      const a = q.get("address") || "";
+      if (!ADDRESS.test(a)) return send(400, { error: "That is not a Solana address." });
+      if (!allowed(ip)) return send(429, { error: "Too many checks. Wait a minute." });
+      chainBeings().then(all => send(200, { cards: all.filter(b => b.owner === a).map(b => DUELS.card(b.n)).sort((x, y) => y.total - x.total) }))
+        .catch(() => send(502, { error: "Could not read the realm just now." }));
+      return;
+    }
+    if (req.method !== "POST") return send(405, { error: "POST" });
+    let body = "";
+    req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
+    req.on("end", () => {
+      let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
+      if (urlPath === "/api/duel/start") {
+        if (!duelAllowed(ip)) return send(429, { error: "Too many runs. Take a breath and try again in a minute." });
+        if (j.wallet && !ADDRESS.test(j.wallet)) return send(400, { error: "That is not a Solana address." });
+        return DUELS.start({ wallet: j.wallet || null, team: j.team }).then(d => send(d.error ? 400 : 200, d)).catch(() => send(502, { error: "Could not read the realm just now." }));
+      }
+      if (urlPath === "/api/duel/play") { const d = DUELS.play(j); return send(d.error ? 400 : 200, d); }
+      send(404, { error: "Not found." });
+    });
     return;
   }
 

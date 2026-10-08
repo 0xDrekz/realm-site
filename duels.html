@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03010a">
+<title>REALM Duels</title>
+<meta name="description" content="Battle your REALM beings. Three cards, three rounds, rarer rivals every stage. Weekly leaderboard.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta property="og:title" content="REALM Duels">
+<meta property="og:description" content="Three cards. Three rounds. How deep can your beings go?">
+<meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="landing.css">
+<link rel="stylesheet" href="holders.css">
+<link rel="stylesheet" href="duels.css?v=2">
+</head>
+<body class="holders dpage">
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="REALM — back to the door">
+    <img class="brandmark" src="logo-bar.png" width="96" height="96" alt="">
+    <span class="mark">REALM</span>
+  </a>
+  <nav class="top-links" aria-label="Elsewhere"><a class="h-back" href="/#chamber">&larr; The realm</a></nav>
+</header>
+
+<main class="h-page d-page">
+  <!-- 1. the gate -->
+  <section data-screen="intro">
+    <div class="d-hero">
+      <p class="eyebrow">A game of the realm</p>
+      <h1>REALM Duels</h1>
+      <p class="lede">Three cards. Three rounds. Rarer rivals every stage. How deep can your beings go?</p>
+    </div>
+    <div class="h-card d-how">
+      <h2>How it works</h2>
+      <ol>
+        <li>Pick three of your beings. Each card has <b>Power</b>, <b>Spirit</b> and <b>Speed</b>. Rarer beings have more.</li>
+        <li>Each round you both play a card face down. The caller names a stat and the higher number takes the round. You call rounds 1 and 3, the rival calls round 2.</li>
+        <li>Win two rounds to clear the stage. Every stage the rivals get rarer. One loss ends the run.</li>
+      </ol>
+      <p class="h-note">Your best run of the week goes on the board. Prizes in $DMT for the top of the board are announced in the Telegram.</p>
+    </div>
+    <div class="h-card">
+      <h2>Play with your beings</h2>
+      <form class="h-find" data-find>
+        <input type="text" name="a" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your Solana address" aria-label="Solana address">
+        <button type="submit" class="h-go">Load</button>
+      </form>
+      <p class="h-note">Nothing is connected or signed. The board lists the wallet that played.</p>
+      <div data-pick hidden>
+        <p class="d-pick-note" data-pick-note></p>
+        <div class="d-grid" data-mine></div>
+        <button class="m-go" type="button" data-go disabled>Enter the realm</button>
+      </div>
+      <p class="h-bad" data-err hidden></p>
+    </div>
+    <div class="h-card d-guest">
+      <h2>No beings yet?</h2>
+      <p class="h-note">Play with three borrowed spirits. They are weaker than real beings and their runs stay off the board.</p>
+      <button class="w-btn ghost" type="button" data-guest>Play with borrowed spirits</button>
+    </div>
+    <section class="h-card" data-board-wrap>
+      <h2>This week's board</h2>
+      <div data-board><p class="h-note">Reading the board&hellip;</p></div>
+    </section>
+  </section>
+
+  <!-- 2. the duel -->
+  <section data-screen="duel" hidden>
+    <div class="d-bar">
+      <span>Stage <b data-stage>1</b></span>
+      <span>Score <b data-score>0</b></span>
+      <span>Rounds <b data-rounds>0 &ndash; 0</b></span>
+    </div>
+    <p class="d-label">The rival</p>
+    <div class="d-row d-rival" data-rival></div>
+    <div class="d-call" data-call></div>
+    <div class="d-arena" data-arena hidden></div>
+    <p class="d-label">Your hand</p>
+    <div class="d-row" data-hand></div>
+    <div class="d-stats" data-stats hidden>
+      <button type="button" data-stat="power">Power</button>
+      <button type="button" data-stat="spirit">Spirit</button>
+      <button type="button" data-stat="speed">Speed</button>
+    </div>
+    <button class="m-go" type="button" data-play hidden>Play this card</button>
+    <button class="m-go" type="button" data-next hidden>Next round</button>
+  </section>
+
+  <!-- 3. the end of a run -->
+  <section data-screen="over" hidden>
+    <div class="h-card d-over">
+      <p class="eyebrow">The run is over</p>
+      <h2 data-over-title></h2>
+      <p class="d-big"><b data-over-stage>0</b><span>stages cleared</span></p>
+      <p class="d-big"><b data-over-score>0</b><span>score</span></p>
+      <p class="h-note" data-over-note></p>
+      <div class="w-share">
+        <button class="m-go" type="button" data-again>Play again</button>
+        <a class="w-btn ghost" data-share target="_blank" rel="noopener">Share on X</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="duels-page.js?v=2"></script>
+</body>
+</html>
