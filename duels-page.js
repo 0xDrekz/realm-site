@@ -42,32 +42,23 @@
     } catch { $("[data-board]").innerHTML = '<p class="h-note">The board could not be read just now.</p>'; }
   }
 
-  /* ---------- choosing a team ---------- */
-  let wallet = null, picked = [];
+  /* ---------- the deck: every being the wallet holds ---------- */
+  let wallet = null;
   async function load(a) {
     err(""); $("[data-pick]").hidden = true;
     try {
       const { cards } = await api("/api/duel/cards?address=" + encodeURIComponent(a));
       wallet = a; store.set("realm-duel-wallet", a);
       if (!cards.length) return err("This wallet holds no beings yet. Play with borrowed spirits below, or mint one at dmt-realm.dev/mint.");
-      picked = cards.slice(0, 3).map(c => c.n);                 // the strongest three, to start
-      $("[data-mine]").innerHTML = cards.map(c => cardHTML(c, { cls: "pickable", attr: 'data-n="' + c.n + '" tabindex="0" role="button"' })).join("");
-      $("[data-pick-note]").textContent = cards.length > 3 ? "Tap to choose your three. Your strongest three are picked to start." : cards.length === 3 ? "Your three beings." : "You hold " + cards.length + ". The rest of your team will be borrowed spirits.";
-      paintPick(); $("[data-pick]").hidden = false;
+      $("[data-mine]").innerHTML = cards.map(c => cardHTML(c)).join("");
+      $("[data-pick-note]").textContent = cards.length > 3
+        ? "Your deck: all " + cards.length + " of your beings. Every stage you are dealt three of them at random."
+        : cards.length === 3 ? "Your deck: your three beings, dealt every stage."
+        : "Your deck: your " + (cards.length === 1 ? "being" : cards.length + " beings") + ", topped up with borrowed spirits from all 1,111 each stage.";
+      $("[data-go]").disabled = false; $("[data-go]").textContent = "Enter the realm";
+      $("[data-pick]").hidden = false;
     } catch (e) { err(e.message); }
   }
-  function paintPick() {
-    document.querySelectorAll("[data-mine] [data-n]").forEach(el => el.classList.toggle("on", picked.includes(Number(el.dataset.n))));
-    const need = Math.min(3, document.querySelectorAll("[data-mine] [data-n]").length);
-    $("[data-go]").disabled = picked.length !== need;
-    $("[data-go]").textContent = picked.length === need ? "Enter the realm" : "Pick " + (need - picked.length) + " more";
-  }
-  $("[data-mine]").addEventListener("click", e => {
-    const el = e.target.closest("[data-n]"); if (!el) return;
-    const n = Number(el.dataset.n);
-    if (picked.includes(n)) picked = picked.filter(x => x !== n); else if (picked.length < 3) picked.push(n);
-    paintPick();
-  });
   $("[data-find]").addEventListener("submit", e => { e.preventDefault(); const a = e.target.a.value.trim(); if (a) load(a); });
   const saved = store.get("realm-duel-wallet"); if (saved) { $("[data-find]").a.value = saved; }
 
@@ -113,7 +104,7 @@
     S = { ...S, ...d, team: S.team }; chosen = null;
     $("[data-rounds]").textContent = d.wins + " – " + d.losses; $("[data-score]").textContent = d.score;
     const nx = $("[data-next]");
-    if (d.result === "won") { nx.textContent = "Stage " + d.stage + " cleared. Face stage " + d.next.stage; after = () => { S = d.next; }; }
+    if (d.result === "won") { nx.textContent = "Stage " + d.stage + " cleared. Deal stage " + d.next.stage; after = () => { S = d.next; }; }
     else if (d.result === "lost") { nx.textContent = "See your run"; after = () => over(d); }
     else { nx.textContent = "Next round"; after = () => {}; }
     nx.hidden = false;
@@ -143,7 +134,7 @@
       show("duel"); paint(); window.scrollTo({ top: 0 });
     } catch (e) { err(e.message); }
   }
-  $("[data-go]").addEventListener("click", () => begin({ wallet, team: picked }));
+  $("[data-go]").addEventListener("click", () => begin({ wallet }));
   $("[data-guest]").addEventListener("click", () => begin({}));
   $("[data-again]").addEventListener("click", () => { show("intro"); window.scrollTo({ top: 0 }); });
 

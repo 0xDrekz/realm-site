@@ -15,10 +15,10 @@
    rounds 1 and 3, the rival in round 2. Most rounds wins the duel.
 
    A run: duel after duel against rival teams that grow rarer each stage,
-   until the first loss. A wallet's best run of the week is its place on
-   the board. A wallet plays with beings it holds; anyone else plays with
-   three borrowed spirits drawn from all 1,111 at random, weaker, and off
-   the board.
+   until the first loss, with a fresh hand of three dealt every stage. A
+   wallet's best run of the week is its place on the board. A wallet is
+   dealt from the beings it holds; anyone else is dealt borrowed spirits
+   drawn from all 1,111 at random, weaker, and off the board.
 
    The rival's card is chosen before it knows the player's, so nothing is
    rigged; every number is decided here, so no score can be typed in.
@@ -109,30 +109,39 @@ function create({ root, beings, envVar, log = console.log }) {
     return team.map(n => card(n));
   }
 
+  /* a fresh hand every stage: three of the wallet's own beings at random
+     (topped up with borrowed spirits if it holds fewer), or for a guest any
+     three of all 1,111 */
+  function deal(run) {
+    const pickFrom = (pool, k, avoid = []) => { const out = [], left = pool.filter(n => !avoid.includes(n));
+      while (out.length < k && left.length) out.push(left.splice(crypto.randomInt(left.length), 1)[0]); return out; };
+    const prev = (run.team || []).map(c => c.n);
+    let own = [];
+    if (run.deck) {
+      // with more than three to choose from, never the same three twice running
+      own = pickFrom(run.deck, Math.min(3, run.deck.length));
+      for (let t = 0; t < 5 && run.deck.length > 3 && own.every(n => prev.includes(n)); t++) own = pickFrom(run.deck, 3);
+    }
+    const hand = own.map(n => card(n));
+    while (hand.length < 3) { const n = 1 + crypto.randomInt(MAP.length); if (!hand.some(c => c.n === n)) hand.push(card(n, BORROWED)); }
+    run.team = hand;
+  }
+
   function newDuel(run) {
     run.stage += 1;
+    deal(run);
     run.rival = rivalTeam(run.stage, run.id + ":" + run.stage);
     run.round = 1; run.wins = 0; run.losses = 0; run.used = []; run.rivalUsed = []; run.log = [];
   }
 
-  async function start({ wallet, team }) {
+  async function start({ wallet }) {
     sweep();
-    let cards;
+    let deck = null;
     if (wallet) {
-      const mine = (await beings()).filter(b => b.owner === wallet).map(b => b.n);
-      if (!mine.length) return { error: "This wallet holds no beings yet. Play with borrowed spirits, or mint at dmt-realm.dev/mint." };
-      const pick = (team || []).map(Number).filter(n => mine.includes(n));
-      if (new Set(pick).size !== 3 && mine.length >= 3) return { error: "Pick three of your own beings." };
-      cards = (mine.length < 3 ? [...new Set([...pick, ...mine])] : [...new Set(pick)]).slice(0, 3).map(n => card(n));
-      // fewer than three beings: the rest of the team is borrowed
-      const r = rand(wallet + Date.now() + Math.random());
-      while (cards.length < 3) { const n = 1 + Math.floor(r() * MAP.length); if (!cards.some(c => c.n === n)) cards.push(card(n, BORROWED)); }
-    } else {
-      // borrowed spirits: any three of all 1,111, from a Common to the Source
-      const r = rand("guest" + Date.now() + Math.random()); cards = [];
-      while (cards.length < 3) { const n = 1 + Math.floor(r() * MAP.length); if (!cards.some(c => c.n === n)) cards.push(card(n, BORROWED)); }
+      deck = (await beings()).filter(b => b.owner === wallet).map(b => b.n);
+      if (!deck.length) return { error: "This wallet holds no beings yet. Play with borrowed spirits, or mint at dmt-realm.dev/mint." };
     }
-    const run = { id: crypto.randomBytes(12).toString("hex"), wallet: wallet || null, team: cards, stage: 0, score: 0, over: false, touched: Date.now() };
+    const run = { id: crypto.randomBytes(12).toString("hex"), wallet: wallet || null, deck, team: null, stage: 0, score: 0, over: false, touched: Date.now() };
     newDuel(run); runs.set(run.id, run);
     return view(run);
   }
