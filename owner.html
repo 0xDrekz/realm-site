@@ -18,10 +18,12 @@
     <p class="h-note">Sets the price of every mint from now on to <b>0.05 SOL</b>: <b>0.0375 SOL</b> straight to the
       holder rewards wallet and <b>0.0125 SOL</b> to the team, the same 75 / 25 split as now. Nothing else changes:
       5 per wallet, the anti-bot guard, the opening time and control all stay exactly as they are.
-      Signed by the owner wallet <b>BC5CV6iv…C45M2</b>. Cost: about 0.0001 SOL.</p>
+      Signed by the owner wallet <b>BC5CV6iv…C45M2</b> in MetaMask or Phantom. Cost: about 0.0001 SOL.</p>
+    <p class="h-note">On a phone, open this page <b>inside your wallet app's browser</b> (MetaMask: the browser tab; Phantom: the globe icon), with the BC5CV6iv… account selected.</p>
     <p class="h-note">Now: <span data-now>reading…</span></p>
     <button class="m-go" type="button" data-go>Connect &amp; set the price to 0.05 SOL</button>
-    <a class="m-go" data-phantom hidden>Open in Phantom</a>
+    <a class="m-go" data-mm hidden>Open in MetaMask</a>
+    <a class="m-go" data-phantom hidden style="margin-top:8px">Open in Phantom</a>
     <p class="h-note" data-out></p>
   </section>
 </main>
@@ -41,14 +43,15 @@
   setTimeout(() => {
     if (RealmMint.hasWallet()) return;
     $("[data-go]").hidden = true;
+    const mm = $("[data-mm]"); mm.hidden = false; mm.href = "https://metamask.app.link/dapp/" + location.host + location.pathname;
     const a = $("[data-phantom]"); a.hidden = false;
     a.href = "https://phantom.app/ul/browse/" + encodeURIComponent(location.href) + "?ref=" + encodeURIComponent(location.origin);
   }, 1500);
   $("[data-go]").addEventListener("click", async () => {
     try {
       const me = await RealmMint.connect();
-      if (me !== OWNER) return out("This wallet is " + me.slice(0, 4) + "…" + me.slice(-4) + ". Switch Phantom to BC5CV6iv…C45M2 and try again.");
-      out("Approve in Phantom…");
+      if (me !== OWNER) return out("This wallet is " + me.slice(0, 4) + "…" + me.slice(-4) + ". Switch your wallet to the BC5CV6iv…C45M2 account and try again.");
+      out("Approve in your wallet…");
       const sig = await RealmMint.setPrice(MACHINE, PRICE);
       out('Done ✓ The price is now 0.05 SOL. <a target="_blank" rel="noopener" href="https://solscan.io/tx/' + sig + '">view on Solscan</a>');
       $("[data-go]").hidden = true; now();
