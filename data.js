@@ -2,7 +2,7 @@
    REALM — the only file you need to edit.
    Both the homepage and the immersive realm read from here.
 
-   ONE DROP. 1,111 beings, all at once, one price, one pool.
+   ONE DROP. 1,111 beings, all at once, one pool.
 
    There are no rounds and no sectors. A being is its tier and its
    traits, and that is the whole of it. The ten chapters below are
@@ -79,8 +79,10 @@ const CONFIG = {
    THE SHAPE OF IT
    ============================================================ */
 
-/* One price for everything. */
-const PRICE = 0.25;
+/* The price of a mint. It was 0.25 SOL for the first 28 (EARLY_MINTS);
+   every mint since the change is 0.05 SOL. */
+const PRICE = 0.05;
+const EARLY_MINTS = 28, EARLY_PRICE = 0.25;
 
 /* Nobody may hold more than this many from the mint. */
 const MAX_PER_WALLET = 5;
@@ -147,7 +149,8 @@ const TOTAL_WEIGHT = TIERS.reduce((a, t) => a + t.count * t.weight, 0);
 
 /* what the pool comes to, in SOL, for a given number minted */
 function poolFrom(n) {
-  return Math.round(n * PRICE * POOL_PERCENT) / 100;
+  const early = Math.min(n, EARLY_MINTS);
+  return Math.round((early * EARLY_PRICE + (n - early) * PRICE) * POOL_PERCENT) / 100;
 }
 const POOL_FULL = poolFrom(TOTAL_BEINGS);
 

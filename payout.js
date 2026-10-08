@@ -26,7 +26,7 @@
      PAYOUT_DELAY_HOURS  hours from snapshot to payout (default 24)
      PAYOUT_AT           an exact payout time instead, e.g. 2026-11-02T20:00:00Z
      PAYOUT_HOLD         set to 1 to pause the payout
-     PAYOUT_MAX_SOL      the most it will pay out in all (default: the full pool + 2%)
+     PAYOUT_MAX_SOL      the most it will pay out in all (default: the expected pool + 10%)
      SNAPSHOT_DIR        a Railway volume path, so the snapshot survives redeploys
    ============================================================ */
 "use strict";
@@ -187,7 +187,8 @@ function create(opt) {
     return new Date(Date.parse(snap.takenAt) + h * 3600_000).toISOString();
   };
   const expectedPool = () => Math.round(total * opt.price * opt.poolPercent / 100 * 1e9);
-  const cap = () => { const m = Number(envVar("PAYOUT_MAX_SOL")); return m > 0 ? Math.round(m * 1e9) : Math.round(expectedPool() * 1.02); };
+  // a little headroom over the expected pool: the price changed mid-mint, so the real pool may differ slightly
+  const cap = () => { const m = Number(envVar("PAYOUT_MAX_SOL")); return m > 0 ? Math.round(m * 1e9) : Math.round(expectedPool() * 1.1); };
 
   /* the batches already paid, read back from the memos on the payout wallet */
   async function paid() {

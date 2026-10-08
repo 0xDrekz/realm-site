@@ -261,7 +261,7 @@
   const poolEl = $("[data-rw-pool]");
   if (poolEl) poolEl.textContent =
     `${POOL_PERCENT}% of the mint goes back to holders: ${POOL_PERCENT}% of ${TOTAL_BEINGS.toLocaleString()} `
-    + `at ${PRICE} SOL is ${POOL_FULL} SOL. There is no closing date: the gate stays open `
+    + `(the first ${EARLY_MINTS} at ${EARLY_PRICE} SOL, the rest at ${PRICE} SOL) comes to ${POOL_FULL} SOL. There is no closing date: the gate stays open `
     + `until every being is minted, and the pool is paid once, when the last one goes.`;
 
   /* This line used to be written by hand and it was false: it claimed the
