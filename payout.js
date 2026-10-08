@@ -62,14 +62,16 @@ function b58dec(str) {
 function loadKey(raw) {
   raw = String(raw || "").trim();
   if (!raw) return null;
-  const bytes = raw.startsWith("[") ? Buffer.from(JSON.parse(raw)) : b58dec(raw);
-  if (bytes.length !== 64) throw new Error("PAYOUT_KEY is not a 64-byte Solana secret key");
-  const seed = bytes.subarray(0, 32), pub = bytes.subarray(32);
+  // wallets export keys differently: [n,n,...], hex, or base58; the full 64 bytes, or only the 32-byte seed
+  const bytes = raw.startsWith("[") ? Buffer.from(JSON.parse(raw))
+    : /^(0x)?[0-9a-fA-F]{64}([0-9a-fA-F]{64})?$/.test(raw) ? Buffer.from(raw.replace(/^0x/, ""), "hex") : b58dec(raw);
+  if (bytes.length !== 64 && bytes.length !== 32) throw new Error("PAYOUT_KEY is not a Solana secret key");
+  const seed = bytes.subarray(0, 32);
   const key = crypto.createPrivateKey({ key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), seed]), format: "der", type: "pkcs8" });
-  // the public half must match, or the key was pasted wrong
   const derived = crypto.createPublicKey(key).export({ format: "der", type: "spki" }).subarray(-32);
-  if (!derived.equals(pub)) throw new Error("PAYOUT_KEY does not match its own public key");
-  return { key, pub: Buffer.from(pub), address: b58enc(pub) };
+  // with the full 64 bytes, the public half must match, or the key was pasted wrong
+  if (bytes.length === 64 && !derived.equals(bytes.subarray(32))) throw new Error("PAYOUT_KEY does not match its own public key");
+  return { key, pub: Buffer.from(derived), address: b58enc(derived) };
 }
 
 /* ---------- a legacy transaction, built by hand ---------- */
