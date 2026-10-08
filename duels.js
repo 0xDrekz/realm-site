@@ -1,11 +1,13 @@
 /* ============================================================
    REALM Duels — the game, decided on the server.
 
-   Every being is a card with three stats, POWER, SPIRIT and SPEED. Its
-   tier sets how many points it has in all; its number and its traits set
-   how they are split (Supernova and Geometry lean to Power, Aura, Planets
-   and Mushrooms to Spirit, Lightning and UFOs to Speed). The same being
-   always has the same stats.
+   Every being is a card with five stats: MAGIC, SPIRIT, KNOWLEDGE, LIGHT
+   and DARK. Its tier sets how many points it has in all; its number and
+   its traits set how they are split (mushrooms, moon dust and lightning
+   lean to Magic; trees and warm or rose auras to Spirit; geometry, planets
+   and UFOs to Knowledge; supernovas and bright colourways to Light; dark
+   colourways and opposed auras to Dark). The same being always has the
+   same stats.
 
    A duel: three cards a side, three rounds. Each round both sides commit
    a card unseen, then the caller names the stat and the higher number
@@ -15,7 +17,8 @@
    A run: duel after duel against rival teams that grow rarer each stage,
    until the first loss. A wallet's best run of the week is its place on
    the board. A wallet plays with beings it holds; anyone else plays with
-   three borrowed spirits, weaker, and off the board.
+   three borrowed spirits drawn from all 1,111 at random, weaker, and off
+   the board.
 
    The rival's card is chosen before it knows the player's, so nothing is
    rigged; every number is decided here, so no score can be typed in.
@@ -26,9 +29,15 @@ const path = require("path");
 const crypto = require("crypto");
 
 const TIERS = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Entity", "God", "Source"];
-const TOTAL = { Common: 150, Uncommon: 172, Rare: 195, Epic: 218, Legendary: 242, Mythic: 266, Entity: 292, God: 320, Source: 370 };
-const LEAN = { Supernova: 0, Geometry: 0, Aura: 1, Planets: 1, Mushrooms: 1, "Moon Dust": 1, Lightning: 2, UFOs: 2, Trees: 1 };
-const STATS = ["power", "spirit", "speed"];
+const TOTAL = { Common: 250, Uncommon: 287, Rare: 325, Epic: 363, Legendary: 403, Mythic: 443, Entity: 487, God: 533, Source: 617 };
+const STATS = ["magic", "spirit", "knowledge", "light", "dark"];
+const M = 0, S = 1, K = 2, L = 3, D = 4;
+// which stat each trait leans a being towards
+const LEAN = { Mushrooms: M, "Moon Dust": M, Lightning: M, Trees: S, Geometry: K, Planets: K, UFOs: K, Supernova: L };
+const AURA = { Rose: S, Warm: S, Cold: K, Acid: M, Opposed: D };
+const COLOUR = { Auric: L, Regalia: L, Bloom: L, Coral: L, Solar: L, "Prime Gold": L, Celestial: L, Prism: L, Glacier: L, "Rose Quartz": L,
+  Abyss: D, Ossuary: D, Eclipse: D, Obsidian: D, "Blood Moon": D, Ichor: D, Ultraviolet: D, Nebula: D,
+  Verdant: S, Moss: S, Jade: S, Amethyst: S, Furnace: M, Molten: M, Sapphire: K };
 const BORROWED = 0.8;                      // a borrowed spirit has 80% of a real being's stats
 
 function rand(seed) {                      // a small seeded generator, so a being's stats never change
@@ -44,11 +53,15 @@ function create({ root, beings, envVar, log = console.log }) {
 
   function card(n, scale = 1) {
     const [tier, being, traits = {}] = MAP[n - 1];
-    const r = rand("realm-duel-" + n), w = [0.7 + 0.6 * r(), 0.7 + 0.6 * r(), 0.7 + 0.6 * r()];
-    for (const [k, v] of Object.entries(traits)) if (v && v !== "None" && LEAN[k] != null) w[LEAN[k]] += 0.22;
-    const sum = w[0] + w[1] + w[2], t = TOTAL[tier] * scale;
-    const s = w.map(x => Math.max(8, Math.round(t * x / sum)));
-    return { n, tier, being, rank: RANK[String(n)] || null, img: "/img/" + ART[n - 1], power: s[0], spirit: s[1], speed: s[2], total: s[0] + s[1] + s[2], borrowed: scale < 1 };
+    const r = rand("realm-duel-" + n), w = STATS.map(() => 0.7 + 0.6 * r());
+    for (const [k, v] of Object.entries(traits)) if (v && v !== "None" && LEAN[k] != null) w[LEAN[k]] += 0.3;
+    if (AURA[traits.Aura] != null) w[AURA[traits.Aura]] += 0.3;
+    if (COLOUR[traits.Colourway] != null) w[COLOUR[traits.Colourway]] += 0.4;
+    const sum = w.reduce((a, b) => a + b, 0), t = TOTAL[tier] * scale;
+    const c = { n, tier, being, rank: RANK[String(n)] || null, img: "/img/" + ART[n - 1], borrowed: scale < 1 };
+    STATS.forEach((k, i) => { c[k] = Math.max(8, Math.round(t * w[i] / sum)); });
+    c.total = STATS.reduce((a, k) => a + c[k], 0);
+    return c;
   }
 
   /* ---------- the board, a week at a time ---------- */
@@ -112,12 +125,12 @@ function create({ root, beings, envVar, log = console.log }) {
       if (new Set(pick).size !== 3 && mine.length >= 3) return { error: "Pick three of your own beings." };
       cards = (mine.length < 3 ? [...new Set([...pick, ...mine])] : [...new Set(pick)]).slice(0, 3).map(n => card(n));
       // fewer than three beings: the rest of the team is borrowed
-      const r = rand(wallet + Date.now());
-      while (cards.length < 3) { const n = byTier.Common[Math.floor(r() * byTier.Common.length)]; if (!cards.some(c => c.n === n)) cards.push(card(n, BORROWED)); }
+      const r = rand(wallet + Date.now() + Math.random());
+      while (cards.length < 3) { const n = 1 + Math.floor(r() * MAP.length); if (!cards.some(c => c.n === n)) cards.push(card(n, BORROWED)); }
     } else {
-      const r = rand("guest" + Date.now() + Math.random());
-      const pool = [...byTier.Common, ...byTier.Uncommon]; cards = [];
-      while (cards.length < 3) { const n = pool[Math.floor(r() * pool.length)]; if (!cards.some(c => c.n === n)) cards.push(card(n, BORROWED)); }
+      // borrowed spirits: any three of all 1,111, from a Common to the Source
+      const r = rand("guest" + Date.now() + Math.random()); cards = [];
+      while (cards.length < 3) { const n = 1 + Math.floor(r() * MAP.length); if (!cards.some(c => c.n === n)) cards.push(card(n, BORROWED)); }
     }
     const run = { id: crypto.randomBytes(12).toString("hex"), wallet: wallet || null, team: cards, stage: 0, score: 0, over: false, touched: Date.now() };
     newDuel(run); runs.set(run.id, run);
@@ -138,7 +151,7 @@ function create({ root, beings, envVar, log = console.log }) {
     ci = Number(ci);
     if (!(ci >= 0 && ci < 3) || run.used.includes(ci)) return { error: "Pick a card you have not played yet." };
     const youCall = run.round !== 2;
-    if (youCall && !STATS.includes(stat)) return { error: "Name a stat: power, spirit or speed." };
+    if (youCall && !STATS.includes(stat)) return { error: "Name a stat: magic, spirit, knowledge, light or dark." };
     const mine = run.team[ci];
 
     // the rival commits its card without seeing yours: its strongest left, more often than not

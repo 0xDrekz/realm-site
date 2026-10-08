@@ -27,7 +27,7 @@
 .d-s li{position:relative;display:flex;justify-content:space-between;font-size:.76rem;padding:2px 6px;background:rgba(255,255,255,.04);overflow:hidden}
 .d-s li span,.d-s li b{position:relative;z-index:1}
 .d-s li em{position:absolute;left:0;top:0;bottom:0;opacity:.28}
-.d-s .power em{background:#ff7a59}.d-s .spirit em{background:#b18cff}.d-s .speed em{background:#59e3ff}
+.d-s .magic em{background:#c06bff}.d-s .spirit em{background:#4fe0b0}.d-s .knowledge em{background:#59a8ff}.d-s .light em{background:#ffd76a}.d-s .dark em{background:#8b3a5e}
 .d-s li.hi{outline:2px solid var(--gold);background:rgba(227,186,92,.16)}
 .d-s li.hi b{color:var(--gold)}
 .d-card.back{display:grid;place-items:center;aspect-ratio:.72;background:repeating-linear-gradient(45deg,#1a0f2c 0 10px,#140b23 10px 20px)}
@@ -48,9 +48,10 @@
 @media (max-width:520px){.d-top b{display:none}.d-s li{font-size:.68rem;padding:2px 4px}.d-tier{font-size:.56rem}}
 .d-call{font-family:'Space Grotesk',system-ui,sans-serif;text-align:center;color:var(--bone);border:1px dashed var(--line);padding:10px 12px;line-height:1.45}
 .d-call b{display:block;color:var(--gold);font-size:1.05rem;margin-bottom:2px}
-.d-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.d-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+@media (max-width:560px){.d-stats{grid-template-columns:repeat(6,1fr)}.d-stats button{grid-column:span 2;padding:12px 4px;font-size:.78rem}.d-stats button:nth-child(4){grid-column:2 / span 2}}
 .d-stats button{font:inherit;font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-  padding:14px 6px;border:2px solid var(--gold);background:rgba(227,186,92,.12);color:var(--gold);cursor:pointer}
+  padding:14px 4px;font-size:.82rem;border:2px solid var(--gold);background:rgba(227,186,92,.12);color:var(--gold);cursor:pointer}
 .d-stats button:hover,.d-stats button:focus-visible{background:var(--gold);color:#120a1f}
 .d-arena{border:1px solid var(--gold);background:radial-gradient(120% 120% at 50% 0%,rgba(227,186,92,.14),rgba(7,4,15,.92) 60%);padding:14px 10px}
 .d-said{text-align:center;font-family:'Space Grotesk',system-ui,sans-serif;color:var(--dim);margin:0 0 10px}

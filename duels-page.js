@@ -5,7 +5,8 @@
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const short = a => a.slice(0, 4) + "…" + a.slice(-4);
   const COL = { Common: "#9ca3af", Uncommon: "#34d399", Rare: "#3b82f6", Epic: "#a855f7", Legendary: "#f59e0b", Mythic: "#ef4444", Entity: "#a5f3fc", God: "#fde68a", Source: "#fff7d6" };
-  const NAME = { power: "Power", spirit: "Spirit", speed: "Speed" };
+  const STATS = ["magic", "spirit", "knowledge", "light", "dark"];
+  const NAME = { magic: "Magic", spirit: "Spirit", knowledge: "Knowledge", light: "Light", dark: "Dark" };
   const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 
   const show = name => document.querySelectorAll("[data-screen]").forEach(s => { s.hidden = s.dataset.screen !== name; });
@@ -26,7 +27,7 @@
       + '<div class="d-pic"><img src="' + esc(c.img) + '" alt=""' + (opts.stat ? "" : ' loading="lazy"') + '></div>'
       + '<div class="d-tier">' + esc(c.tier) + (c.borrowed ? " · borrowed" : "") + '</div>'
       + '<ul class="d-s">'
-      + ["power", "spirit", "speed"].map(s => '<li class="' + s + hi(s) + '"><span>' + NAME[s] + '</span><b>' + c[s] + '</b><em style="width:' + Math.min(100, c[s] / 1.6) + '%"></em></li>').join("")
+      + STATS.map(s => '<li class="' + s + hi(s) + '"><span>' + NAME[s] + '</span><b>' + c[s] + '</b><em style="width:' + Math.min(100, c[s] / 1.8) + '%"></em></li>').join("")
       + '</ul></div>';
   }
 
