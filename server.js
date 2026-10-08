@@ -335,7 +335,10 @@ const BONUS = (() => {
   const bot = require("./bot");
   return require("./bonus").create({
     rpc: rpcBest, envVar: bot.envVar, notify: bot.notify, machine: MACHINE, mint: ENV.mint,
-    exclude: ["BC5CV6ivBkWW2wL5YMsZovoYXBreM8mgdfL2cSjC45M2", REWARDS].filter(Boolean)   // the team's own wallets never qualify
+    // the team's own wallets never qualify (more can be added with BONUS_EXCLUDE)
+    exclude: ["BC5CV6ivBkWW2wL5YMsZovoYXBreM8mgdfL2cSjC45M2", REWARDS,
+      "6jaCuULZVctfttpZPipTUVBmGLKr1zQKLYnmbMC3yDfh", "DpJ2kAsjYsJUaiTS9qa4mtozFjCUWbAUv7hLPcDuWfcP",
+      "BWu9qgbyaHvL8mUqmXX7ZzQUH5bteFjpYV8zg6VWwGw", "CfH8ApJCzT88LaKUDHsSy5MbF9Sk7cKPVCaT4u5Pj369"].filter(Boolean)
   });
 })();
 
