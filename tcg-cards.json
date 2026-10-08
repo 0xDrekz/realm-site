@@ -1,36 +1,251 @@
 {
-  "_about": "REALM: The Card Game, first ritual set. Draft for review: costs and numbers will be tuned in play. Elements beat the next one round the circle: light > dark > spirit > magic > knowledge > light (x1.5 damage; x0.75 the other way). A champion's HP is 40% of its five stats added up; it attacks with one of its stats, dealing a quarter of that stat.",
-  "elements": ["light", "dark", "spirit", "magic", "knowledge"],
-  "beats": { "light": "dark", "dark": "spirit", "spirit": "magic", "magic": "knowledge", "knowledge": "light" },
-  "champion": { "hpOfTotal": 0.4, "attackOfStat": 0.25, "strong": 1.5, "weak": 0.75 },
-  "essence": { "start": 1, "perTurn": 1, "max": 8 },
-  "deck": { "champions": 3, "rituals": 15, "hand": 4 },
-  "rituals": [
-    { "id": "supernova",      "name": "Supernova",           "element": "light",     "cost": 3, "rarity": "Rare",   "art": 16,  "text": "Deal 30 Light damage to an enemy champion." },
-    { "id": "rays",           "name": "Rays of Dawn",        "element": "light",     "cost": 1, "rarity": "Common", "art": 63,  "text": "Your champion's Light +15 until your next turn." },
-    { "id": "solar-flare",    "name": "Solar Flare",         "element": "light",     "cost": 5, "rarity": "Epic",   "art": 842, "text": "Deal 20 Light damage to every enemy champion." },
-    { "id": "halo",           "name": "Halo",                "element": "light",     "cost": 2, "rarity": "Common", "art": 5,   "text": "Heal one of your champions for 25." },
-
-    { "id": "eclipse",        "name": "Eclipse",             "element": "dark",      "cost": 2, "rarity": "Rare",   "art": 177, "text": "Swap a champion's Light and Dark." },
-    { "id": "abyss",          "name": "Call of the Abyss",   "element": "dark",      "cost": 4, "rarity": "Rare",   "art": 10,  "text": "Deal 40 Dark damage to an enemy champion. Your active champion loses 10 HP." },
-    { "id": "blood-moon",     "name": "Blood Moon",          "element": "dark",      "cost": 3, "rarity": "Epic",   "art": 858, "text": "An enemy champion loses 20 HP. Your active champion heals 20." },
-    { "id": "shroud",         "name": "Ossuary Shroud",      "element": "dark",      "cost": 1, "rarity": "Common", "art": 33,  "text": "Your active champion cannot be targeted until your next turn." },
-
-    { "id": "lightning",      "name": "Lightning Strike",    "element": "magic",     "cost": 2, "rarity": "Common", "art": 17,  "text": "Deal 25 Magic damage to an enemy champion." },
-    { "id": "storm",          "name": "Lightning Storm",     "element": "magic",     "cost": 4, "rarity": "Rare",   "art": 15,  "text": "Deal 15 Magic damage to every enemy champion." },
-    { "id": "mushroom-ring",  "name": "Mushroom Ring",       "element": "magic",     "cost": 2, "rarity": "Common", "art": 11,  "text": "Heal all your champions for 15." },
-    { "id": "moon-dust",      "name": "Moon Dust",           "element": "magic",     "cost": 1, "rarity": "Common", "art": 14,  "text": "Heal a champion for 10 and draw a card." },
-
-    { "id": "warm-aura",      "name": "Warm Aura",           "element": "spirit",    "cost": 2, "rarity": "Common", "art": 7,   "text": "Your champion's next attack deals 50% more." },
-    { "id": "verdant",        "name": "Verdant Growth",      "element": "spirit",    "cost": 3, "rarity": "Rare",   "art": 12,  "text": "A champion gains 30 max HP and heals 30." },
-    { "id": "ancestral-trees","name": "Ancestral Trees",     "element": "spirit",    "cost": 2, "rarity": "Common", "art": 4,   "text": "Give a champion a 30 HP shield." },
-
-    { "id": "mandala",        "name": "Mandala Ward",        "element": "knowledge", "cost": 2, "rarity": "Common", "art": 22,  "text": "Your active champion blocks the next attack completely." },
-    { "id": "alignment",      "name": "Planetary Alignment", "element": "knowledge", "cost": 3, "rarity": "Rare",   "art": 26,  "text": "All your champions' stats +10 until your next turn." },
-    { "id": "abduction",      "name": "UFO Abduction",       "element": "knowledge", "cost": 4, "rarity": "Epic",   "art": 20,  "text": "An enemy champion's highest stat is cut by 25 for the rest of the match." },
-    { "id": "geometry",       "name": "Sacred Geometry",     "element": "knowledge", "cost": 1, "rarity": "Common", "art": 48,  "text": "Draw two cards." },
-    { "id": "third-eye",      "name": "Third Eye",           "element": "knowledge", "cost": 0, "rarity": "Epic",   "art": 1111,"text": "See the rival's hand. Draw a card." },
-
-    { "id": "essence-surge",  "name": "Essence Surge",       "element": null,        "cost": 0, "rarity": "Rare",   "art": 91,  "text": "Gain 2 Essence this turn." }
-  ]
+ "_about": "REALM: The Card Game, first ritual set. Costs and numbers will be tuned in play. Elements beat the next one round the circle: light > dark > spirit > magic > knowledge > light (x1.5 damage; x0.75 the other way). A champion's element is its highest stat. Its HP is 40% of its five stats added up; it attacks with one of its stats, dealing a quarter of that stat. One attack per turn, any number of rituals you can pay for.",
+ "elements": [
+  "light",
+  "dark",
+  "spirit",
+  "magic",
+  "knowledge"
+ ],
+ "beats": {
+  "light": "dark",
+  "dark": "spirit",
+  "spirit": "magic",
+  "magic": "knowledge",
+  "knowledge": "light"
+ },
+ "champion": {
+  "hpOfTotal": 0.4,
+  "attackOfStat": 0.25,
+  "strong": 1.5,
+  "weak": 0.75
+ },
+ "essence": {
+  "start": 1,
+  "perTurn": 1,
+  "max": 8
+ },
+ "deck": {
+  "champions": 3,
+  "rituals": 15,
+  "hand": 4
+ },
+ "rituals": [
+  {
+   "id": "supernova",
+   "name": "Supernova",
+   "element": "light",
+   "cost": 3,
+   "rarity": "Rare",
+   "art": 16,
+   "text": "Deal 30 Light damage to an enemy champion.",
+   "target": "enemy"
+  },
+  {
+   "id": "rays",
+   "name": "Rays of Dawn",
+   "element": "light",
+   "cost": 1,
+   "rarity": "Common",
+   "art": 63,
+   "text": "One of your champions gets +15 Light until your next turn.",
+   "target": "ally"
+  },
+  {
+   "id": "solar-flare",
+   "name": "Solar Flare",
+   "element": "light",
+   "cost": 5,
+   "rarity": "Epic",
+   "art": 842,
+   "text": "Deal 20 Light damage to every enemy champion.",
+   "target": "none"
+  },
+  {
+   "id": "halo",
+   "name": "Halo",
+   "element": "light",
+   "cost": 2,
+   "rarity": "Common",
+   "art": 5,
+   "text": "Heal one of your champions for 25.",
+   "target": "ally"
+  },
+  {
+   "id": "eclipse",
+   "name": "Eclipse",
+   "element": "dark",
+   "cost": 2,
+   "rarity": "Rare",
+   "art": 177,
+   "text": "Swap a champion's Light and Dark, for the rest of the match.",
+   "target": "any"
+  },
+  {
+   "id": "abyss",
+   "name": "Call of the Abyss",
+   "element": "dark",
+   "cost": 4,
+   "rarity": "Rare",
+   "art": 10,
+   "text": "Deal 40 Dark damage to an enemy champion. Each of your champions loses 10 HP (never below 1).",
+   "target": "enemy"
+  },
+  {
+   "id": "blood-moon",
+   "name": "Blood Moon",
+   "element": "dark",
+   "cost": 3,
+   "rarity": "Epic",
+   "art": 858,
+   "text": "An enemy champion loses 20 HP. Your most wounded champion heals 20.",
+   "target": "enemy"
+  },
+  {
+   "id": "shroud",
+   "name": "Ossuary Shroud",
+   "element": "dark",
+   "cost": 1,
+   "rarity": "Common",
+   "art": 33,
+   "text": "One of your champions cannot be attacked or targeted until your next turn.",
+   "target": "ally"
+  },
+  {
+   "id": "lightning",
+   "name": "Lightning Strike",
+   "element": "magic",
+   "cost": 2,
+   "rarity": "Common",
+   "art": 17,
+   "text": "Deal 25 Magic damage to an enemy champion.",
+   "target": "enemy"
+  },
+  {
+   "id": "storm",
+   "name": "Lightning Storm",
+   "element": "magic",
+   "cost": 4,
+   "rarity": "Rare",
+   "art": 15,
+   "text": "Deal 15 Magic damage to every enemy champion.",
+   "target": "none"
+  },
+  {
+   "id": "mushroom-ring",
+   "name": "Mushroom Ring",
+   "element": "magic",
+   "cost": 2,
+   "rarity": "Common",
+   "art": 11,
+   "text": "Heal all your champions for 15.",
+   "target": "none"
+  },
+  {
+   "id": "moon-dust",
+   "name": "Moon Dust",
+   "element": "magic",
+   "cost": 1,
+   "rarity": "Common",
+   "art": 14,
+   "text": "Heal one of your champions for 10 and draw a card.",
+   "target": "ally"
+  },
+  {
+   "id": "warm-aura",
+   "name": "Warm Aura",
+   "element": "spirit",
+   "cost": 2,
+   "rarity": "Common",
+   "art": 7,
+   "text": "Your next attack this turn deals 50% more.",
+   "target": "none"
+  },
+  {
+   "id": "verdant",
+   "name": "Verdant Growth",
+   "element": "spirit",
+   "cost": 3,
+   "rarity": "Rare",
+   "art": 12,
+   "text": "One of your champions gains 30 max HP and heals 30.",
+   "target": "ally"
+  },
+  {
+   "id": "ancestral-trees",
+   "name": "Ancestral Trees",
+   "element": "spirit",
+   "cost": 2,
+   "rarity": "Common",
+   "art": 4,
+   "text": "Give one of your champions a 30 HP shield.",
+   "target": "ally"
+  },
+  {
+   "id": "mandala",
+   "name": "Mandala Ward",
+   "element": "knowledge",
+   "cost": 2,
+   "rarity": "Common",
+   "art": 22,
+   "text": "One of your champions blocks the next attack on it completely.",
+   "target": "ally"
+  },
+  {
+   "id": "alignment",
+   "name": "Planetary Alignment",
+   "element": "knowledge",
+   "cost": 3,
+   "rarity": "Rare",
+   "art": 26,
+   "text": "All your champions' stats +10 until your next turn.",
+   "target": "none"
+  },
+  {
+   "id": "abduction",
+   "name": "UFO Abduction",
+   "element": "knowledge",
+   "cost": 4,
+   "rarity": "Epic",
+   "art": 20,
+   "text": "An enemy champion's highest stat is cut by 25 for the rest of the match.",
+   "target": "enemy"
+  },
+  {
+   "id": "geometry",
+   "name": "Sacred Geometry",
+   "element": "knowledge",
+   "cost": 1,
+   "rarity": "Common",
+   "art": 48,
+   "text": "Draw two cards.",
+   "target": "none"
+  },
+  {
+   "id": "third-eye",
+   "name": "Third Eye",
+   "element": "knowledge",
+   "cost": 0,
+   "rarity": "Epic",
+   "art": 1111,
+   "text": "See the rival's hand this turn. Draw a card.",
+   "target": "none"
+  },
+  {
+   "id": "essence-surge",
+   "name": "Essence Surge",
+   "element": null,
+   "cost": 0,
+   "rarity": "Rare",
+   "art": 91,
+   "text": "Gain 2 Essence this turn.",
+   "target": "none"
+  }
+ ],
+ "blessing": {
+  "_about": "A wallet that holds beings and $DMT is blessed, by the same $DMT bands as the holder pool.",
+  "perLevel": 0.05,
+  "essenceFromLevel": 3,
+  "extraCardFromLevel": 5
+ }
 }
