@@ -351,10 +351,6 @@ function duelAllowed(ip) {                 // ten new runs a minute per caller i
   return w.length <= 10;
 }
 
-/* ---- REALM: The Card Game ---- */
-const TCG = require("./tcg").create({ root: ROOT, card: DUELS.card, beings: chainBeings, tokensOf,
-  bands: require("./bot").readData(ROOT).TOKEN_BANDS, envVar: require("./bot").envVar });
-
 /* the last 120 pictures fetched, so a busy wallet page costs one fetch each */
 const IMGS = new Map();
 
@@ -386,7 +382,6 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/wallet") urlPath = "/wallet.html";
   if (urlPath === "/payout") urlPath = "/payout.html";
   if (urlPath === "/duels") urlPath = "/duels.html";
-  if (urlPath === "/cards") urlPath = "/cards.html";
   // the saved snapshot is served through /api/snapshot only, after its hash is checked
   if (urlPath.startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
 
@@ -545,38 +540,6 @@ const server = http.createServer((req, res) => {
         return DUELS.start({ wallet: j.wallet || null, team: j.team }).then(d => send(d.error ? 400 : 200, d)).catch(() => send(502, { error: "Could not read the realm just now." }));
       }
       if (urlPath === "/api/duel/play") { const d = DUELS.play(j); return send(d.error ? 400 : 200, d); }
-      send(404, { error: "Not found." });
-    });
-    return;
-  }
-
-  /* ---- the card game (tcg.js): every move decided here ---- */
-  if (urlPath.startsWith("/api/tcg/")) {
-    const send = (code, obj) => res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(obj));
-    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
-    const q = new URL(req.url, "http://x").searchParams;
-    if (urlPath === "/api/tcg/board") return send(200, { week: TCG.week(), top: TCG.top() });
-    if (urlPath === "/api/tcg/set") return send(200, TCG.set);
-    if (urlPath === "/api/tcg/profile") {
-      const a = q.get("address") || "";
-      if (!ADDRESS.test(a)) return send(400, { error: "That is not a Solana address." });
-      if (!allowed(ip)) return send(429, { error: "Too many checks. Wait a minute." });
-      Promise.all([chainBeings(), TCG.blessing(a)])
-        .then(([all, bless]) => send(200, { bless, cards: all.filter(b => b.owner === a).map(b => DUELS.card(b.n)).sort((x, y) => y.total - x.total) }))
-        .catch(() => send(502, { error: "Could not read the realm just now." }));
-      return;
-    }
-    if (req.method !== "POST") return send(405, { error: "POST" });
-    let body = "";
-    req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
-    req.on("end", () => {
-      let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
-      if (urlPath === "/api/tcg/start") {
-        if (!duelAllowed(ip)) return send(429, { error: "Too many matches. Take a breath and try again in a minute." });
-        if (j.wallet && !ADDRESS.test(j.wallet)) return send(400, { error: "That is not a Solana address." });
-        return TCG.start({ wallet: j.wallet || null, champions: j.champions }).then(d => send(d.error ? 400 : 200, d)).catch(() => send(502, { error: "Could not read the realm just now." }));
-      }
-      if (urlPath === "/api/tcg/act") { const d = TCG.act(j); return send(d.error ? 400 : 200, d); }
       send(404, { error: "Not found." });
     });
     return;

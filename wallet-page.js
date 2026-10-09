@@ -182,8 +182,8 @@
         + (stats && stats.token ? '<div class="w-share" style="margin-top:12px"><a class="w-btn" href="https://pump.fun/coin/' + esc(stats.token) + '" target="_blank" rel="noopener">Buy ' + TOKEN + ' on pump.fun</a></div>' : '')
         + '<p class="w-fine">"Up to" is the most it could reach, if no other holder had ' + TOKEN + '. The more others hold, the closer it comes back to the first row.</p></section>'
       + pool
-      + '<section class="h-card"><h2>Play with these beings</h2><p class="h-note">Take them into battle in REALM Duels, or field them as champions in REALM: The Card Game. Hold $DMT too and your champions are blessed.</p>'
-        + '<div class="w-share"><a class="w-btn" href="/duels">Play REALM Duels</a><a class="w-btn ghost" href="/cards">Play the Card Game</a></div></section>'
+      + '<section class="h-card"><h2>Play with these beings</h2><p class="h-note">Take them into battle in REALM Duels: three rounds a stage, rarer rivals every stage, and a weekly board.</p>'
+        + '<div class="w-share"><a class="w-btn" href="/duels">Play REALM Duels</a></div></section>'
       + '<section class="h-card"><h2>Share</h2><div class="w-share">'
         + '<button type="button" class="w-btn" data-link>Copy link to this page</button>'
         + '<a class="w-btn ghost" data-x target="_blank" rel="noopener">Post on X</a></div></section>'
