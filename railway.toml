@@ -1,5 +1,5 @@
 # Railway deploys this repo when main moves.
-# Connect the service to 6tmv47v6fq-collab/realm-site, branch main,
+# Connect the service to 0xDrekz/realm-site, branch main,
 # with auto-deploy on. Every push after that rebuilds and restarts.
 
 [build]
