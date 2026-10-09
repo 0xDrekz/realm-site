@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="landing.css">
 <link rel="stylesheet" href="holders.css">
-<link rel="stylesheet" href="duels.css?v=5">
+<link rel="stylesheet" href="duels.css?v=6">
 </head>
 <body class="holders dpage">
 
@@ -31,6 +31,16 @@
 </header>
 
 <main class="h-page d-page">
+<nav class="d-menu" data-menu-main aria-label="REALM Duels menu">
+  <button type="button" data-menu-play><i>&#9876;</i><span>Play</span></button>
+  <button type="button" data-menu-board><i>&#9819;</i><span>Board</span></button>
+  <a href="/map"><i>&#9672;</i><span>Map</span></a>
+  <a href="/#rewards"><i>&#10022;</i><span>Rewards</span></a>
+  <a href="/#beings"><i>&#10070;</i><span>Beings</span></a>
+  <a href="/wallet" data-menu-wallet><i>&#9673;</i><span>My wallet</span></a>
+  <a href="/mint"><i>&#10010;</i><span>Mint</span></a>
+  <a href="https://t.me/DMT_REALM" target="_blank" rel="noopener"><i>&#10148;</i><span>Telegram</span></a>
+</nav>
   <!-- 1. the gate -->
   <section data-screen="intro">
     <div class="d-hero">
@@ -92,7 +102,7 @@
       <span>Score <b data-score>0</b></span>
       <span>Rounds <b data-rounds>0 &ndash; 0</b></span>
     </div>
-    <div class="d-sub"><span class="d-pips" data-pips aria-label="Rounds this stage"></span><span class="d-boosttag" data-boosttag hidden></span><button type="button" class="d-mute" data-mute aria-pressed="true">Sound on</button></div>
+    <div class="d-sub"><span class="d-pips" data-pips aria-label="Rounds this stage"></span><span class="d-boosttag" data-boosttag hidden></span><span class="d-subr"><button type="button" class="d-mute" data-mute aria-pressed="true">Sound on</button><button type="button" class="d-mute d-menubtn" data-menu-open>Menu</button></span></div>
     <p class="d-label">The rival</p>
     <div class="d-row d-rival" data-rival></div>
     <div class="d-call" data-call></div>
@@ -133,6 +143,24 @@
   </section>
 </main>
 
-<script src="duels-page.js?v=7"></script>
+<div class="d-overlay" data-overlay hidden>
+  <div class="d-ovbox">
+    <p class="eyebrow">REALM Duels</p>
+    <button type="button" class="m-go" data-menu-resume>Back to the duel</button>
+    <nav class="d-menu" aria-label="REALM Duels menu">
+  <button type="button" data-menu-quit><i>&#9876;</i><span>New run</span></button>
+  <button type="button" data-menu-board><i>&#9819;</i><span>Board</span></button>
+  <a href="/map"><i>&#9672;</i><span>Map</span></a>
+  <a href="/#rewards"><i>&#10022;</i><span>Rewards</span></a>
+  <a href="/#beings"><i>&#10070;</i><span>Beings</span></a>
+  <a href="/wallet" data-menu-wallet><i>&#9673;</i><span>My wallet</span></a>
+  <a href="/mint"><i>&#10010;</i><span>Mint</span></a>
+  <a href="https://t.me/DMT_REALM" target="_blank" rel="noopener"><i>&#10148;</i><span>Telegram</span></a>
+</nav>
+    <p class="h-note">Leaving the page ends this run. Your best run this week stays on the board.</p>
+  </div>
+</div>
+
+<script src="duels-page.js?v=8"></script>
 </body>
 </html>

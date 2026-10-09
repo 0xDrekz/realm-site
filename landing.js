@@ -476,6 +476,12 @@
   // the journey opens these too
   window.RealmPanels = { show, hide };
 
+  // a link straight to a panel: dmt-realm.dev/#rewards, /#beings, /#lore, /#faq, /#mint
+  const ALIAS = { beings: "nfts", rewards: "rewards", lore: "lore", faq: "faq", mint: "mint", nfts: "nfts" };
+  const fromHash = () => { const k = ALIAS[location.hash.slice(1)]; if (k) show(k); };
+  setTimeout(fromHash, 400);
+  window.addEventListener("hashchange", fromHash);
+
   $$(".panel-close").forEach(b => b.addEventListener("click", hide));
 
   document.addEventListener("keydown", e => { if (e.key === "Escape") hide(); });
