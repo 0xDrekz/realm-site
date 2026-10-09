@@ -76,12 +76,16 @@
       const lv = boost ? boost.level : 0;
       $("[data-boosted]").innerHTML = lv
         ? "<b>$DMT boost: +" + (lv * 3) + "% to every stat</b> for holding " + Number(boost.tokens).toLocaleString("en-GB") + " $DMT." + (lv < 5 ? " Hold " + ["", "250K", "1M", "5M", "10M"][lv] + " for +" + (lv * 3 + 3) + "%." : " The full boost.")
-        : "<b>No $DMT boost yet.</b> Hold 50K $DMT with your beings for +3% to every stat, up to +15% at 10M.";
+        : "<b>No $DMT boost yet.</b> Hold 50K $DMT for +3% to every stat, up to +15% at 10M.";
       $("[data-boosted]").classList.toggle("on", !!lv);
       document.querySelectorAll(".d-btable tr[data-lv]").forEach(tr => tr.classList.toggle("on", Number(tr.dataset.lv) === lv));
       wallet = a; store.set("realm-duel-wallet", a);
-      if (!cards.length) return err("This wallet holds no beings yet. Play with borrowed spirits below, or mint one at dmt-realm.dev/mint.");
+      if (!cards.length && !lv) return err("This wallet holds no beings and no $DMT yet. Play with borrowed spirits below, mint a being, or hold 50K $DMT for the boost.");
       $("[data-mine]").innerHTML = cards.map(c => cardHTML(c)).join("");
+      if (!cards.length) {
+        $("[data-pick-note]").textContent = "No beings yet, but your $DMT counts: every round you are dealt three borrowed spirits from all 1,111, boosted +" + (lv * 3) + "%, and your runs go on the board. Mint a being to play your own.";
+        $("[data-go]").disabled = false; $("[data-go]").textContent = "Enter the realm"; $("[data-pick]").hidden = false; return;
+      }
       $("[data-pick-note]").textContent = cards.length > 3
         ? "Your deck: all " + cards.length + " of your beings. Every round you are dealt three of them at random."
         : cards.length === 3 ? "Your deck: your three beings, dealt every round."

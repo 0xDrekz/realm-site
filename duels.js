@@ -15,8 +15,10 @@
    rounds 1 and 3, the rival in round 2. Most rounds wins the duel.
 
    A run: duel after duel against rival teams that grow rarer each stage,
-   until the first loss. A wallet holding beings and $DMT plays its own beings
-   stronger: +3% to every stat a $DMT band (50K, 250K, 1M, 5M, 10M), up to +15%. Every round the player is dealt a fresh hand of
+   until the first loss. A wallet holding $DMT plays stronger: +3% to every
+   stat a $DMT band (50K, 250K, 1M, 5M, 10M), up to +15%, on its own beings
+   and on borrowed spirits alike. A wallet with $DMT but no beings plays
+   boosted borrowed spirits and goes on the board. Every round the player is dealt a fresh hand of
    three and plays one. A wallet's best run of the week is its place on
    the board. A wallet is dealt from the beings it holds; anyone else is
    dealt borrowed spirits drawn from all 1,111 at random, weaker, and off
@@ -126,7 +128,8 @@ function create({ root, beings, envVar, tokensOf = async () => 0, bands = [], lo
       for (let t = 0; t < 5 && run.deck.length > 3 && own.every(n => prev.includes(n)); t++) own = pickFrom(run.deck, 3);
     }
     const hand = own.map(n => blessed(card(n, run.boost || 1), run));
-    while (hand.length < 3) { const n = 1 + crypto.randomInt(MAP.length); if (!hand.some(c => c.n === n)) hand.push(card(n, BORROWED)); }
+    // borrowed spirits fill the rest; $DMT boosts them too, so the token counts even without a being
+    while (hand.length < 3) { const n = 1 + crypto.randomInt(MAP.length); if (!hand.some(c => c.n === n)) hand.push(blessed(card(n, BORROWED * (run.boost || 1)), run)); }
     run.team = hand;
   }
 
@@ -149,11 +152,13 @@ function create({ root, beings, envVar, tokensOf = async () => 0, bands = [], lo
   async function start({ wallet }) {
     sweep();
     let deck = null;
+    const b = await boostOf(wallet);
     if (wallet) {
       deck = (await beings()).filter(b => b.owner === wallet).map(b => b.n);
-      if (!deck.length) return { error: "This wallet holds no beings yet. Play with borrowed spirits, or mint at dmt-realm.dev/mint." };
+      // no beings: a wallet holding $DMT still plays, with boosted borrowed spirits, and goes on the board
+      if (!deck.length && !b.level) return { error: "This wallet holds no beings and no $DMT yet. Play with borrowed spirits, mint a being, or hold 50K $DMT for the boost." };
+      if (!deck.length) deck = null;
     }
-    const b = await boostOf(wallet);
     const run = { id: crypto.randomBytes(12).toString("hex"), wallet: wallet || null, deck, team: null, stage: 0, score: 0, over: false, touched: Date.now(), boost: b.boost, level: b.level };
     newDuel(run); runs.set(run.id, run);
     return view(run);
