@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="landing.css">
 <link rel="stylesheet" href="holders.css">
-<link rel="stylesheet" href="duels.css?v=3">
+<link rel="stylesheet" href="duels.css?v=4">
 </head>
 <body class="holders dpage">
 
@@ -79,6 +79,7 @@
       <span>Score <b data-score>0</b></span>
       <span>Rounds <b data-rounds>0 &ndash; 0</b></span>
     </div>
+    <div class="d-sub"><span class="d-pips" data-pips aria-label="Rounds this stage"></span><button type="button" class="d-mute" data-mute aria-pressed="true">Sound on</button></div>
     <p class="d-label">The rival</p>
     <div class="d-row d-rival" data-rival></div>
     <div class="d-call" data-call></div>
@@ -104,6 +105,13 @@
       <p class="d-big"><b data-over-stage>0</b><span>stages cleared</span></p>
       <p class="d-big"><b data-over-score>0</b><span>score</span></p>
       <p class="h-note" data-over-note></p>
+      <div class="d-pic" data-pic hidden>
+        <img data-pic-img alt="A picture of your run">
+        <div class="w-share">
+          <a class="w-btn" data-pic-save>Save picture</a>
+          <button class="w-btn" type="button" data-pic-share hidden>Share picture</button>
+        </div>
+      </div>
       <div class="w-share">
         <button class="m-go" type="button" data-again>Play again</button>
         <a class="w-btn ghost" data-share target="_blank" rel="noopener">Share on X</a>
@@ -112,6 +120,6 @@
   </section>
 </main>
 
-<script src="duels-page.js?v=5"></script>
+<script src="duels-page.js?v=6"></script>
 </body>
 </html>

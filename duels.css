@@ -87,3 +87,42 @@
   color:#1a1206;background:linear-gradient(180deg,#f2d27e,#e3ba5c);border:0;box-shadow:0 0 24px rgba(227,186,92,.35)}
 .dpage .m-go:disabled{opacity:.45;cursor:default;box-shadow:none}
 .dpage .m-go[hidden],.d-stats[hidden],.d-arena[hidden]{display:none}
+
+/* ---------- look and feel: dealing, the flip, the count, sparks ---------- */
+.d-sub{display:flex;justify-content:space-between;align-items:center;margin-top:-6px}
+.d-pips{display:flex;gap:6px}
+.d-pips i{width:14px;height:14px;border:2px solid var(--line);background:#120a1f;transform:rotate(45deg)}
+.d-pips i.now{border-color:var(--gold);animation:d-pulse 1s ease-in-out infinite}
+.d-pips i.w{background:var(--gold);border-color:var(--gold)}
+.d-pips i.l{background:#ff8a7a;border-color:#ff8a7a}
+@keyframes d-pulse{50%{box-shadow:0 0 10px var(--gold)}}
+.d-mute{font:inherit;font-family:'Space Grotesk',system-ui,sans-serif;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+  background:none;border:1px solid var(--line);color:var(--dim);padding:5px 9px;cursor:pointer}
+.d-mute[aria-pressed="true"]{color:var(--gold);border-color:var(--gold)}
+.d-slot.deal{animation:d-deal .45s cubic-bezier(.2,.9,.3,1.2) both;animation-delay:var(--d)}
+@keyframes d-deal{0%{opacity:0;transform:translateY(60px) rotate(-8deg) scale(.85)}100%{opacity:1;transform:none}}
+.d-slot:not(.used):hover .d-card{transform:translateY(-4px)}
+.d-flip{perspective:900px}
+.d-flip-in{position:relative;transform-style:preserve-3d;transform:rotateY(180deg);transition:transform .5s cubic-bezier(.3,.7,.3,1)}
+.d-flip.go .d-flip-in{transform:rotateY(0)}
+.d-flip-front,.d-flip-back{backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.d-flip-back{position:absolute;inset:0;transform:rotateY(180deg)}
+.d-flip-back .d-card.back{height:100%;aspect-ratio:auto}
+.d-vs b{display:block;transition:transform .25s,color .25s}
+.d-vs b.big{transform:scale(1.45);color:var(--gold);text-shadow:0 0 14px rgba(227,186,92,.8)}
+.d-card.lose{animation:d-shake .4s}
+@keyframes d-shake{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+.d-verdict{opacity:0;transform:scale(.8);transition:opacity .25s,transform .25s}
+.d-verdict.show{opacity:1;transform:scale(1)}
+.d-sparks{position:fixed;width:0;height:0;pointer-events:none;z-index:50}
+.d-sparks i{position:absolute;width:7px;height:7px;animation:d-spark .9s ease-out both}
+@keyframes d-spark{0%{transform:translate(0,0);opacity:1}100%{transform:translate(var(--x),var(--y));opacity:0}}
+.d-banner{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:60;pointer-events:none;text-align:center;
+  background:rgba(7,4,15,.92);border:2px solid var(--gold);padding:18px 30px;box-shadow:0 0 50px rgba(227,186,92,.5);animation:d-ban 1.9s ease both}
+.d-banner b{display:block;font-family:'Pixelify Sans',system-ui,sans-serif;font-size:clamp(1.8rem,7vw,2.8rem);color:var(--gold)}
+.d-banner span{font-family:'Space Grotesk',system-ui,sans-serif;color:var(--bone);letter-spacing:.14em;text-transform:uppercase;font-size:.85rem}
+@keyframes d-ban{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}25%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-60%)}}
+.d-pic{margin:16px 0 4px}
+.d-pic img{width:100%;display:block;border:1px solid var(--line)}
+.d-pic[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.d-slot.deal,.d-card.lose,.d-banner,.d-sparks i{animation:none}.d-flip-in{transition:none}}
