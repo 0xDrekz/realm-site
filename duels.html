@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#03010a">
 <title>REALM Duels</title>
-<meta name="description" content="Battle your REALM beings. Three cards, three rounds, rarer rivals every stage. Weekly leaderboard.">
+<meta name="description" content="Battle your REALM beings. Three cards, three rounds, rarer rivals every stage. Hold $DMT and your beings hit harder. Weekly leaderboard.">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <meta property="og:title" content="REALM Duels">
@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="landing.css">
 <link rel="stylesheet" href="holders.css">
-<link rel="stylesheet" href="duels.css?v=4">
+<link rel="stylesheet" href="duels.css?v=5">
 </head>
 <body class="holders dpage">
 
@@ -47,6 +47,18 @@
       </ol>
       <p class="h-note">Your best run of the week goes on the board. Prizes in $DMT for the top of the board are announced in the Telegram.</p>
     </div>
+    <div class="h-card d-bcard">
+      <h2>The $DMT boost</h2>
+      <p class="h-note">Your beings are the car. $DMT is the fuel. Hold both in the same wallet and every stat on your own beings goes up.</p>
+      <table class="d-btable">
+        <tr><th>$DMT held</th><th>Every stat</th></tr>
+        <tr data-lv="1"><td>50K</td><td>+3%</td></tr>
+        <tr data-lv="2"><td>250K</td><td>+6%</td></tr>
+        <tr data-lv="3"><td>1M</td><td>+9%</td></tr>
+        <tr data-lv="4"><td>5M</td><td>+12%</td></tr>
+        <tr data-lv="5"><td>10M</td><td>+15%</td></tr>
+      </table>
+    </div>
     <div class="h-card">
       <h2>Play with your beings</h2>
       <form class="h-find" data-find>
@@ -55,6 +67,7 @@
       </form>
       <p class="h-note">Nothing is connected or signed. The board lists the wallet that played.</p>
       <div data-pick hidden>
+        <p class="d-boosted" data-boosted></p>
         <p class="d-pick-note" data-pick-note></p>
         <div class="d-grid" data-mine></div>
         <button class="m-go" type="button" data-go disabled>Enter the realm</button>
@@ -79,7 +92,7 @@
       <span>Score <b data-score>0</b></span>
       <span>Rounds <b data-rounds>0 &ndash; 0</b></span>
     </div>
-    <div class="d-sub"><span class="d-pips" data-pips aria-label="Rounds this stage"></span><button type="button" class="d-mute" data-mute aria-pressed="true">Sound on</button></div>
+    <div class="d-sub"><span class="d-pips" data-pips aria-label="Rounds this stage"></span><span class="d-boosttag" data-boosttag hidden></span><button type="button" class="d-mute" data-mute aria-pressed="true">Sound on</button></div>
     <p class="d-label">The rival</p>
     <div class="d-row d-rival" data-rival></div>
     <div class="d-call" data-call></div>
@@ -120,6 +133,6 @@
   </section>
 </main>
 
-<script src="duels-page.js?v=6"></script>
+<script src="duels-page.js?v=7"></script>
 </body>
 </html>

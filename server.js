@@ -343,7 +343,8 @@ const BONUS = (() => {
 })();
 
 /* ---- REALM Duels ---- */
-const DUELS = require("./duels").create({ root: ROOT, beings: chainBeings, envVar: require("./bot").envVar });
+const DUELS = require("./duels").create({ root: ROOT, beings: chainBeings, envVar: require("./bot").envVar,
+  tokensOf, bands: require("./bot").readData(ROOT).TOKEN_BANDS });
 const duelHits = new Map();
 function duelAllowed(ip) {                 // ten new runs a minute per caller is plenty for a person
   const now = Date.now(), w = (duelHits.get(ip) || []).filter(t => now - t < 60_000); w.push(now); duelHits.set(ip, w);
@@ -525,7 +526,8 @@ const server = http.createServer((req, res) => {
       const a = q.get("address") || "";
       if (!ADDRESS.test(a)) return send(400, { error: "That is not a Solana address." });
       if (!allowed(ip)) return send(429, { error: "Too many checks. Wait a minute." });
-      chainBeings().then(all => send(200, { cards: all.filter(b => b.owner === a).map(b => DUELS.card(b.n)).sort((x, y) => y.total - x.total) }))
+      Promise.all([chainBeings(), DUELS.boostOf(a)]).then(([all, boost]) => send(200, { boost,
+        cards: all.filter(b => b.owner === a).map(b => DUELS.card(b.n, boost.boost)).map(c => boost.boost > 1 ? { ...c, boost: Math.round((boost.boost - 1) * 100) } : c).sort((x, y) => y.total - x.total) }))
         .catch(() => send(502, { error: "Could not read the realm just now." }));
       return;
     }

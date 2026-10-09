@@ -15,7 +15,8 @@
    rounds 1 and 3, the rival in round 2. Most rounds wins the duel.
 
    A run: duel after duel against rival teams that grow rarer each stage,
-   until the first loss. Every round the player is dealt a fresh hand of
+   until the first loss. A wallet holding beings and $DMT plays its own beings
+   stronger: +3% to every stat a $DMT band (50K, 250K, 1M, 5M, 10M), up to +15%. Every round the player is dealt a fresh hand of
    three and plays one. A wallet's best run of the week is its place on
    the board. A wallet is dealt from the beings it holds; anyone else is
    dealt borrowed spirits drawn from all 1,111 at random, weaker, and off
@@ -39,14 +40,15 @@ const AURA = { Rose: S, Warm: S, Cold: K, Acid: M, Opposed: D };
 const COLOUR = { Auric: L, Regalia: L, Bloom: L, Coral: L, Solar: L, "Prime Gold": L, Celestial: L, Prism: L, Glacier: L, "Rose Quartz": L,
   Abyss: D, Ossuary: D, Eclipse: D, Obsidian: D, "Blood Moon": D, Ichor: D, Ultraviolet: D, Nebula: D,
   Verdant: S, Moss: S, Jade: S, Amethyst: S, Furnace: M, Molten: M, Sapphire: K };
-const BORROWED = 0.8;                      // a borrowed spirit has 80% of a real being's stats
+const BORROWED = 0.8;                       // a borrowed spirit has 80% of a real being's stats
+const BOOST_PER_LEVEL = 0.03;               // +3% a $DMT band, up to +15% at 10M
 
 function rand(seed) {                      // a small seeded generator, so a being's stats never change
   let h = crypto.createHash("sha256").update(String(seed)).digest(), i = 0;
   return () => { if (i > 28) { h = crypto.createHash("sha256").update(h).digest(); i = 0; } const v = h.readUInt32LE(i); i += 4; return v / 2 ** 32; };
 }
 
-function create({ root, beings, envVar, log = console.log }) {
+function create({ root, beings, envVar, tokensOf = async () => 0, bands = [], log = console.log }) {
   const MAP = JSON.parse(fs.readFileSync(path.join(root, "map-data.json"))).beings;     // [tier, being, traits]
   const ART = JSON.parse(fs.readFileSync(path.join(root, "art-ids.json")));            // image id for each number
   const RANK = JSON.parse(fs.readFileSync(path.join(root, "rarity.json")));
@@ -84,7 +86,7 @@ function create({ root, beings, envVar, log = console.log }) {
     const wk = week(), b = board[wk] = board[wk] || {};
     const prev = b[run.wallet];
     if (!prev || run.stage > prev.stage || (run.stage === prev.stage && run.score > prev.score))
-      b[run.wallet] = { stage: run.stage, score: run.score, team: run.team.map(c => c.n), at: Date.now() };
+      b[run.wallet] = { stage: run.stage, score: run.score, team: run.team.map(c => c.n), level: run.level || 0, at: Date.now() };
     b[run.wallet].runs = ((prev && prev.runs) || 0) + 1;
     save();
   }
@@ -123,7 +125,7 @@ function create({ root, beings, envVar, log = console.log }) {
       own = pickFrom(run.deck, Math.min(3, run.deck.length));
       for (let t = 0; t < 5 && run.deck.length > 3 && own.every(n => prev.includes(n)); t++) own = pickFrom(run.deck, 3);
     }
-    const hand = own.map(n => card(n));
+    const hand = own.map(n => blessed(card(n, run.boost || 1), run));
     while (hand.length < 3) { const n = 1 + crypto.randomInt(MAP.length); if (!hand.some(c => c.n === n)) hand.push(card(n, BORROWED)); }
     run.team = hand;
   }
@@ -135,6 +137,15 @@ function create({ root, beings, envVar, log = console.log }) {
     run.round = 1; run.wins = 0; run.losses = 0; run.used = []; run.rivalUsed = []; run.log = [];
   }
 
+  /* the $DMT boost: a wallet holding beings and $DMT plays them stronger, by the holder pool's bands */
+  async function boostOf(wallet) {
+    if (!wallet) return { level: 0, tokens: 0, boost: 1 };
+    const tokens = await tokensOf(wallet).catch(() => 0);
+    const level = bands.filter(b => b.hold > 0 && tokens >= b.hold).length;
+    return { level, tokens, boost: 1 + BOOST_PER_LEVEL * level };
+  }
+  const blessed = (c, run) => run.boost > 1 ? { ...c, boost: Math.round((run.boost - 1) * 100) } : c;
+
   async function start({ wallet }) {
     sweep();
     let deck = null;
@@ -142,13 +153,14 @@ function create({ root, beings, envVar, log = console.log }) {
       deck = (await beings()).filter(b => b.owner === wallet).map(b => b.n);
       if (!deck.length) return { error: "This wallet holds no beings yet. Play with borrowed spirits, or mint at dmt-realm.dev/mint." };
     }
-    const run = { id: crypto.randomBytes(12).toString("hex"), wallet: wallet || null, deck, team: null, stage: 0, score: 0, over: false, touched: Date.now() };
+    const b = await boostOf(wallet);
+    const run = { id: crypto.randomBytes(12).toString("hex"), wallet: wallet || null, deck, team: null, stage: 0, score: 0, over: false, touched: Date.now(), boost: b.boost, level: b.level };
     newDuel(run); runs.set(run.id, run);
     return view(run);
   }
 
   function view(run, extra = {}) {
-    return { run: run.id, wallet: run.wallet, team: run.team, stage: run.stage, score: run.score, over: run.over,
+    return { run: run.id, wallet: run.wallet, level: run.level || 0, boostPct: Math.round(((run.boost || 1) - 1) * 100), team: run.team, stage: run.stage, score: run.score, over: run.over,
       round: run.round, wins: run.wins, losses: run.losses, used: run.used, caller: run.round === 2 ? "rival" : "you",
       rival: run.rival.map((c, i) => run.rivalUsed.includes(i) ? c : { hidden: true, tier: c.tier }), log: run.log, ...extra };
   }
@@ -199,7 +211,7 @@ function create({ root, beings, envVar, log = console.log }) {
     return view(run, { last: run.log[run.log.length - 1], played });
   }
 
-  return { start, play, card, top, week, runs: () => runs.size };
+  return { start, play, card, top, week, boostOf, runs: () => runs.size };
 }
 
 module.exports = { create, TOTAL };

@@ -50,7 +50,7 @@
     return '<div class="d-card' + (opts.cls ? " " + opts.cls : "") + '" style="--c:' + COL[c.tier] + '" ' + (opts.attr || "") + '>'
       + '<div class="d-top"><b>' + esc(name) + '</b><i>#' + c.n + '</i></div>'
       + '<div class="d-pic"><img src="' + esc(c.img) + '" alt=""' + (opts.stat ? "" : ' loading="lazy"') + '></div>'
-      + '<div class="d-tier">' + esc(c.tier) + (c.borrowed ? " · borrowed" : "") + '</div>'
+      + '<div class="d-tier">' + esc(c.tier) + (c.borrowed ? " · borrowed" : "") + (c.boost ? '<em class="d-boost">+' + c.boost + '%</em>' : "") + '</div>'
       + '<ul class="d-s">'
       + STATS.map(s => '<li class="' + s + hi(s) + '"><span>' + NAME[s] + '</span><b>' + c[s] + '</b><em style="width:' + Math.min(100, c[s] / 1.8) + '%"></em></li>').join("")
       + '</ul></div>';
@@ -61,7 +61,7 @@
     try {
       const b = await api("/api/duel/board");
       $("[data-board]").innerHTML = b.top.length
-        ? '<ol class="d-board">' + b.top.map((r, i) => '<li><span>' + (i + 1) + '</span><a href="/wallet?a=' + esc(r.wallet) + '">' + esc(short(r.wallet)) + '</a><b>Stage ' + r.stage + '</b><i>' + r.score + '</i></li>').join("") + '</ol>'
+        ? '<ol class="d-board">' + b.top.map((r, i) => '<li><span>' + (i + 1) + '</span><a href="/wallet?a=' + esc(r.wallet) + '">' + esc(short(r.wallet)) + '</a><b>Stage ' + r.stage + (r.level ? ' <em class="d-boost">+' + (r.level * 3) + '%</em>' : '') + '</b><i>' + r.score + '</i></li>').join("") + '</ol>'
           + '<p class="h-note">Week starting ' + esc(b.week) + ' (resets Monday 00:00 UTC).</p>'
         : '<p class="h-note">Nobody on the board yet this week. Be the first.</p>';
     } catch { $("[data-board]").innerHTML = '<p class="h-note">The board could not be read just now.</p>'; }
@@ -72,7 +72,13 @@
   async function load(a) {
     err(""); $("[data-pick]").hidden = true;
     try {
-      const { cards } = await api("/api/duel/cards?address=" + encodeURIComponent(a));
+      const { cards, boost } = await api("/api/duel/cards?address=" + encodeURIComponent(a));
+      const lv = boost ? boost.level : 0;
+      $("[data-boosted]").innerHTML = lv
+        ? "<b>$DMT boost: +" + (lv * 3) + "% to every stat</b> for holding " + Number(boost.tokens).toLocaleString("en-GB") + " $DMT." + (lv < 5 ? " Hold " + ["", "250K", "1M", "5M", "10M"][lv] + " for +" + (lv * 3 + 3) + "%." : " The full boost.")
+        : "<b>No $DMT boost yet.</b> Hold 50K $DMT with your beings for +3% to every stat, up to +15% at 10M.";
+      $("[data-boosted]").classList.toggle("on", !!lv);
+      document.querySelectorAll(".d-btable tr[data-lv]").forEach(tr => tr.classList.toggle("on", Number(tr.dataset.lv) === lv));
       wallet = a; store.set("realm-duel-wallet", a);
       if (!cards.length) return err("This wallet holds no beings yet. Play with borrowed spirits below, or mint one at dmt-realm.dev/mint.");
       $("[data-mine]").innerHTML = cards.map(c => cardHTML(c)).join("");
@@ -92,6 +98,7 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   function paint() {
     $("[data-stage]").textContent = S.stage;
+    const bt = $("[data-boosttag]"); bt.hidden = !S.boostPct; bt.textContent = "$DMT boost +" + S.boostPct + "%";
     $("[data-score]").textContent = S.score;
     $("[data-rounds]").textContent = S.wins + " – " + S.losses;
     $("[data-rival]").innerHTML = S.rival.map((c, i) => '<div class="d-slot' + (c.hidden ? "" : " used") + '">' + cardHTML(c) + '</div>').join("");
@@ -224,7 +231,7 @@
       g.fillStyle = "#f4efe4"; g.font = "700 46px 'Space Grotesk', sans-serif";
       g.fillText("Stage " + d.stage + "   ·   Score " + d.score, W / 2, 545);
       g.fillStyle = "#b9aedb"; g.font = "500 26px 'Space Grotesk', sans-serif";
-      g.fillText((d.wallet ? short(d.wallet) + "  ·  " : "") + "How deep can your beings go?", W / 2, 590);
+      g.fillText((d.wallet ? short(d.wallet) + "  ·  " : "") + (d.boostPct ? "$DMT boost +" + d.boostPct + "%  ·  " : "") + "How deep can your beings go?", W / 2, 590);
       g.fillStyle = "#e3ba5c"; g.font = "700 30px 'Space Grotesk', sans-serif"; g.fillText("dmt-realm.dev/duels", W / 2, 638);
       const url = cv.toDataURL("image/png");
       $("[data-pic-img]").src = url;
