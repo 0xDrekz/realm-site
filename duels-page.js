@@ -67,19 +67,67 @@
     } catch { $("[data-board]").innerHTML = '<p class="h-note">The board could not be read just now.</p>'; }
   }
 
-  /* ---------- the deck: every being the wallet holds ---------- */
-  let wallet = null;
-  async function load(a) {
+  /* ---------- connecting a wallet ----------
+     Wallets that announce themselves the standard way (Phantom, MetaMask,
+     Solflare, Backpack) first, then the older injected ones. The wallet signs a
+     one-time message; the server checks it and gives this tab a session. */
+  const STD = [];
+  try {
+    window.addEventListener("wallet-standard:register-wallet", e => { try { e.detail({ register: (...w) => { STD.push(...w); return () => {}; } }); } catch {} });
+    window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: { register: (...w) => { STD.push(...w); return () => {}; } } }));
+  } catch {}
+  const stdWallet = () => STD.find(w => w.features && w.features["standard:connect"] && w.features["solana:signMessage"] && /phantom/i.test(w.name))
+    || STD.find(w => w.features && w.features["standard:connect"] && w.features["solana:signMessage"]);
+  const injected = () => (window.phantom && window.phantom.solana) || (window.solana && window.solana.signMessage ? window.solana : null) || window.solflare || window.backpack || null;
+  const b64 = u8 => btoa(String.fromCharCode(...u8));
+  async function connectAndSign() {
+    const w = stdWallet(), inj = !w && injected();
+    if (!w && !inj) throw new Error("No Solana wallet found in this browser.");
+    let address, account;
+    if (w) { const r = await w.features["standard:connect"].connect(); account = r.accounts.find(a => a.chains ? a.chains.some(c => /solana/.test(c)) : true) || r.accounts[0]; address = account.address; }
+    else { const r = await inj.connect(); address = (r && r.publicKey ? r.publicKey : inj.publicKey).toString(); }
+    const { nonce, message } = await api("/api/duel/nonce", { wallet: address });
+    const bytes = new TextEncoder().encode(message);
+    let sig;
+    if (w) { const out = await w.features["solana:signMessage"].signMessage({ account, message: bytes }); sig = (Array.isArray(out) ? out[0] : out).signature; }
+    else { const out = await inj.signMessage(bytes, "utf8"); sig = out.signature || out; }
+    const s = await api("/api/duel/signin", { nonce, signature: b64(new Uint8Array(sig)) });
+    return s;
+  }
+  const sess = { get: () => { try { return JSON.parse(sessionStorage.getItem("realm-duel-session") || "null"); } catch { return null; } },
+    set: v => { try { sessionStorage.setItem("realm-duel-session", JSON.stringify(v)); } catch {} } };
+  let wallet = null, token = null;
+  function showWho() {
+    $("[data-who]").hidden = !wallet;
+    $("[data-who]").innerHTML = wallet ? "Connected: <b>" + esc(short(wallet)) + "</b> <button type=\"button\" class=\"d-mute\" data-disconnect>Disconnect</button>" : "";
+    $("[data-conn]").hidden = !!wallet; $("[data-conn-note]").hidden = !!wallet;
+  }
+  $("[data-connect]").addEventListener("click", async () => {
+    err(""); const b = $("[data-connect]"); b.disabled = true; b.textContent = "Check your wallet…";
+    try { const s = await connectAndSign(); wallet = s.wallet; token = s.token; sess.set(s); showWho(); await load(); }
+    catch (e) { const m = (e && e.message) || ""; err(/reject|cancel|denied|declin/i.test(m) ? "Cancelled in the wallet." : m || "The wallet did not connect. Try again."); }
+    b.disabled = false; b.textContent = "Connect wallet";
+  });
+  document.addEventListener("click", e => { if (e.target.closest("[data-disconnect]")) { wallet = token = null; sess.set(null); showWho(); $("[data-pick]").hidden = true; } });
+  // on a phone with no wallet in the browser, open this page inside the wallet app
+  setTimeout(() => {
+    if (stdWallet() || injected() || wallet) return;
+    $("[data-connect]").hidden = true;
+    const ph = $("[data-open-phantom]"); ph.hidden = false; ph.href = "https://phantom.app/ul/browse/" + encodeURIComponent(location.href) + "?ref=" + encodeURIComponent(location.origin);
+    const mm = $("[data-open-mm]"); mm.hidden = false; mm.href = "https://metamask.app.link/dapp/" + location.host + location.pathname;
+  }, 1200);
+
+  /* ---------- the deck: every being the signed-in wallet holds ---------- */
+  async function load() {
     err(""); $("[data-pick]").hidden = true;
     try {
-      const { cards, boost } = await api("/api/duel/cards?address=" + encodeURIComponent(a));
+      const { cards, boost } = await api("/api/duel/cards?token=" + encodeURIComponent(token));
       const lv = boost ? boost.level : 0;
       $("[data-boosted]").innerHTML = lv
         ? "<b>$DMT boost: +" + (lv * 3) + "% to every stat</b> for holding " + Number(boost.tokens).toLocaleString("en-GB") + " $DMT." + (lv < 5 ? " Hold " + ["", "250K", "1M", "5M", "10M"][lv] + " for +" + (lv * 3 + 3) + "%." : " The full boost.")
         : "<b>No $DMT boost yet.</b> Hold 50K $DMT for +3% to every stat, up to +15% at 10M.";
       $("[data-boosted]").classList.toggle("on", !!lv);
       document.querySelectorAll(".d-btable tr[data-lv]").forEach(tr => tr.classList.toggle("on", Number(tr.dataset.lv) === lv));
-      wallet = a; store.set("realm-duel-wallet", a);
       if (!cards.length && !lv) return err("This wallet holds no beings and no $DMT yet. Play with borrowed spirits below, mint a being, or hold 50K $DMT for the boost.");
       $("[data-mine]").innerHTML = cards.map(c => cardHTML(c)).join("");
       if (!cards.length) {
@@ -92,10 +140,10 @@
         : "Your deck: your " + (cards.length === 1 ? "being" : cards.length + " beings") + ", topped up with borrowed spirits from all 1,111 each round.";
       $("[data-go]").disabled = false; $("[data-go]").textContent = "Enter the realm";
       $("[data-pick]").hidden = false;
-    } catch (e) { err(e.message); }
+    } catch (e) { if (/connect your wallet/i.test(e.message)) { wallet = token = null; sess.set(null); showWho(); } err(e.message); }
   }
-  $("[data-find]").addEventListener("submit", e => { e.preventDefault(); const a = e.target.a.value.trim(); if (a) load(a); });
-  const saved = store.get("realm-duel-wallet"); if (saved) { $("[data-find]").a.value = saved; }
+  const saved = sess.get();
+  if (saved && saved.token) { wallet = saved.wallet; token = saved.token; showWho(); load(); }
 
   /* ---------- the duel ---------- */
   let S = null, chosen = null, busy = false, handKey = "", played = [];
@@ -253,9 +301,9 @@
     err(""); try {
       S = await api("/api/duel/start", body); chosen = null; handKey = ""; played = [];
       show("duel"); paint(); window.scrollTo({ top: 0 });
-    } catch (e) { err(e.message); }
+    } catch (e) { if (/sign-in has expired/i.test(e.message)) { wallet = token = null; sess.set(null); showWho(); show("intro"); } err(e.message); }
   }
-  $("[data-go]").addEventListener("click", () => begin({ wallet }));
+  $("[data-go]").addEventListener("click", () => begin({ token }));
   $("[data-guest]").addEventListener("click", () => begin({}));
   $("[data-again]").addEventListener("click", () => { show("intro"); window.scrollTo({ top: 0 }); });
 

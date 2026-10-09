@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="landing.css">
 <link rel="stylesheet" href="holders.css">
-<link rel="stylesheet" href="duels.css?v=6">
+<link rel="stylesheet" href="duels.css?v=7">
 </head>
 <body class="holders dpage">
 
@@ -37,6 +37,23 @@
       <p class="eyebrow">A game of the realm</p>
       <h1>REALM Duels</h1>
       <p class="lede">Three cards. Three rounds. Rarer rivals every stage. How deep can your beings go?</p>
+    </div>
+    <div class="h-card">
+      <h2>Play</h2>
+      <div class="d-conn" data-conn>
+        <button class="m-go" type="button" data-connect>Connect wallet</button>
+        <a class="m-go" data-open-phantom hidden>Open in Phantom</a>
+        <a class="w-btn ghost d-mm" data-open-mm hidden>Open in MetaMask</a>
+      </div>
+      <p class="d-who" data-who hidden></p>
+      <p class="h-note" data-conn-note>Your wallet signs a short message to prove it is yours. It is not a transaction: it costs nothing and moves nothing.</p>
+      <div data-pick hidden>
+        <p class="d-boosted" data-boosted></p>
+        <p class="d-pick-note" data-pick-note></p>
+        <div class="d-grid" data-mine></div>
+        <button class="m-go" type="button" data-go disabled>Enter the realm</button>
+      </div>
+      <p class="h-bad" data-err hidden></p>
     </div>
     <div class="h-card d-how">
       <h2>How it works</h2>
@@ -58,21 +75,6 @@
         <tr data-lv="4"><td>5M</td><td>+12%</td></tr>
         <tr data-lv="5"><td>10M</td><td>+15%</td></tr>
       </table>
-    </div>
-    <div class="h-card">
-      <h2>Play with your beings</h2>
-      <form class="h-find" data-find>
-        <input type="text" name="a" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste your Solana address" aria-label="Solana address">
-        <button type="submit" class="h-go">Load</button>
-      </form>
-      <p class="h-note">Nothing is connected or signed. The board lists the wallet that played.</p>
-      <div data-pick hidden>
-        <p class="d-boosted" data-boosted></p>
-        <p class="d-pick-note" data-pick-note></p>
-        <div class="d-grid" data-mine></div>
-        <button class="m-go" type="button" data-go disabled>Enter the realm</button>
-      </div>
-      <p class="h-bad" data-err hidden></p>
     </div>
     <div class="h-card d-guest">
       <h2>No beings yet?</h2>
@@ -133,6 +135,6 @@
   </section>
 </main>
 
-<script src="duels-page.js?v=10"></script>
+<script src="duels-page.js?v=11"></script>
 </body>
 </html>

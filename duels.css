@@ -160,3 +160,12 @@
 .d-ovbox .d-menu{grid-template-columns:repeat(4,1fr)}
 .d-menu[hidden]{display:none}
 .d-menu span{text-align:center}
+
+/* ---------- connecting a wallet ---------- */
+.d-conn{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}
+.d-conn[hidden]{display:none}
+.d-conn .d-mm{width:100%}
+.d-conn [hidden]{display:none}
+.d-who{font-family:'Space Grotesk',system-ui,sans-serif;color:var(--bone);display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0}
+.d-who b{color:var(--gold)}
+.d-who[hidden]{display:none}

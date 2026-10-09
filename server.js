@@ -345,6 +345,34 @@ const BONUS = (() => {
 /* ---- REALM Duels ---- */
 const DUELS = require("./duels").create({ root: ROOT, beings: chainBeings, envVar: require("./bot").envVar,
   tokensOf, bands: require("./bot").readData(ROOT).TOKEN_BANDS });
+/* Wallet sign-in for Duels: the page asks for a one-time message, the wallet
+   signs it (a signature, not a transaction: nothing is sent or spent), and the
+   server checks the signature against the address. A signed-in wallet gets a
+   session for a day; only a signed-in wallet plays as itself or reaches the board. */
+const duelNonces = new Map(), duelSessions = new Map();
+function duelNonce(address) {
+  if (duelNonces.size > 5000) duelNonces.clear();
+  const nonce = require("crypto").randomBytes(12).toString("hex");
+  const message = "Sign in to REALM Duels\n\nWallet: " + address + "\nCode: " + nonce + "\nIssued: " + new Date().toISOString()
+    + "\n\nThis only proves you own this wallet. It is not a transaction: it costs nothing and moves nothing.";
+  duelNonces.set(nonce, { address, message, at: Date.now() });
+  return { nonce, message };
+}
+function duelVerify({ nonce, signature }) {
+  const n = duelNonces.get(nonce); duelNonces.delete(nonce);                 // each code works once
+  if (!n || Date.now() - n.at > 10 * 60_000) return null;
+  try {
+    const crypto = require("crypto"), pub = require("./payout").b58dec(n.address);
+    if (pub.length !== 32) return null;
+    const key = crypto.createPublicKey({ key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), pub]), format: "der", type: "spki" });
+    if (!crypto.verify(null, Buffer.from(n.message, "utf8"), key, Buffer.from(String(signature), "base64"))) return null;
+  } catch { return null; }
+  if (duelSessions.size > 20000) duelSessions.clear();
+  const token = require("crypto").randomBytes(24).toString("hex");
+  duelSessions.set(token, { wallet: n.address, exp: Date.now() + 24 * 3600_000 });
+  return { token, wallet: n.address };
+}
+const duelWalletOf = token => { const t = duelSessions.get(String(token || "")); return t && t.exp > Date.now() ? t.wallet : null; };
 const duelHits = new Map();
 function duelAllowed(ip) {                 // ten new runs a minute per caller is plenty for a person
   const now = Date.now(), w = (duelHits.get(ip) || []).filter(t => now - t < 60_000); w.push(now); duelHits.set(ip, w);
@@ -523,8 +551,8 @@ const server = http.createServer((req, res) => {
     const q = new URL(req.url, "http://x").searchParams;
     if (urlPath === "/api/duel/board") return send(200, { week: DUELS.week(), top: DUELS.top() });
     if (urlPath === "/api/duel/cards") {
-      const a = q.get("address") || "";
-      if (!ADDRESS.test(a)) return send(400, { error: "That is not a Solana address." });
+      const a = duelWalletOf(q.get("token"));
+      if (!a) return send(401, { error: "Connect your wallet first." });
       if (!allowed(ip)) return send(429, { error: "Too many checks. Wait a minute." });
       Promise.all([chainBeings(), DUELS.boostOf(a)]).then(([all, boost]) => send(200, { boost,
         cards: all.filter(b => b.owner === a).map(b => DUELS.card(b.n, boost.boost)).map(c => boost.boost > 1 ? { ...c, boost: Math.round((boost.boost - 1) * 100) } : c).sort((x, y) => y.total - x.total) }))
@@ -536,10 +564,21 @@ const server = http.createServer((req, res) => {
     req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
     req.on("end", () => {
       let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
+      if (urlPath === "/api/duel/nonce") {
+        if (!duelAllowed(ip)) return send(429, { error: "Too many tries. Wait a minute." });
+        if (!ADDRESS.test(j.wallet || "")) return send(400, { error: "That is not a Solana address." });
+        return send(200, duelNonce(j.wallet));
+      }
+      if (urlPath === "/api/duel/signin") {
+        const v = duelVerify(j);
+        return v ? send(200, v) : send(401, { error: "The signature did not check out. Connect and try again." });
+      }
       if (urlPath === "/api/duel/start") {
         if (!duelAllowed(ip)) return send(429, { error: "Too many runs. Take a breath and try again in a minute." });
-        if (j.wallet && !ADDRESS.test(j.wallet)) return send(400, { error: "That is not a Solana address." });
-        return DUELS.start({ wallet: j.wallet || null, team: j.team }).then(d => send(d.error ? 400 : 200, d)).catch(() => send(502, { error: "Could not read the realm just now." }));
+        // a wallet plays as itself only when signed in; a pasted address is never trusted
+        let wallet = null;
+        if (j.token) { wallet = duelWalletOf(j.token); if (!wallet) return send(401, { error: "Your sign-in has expired. Connect your wallet again." }); }
+        return DUELS.start({ wallet }).then(d => send(d.error ? 400 : 200, d)).catch(() => send(502, { error: "Could not read the realm just now." }));
       }
       if (urlPath === "/api/duel/play") { const d = DUELS.play(j); return send(d.error ? 400 : 200, d); }
       send(404, { error: "Not found." });
