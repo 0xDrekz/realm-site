@@ -34,8 +34,7 @@
   function paintMute() { const b = $("[data-mute]"); if (b) { b.textContent = muted ? "Sound off" : "Sound on"; b.setAttribute("aria-pressed", String(!muted)); } }
   document.addEventListener("click", e => { if (e.target.closest("[data-mute]")) { muted = !muted; store.set("realm-duel-mute", muted ? "1" : "0"); paintMute(); if (!muted) SFX.pick(); } });
 
-  // during a run the menu folds into the Menu button, so the duel has the screen
-  const show = name => { document.querySelectorAll("[data-screen]").forEach(s => { s.hidden = s.dataset.screen !== name; }); const m = $("[data-menu-main]"); if (m) m.hidden = name === "duel"; };
+  const show = name => document.querySelectorAll("[data-screen]").forEach(s => { s.hidden = s.dataset.screen !== name; });
   const err = m => { const e = $("[data-err]"); e.textContent = m || ""; e.hidden = !m; };
   async function api(path, body) {
     const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
@@ -255,29 +254,6 @@
   $("[data-go]").addEventListener("click", () => begin({ wallet }));
   $("[data-guest]").addEventListener("click", () => begin({}));
   $("[data-again]").addEventListener("click", () => { show("intro"); window.scrollTo({ top: 0 }); });
-
-  /* ---------- the menu ---------- */
-  const ov = $("[data-overlay]");
-  const closeMenu = () => { ov.hidden = true; document.body.style.overflow = ""; };
-  const goPlay = () => { show("intro"); window.scrollTo({ top: 0 }); setTimeout(() => $("[data-find]").scrollIntoView({ behavior: "smooth", block: "center" }), 60); };
-  const goBoard = () => { show("intro"); setTimeout(() => $("[data-board-wrap]").scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
-  function walletLinks() {
-    const a = wallet || store.get("realm-duel-wallet");
-    document.querySelectorAll("[data-menu-wallet]").forEach(l => { l.href = a ? "/wallet?a=" + encodeURIComponent(a) : "/wallet"; });
-  }
-  document.addEventListener("click", e => {
-    const t = e.target.closest("[data-menu-play],[data-menu-board],[data-menu-open],[data-menu-resume],[data-menu-quit],[data-menu-wallet]");
-    if (!t) return;
-    if (t.hasAttribute("data-menu-open")) { walletLinks(); ov.hidden = false; document.body.style.overflow = "hidden"; SFX.pick(); return; }
-    if (t.hasAttribute("data-menu-resume")) return closeMenu();
-    if (t.hasAttribute("data-menu-quit")) { closeMenu(); return goPlay(); }
-    if (t.hasAttribute("data-menu-play")) return goPlay();
-    if (t.hasAttribute("data-menu-board")) { closeMenu(); return goBoard(); }
-    if (t.hasAttribute("data-menu-wallet")) walletLinks();
-  });
-  ov.addEventListener("click", e => { if (e.target === ov) closeMenu(); });
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && !ov.hidden) closeMenu(); });
-  walletLinks();
 
   paintMute();
   board();
