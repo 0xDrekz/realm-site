@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03010a">
+<title>REALM Card Codex</title>
+<meta name="description" content="Every one of the 1,111 REALM beings as a card: cost, power, health, essence and powers. Find the card you hold, or the one you'll mint.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta property="og:title" content="REALM Card Codex">
+<meta property="og:description" content="1,111 beings. 1,111 cards. Find yours.">
+<meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="landing.css">
+<link rel="stylesheet" href="holders.css">
+<link rel="stylesheet" href="codex.css?v=1">
+</head>
+<body class="holders cxpage">
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="REALM — back to the door">
+    <img class="brandmark" src="logo-bar.png" width="96" height="96" alt="">
+    <span class="mark">REALM</span>
+  </a>
+  <nav class="top-links" aria-label="Elsewhere"><a class="h-back" href="/mint">Mint</a><a class="h-back" href="/#chamber">&larr; The realm</a></nav>
+</header>
+
+<main class="cx-page">
+  <section class="cx-hero">
+    <div class="cx-hero-copy">
+      <p class="eyebrow">The Card Codex</p>
+      <h1>1,111 beings. 1,111 cards.</h1>
+      <p class="lede">Every REALM being is a card in the coming battler. The same being always makes the same card: its five essences set its power, and its traits give it its powers. Find the one you hold, or the one you'll mint.</p>
+    </div>
+    <button class="cx-draw" type="button" data-draw aria-label="Draw a random card">
+      <span class="cx-flip" data-flip>
+        <span class="cx-face cx-backface"><span class="cx-back"></span></span>
+        <span class="cx-face cx-frontface" data-drawn></span>
+      </span>
+      <span class="cx-draw-label">Tap to draw a card</span>
+    </button>
+  </section>
+
+  <section class="cx-tools" aria-label="Find a card">
+    <input type="search" data-q placeholder="Name, number, trait or power" aria-label="Search the cards" autocomplete="off" enterkeyhint="search">
+    <div class="cx-chips" data-tiers role="group" aria-label="Tier"></div>
+    <div class="cx-chips" data-ess role="group" aria-label="Essence"></div>
+    <div class="cx-row">
+      <span class="cx-count" data-count aria-live="polite">Reading the cards&hellip;</span>
+      <label class="cx-sort">Sort
+        <select data-sort>
+          <option value="n">Number</option>
+          <option value="rare">Rarest first</option>
+          <option value="power">Power</option>
+          <option value="health">Health</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="cx-grid" data-grid aria-label="Cards"></section>
+  <div class="cx-more" data-more aria-hidden="true"></div>
+
+  <section class="h-card cx-rules">
+    <h2>Reading a card</h2>
+    <ul class="cx-glossary">
+      <li><b>Cost</b> (top left): the essence it takes to summon. It comes from the tier: Common 1, Uncommon and Rare 2, Epic 3, Legendary 4, Mythic 5, Entity 6, God 7, the Source 8.</li>
+      <li><b>Power and health</b> (bottom): what it hits for, and what it takes to bring it down.</li>
+      <li><b>Essence</b>: its strongest stat, sometimes two. The colour of the card.</li>
+      <li><b>Arrive</b>: happens when it is summoned.</li>
+      <li><b>Flying</b>: only flying units can block it. <b>Haste</b>: attacks the turn it arrives. <b>Veiled</b>: its first attack can't be blocked. <b>Unblockable</b>: never blocked.</li>
+      <li><b>Lifelink</b>: the damage it deals heals you. <b>Poison</b>: destroys any unit it damages. <b>Freeze</b>: a unit it damages can't attack next turn. <b>First strike</b>: hits before the other side. <b>Double strike</b>: hits first, then again.</li>
+      <li>Six one-of traits give a <b>unique power</b>: Tempest, Grove, Forest, Heavy Dust, Barrage and Cluster. Gods, Entities and the Source have their own.</li>
+    </ul>
+  </section>
+</main>
+
+<div class="cx-sheet" data-sheet hidden role="dialog" aria-modal="true" aria-label="Card">
+  <div class="cx-sheet-bg" data-close></div>
+  <div class="cx-sheet-body">
+    <button class="cx-x" type="button" data-close aria-label="Close">&times;</button>
+    <div class="cx-big" data-big></div>
+    <div class="cx-info" data-info></div>
+    <div class="cx-acts">
+      <button class="cx-btn gold" type="button" data-save>Save image</button>
+      <button class="cx-btn" type="button" data-share>Share</button>
+      <a class="cx-btn ghost" data-x target="_blank" rel="noopener">Post on X</a>
+    </div>
+    <p class="h-note cx-shared" data-shared hidden>Link copied.</p>
+    <nav class="cx-nav"><button type="button" class="cx-btn ghost" data-prev aria-label="Previous card">&larr;</button><button type="button" class="cx-btn ghost" data-next aria-label="Next card">&rarr;</button></nav>
+  </div>
+</div>
+
+<script src="codex-page.js?v=1"></script>
+</body>
+</html>

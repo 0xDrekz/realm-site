@@ -392,6 +392,7 @@ function rpcAllowed(ip) {
   return recent.length <= 240;
 }
 
+let CODEX = null;
 const server = http.createServer((req, res) => {
   // strip query string, decode, and block path traversal
   let urlPath;
@@ -411,6 +412,7 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/wallet") urlPath = "/wallet.html";
   if (urlPath === "/payout") urlPath = "/payout.html";
   if (urlPath === "/duels") urlPath = "/duels.html";
+  if (urlPath === "/codex") urlPath = "/codex.html";
   // the saved snapshot is served through /api/snapshot only, after its hash is checked
   if (urlPath.startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
 
@@ -584,6 +586,21 @@ const server = http.createServer((req, res) => {
       send(404, { error: "Not found." });
     });
     return;
+  }
+
+  /* ---- the Card Codex: every being's card, worked out once ---- */
+  if (urlPath === "/api/codex") {
+    if (!CODEX) {
+      const C = require("./tcg2/cards");
+      const list = C.all().map(c => ({ n: c.n, name: c.name, being: c.being || null, tier: c.tier, cost: c.cost, essence: c.essence,
+        power: c.power, health: c.health, kw: c.kw, text: c.text, legendary: c.legendary, unique: c.uniqueName || null, stats: c.stats,
+        traits: Object.fromEntries(Object.entries(c.traits).filter(([, v]) => v && v !== "None")) }));
+      const json = Buffer.from(JSON.stringify({ v: 1, cards: list }));
+      CODEX = { json, gz: require("zlib").gzipSync(json) };
+    }
+    const gz = /\bgzip\b/.test(req.headers["accept-encoding"] || "");
+    res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "public, max-age=600", "Vary": "Accept-Encoding", ...(gz ? { "Content-Encoding": "gzip" } : {}) });
+    return res.end(gz ? CODEX.gz : CODEX.json);
   }
 
   if (urlPath === "/api/bonus") {
