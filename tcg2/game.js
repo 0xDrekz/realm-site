@@ -34,7 +34,8 @@ function create({ log = () => {} } = {}) {
       text: c.text, legendary: c.legendary, unique: c.uniqueName || null, kind: "unit" };
   };
   /* champions travel as numbers after the start; the page keeps the cards */
-  const lite = v => {
+  const lite = (v, S) => {
+    if (S && S.phase === "block" && S.active === 1 && v.pending) v.pending.suggest = AI.suggestBlocks(S, 0);
     for (const side of [v.you, v.rival]) side.champions = side.champions.map(c => ({ i: c.i, home: c.home, cost: c.cost, n: c.card.n }));
     return v;
   };
@@ -86,7 +87,7 @@ function create({ log = () => {} } = {}) {
   /* run the rival until it is your move again; every step becomes a frame */
   function advance(m) {
     const S = m.S, frames = [];
-    S.onAct = (who, a) => frames.push({ who, move: a.type, ev: S.events.splice(0), view: lite(E.view(S, 0)) });
+    S.onAct = (who, a) => frames.push({ who, move: a.type, ev: S.events.splice(0), view: lite(E.view(S, 0), S) });
     try {
       for (let g = 0; g < 80 && S.phase !== "over"; g++) {
         if (S.phase === "block") {
@@ -143,13 +144,13 @@ function create({ log = () => {} } = {}) {
     if (a.type === "resign") {
       S.winner = 1; S.phase = "over"; S.events.push({ t: "over", winner: 1 });
       finish(m);
-      return { frames: [{ who: 0, move: "resign", ev: S.events.splice(0), view: lite(E.view(S, 0)) }], result: m.result };
+      return { frames: [{ who: 0, move: "resign", ev: S.events.splice(0), view: lite(E.view(S, 0), S) }], result: m.result };
     }
     const frames = [];
-    S.onAct = (who, mv) => frames.push({ who, move: mv.type, ev: S.events.splice(0), view: lite(E.view(S, 0)) });
+    S.onAct = (who, mv) => frames.push({ who, move: mv.type, ev: S.events.splice(0), view: lite(E.view(S, 0), S) });
     const err = E.act(S, 0, a);
     S.onAct = null;
-    if (err) { S.events.length = 0; return { error: err, view: lite(E.view(S, 0)) }; }
+    if (err) { S.events.length = 0; return { error: err, view: lite(E.view(S, 0), S) }; }
     frames.push(...advance(m));
     return { frames, result: m.result || null };
   }
@@ -158,7 +159,7 @@ function create({ log = () => {} } = {}) {
     const m = matches.get(String(match || ""));
     if (!m) return { error: "That match has ended. Start a new one." };
     const v = E.view(m.S, 0);
-    return { match: m.id, level: m.level, defs: { you: v.you.champions.map(c => c.card), rival: v.rival.champions.map(c => c.card) }, view: lite(v), result: m.result || null };
+    return { match: m.id, level: m.level, defs: { you: v.you.champions.map(c => c.card), rival: v.rival.champions.map(c => c.card) }, view: lite(v, m.S), result: m.result || null };
   }
 
   /* the campaign map, as the page shows it */

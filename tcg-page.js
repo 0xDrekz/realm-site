@@ -173,7 +173,7 @@
       $("[data-draft-err]").textContent = d.error; $("[data-draft-err]").hidden = false; $("[data-start]").disabled = false; return;
     }
     M = { id: d.match, level: d.level, name: d.name, rival: d.rival, boss: d.boss, tutorial: d.tutorial, defs: d.defs,
-      shared: Object.fromEntries(d.shared.map(c => [c.id, c])), view: d.view, busy: true, mode: "idle", attack: new Set(), blocks: {}, blocker: null, aim: null, tips: new Set() };
+      shared: Object.fromEntries(d.shared.map(c => [c.id, c])), view: d.view, busy: true, mode: "idle", hold: new Set(), blocks: {}, aim: null, tips: new Set(), saying: false };
     tiles.forEach(t => t.clear()); handEls.clear();
     $$("[data-board]").forEach(b => { b.innerHTML = ""; }); $("[data-hand]").innerHTML = "";
     $("[data-over]").hidden = true; hidePeek(); coach(null);
@@ -237,8 +237,9 @@
     el.classList.toggle("sick", u.sick);
     el.classList.toggle("exhausted", u.exhausted && !(v.phase === "block" && v.pending && v.pending.attackers.includes(u.uid)));
     el.classList.toggle("frozen", u.frozen);
-    el.classList.toggle("ready", me && idle && u.ready && !v.you.attacked);
-    el.classList.toggle("pick", me && M.mode === "attack" && M.attack.has(u.uid));
+    const canGo = me && idle && u.ready && !v.you.attacked;
+    el.classList.toggle("ready", canGo && !M.hold.has(u.uid));
+    el.classList.toggle("hold", canGo && M.hold.has(u.uid));
     const attacking = v.phase === "block" && v.pending && v.pending.attackers.includes(u.uid);
     el.classList.toggle("attacking", attacking);
     el.style.setProperty("--lift", side === 1 ? "10px" : "-10px");
@@ -247,8 +248,8 @@
     // blocking
     const blocking = M.mode === "block";
     const canBlock = blocking && me && v.pending && Object.values(v.pending.can).some(l => l.includes(u.uid));
-    el.classList.toggle("can-block", canBlock && M.blocker !== u.uid && !(u.uid in M.blocks));
-    el.classList.toggle("blocker", blocking && me && (M.blocker === u.uid || u.uid in M.blocks));
+    el.classList.toggle("can-block", canBlock && !(u.uid in M.blocks));
+    el.classList.toggle("blocker", blocking && me && u.uid in M.blocks);
     let tag = "";
     if (blocking && v.pending) {
       const order = v.pending.attackers;
@@ -258,6 +259,11 @@
     let t = el.querySelector(".tu-tag");
     if (tag) { if (!t) { t = document.createElement("span"); t.className = "tu-tag"; el.appendChild(t); } t.textContent = tag; }
     else if (t) t.remove();
+    // a word on top of the unit: what it can do now
+    const st = tag ? "" : canGo ? (M.hold.has(u.uid) ? "Stays" : "Ready") : u.frozen ? "Frozen" : (u.exhausted && !attacking) ? "Tired" : u.sick ? "New" : (blocking && me && u.uid in M.blocks) ? "Blocks" : "";
+    let pill = el.querySelector(".tu-st");
+    if (st) { if (!pill) { pill = document.createElement("span"); pill.className = "tu-st"; el.appendChild(pill); } pill.textContent = st; pill.dataset.k = st.toLowerCase(); }
+    else if (pill) pill.remove();
   }
   function paintBoard(side, units, v, addOnly) {
     const box = $(`[data-board="${side}"]`), map = tiles[side];
@@ -279,13 +285,14 @@
     $(`[data-life-n="${side}"]`).textContent = s.life;
     const max = Math.max(s.maxEss, s.ess), pips = [];
     for (let i = 0; i < Math.min(max, 10); i++) pips.push(`<i class="${i < s.ess ? "on" : "spent"}"></i>`);
-    const essHtml = pips.join("") + `<em>${s.ess}/${s.maxEss}</em>`, essBox = $(`[data-ess="${side}"]`);
+    const essHtml = pips.join("") + `<em>${s.ess} of ${s.maxEss} essence</em>`, essBox = $(`[data-ess="${side}"]`);
     if (essBox._h !== essHtml) essBox._h = essHtml, essBox.innerHTML = essHtml;
     if (side === 1) $('[data-handn="1"]').textContent = s.hand;
     else $('[data-deck="0"]').textContent = s.deck;
     const defs = side === 0 ? M.defs.you : M.defs.rival;
     const myMain = side === 0 && !M.busy && M.mode === "idle" && v.active === 0 && v.phase === "main";
     const chBox = $(`[data-champs="${side}"]`);
+    if (!chBox) { $(`[data-side="${side}"]`).classList.toggle("turn", v.active === side && v.phase !== "over"); return; }
     const chSig = JSON.stringify([s.champions, myMain, s.ess, s.board.length]);
     if (chBox._sig !== chSig) chBox._sig = chSig, chBox.innerHTML = s.champions.map(c => {
       const d = defs[c.i] || {}, can = myMain && c.home && c.cost <= s.ess && s.board.length < 6;
@@ -295,13 +302,18 @@
     $(`[data-side="${side}"]`).classList.toggle("turn", v.active === side && v.phase !== "over");
   }
   function attunedFor(def) { return M.view.you.board.some(u => (u.essence || []).some(e => (def.essence || []).includes(e))); }
+  /* your hand: champions waiting (gold, at the front), then your cards */
+  function handItems(v) {
+    const champs = v.you.champions.filter(c => c.home).map(c => ({ key: "c" + c.i, champion: c.i, def: M.defs.you[c.i], cost: c.cost, kind: "unit", champ: true }));
+    return champs.concat(v.you.hand.map(c => ({ key: "h" + c.uid, uid: c.uid, def: c, cost: c.cost, kind: c.kind })));
+  }
   function playable(c) {
     const v = M.view, me = v.you;
     if (v.active !== 0 || v.phase !== "main") return "Wait for your turn.";
     if (c.cost > me.ess) return `It costs ${c.cost} essence. You have ${me.ess}.`;
     if (c.kind !== "ritual" && me.board.length >= 6) return "Your side is full.";
     if (c.kind === "ritual") {
-      const e = attunedFor(c) && c.attuned ? c.attuned : c.effect;
+      const d = c.def || c, e = attunedFor(d) && d.attuned ? d.attuned : d.effect;
       const a = aimFor(e);
       if (a && !a.uids.length && !a.face) return "There is nothing for it to hit yet.";
     }
@@ -309,24 +321,26 @@
   }
   function paintHand(hand, deal) {
     const box = $("[data-hand]"), v = M.view;
-    const keep = new Set(hand.map(c => c.uid));
-    for (const [uid, el] of handEls) if (!keep.has(uid)) { el.remove(); handEls.delete(uid); }
+    const items = handItems(v);
+    const keep = new Set(items.map(c => c.key));
+    for (const [k, el] of handEls) if (!keep.has(k)) { el.remove(); handEls.delete(k); }
     const fresh = [];
-    hand.forEach((c, i) => {
-      let el = handEls.get(c.uid);
+    items.forEach((c, i) => {
+      let el = handEls.get(c.key);
       if (!el) {
-        el = document.createElement("button"); el.type = "button"; el.className = "hc"; el.dataset.huid = c.uid;
-        const ess = c.essence && c.essence.length ? c.essence : ["light"];
-        el.style.setProperty("--tc", c.kind === "ritual" ? "#c9a24e" : "#8f82c4"); el.style.setProperty("--e1", ESS_COL[ess[0]]);
-        el.innerHTML = `<span class="hc-cost">${c.cost}</span><span class="hc-in"><span class="hc-art">${RC.art(c, false)}</span><span class="hc-name">${esc(c.name)}</span>
-          ${c.kind === "ritual" ? '<span class="hc-pt ritual">Ritual</span>' : `<span class="hc-pt"><span class="p">${c.power}</span><span class="h">${c.health}</span></span>`}</span>`;
-        el.setAttribute("aria-label", `${c.name}, costs ${c.cost}`);
-        handEls.set(c.uid, el); fresh.push(el);
+        const d = c.def, ess = d.essence && d.essence.length ? d.essence : ["light"];
+        el = document.createElement("button"); el.type = "button"; el.className = "hc" + (c.champ ? " champ" : ""); el.dataset.hkey = c.key;
+        el.style.setProperty("--tc", c.champ ? (TIER_COL[d.tier] || "#e3ba5c") : c.kind === "ritual" ? "#c9a24e" : "#8f82c4"); el.style.setProperty("--e1", ESS_COL[ess[0]]);
+        el.innerHTML = `${c.champ ? '<span class="hc-rib">Champion</span>' : ""}<span class="hc-cost">${c.cost}</span><span class="hc-in"><span class="hc-art">${RC.art(d, false)}</span><span class="hc-name">${esc(d.name)}</span>
+          ${c.kind === "ritual" ? '<span class="hc-pt ritual">Ritual</span>' : `<span class="hc-pt"><span class="p">${d.power}</span><span class="h">${d.health}</span></span>`}</span>`;
+        el.setAttribute("aria-label", `${c.champ ? "Champion " : ""}${d.name}, costs ${c.cost}`);
+        handEls.set(c.key, el); fresh.push(el);
       }
       el._c = c;
       if (el._cost !== c.cost) { el._cost = c.cost; el.querySelector(".hc-cost").textContent = c.cost; }
       if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
     });
+    hand = items;
     // the fan: sizes read once, then only what changed is written
     const n = hand.length;
     if (!paintHand.cw || paintHand.W !== box.clientWidth) { paintHand.W = box.clientWidth; const f = box.firstElementChild; paintHand.cw = f ? f.offsetWidth || 80 : 80; }
@@ -334,7 +348,7 @@
     const ov = n > 1 ? Math.min(4, (W - n * cw) / (n - 1)) : 0;
     const myIdle = !M.busy && M.mode === "idle" && v.active === 0 && v.phase === "main";
     hand.forEach((c, i) => {
-      const el = handEls.get(c.uid), k = i - (n - 1) / 2;
+      const el = handEls.get(c.key), k = i - (n - 1) / 2;
       const why = playable(c), can = myIdle && !why;
       const sig = [ov, n > 3 ? k : 0, can, myIdle && !!why].join();
       if (el._fan === sig) return;
@@ -364,35 +378,33 @@
     // the life orbs can be aimed at
     $('[data-life="1"]').classList.toggle("target", M.mode === "target" && !!(M.aim && M.aim.face));
     paintControls();
+    if (!M.busy) coachCheck();
   }
+  const goers = v => v.you.board.filter(u => u.ready && !M.hold.has(u.uid)).map(u => u.uid);
   function paintControls() {
     const v = M.view, L = $("[data-left]"), R = $("[data-right]"), ph = $("[data-phase]");
     L.hidden = true; R.hidden = false; R.disabled = false; R.className = "tm-btn"; L.className = "tm-btn ghost";
     if (v.phase === "over") { R.hidden = true; ph.textContent = ""; return; }
-    if (M.busy) { R.disabled = true; R.classList.add("wait"); R.textContent = v.active === 1 ? "Rival's turn…" : "…"; ph.innerHTML = v.active === 1 ? "Rival's turn" : "&nbsp;"; return; }
+    if (M.busy) { R.disabled = true; R.classList.add("wait"); R.textContent = v.active === 1 ? "Rival's turn…" : "…"; if (!M.saying) ph.innerHTML = v.active === 1 ? "Rival's turn" : "&nbsp;"; return; }
     if (M.mode === "target") {
       L.hidden = false; L.textContent = "Cancel"; R.hidden = true;
-      ph.innerHTML = `<b>Choose a target</b> for ${esc(M.aim.name)}`; return;
-    }
-    if (M.mode === "attack") {
-      L.hidden = false; L.textContent = "Cancel";
-      R.classList.add("red"); R.textContent = M.attack.size ? `Attack with ${M.attack.size}` : "Pick attackers"; R.disabled = !M.attack.size;
-      ph.innerHTML = "<b>Choose your attackers</b>"; return;
+      ph.innerHTML = `<b>Tap a glowing target</b> for ${esc(M.aim.name)}`; return;
     }
     if (M.mode === "block") {
       const n = Object.keys(M.blocks).length;
-      L.hidden = !n; L.textContent = "Clear";
-      R.textContent = n ? `Block (${n})` : "No blocks";
-      ph.innerHTML = M.blocker ? "<b>Now tap the attacker</b> to block" : "<b>Block!</b> Tap your unit, then an attacker";
+      L.hidden = !n; L.textContent = "No blocks";
+      R.textContent = n ? `Confirm ${n === 1 ? "block" : n + " blocks"}` : "Take the hit";
+      ph.innerHTML = n ? "<b>Rival attacks!</b> Blue = your blockers. Tap a unit to change" : "<b>Rival attacks!</b> Tap your units to block";
       return;
     }
-    const me = v.you, ready = me.board.some(u => u.ready) && !me.attacked;
+    const me = v.you;
     if (v.active === 0 && v.phase === "main") {
-      if (ready) { L.hidden = false; L.className = "tm-btn red"; L.textContent = "Attack"; }
+      const go = me.attacked ? [] : goers(v);
+      if (go.length) { L.hidden = false; L.className = "tm-btn red"; L.textContent = `Attack (${go.length})`; }
       R.textContent = "End turn";
-      const anything = me.hand.some(c => !playable(c)) || me.champions.some(c => c.home && c.cost <= me.ess && me.board.length < 6);
-      R.className = "tm-btn" + (anything || ready ? " ghost" : "");
-      ph.innerHTML = `Your turn · <b>${me.ess}</b> essence`;
+      const anything = handItems(v).some(c => !playable(c));
+      R.className = "tm-btn" + (anything || go.length ? " ghost" : "");
+      ph.innerHTML = go.length ? "Your turn · <b>Ready</b> units can attack" : anything ? "Your turn · play a <b>glowing</b> card" : "Your turn · nothing left to do: <b>End turn</b>";
     } else { R.disabled = true; R.textContent = "…"; ph.textContent = ""; }
   }
 
@@ -428,49 +440,42 @@
     $("[data-peek-why]").textContent = opts.why || opts.note || "";
     M.peekGo = opts.go || null;
     $("[data-peek]").hidden = false;
+    coachCheck();
   }
-  function hidePeek() { $("[data-peek]").hidden = true; if (M) M.peekGo = null; }
+  function hidePeek() { $("[data-peek]").hidden = true; if (M) { M.peekGo = null; coachCheck(); } }
   $$("[data-peek-close]").forEach(b => b.addEventListener("click", hidePeek));
   $("[data-peek-play]").addEventListener("click", () => { const go = M.peekGo; hidePeek(); if (go) { sfx("tap"); go(); } });
 
   $("[data-hand]").addEventListener("click", e => {
-    const el = e.target.closest("[data-huid]"); if (!el || !M) return;
+    const el = e.target.closest("[data-hkey]"); if (!el || !M) return;
     const c = el._c; sfx("tap");
-    if (M.busy || M.mode !== "idle") return showPeek(c, { cost: c.cost });
+    const note = c.champ ? (c.cost > c.def.cost ? "Your champion. It died once already, so it costs more now." : "Your champion: one of your beings. If it dies it comes back here, for 2 more.") : "";
+    if (M.busy || M.mode !== "idle") return showPeek(c.def, { cost: c.cost, note });
     const why = playable(c);
-    showPeek(c, { cost: c.cost, action: c.kind === "ritual" ? `Cast · ${c.cost}` : `Summon · ${c.cost}`, why, go: () => tryPlay({ uid: c.uid, def: c }) });
+    showPeek(c.def, { cost: c.cost, note, action: c.kind === "ritual" ? `Cast · ${c.cost} essence` : `Summon · ${c.cost} essence`, why,
+      go: () => tryPlay(c.champ ? { champion: c.champion, def: c.def } : { uid: c.uid, def: c.def }) });
   });
   document.addEventListener("click", e => {
     const ch = e.target.closest("[data-champ]"); if (!ch || !M) return;
-    const side = Number(ch.dataset.cside), i = Number(ch.dataset.champ), s = side ? M.view.rival : M.view.you, c = s.champions[i];
-    const def = (side ? M.defs.rival : M.defs.you)[i]; sfx("tap");
-    if (side === 1 || M.busy || M.mode !== "idle") return showPeek(def, { cost: c.cost, note: c.home ? (side ? "The rival's champion, waiting." : "") : "On the board." });
-    let why = null;
-    if (!c.home) why = "Already on the board.";
-    else if (M.view.active !== 0 || M.view.phase !== "main") why = "Wait for your turn.";
-    else if (c.cost > M.view.you.ess) why = `It costs ${c.cost} essence. You have ${M.view.you.ess}.`;
-    else if (M.view.you.board.length >= 6) why = "Your side is full.";
-    showPeek(def, { cost: c.cost, action: `Summon · ${c.cost}`, why, note: c.cost > def.cost ? "It died once already, so it costs more now." : "", go: () => tryPlay({ champion: i, def }) });
+    const i = Number(ch.dataset.champ), c = M.view.rival.champions[i], def = M.defs.rival[i]; sfx("tap");
+    showPeek(def, { cost: c.cost, note: c.home ? "The rival's champion, waiting to be summoned." : "The rival's champion, on the board." });
   });
   $$("[data-board]").forEach(box => box.addEventListener("click", e => {
     const el = e.target.closest("[data-uid]"); if (!el || !M) return;
     const uid = Number(el.dataset.uid), side = Number(el.dataset.side), v = M.view;
     if (!M.busy && M.mode === "target" && M.aim.uids.includes(uid)) return aimAt({ uid });
-    if (!M.busy && M.mode === "attack" && side === 0) {
+    // your turn: tap a ready unit to keep it back (or send it again)
+    if (!M.busy && M.mode === "idle" && side === 0 && v.active === 0 && v.phase === "main" && !v.you.attacked) {
       const u = v.you.board.find(x => x.uid === uid);
-      if (u && u.ready) { M.attack.has(uid) ? M.attack.delete(uid) : M.attack.add(uid); sfx("tap"); buzz(6); render(v); return; }
+      if (u && u.ready) { M.hold.has(uid) ? M.hold.delete(uid) : M.hold.add(uid); sfx("tap"); buzz(6); render(v); return; }
     }
-    if (!M.busy && M.mode === "block") {
-      const can = v.pending ? v.pending.can : {};
-      if (side === 0 && Object.values(can).some(l => l.includes(uid))) {
-        if (uid in M.blocks) { delete M.blocks[uid]; M.blocker = null; }
-        else M.blocker = M.blocker === uid ? null : uid;
-        sfx("tap"); buzz(6); render(v); return;
-      }
-      if (side === 1 && v.pending.attackers.includes(uid) && M.blocker != null) {
-        if ((can[uid] || []).includes(M.blocker)) { M.blocks[M.blocker] = uid; M.blocker = null; sfx("tap"); buzz(10); render(v); }
-        else toast("That unit can't block this one.");
-        return;
+    // blocking: tap your unit to block (again to block the next attacker, then to stop)
+    if (!M.busy && M.mode === "block" && side === 0 && v.pending) {
+      const atks = v.pending.attackers.filter(a => (v.pending.can[a] || []).includes(uid));
+      if (atks.length) {
+        if (uid in M.blocks) { const k = atks.indexOf(M.blocks[uid]); if (k + 1 < atks.length) M.blocks[uid] = atks[k + 1]; else delete M.blocks[uid]; }
+        else M.blocks[uid] = atks[0];
+        sfx("tap"); buzz(8); render(v); return;
       }
     }
     sfx("tap");
@@ -484,15 +489,13 @@
   $("[data-left]").addEventListener("click", () => {
     if (!M || M.busy) return; sfx("tap");
     if (M.mode === "target") { M.mode = "idle"; M.aim = null; }
-    else if (M.mode === "attack") { M.mode = "idle"; M.attack.clear(); }
-    else if (M.mode === "block") { M.blocks = {}; M.blocker = null; }
-    else if (M.view.active === 0) { M.mode = "attack"; M.attack = new Set(M.view.you.board.filter(u => u.ready).map(u => u.uid)); buzz(8); }
+    else if (M.mode === "block") { M.blocks = {}; }
+    else if (M.view.active === 0 && M.view.phase === "main") { const a = goers(M.view); if (a.length) { buzz(10); return send({ type: "attack", attackers: a }); } }
     render(M.view); coachCheck();
   });
   $("[data-right]").addEventListener("click", () => {
     if (!M || M.busy) return; sfx("tap");
-    if (M.mode === "attack") { const a = [...M.attack]; M.mode = "idle"; M.attack.clear(); return send({ type: "attack", attackers: a }); }
-    if (M.mode === "block") { const b = M.blocks; M.mode = "idle"; M.blocks = {}; M.blocker = null; return send({ type: "block", blocks: b }); }
+    if (M.mode === "block") { const b = M.blocks; M.mode = "idle"; M.blocks = {}; return send({ type: "block", blocks: b }); }
     if (M.view.active === 0 && M.view.phase === "main") return send({ type: "end" });
   });
   $("[data-resign]").addEventListener("click", () => {
@@ -522,7 +525,8 @@
   function afterFrames() {
     const v = M.view;
     M.mode = v.phase === "block" && v.active === 1 ? "block" : "idle";
-    M.blocks = {}; M.blocker = null;
+    M.blocks = M.mode === "block" ? { ...((v.pending && v.pending.suggest) || {}) } : {};
+    M.hold = new Set(); M.saying = false;
     if (M.mode === "block") { buzz([20, 40, 20]); sfx("whoosh"); }
     render(v);
     coachCheck();
@@ -604,6 +608,8 @@
     tiles[Number(el.dataset.side)].delete(uid);
     setTimeout(() => el.remove(), 480);
   }
+  const whoName = p => p === 0 ? "You" : "Rival";
+  function say(t) { M.saying = true; $("[data-phase]").innerHTML = t; }
   async function playEvents(evs) {
     let parallel = false;
     const flush = async () => { if (parallel) { parallel = false; await sleep(pace(420)); } };
@@ -613,20 +619,21 @@
         case "summon": {
           await flush();
           const el = tileOf(e.uid), champ = e.n && el && el._u && el._u.champion;
+          if (el) say(`${whoName(Number(el.dataset.side))} ${Number(el.dataset.side) ? "summons" : "summon"} <b>${esc(e.name)}</b>${champ ? " (champion)" : ""}`);
           sfx(champ ? "champ" : "summon"); if (champ) buzz(15);
           ring(el, champ ? "#ffd65c" : "#c9b8ff"); if (champ) sparks(el, "#ffd65c", 12);
           await sleep(pace(champ ? 420 : 260)); break;
         }
-        case "cast": await flush(); await castFx(e); break;
-        case "attack": await flush(); e.attackers.forEach(uid => { const t = tileOf(uid); if (t) t.classList.add("attacking"); }); sfx("whoosh"); await sleep(pace(320)); break;
+        case "cast": await flush(); say(`${whoName(e.p)} ${e.p ? "casts" : "cast"} <b>${esc((M.shared[e.id] || {}).name || "a ritual")}</b>`); await castFx(e); break;
+        case "attack": await flush(); say(`${whoName(e.p)} ${e.p ? "attacks" : "attack"} with <b>${e.attackers.length}</b>`); e.attackers.forEach(uid => { const t = tileOf(uid); if (t) t.classList.add("attacking"); }); sfx("whoosh"); await sleep(pace(320)); break;
         case "clash": await flush(); await clashFx(e.pairs); break;
         case "damage": { const t = tileOf(e.uid); floatText(t, "-" + e.n, "dmg"); jolt(t); sfx("hit"); parallel = true; break; }
-        case "face": floatText(lifeEl(e.p), "-" + e.n, "dmg"); bumpLife(e.p, -e.n); sfx("hit"); jolt(lifeEl(e.p)); if (e.p === 0) { shakeScreen(); buzz(30); } parallel = true; break;
+        case "face": say(e.p === 0 ? `You take <b>${e.n}</b> damage` : `Rival takes <b>${e.n}</b> damage`); floatText(lifeEl(e.p), "-" + e.n, "dmg"); bumpLife(e.p, -e.n); sfx("hit"); jolt(lifeEl(e.p)); if (e.p === 0) { shakeScreen(); buzz(30); } parallel = true; break;
         case "heal": floatText(lifeEl(e.p), "+" + e.n, "heal"); bumpLife(e.p, e.n); sfx("heal"); parallel = true; break;
         case "mend": floatText(tileOf(e.uid), "+" + e.n, "heal"); parallel = true; break;
         case "freeze": { const t = tileOf(e.uid); if (t) { t.classList.add("frozen"); sparks(t, "#9fe8ff", 8); } sfx("freeze"); parallel = true; break; }
         case "buff": { const t = tileOf(e.uid); ring(t, "#ffd65c"); sparks(t, "#ffd65c", 6); sfx("heal"); parallel = true; break; }
-        case "death": await flush(); dieFx(e.uid); sfx("death"); buzz(15); await sleep(pace(220)); break;
+        case "death": { await flush(); const t = tileOf(e.uid); if (t && t._u) say(`<b>${esc(t._u.name)}</b> is destroyed`); } dieFx(e.uid); sfx("death"); buzz(15); await sleep(pace(220)); break;
         case "bounce": { await flush(); const t = tileOf(e.uid); if (t) { t.animate([{ opacity: 1 }, { opacity: 0, transform: "translateY(-40px) scale(.6)" }], { duration: 380, fill: "forwards" }); tiles[Number(t.dataset.side)].delete(e.uid); setTimeout(() => t.remove(), 400); } await sleep(pace(300)); break; }
         case "burn": floatText($('[data-deck="0"]'), "Burned", "info"); break;
         case "draw": break;   // the hand animates its new cards
@@ -667,34 +674,57 @@
     if (won && !M.tutorial) $$("[data-stars] svg").forEach((s, i) => { if (i < res.stars) setTimeout(() => { s.classList.add("on"); sfx("star"); buzz(12); }, 450 + i * 320); });
   }
 
-  /* ---------- the tutorial coach ---------- */
-  const TIPS = [
-    { id: "hello", when: v => v.turn <= 1, at: "top", text: "Bring the rival's life (top) to 0 before they do it to yours (bottom). Essence, the gold diamonds, pays for cards and grows by one each turn." },
-    { id: "play", when: v => v.you.hand.some(c => !playable(c) && c.kind !== "ritual"), text: "Tap a glowing card in your hand, then Summon. Spore Wisp costs 1." },
-    { id: "end", when: v => v.turn <= 2 && v.you.ess === 0, text: "Units can't attack on the turn they arrive. Tap End turn." },
-    { id: "champ", when: v => v.you.champions.some(c => c.home && c.cost <= v.you.ess), text: "These three by your life are your champions: your beings. Tap a glowing one to summon it. If it dies it comes back, for 2 more." },
-    { id: "attack", when: v => v.you.board.some(u => u.ready) && !v.you.attacked, text: "Your units are ready. Tap Attack, choose who goes, then attack. Units that attack can't block on the rival's turn." },
-    { id: "block", when: () => M.mode === "block", at: "top", text: "The rival attacks! Tap one of your units, then the attacker it should block. Or tap No blocks to take the hit." },
-    { id: "ritual", when: v => v.you.hand.some(c => c.kind === "ritual" && !playable(c)), text: "Rituals are spells, used once. Lightning Strike deals 3 to a unit or to the rival. Rituals grow stronger when a unit of their colour is on your side." },
-    { id: "aim", when: () => M.mode === "target", at: "top", text: "Tap a glowing target. To hit the rival, tap their life." },
+  /* ---------- the tutorial: one step at a time, pointing at what to tap ---------- */
+  const handEl = id => [...handEls.values()].find(el => el._c && el._c.def && el._c.def.id === id);
+  const champEl = () => [...handEls.values()].find(el => el._c && el._c.champ && !playable(el._c));
+  const inHand = id => M.view.you.hand.some(c => c.id === id);
+  const STEPS = [
+    { id: "goal", info: true, when: () => true, at: () => lifeEl(1), text: "You win by bringing the rival's life to 0. This heart is their life. Yours is the heart at the bottom." },
+    { id: "wisp", when: v => v.active === 0 && inHand("s-wisp") && v.you.ess >= 1, done: () => !inHand("s-wisp"), at: () => handEl("s-wisp"),
+      text: "Your cards are at the bottom. Tap Spore Wisp.", peek: "Tap Summon. It costs 1 essence: the gold diamond by your life. You get one more each turn." },
+    { id: "end1", when: v => v.turn === 1 && v.you.ess === 0, done: v => v.turn > 1, at: () => $("[data-right]"), text: "No essence left this turn, and new units can't attack yet. Tap End turn." },
+    { id: "block", when: () => M.mode === "block", done: () => M.mode !== "block", at: () => $("[data-right]"), text: "The rival attacks! Your blockers are already picked (blue). Tap Confirm." },
+    { id: "champ", when: v => v.active === 0 && !!champEl(), done: v => v.you.champions.some(c => !c.home), at: () => champEl(),
+      text: "The gold cards are your champions: your own beings. Tap one.", peek: "Tap Summon. If a champion dies it comes back to your hand, for 2 more." },
+    { id: "attack", when: v => v.active === 0 && !v.you.attacked && goers(v).length > 0, done: v => v.you.attacked, at: () => $("[data-left]"),
+      text: "Units marked READY can attack. Tap Attack: they hit the rival unless the rival blocks." },
+    { id: "strike", when: v => v.active === 0 && v.you.hand.some(c => c.id === "r-strike" && c.cost <= v.you.ess), done: () => !inHand("r-strike"), at: () => handEl("r-strike"),
+      text: "Lightning Strike is a ritual: a spell you use once. Tap it.", peek: "Tap Cast, then tap a target: a rival unit, or their heart." },
+    { id: "free", info: true, when: v => v.turn >= 6, text: "That's the game. Each turn: play cards, attack, then End turn. Now finish the rival!" },
   ];
-  let coachTip = null;
-  function coach(tip) {
-    const c = $("[data-coach]");
-    coachTip = tip;
-    if (!tip) { c.hidden = true; return; }
-    $("[data-coach-text]").textContent = tip.text;
-    c.classList.toggle("top", tip.at === "top");
+  let coachStep = null, focused = null;
+  function coach(step, text, target) {
+    const c = $("[data-coach]"), pt = $("[data-point]");
+    coachStep = step;
+    if (focused) { focused.classList.remove("tm-focus"); focused = null; }
+    if (!step) { c.hidden = true; pt.hidden = true; return; }
+    $("[data-coach-text]").textContent = text || step.text;
+    $("[data-coach-ok]").hidden = !step.info;
+    const el = target === undefined ? (step.at && step.at()) : target;
+    if (el) {
+      const r = el.getBoundingClientRect(), low = r.top > innerHeight * .45;
+      pt.hidden = false; pt.classList.toggle("up", !low);
+      pt.style.left = (r.left + r.width / 2) + "px"; pt.style.top = (low ? r.top - 6 : r.bottom + 6) + "px";
+      c.classList.toggle("top", low); el.classList.add("tm-focus"); focused = el;
+    } else { pt.hidden = true; c.classList.add("top"); }
     c.hidden = false;
   }
   function coachCheck() {
-    if (!M || !M.tutorial || M.busy) return coach(null);
+    if (!M || !M.tutorial || M.busy || M.view.phase === "over") return coach(null);
     const v = M.view;
-    if (coachTip && !M.tips.has(coachTip.id) && coachTip.when(v)) return;
-    const t = TIPS.find(t => !M.tips.has(t.id) && t.when(v));
-    coach(t || null);
+    STEPS.forEach(st => { if (!M.tips.has(st.id) && st.done && st.done(v)) M.tips.add(st.id); });
+    if (!$("[data-peek]").hidden) {
+      const st = coachStep && coachStep.peek && !M.tips.has(coachStep.id) ? coachStep : null;
+      return st ? coach(st, st.peek, $("[data-peek-play]")) : coach(null);
+    }
+    if (M.mode === "target") return coach({ id: "aim", info: false }, "Tap a glowing target. To hit the rival directly, tap their heart.", (M.aim.uids.length ? tileOf(M.aim.uids[0]) : null) || lifeEl(1));
+    coach(STEPS.find(st => !M.tips.has(st.id) && st.when(v)) || null);
   }
-  $("[data-coach-ok]").addEventListener("click", () => { if (coachTip) M.tips.add(coachTip.id); coach(null); sfx("tap"); setTimeout(coachCheck, 250); });
+  $("[data-coach-ok]").addEventListener("click", () => { if (coachStep) M.tips.add(coachStep.id); coach(null); sfx("tap"); setTimeout(coachCheck, 200); });
+
+  /* ---------- how to play ---------- */
+  $("[data-help]").addEventListener("click", () => { sfx("tap"); $("[data-rules]").hidden = false; });
+  $$("[data-rules-close]").forEach(b => b.addEventListener("click", () => { $("[data-rules]").hidden = true; }));
 
   window.addEventListener("resize", () => { paintHand.cw = 0; if (M && !$("[data-screen=match]").hidden) { handEls.forEach(el => { el._fan = null; }); render(M.view); } });
   hub();

@@ -104,9 +104,14 @@ function attackPhase(S, me) {
   if (go.length) E.act(S, me, { type: "attack", attackers: go.map(u => u.uid) });
 }
 
-/* blocks: survive first, then trade up */
+/* blocks: survive first, then trade up. suggestBlocks only works them out
+   (the page offers them to you); blockPhase plays them. */
 function blockPhase(S, me) {
   if (S.phase !== "block" || S.active === me) return;
+  E.act(S, me, { type: "block", blocks: suggestBlocks(S, me) });
+}
+function suggestBlocks(S, me) {
+  if (S.phase !== "block" || S.active === me) return {};
   const P = S.players[me], Op = S.players[1 - me];
   const atk = S.pending.attackers.map(uid => Op.board.find(u => u.uid === uid)).filter(Boolean)
     .sort((a, b) => E.powerOf(S, b) - E.powerOf(S, a));
@@ -125,7 +130,7 @@ function blockPhase(S, me) {
     if (!choice && survives(can[0]) ) choice = can.filter(survives).sort((x, y) => value(S, x) - value(S, y))[0];
     if (choice) { blocks[choice.uid] = a.uid; incoming -= dmg(a); }
   }
-  E.act(S, me, { type: "block", blocks });
+  return blocks;
 }
 
 /* one whole AI turn (or its blocks, if it is defending) */
@@ -153,4 +158,4 @@ function playOut(S, maxSteps = 4000) {
   return S.winner;
 }
 
-module.exports = { step, finish, blockPhase, mainPhase, attackPhase, playOut, value };
+module.exports = { step, finish, blockPhase, suggestBlocks, mainPhase, attackPhase, playOut, value };

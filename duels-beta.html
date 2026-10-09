@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="tcg-card.css?v=1">
-<link rel="stylesheet" href="tcg.css?v=1">
+<link rel="stylesheet" href="tcg.css?v=2">
 </head>
 <body class="tg">
 
@@ -59,11 +59,12 @@
   <div class="tm-top">
     <button class="tm-x" type="button" data-resign aria-label="Leave the match">&times;</button>
     <span class="tm-level" data-level-name></span>
+    <button class="tm-help" type="button" data-help aria-label="How to play">?</button>
     <button class="tm-snd" type="button" data-mute aria-pressed="false" aria-label="Sound"></button>
   </div>
 
   <div class="tm-side tm-rival" data-side="1">
-    <button class="tm-life" type="button" data-life="1" aria-label="Rival life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22 2.6 12.6A6 6 0 0 1 12 4.9a6 6 0 0 1 9.4 7.7z"/></svg><b data-life-n="1">20</b></button>
+    <button class="tm-life" type="button" data-life="1" aria-label="Rival life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22 2.6 12.6A6 6 0 0 1 12 4.9a6 6 0 0 1 9.4 7.7z"/></svg><b data-life-n="1">20</b><i>life</i></button>
     <div class="tm-who"><b data-name="1">Rival</b><span class="tm-ess" data-ess="1"></span></div>
     <span class="tm-hand-n" data-handn="1" aria-label="Cards in the rival's hand"></span>
     <div class="tm-champs" data-champs="1"></div>
@@ -74,10 +75,9 @@
 
   <div class="tm-board tm-b0" data-board="0"></div>
   <div class="tm-side tm-you" data-side="0">
-    <button class="tm-life" type="button" data-life="0" aria-label="Your life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22 2.6 12.6A6 6 0 0 1 12 4.9a6 6 0 0 1 9.4 7.7z"/></svg><b data-life-n="0">20</b></button>
+    <button class="tm-life" type="button" data-life="0" aria-label="Your life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22 2.6 12.6A6 6 0 0 1 12 4.9a6 6 0 0 1 9.4 7.7z"/></svg><b data-life-n="0">20</b><i>life</i></button>
     <div class="tm-who"><b>You</b><span class="tm-ess" data-ess="0"></span></div>
     <span class="tm-deck" data-deck="0" aria-label="Cards left in your deck"></span>
-    <div class="tm-champs" data-champs="0"></div>
   </div>
 
   <div class="tm-hand" data-hand></div>
@@ -88,6 +88,7 @@
 
   <div class="tm-fx" data-fx aria-hidden="true"></div>
   <div class="tm-banner" data-banner aria-live="polite"></div>
+  <div class="tm-point" data-point hidden aria-hidden="true"></div>
   <div class="tm-coach" data-coach hidden><p data-coach-text></p><button type="button" data-coach-ok>Got it</button></div>
 
   <div class="tm-peek" data-peek hidden>
@@ -96,6 +97,22 @@
       <div class="tm-peek-card" data-peek-card></div>
       <p class="tm-peek-why" data-peek-why></p>
       <div class="tm-peek-acts"><button class="tm-btn ghost" type="button" data-peek-close>Close</button><button class="tm-btn" type="button" data-peek-play hidden></button></div>
+    </div>
+  </div>
+
+  <div class="tm-rules" data-rules hidden>
+    <div class="tm-peek-bg" data-rules-close></div>
+    <div class="tm-rules-body">
+      <h2>How to play</h2>
+      <ol>
+        <li><b>Win</b> by bringing the rival's <b>life</b> (the heart) to 0.</li>
+        <li>Each turn you get <b>essence</b> (gold diamonds): one more than last turn. Cards cost essence.</li>
+        <li><b>Play cards</b> from your hand. Gold cards are your <b>champions</b>, your own beings. Units go on your side of the table. <b>Rituals</b> are one-off spells.</li>
+        <li>New units can't attack straight away. Next turn they show <b>READY</b>: tap <b>Attack</b> and they hit the rival.</li>
+        <li>When the rival attacks, your units can <b>block</b>. We pick sensible blocks for you; tap a unit to change it.</li>
+        <li>Tap any card or unit to read it.</li>
+      </ol>
+      <button class="tg-go" type="button" data-rules-close>Got it</button>
     </div>
   </div>
 
@@ -115,6 +132,6 @@
 </section>
 
 <script src="tcg-card.js?v=1"></script>
-<script src="tcg-page.js?v=1"></script>
+<script src="tcg-page.js?v=2"></script>
 </body>
 </html>
