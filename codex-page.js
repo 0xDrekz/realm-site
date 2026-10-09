@@ -9,40 +9,11 @@
   const $ = s => document.querySelector(s);
   const TIERS = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Entity", "God", "Source"];
   const ESS = ["magic", "spirit", "knowledge", "light", "dark"];
-  const ESS_COL = { magic: "#d65cff", spirit: "#43e0a8", knowledge: "#4fa8ff", light: "#ffd65c", dark: "#ff5470" };
-  const TIER_COL = { Common: "#9ca3af", Uncommon: "#34d399", Rare: "#3b82f6", Epic: "#a855f7", Legendary: "#f59e0b", Mythic: "#ef4444", Entity: "#a5f3fc", God: "#fde68a", Source: "#f4efe4" };
-  const FOIL = new Set(["Mythic", "Entity", "God", "Source"]);
-  const KWS = ["Flying", "Haste", "Veiled", "Unblockable", "Lifelink", "Poison", "Freeze", "First strike", "Double strike"];
-  const cap = s => s[0].toUpperCase() + s.slice(1);
-  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const SWORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 2 22 2 22 9.5 11 20.5 12.5 22 11 23.5 7.5 20 3.5 24 0 20.5 4 16.5 .5 13 2 11.5 3.5 13z"/></svg>';
-  const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22 2.6 12.6A6 6 0 0 1 12 4.9a6 6 0 0 1 9.4 7.7z"/></svg>';
-
+  const { ESS_COL, TIER_COL, FOIL, cap, esc } = window.RealmCard;
   let CARDS = [], BY = new Map(), shown = [], drawn = 0, open = null;
   const state = { q: "", tiers: new Set(), ess: new Set(), sort: "n" };
 
-  /* ---------- one card, as HTML ---------- */
-  function rulesHtml(t) {
-    let h = esc(t);
-    h = h.replace(/\b(Arrive|When it attacks|When it dies|At the start of your turn|At the end of your turn)(:|,)/g, "<em>$1</em>$2");
-    for (const k of KWS) h = h.replace(new RegExp("(^|[.\\s,])(" + k + ")(?=[.,\\s]|$)", "gi"), "$1<b>$2</b>");
-    return h;
-  }
-  function cardHtml(c) {
-    const cls = ["cc", "t-" + c.tier.toLowerCase()];
-    if (FOIL.has(c.tier)) cls.push("foil");
-    if (c.legendary) cls.push("legend");
-    const e1 = ESS_COL[c.essence[0]], e2 = ESS_COL[c.essence[1] || c.essence[0]];
-    const size = c.text.length > 150 ? " tiny" : c.text.length > 92 ? " small" : "";
-    return `<div class="${cls.join(" ")}" style="--e1:${e1};--e2:${e2}">
-<div class="cc-in">
-<div class="cc-head"><span class="cc-cost" aria-label="Cost ${c.cost}">${c.cost}</span><span class="cc-name">${esc(c.name)}</span></div>
-<div class="cc-art"><img src="/thumbs/${c.n}.webp" alt="" loading="lazy" decoding="async" width="224" height="224"></div>
-<div class="cc-type"><span>${c.unique ? esc(c.unique) : c.tier}</span><span class="cc-dots">${c.essence.map(e => `<b style="--d:${ESS_COL[e]}" title="${cap(e)}"></b>`).join("")}</span></div>
-<div class="cc-text${size}">${c.text ? rulesHtml(c.text) : '<i style="opacity:.55">A plain being. Its strength is its body.</i>'}</div>
-<div class="cc-foot"><span class="cc-pt p" aria-label="Power ${c.power}">${SWORD}${c.power}</span><span class="cc-no">#${c.n}</span><span class="cc-pt h" aria-label="Health ${c.health}">${HEART}${c.health}</span></div>
-</div></div>`;
-  }
+  const cardHtml = c => window.RealmCard.html(c);
 
   /* ---------- finding ---------- */
   function hay(c) {

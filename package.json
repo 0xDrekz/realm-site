@@ -5,8 +5,8 @@
   "description": "REALM — 10 sectors of the DMT realm. Static site, zero dependencies.",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test tcg2/engine.test.js",
-    "sim": "node tools/tcg2-sim.js"
+    "test": "node --test tcg2/engine.test.js tcg2/game.test.js",
+    "sim": "node tools/tcg2-sim.js && node tools/tcg2-campaign-sim.js"
   },
   "engines": {
     "node": ">=18"

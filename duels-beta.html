@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#03010a">
+<title>REALM Card Battler (beta)</title>
+<meta name="description" content="The REALM card battler: your beings are the cards. Learn it in the tutorial, then clear the Spore Fields.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="tcg-card.css?v=1">
+<link rel="stylesheet" href="tcg.css?v=1">
+</head>
+<body class="tg">
+
+<!-- ============ the hub: tutorial and the campaign map ============ -->
+<section class="tg-screen tg-hub" data-screen="hub">
+  <header class="tg-head">
+    <a class="tg-brand" href="/" aria-label="REALM home"><img src="logo-bar.png" width="40" height="40" alt=""><span>REALM</span></a>
+    <span class="tg-beta">Beta</span>
+    <button class="tg-mute" type="button" data-mute aria-pressed="false" aria-label="Sound">Sound on</button>
+  </header>
+  <div class="tg-hero">
+    <p class="tg-eyebrow">The card battler</p>
+    <h1>Your beings are the cards.</h1>
+    <p class="tg-lede">Summon champions, cast rituals, break the rival. Every move is checked on our server, so nobody can fake a win.</p>
+  </div>
+  <button class="tg-tut" type="button" data-level="tutorial">
+    <span class="tg-tut-back"></span>
+    <span class="tg-tut-copy"><b>Tutorial</b><i data-tut-note>Learn to play in a few minutes</i></span>
+    <span class="tg-tut-go" aria-hidden="true">&rarr;</span>
+  </button>
+  <div class="tg-realms" data-realms></div>
+  <p class="tg-fine">This is a test build. Progress is kept on this device for now; wallet sign-in, your own beings, the weekly run and the boards come next. The current <a href="/duels">Duels</a> stays live until this is ready.</p>
+  <p class="tg-fine"><a href="/codex">Browse all 1,111 cards in the Codex</a></p>
+</section>
+
+<!-- ============ the draft ============ -->
+<section class="tg-screen tg-draft" data-screen="draft" hidden>
+  <header class="tg-head">
+    <button class="tg-back" type="button" data-to-hub aria-label="Back to the map">&larr;</button>
+    <span class="tg-title" data-draft-title></span>
+  </header>
+  <p class="tg-eyebrow">Choose your champions</p>
+  <h2 class="tg-h2">Keep three of these five.</h2>
+  <p class="tg-lede">Borrowed spirits for this level: a little weaker than real beings. Your champions wait beside the board and can be summoned any time you have the essence.</p>
+  <div class="tg-pick" data-pick></div>
+  <button class="tg-go" type="button" data-start disabled>Keep these three</button>
+  <p class="tg-bad" data-draft-err hidden></p>
+</section>
+
+<!-- ============ the match ============ -->
+<section class="tg-screen tm" data-screen="match" hidden>
+  <div class="tm-top">
+    <button class="tm-x" type="button" data-resign aria-label="Leave the match">&times;</button>
+    <span class="tm-level" data-level-name></span>
+    <button class="tm-snd" type="button" data-mute aria-pressed="false" aria-label="Sound"></button>
+  </div>
+
+  <div class="tm-side tm-rival" data-side="1">
+    <button class="tm-life" type="button" data-life="1" aria-label="Rival life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22 2.6 12.6A6 6 0 0 1 12 4.9a6 6 0 0 1 9.4 7.7z"/></svg><b data-life-n="1">20</b></button>
+    <div class="tm-who"><b data-name="1">Rival</b><span class="tm-ess" data-ess="1"></span></div>
+    <span class="tm-hand-n" data-handn="1" aria-label="Cards in the rival's hand"></span>
+    <div class="tm-champs" data-champs="1"></div>
+  </div>
+  <div class="tm-board tm-b1" data-board="1"></div>
+
+  <div class="tm-mid"><span class="tm-phase" data-phase></span></div>
+
+  <div class="tm-board tm-b0" data-board="0"></div>
+  <div class="tm-side tm-you" data-side="0">
+    <button class="tm-life" type="button" data-life="0" aria-label="Your life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22 2.6 12.6A6 6 0 0 1 12 4.9a6 6 0 0 1 9.4 7.7z"/></svg><b data-life-n="0">20</b></button>
+    <div class="tm-who"><b>You</b><span class="tm-ess" data-ess="0"></span></div>
+    <span class="tm-deck" data-deck="0" aria-label="Cards left in your deck"></span>
+    <div class="tm-champs" data-champs="0"></div>
+  </div>
+
+  <div class="tm-hand" data-hand></div>
+  <div class="tm-bar">
+    <button class="tm-btn ghost" type="button" data-left hidden></button>
+    <button class="tm-btn" type="button" data-right></button>
+  </div>
+
+  <div class="tm-fx" data-fx aria-hidden="true"></div>
+  <div class="tm-banner" data-banner aria-live="polite"></div>
+  <div class="tm-coach" data-coach hidden><p data-coach-text></p><button type="button" data-coach-ok>Got it</button></div>
+
+  <div class="tm-peek" data-peek hidden>
+    <div class="tm-peek-bg" data-peek-close></div>
+    <div class="tm-peek-body">
+      <div class="tm-peek-card" data-peek-card></div>
+      <p class="tm-peek-why" data-peek-why></p>
+      <div class="tm-peek-acts"><button class="tm-btn ghost" type="button" data-peek-close>Close</button><button class="tm-btn" type="button" data-peek-play hidden></button></div>
+    </div>
+  </div>
+
+  <div class="tm-over" data-over hidden>
+    <div class="tm-over-body">
+      <p class="tg-eyebrow" data-over-sub></p>
+      <h2 data-over-title></h2>
+      <div class="tm-stars" data-stars></div>
+      <p class="tm-over-note" data-over-note></p>
+      <div class="tm-over-acts">
+        <button class="tg-go" type="button" data-next hidden>Next level</button>
+        <button class="tm-btn ghost" type="button" data-retry>Play again</button>
+        <button class="tm-btn ghost" type="button" data-to-hub>Back to the map</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="tcg-card.js?v=1"></script>
+<script src="tcg-page.js?v=1"></script>
+</body>
+</html>

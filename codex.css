@@ -63,64 +63,6 @@
 .cx-more{height:1px}
 .cx-empty{grid-column:1/-1;color:var(--dim);text-align:center;padding:30px 0;font-family:'Space Grotesk',system-ui,sans-serif}
 
-/* ============================================================
-   THE CARD
-   ============================================================ */
-.cc{--tc:var(--t-common);--e1:var(--e-magic);--e2:var(--e1);
-  container-type:inline-size;position:relative;width:100%;aspect-ratio:5/7;border-radius:6% / 4.3%;padding:2.4%;isolation:isolate;text-align:left;
-  background:linear-gradient(155deg,color-mix(in srgb,var(--tc) 70%,#fff) 0%,var(--tc) 22%,color-mix(in srgb,var(--tc) 45%,#05020c) 60%,var(--tc) 100%);
-  box-shadow:0 6px 18px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.6),0 0 var(--glow,0px) color-mix(in srgb,var(--tc) 60%,transparent);
-  color:#f6f1ff;font-family:'Space Grotesk',system-ui,sans-serif;user-select:none;-webkit-user-select:none}
-.cc-in{position:relative;height:100%;border-radius:3.6cqw;overflow:hidden;display:flex;flex-direction:column;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--e1) 22%,#0b0616) 0%,#0b0616 46%,color-mix(in srgb,var(--e2) 16%,#0b0616) 100%);
-  box-shadow:inset 0 0 0 .5cqw rgba(0,0,0,.55)}
-.cc-head{display:flex;align-items:center;gap:2cqw;padding:2.2cqw 2.4cqw 1.6cqw}
-.cc-cost{flex:none;width:12cqw;height:12cqw;border-radius:50%;display:grid;place-items:center;
-  font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:7.4cqw;color:#0b0616;line-height:1;
-  background:radial-gradient(circle at 35% 30%,#fff 0 8%,var(--e1) 40%,color-mix(in srgb,var(--e2) 70%,#000) 100%);
-  box-shadow:0 0 0 .7cqw #0b0616,0 0 0 1.3cqw color-mix(in srgb,var(--tc) 80%,#fff),0 0 4cqw color-mix(in srgb,var(--e1) 70%,transparent)}
-.cc-name{min-width:0;flex:1;font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;font-size:7cqw;line-height:1.05;letter-spacing:.02em;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 .4cqw 0 rgba(0,0,0,.6)}
-.cc-art{position:relative;margin:0 2.4cqw;aspect-ratio:1/0.82;border-radius:2cqw;overflow:hidden;background:#05020c;
-  box-shadow:0 0 0 .6cqw color-mix(in srgb,var(--tc) 70%,#000),0 0 0 1cqw rgba(0,0,0,.5)}
-.cc-art img{width:100%;height:100%;object-fit:cover;display:block}
-.cc-type{display:flex;justify-content:space-between;align-items:center;gap:2cqw;padding:1.8cqw 2.8cqw .8cqw;font-size:3.9cqw;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb,var(--tc) 60%,#fff)}
-.cc-type i{font-style:normal;color:rgba(246,241,255,.55);font-weight:500}
-.cc-dots{display:flex;gap:1cqw}
-.cc-dots b{width:3cqw;height:3cqw;border-radius:50%;background:var(--d);box-shadow:0 0 2cqw var(--d)}
-.cc-text{flex:1;margin:0 2.4cqw;padding:1.6cqw 2.4cqw;font-size:4.3cqw;line-height:1.28;color:#ece6fb;background:rgba(0,0,0,.32);border-radius:1.6cqw;
-  overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:6}
-.cc-text b{color:#fff}
-.cc-text em{font-style:normal;color:var(--gold)}
-.cc-text.small{font-size:3.7cqw}
-.cc-text.tiny{font-size:3.25cqw;-webkit-line-clamp:8}
-.cc-foot{display:flex;justify-content:space-between;align-items:flex-end;padding:1.4cqw 2.4cqw 2.2cqw}
-.cc-pt{display:flex;align-items:center;gap:1.2cqw;font-weight:700;font-size:7.6cqw;line-height:1;padding:1cqw 3cqw 1cqw 2cqw;border-radius:999px;background:rgba(0,0,0,.55);box-shadow:inset 0 0 0 .5cqw var(--c)}
-.cc-pt svg{width:5.4cqw;height:5.4cqw;fill:var(--c)}
-.cc-pt.p{--c:#ff9a5c}.cc-pt.h{--c:#5cffb0}
-.cc-no{font-size:3.4cqw;color:rgba(246,241,255,.45);letter-spacing:.1em;align-self:center}
-
-/* frames by tier */
-.cc.t-common{--tc:var(--t-common)}
-.cc.t-uncommon{--tc:var(--t-uncommon)}
-.cc.t-rare{--tc:var(--t-rare);--glow:10px}
-.cc.t-epic{--tc:var(--t-epic);--glow:14px}
-.cc.t-legendary{--tc:var(--t-legendary);--glow:18px}
-.cc.t-mythic{--tc:var(--t-mythic);--glow:22px}
-.cc.t-entity{--tc:var(--t-entity);--glow:26px}
-.cc.t-god{--tc:var(--t-god);--glow:30px}
-.cc.t-source{--tc:#f4efe4;--glow:36px;
-  background:conic-gradient(from 210deg,#ff5cc8,#ffd65c,#5cffb0,#4fa8ff,#d65cff,#ff5cc8)}
-.cc.t-source .cc-type{color:#fff}
-
-/* foil for Mythic and above: a light that slides across as the card tilts */
-.cc.foil::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;mix-blend-mode:color-dodge;opacity:.5;
-  background:linear-gradient(115deg,transparent 22%,rgba(255,80,200,.55) 36%,rgba(80,255,230,.5) 46%,rgba(255,240,90,.5) 56%,transparent 70%);
-  background-size:260% 260%;background-position:var(--fx,30%) var(--fy,30%);transition:background-position .25s ease-out}
-.cc.foil::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;opacity:.18;mix-blend-mode:overlay;
-  background:repeating-linear-gradient(60deg,rgba(255,255,255,.5) 0 .6cqw,transparent .6cqw 2.2cqw)}
-.cc.legend .cc-name{color:color-mix(in srgb,var(--tc) 35%,#fff)}
-
 /* ---------- the sheet ---------- */
 .cx-sheet{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center}
 .cx-sheet[hidden]{display:none}

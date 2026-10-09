@@ -85,14 +85,29 @@ test("the $DMT boost raises life and champion stats, by at most 15%", () => {
   assert.ok(S.players[0].champions[0].def.power >= S.players[1].champions[0].def.power);
 });
 
-test("the second player gets one extra essence on their first turn only", () => {
+test("the second player gets one extra essence on their first two turns only", () => {
   const S = E.newMatch({ seed: 9, sides: [{}, {}] });
-  const second = 1 - S.first;
-  E.act(S, S.first, { type: "end" });
-  assert.equal(S.active, second);
-  assert.equal(S.players[second].ess, 2);
-  E.act(S, second, { type: "end" }); E.act(S, S.first, { type: "end" });
-  assert.equal(S.players[second].ess, 2);
+  const second = 1 - S.first, turn = () => E.act(S, S.active, { type: "end" });
+  turn();
+  assert.equal(S.active, second); assert.equal(S.players[second].ess, 2);
+  turn(); turn(); assert.equal(S.players[second].ess, 3);
+  turn(); turn(); assert.equal(S.players[second].ess, 3);
+});
+
+test("a fixed deck, starting life and first player can be set (tutorial and campaign)", () => {
+  const deck = ["r-strike", "s-wisp", "s-hound", "s-root", "s-halo"];
+  const S = E.newMatch({ seed: 1, first: 0, sides: [{ deck }, { life: 12 }] });
+  assert.equal(S.first, 0);
+  assert.deepEqual(S.players[0].hand.map(c => c.def.id), deck.slice(0, 4));
+  assert.equal(S.players[1].life, 12);
+});
+
+test("every allowed move is reported to the onAct hook", () => {
+  const S = E.newMatch({ seed: 4, sides: [{}, {}] }); const seen = [];
+  S.onAct = (who, a) => seen.push(a.type);
+  E.act(S, 1 - S.active, { type: "end" });
+  E.act(S, S.active, { type: "end" });
+  assert.deepEqual(seen, ["end"]);
 });
 
 /* ---------- moves ---------- */

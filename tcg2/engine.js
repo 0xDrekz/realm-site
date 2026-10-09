@@ -8,7 +8,7 @@
 
    THE RULES
    - 20 life each. You go first or second at random; second draws 5, first 4,
-     and the second player gets 1 extra essence on their first turn.
+     and the second player gets 1 extra essence on each of their first two turns.
    - Your turn: gain 1 essence (up to 10) and refill it, ready your units,
      start-of-turn powers fire, draw a card. Then, in any order: summon units
      from your hand or your champion zone, cast rituals, and attack once.
@@ -45,23 +45,26 @@ function shuffle(S, a) { for (let i = a.length - 1; i > 0; i--) { const j = Math
 
 /* ---------- making a match ----------
    champions: up to 3 being numbers per side. boost: the $DMT boost (1..1.15).
-   scale: 0.8 for borrowed spirits. */
+   scale: below 1 for borrowed spirits. life: a starting life other than 20
+   (campaign rivals). deck: a fixed deck order, top first (the tutorial).
+   first: who goes first, when it must not be random (the tutorial). */
 function scaled(def, k) { return k === 1 ? def : { ...def, power: Math.max(1, Math.round(def.power * k)), health: Math.max(1, Math.round(def.health * k)) }; }
-function newMatch({ seed, sides }) {
+function newMatch({ seed, sides, first }) {
   const S = { seed: seed >>> 0, turn: 0, active: 0, phase: "main", winner: null, uid: 0, events: [], log: [], pending: null, players: [] };
   for (let i = 0; i < 2; i++) {
     const sd = sides[i] || {};
     const k = (sd.scale || 1) * (sd.boost || 1);
     S.players.push({
-      i, name: sd.name || (i ? "Rival" : "You"), life: Math.round(START_LIFE * (sd.boost || 1)), maxEss: 0, ess: 0,
-      deck: shuffle(S, C.SHARED_DECK.slice()), hand: [], fatigue: 0, drawNext: 0, attacked: false,
+      i, name: sd.name || (i ? "Rival" : "You"), life: Math.round((sd.life || START_LIFE) * (sd.boost || 1)), maxEss: 0, ess: 0,
+      startLife: Math.round((sd.life || START_LIFE) * (sd.boost || 1)),
+      deck: sd.deck ? sd.deck.slice() : shuffle(S, C.SHARED_DECK.slice()), hand: [], fatigue: 0, drawNext: 0, attacked: false,
       champions: (sd.champions || []).slice(0, 3).map(n => ({ def: scaled(C.cardOf(n), k), tax: 0, home: true })),
       board: [], ai: !!sd.ai,
     });
   }
-  S.active = rng(S) < 0.5 ? 0 : 1;
+  S.active = first === 0 || first === 1 ? first : (rng(S) < 0.5 ? 0 : 1);
   S.first = S.active;
-  S.players[1 - S.first].spark = true;      // going second: one extra essence on your first turn
+  S.players[1 - S.first].spark = true;      // going second: one extra essence on your first two turns
   for (const P of S.players) for (let k = 0; k < (P.i === S.first ? 4 : 5); k++) draw(S, P, true);
   beginTurn(S);
   return S;
@@ -228,7 +231,7 @@ function beginTurn(S) {
   S.turn += 1;
   const P = S.players[S.active];
   P.maxEss = Math.min(MAX_ESS, P.maxEss + 1); P.ess = P.maxEss; P.attacked = false;
-  if (P.spark) { P.ess += 1; P.spark = false; }
+  if (P.spark) { P.ess += 1; if (S.turn > 2) P.spark = false; }
   for (const u of P.board) { u.sick = false; u.exhausted = false; u.thaw = u.frozen; }
   emit(S, { t: "turn", p: P.i, turn: S.turn });
   for (const u of P.board.slice()) for (const e of u.def.turnStart || []) run(S, P, e, u, null);
@@ -299,6 +302,11 @@ function resolveCombat(S, blocks) {
       { type: "end" }
    Returns null, or a reason the move is not allowed (state unchanged). */
 function act(S, who, a) {
+  const err = act0(S, who, a);
+  if (!err && S.onAct) S.onAct(who, a);     // the server records each step, to replay it as animation
+  return err;
+}
+function act0(S, who, a) {
   if (S.phase === "over") return "The match is over.";
   if (S.phase === "block") {
     if (a.type !== "block" || who === S.active) return "Waiting for blocks.";
@@ -364,14 +372,22 @@ function autoTarget(S, P, e) {
 
 /* ---------- what a player is allowed to see ---------- */
 function view(S, who) {
-  const unit = u => ({ uid: u.uid, n: u.def.n || null, id: u.def.id || null, name: u.def.name, tier: u.def.tier || null, essence: u.def.essence,
+  const unit = u => ({ uid: u.uid, n: u.def.n || null, id: u.def.id || null, name: u.def.name, tier: u.def.tier || null, essence: u.def.essence, cost: u.def.cost || 0,
     power: powerOf(S, u), health: lifeOf(S, u), maxHealth: maxHealthOf(S, u), kw: u.kw, text: u.def.text || "", token: !!u.token,
     champion: u.champion != null, sick: u.sick && !has(u, "haste"), exhausted: u.exhausted, frozen: u.frozen, ready: S.active === u.owner && canAttack(S, u) });
   const side = (P, mine) => ({ life: P.life, ess: P.ess, maxEss: P.maxEss, deck: P.deck.length, board: P.board.map(unit), attacked: P.attacked,
     hand: mine ? P.hand.map(c => ({ uid: c.uid, ...c.def, cost: costOf(S, P, c) })) : P.hand.length,
     champions: P.champions.map((c, i) => ({ i, home: c.home, cost: c.def.cost + c.tax, card: c.def })) });
-  return { turn: S.turn, active: S.active, phase: S.phase, winner: S.winner, pending: S.pending,
+  // while blocking: which of the defender's units may block each attacker
+  const pending = S.pending && {
+    attackers: S.pending.attackers.slice(),
+    can: Object.fromEntries(S.pending.attackers.map(uid => {
+      const a = S.players[S.active].board.find(u => u.uid === uid);
+      return [uid, a ? S.players[1 - S.active].board.filter(b => canBlock(S, b, a)).map(b => b.uid) : []];
+    })),
+  };
+  return { turn: S.turn, active: S.active, phase: S.phase, winner: S.winner, pending,
     you: side(S.players[who], true), rival: side(S.players[1 - who], false), log: S.log.slice(-12) };
 }
 
-module.exports = { newMatch, act, view, powerOf, lifeOf, maxHealthOf, costOf, canAttack, canBlock, unitValue, autoTarget, needs, validTarget, attuned, rng, MAX_BOARD };
+module.exports = { newMatch, act, view, scaled, powerOf, lifeOf, maxHealthOf, costOf, canAttack, canBlock, unitValue, autoTarget, needs, validTarget, attuned, rng, MAX_BOARD };

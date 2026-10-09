@@ -380,6 +380,15 @@ function duelAllowed(ip) {                 // ten new runs a minute per caller i
   return w.length <= 10;
 }
 
+/* the card battler (tcg2/game.js): matches live here; the page only sends moves */
+const TCG = require("./tcg2/game").create({ log: m => console.log(m) });
+const tcgHits = new Map();
+function tcgAllowed(ip, kind) {            // twenty new matches and 300 moves a minute per caller
+  const k = ip + kind, now = Date.now(), w = (tcgHits.get(k) || []).filter(t => now - t < 60_000); w.push(now); tcgHits.set(k, w);
+  if (tcgHits.size > 10000) tcgHits.clear();
+  return w.length <= (kind === "move" ? 300 : 20);
+}
+
 /* the last 120 pictures fetched, so a busy wallet page costs one fetch each */
 const IMGS = new Map();
 
@@ -413,6 +422,7 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/payout") urlPath = "/payout.html";
   if (urlPath === "/duels") urlPath = "/duels.html";
   if (urlPath === "/codex") urlPath = "/codex.html";
+  if (urlPath === "/duels-beta") urlPath = "/duels-beta.html";
   // the saved snapshot is served through /api/snapshot only, after its hash is checked
   if (urlPath.startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
 
@@ -543,6 +553,26 @@ const server = http.createServer((req, res) => {
     PAYOUT.status(a || null)
       .then(d => res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(d)))
       .catch(() => res.writeHead(502, { "Content-Type": TYPES[".json"] }).end(JSON.stringify({ error: "Could not read the payout just now." })));
+    return;
+  }
+
+  /* ---- the card battler: every move checked, every result decided here ---- */
+  if (urlPath.startsWith("/api/tcg/")) {
+    const send = (code, obj) => res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(obj));
+    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
+    if (urlPath === "/api/tcg/map") return send(200, TCG.map());
+    if (req.method !== "POST") return send(405, { error: "POST" });
+    let body = "";
+    req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
+    req.on("end", () => {
+      let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
+      const kind = urlPath === "/api/tcg/act" || urlPath === "/api/tcg/view" ? "move" : "match";
+      if (!tcgAllowed(ip, kind)) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
+      const fn = { "/api/tcg/deal": TCG.deal, "/api/tcg/start": TCG.start, "/api/tcg/act": TCG.act, "/api/tcg/view": TCG.view }[urlPath];
+      if (!fn) return send(404, { error: "Not found." });
+      let d; try { d = fn(j); } catch (e) { console.error("tcg", e); return send(500, { error: "Something went wrong. Start a new match." }); }
+      send(d.error ? 400 : 200, d);
+    });
     return;
   }
 
