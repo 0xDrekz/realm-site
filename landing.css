@@ -610,3 +610,10 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .wal-full{display:block;margin-top:14px;padding:12px 14px;text-align:center;text-decoration:none;
   background:var(--gold,#e3ba5c);color:#05030b;font-family:'Space Grotesk',system-ui,sans-serif;
   font-weight:700;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase}
+
+/* the game gets the whole row under the four doors */
+.slab-duels{grid-column:1 / -1;border-color:#e3ba5c;background:linear-gradient(180deg,#1a1206,#000);
+  box-shadow:0 0 18px -6px rgba(227,186,92,.7)}
+.slab-duels .slab-in{color:#e3ba5c}
+.slab-duels .slab-note{color:#c9b27a}
+.slab-duels .slab-in .ch{color:#e3ba5c}

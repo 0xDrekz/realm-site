@@ -19,7 +19,8 @@ window.RealmJourney = (() => {
     { key: "mint",    label: "MINT",       panel: "mint" },
     { key: "beings",  label: "THE BEINGS", panel: "nfts" },
     { key: "rewards", label: "REWARDS",    panel: "rewards" },
-    { key: "map",     label: "THE MAP",    href: "/map" }
+    { key: "map",     label: "THE MAP",    href: "/map" },
+    { key: "duels",   label: "DUELS",      href: "/duels" }
 
   ];
 
@@ -702,6 +703,7 @@ window.RealmJourney = (() => {
       case "lore":    return "who they are";
       case "holders": return "what a wallet earns";
       case "map":     return "every being, live";
+      case "duels":   return "battle your beings · weekly board";
       default:        return "";
     }
   }
@@ -729,7 +731,7 @@ window.RealmJourney = (() => {
 
     OPTIONS.forEach(o => {
       const el = document.createElement(o.href ? "a" : "button");
-      el.className = "slab";
+      el.className = "slab" + (o.key === "duels" ? " slab-duels" : "");
       if (o.href) el.href = o.href; else el.type = "button";
 
       const word = document.createElement("b");
