@@ -12,71 +12,118 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="preload" href="fonts/lilita-one.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="arena.css?v=2">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="arena.css?v=3">
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-crown" viewBox="0 0 32 26"><path d="M2 24h28v-3H2zM2 19h28l2-14-8 6-8-10-8 10-8-6z"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 30"><path d="M12 1C12 1 2 13 2 19.5A10 10 0 0 0 22 19.5C22 13 12 1 12 1z"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 3h10v3h3v2a5 5 0 0 1-4.6 5A5 5 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A5 5 0 0 1 8.6 13 5 5 0 0 1 4 8V6h3zm0 5V8H6a3 3 0 0 0 1 2.2zm10 0v2.2A3 3 0 0 0 18 8z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
 <!-- the lobby -->
 <section class="ar-lobby" data-screen="lobby">
-  <div class="ar-lobby-bg" aria-hidden="true"></div>
+  <div class="ar-sky" aria-hidden="true"><i class="ar-sky-ring"></i><i class="ar-sky-ring b"></i><span class="ar-motes"></span></div>
   <header class="ar-top">
-    <a class="ar-brand" href="/"><img src="logo-bar.png" width="34" height="34" alt="">REALM</a>
-    <button class="ar-chip" type="button" data-mute>Sound on</button>
+    <a class="ar-brand" href="/"><img src="logo-bar.png" width="32" height="32" alt="">REALM</a>
+    <span class="ar-record" data-record title="Your Arena wins on this device"><svg><use href="#i-trophy"/></svg><b data-wins>0</b><i>wins</i></span>
+    <button class="ar-icon" type="button" data-mute aria-label="Sound"><svg><use href="#i-sound"/></svg></button>
   </header>
+
   <div class="ar-hero">
-    <p class="ar-eyebrow">Real-time battles · 3 minutes</p>
-    <h1>REALM <span>Arena</span></h1>
-    <p class="ar-lede">Drop your beings onto the field. Break their towers. Protect your Throne.</p>
+    <div class="ar-fan" aria-hidden="true">
+      <img src="/thumbs/176.webp" alt="" class="f1"><img src="/thumbs/1111.webp" alt="" class="f2"><img src="/thumbs/29.webp" alt="" class="f3">
+    </div>
+    <h1 class="ar-title"><small>REALM</small>ARENA</h1>
+    <p class="ar-sub">Real-time battles · 3 minutes</p>
   </div>
-  <div class="ar-deck" data-deck-preview></div>
-  <button class="ar-battle" type="button" data-battle><span>Battle</span><i>vs the realm's guardians</i></button>
+
+  <button class="ar-battle" type="button" data-battle><span data-battle-label>Battle</span><i data-battle-sub>vs the realm's guardians</i></button>
   <p class="ar-note" data-lobby-note>Every match is checked by our server, so wins are real.</p>
-  <ol class="ar-how">
-    <li><b>DMT</b> fills your bar. Every card costs DMT.</li>
-    <li><b>Drag a card</b> onto your half to summon it.</li>
-    <li><b>Break towers.</b> The big Throne wins it instantly.</li>
-    <li>Every minute DMT comes <b>faster</b> and new units hit <b>harder</b>.</li>
-  </ol>
+
+  <div class="ar-tiles">
+    <a class="ar-tile" data-army href="/duels"><b data-army-title>Borrowed spirits</b><i data-army-note>Sign in at Duels to fight with your own beings</i></a>
+    <button class="ar-tile" type="button" data-how><b>How to play</b><i>Four things to know</i></button>
+  </div>
+
+  <div class="ar-sec"><h2>Every being kills its own way</h2></div>
+  <div class="ar-powers" data-powers></div>
+
+  <p class="ar-foot"><a href="/duels">Duels</a> · <a href="/codex">Codex</a> · <a href="/">REALM</a></p>
 </section>
+
+<!-- how to play -->
+<div class="ar-sheet" data-howsheet hidden>
+  <div class="ar-sheet-bg" data-howclose></div>
+  <div class="ar-sheet-body">
+    <h2>How to play</h2>
+    <ol class="ar-how">
+      <li><span class="ar-how-n">1</span><p><b>DMT</b> fills your bar over time. Every card costs DMT.</p></li>
+      <li><span class="ar-how-n">2</span><p><b>Drag a card</b> onto your half to summon it. It walks and fights on its own.</p></li>
+      <li><span class="ar-how-n">3</span><p><b>Break towers.</b> Each one is a crown. The big Throne wins it instantly.</p></li>
+      <li><span class="ar-how-n">4</span><p>Every minute DMT comes <b>faster</b> and new units hit <b>harder</b>.</p></li>
+    </ol>
+    <button class="ar-battle small" type="button" data-howclose><span>Got it</span></button>
+  </div>
+</div>
+
+<!-- the face-off before a battle -->
+<div class="ar-vs" data-vs hidden>
+  <div class="ar-vs-half foe"><span class="ar-vs-emblem"><svg viewBox="0 0 32 26"><use href="#i-crown"/></svg></span><b data-vs-rival>Rival</b><i>Guardian of the realm</i></div>
+  <div class="ar-vs-mark">VS</div>
+  <div class="ar-vs-half you"><b>You</b><i data-vs-army>Borrowed spirits</i><div class="ar-vs-deck" data-vs-deck></div></div>
+</div>
 
 <!-- the battle -->
 <section class="ar-battlefield" data-screen="battle" hidden>
   <div class="ar-hud">
-    <div class="ar-side ar-rival"><span class="ar-crowns" data-crowns="1"></span><b data-rname>Rival</b></div>
-    <div class="ar-clock"><b data-clock>3:00</b><i data-phase>Calm</i></div>
-    <div class="ar-side ar-you"><b>You</b><span class="ar-crowns" data-crowns="0"></span></div>
+    <div class="ar-plate foe"><b data-rname>Rival</b><span class="ar-crowns" data-crowns="1"></span></div>
+    <div class="ar-clock" data-clockbox><b data-clock>3:00</b><i data-phase>Calm</i></div>
+    <div class="ar-plate you"><b>You</b><span class="ar-crowns" data-crowns="0"></span></div>
   </div>
   <div class="ar-stage" data-stage>
     <div class="ar-layers" data-layers><canvas data-bg></canvas><canvas data-canvas></canvas></div>
     <div class="ar-banner" data-banner></div>
+    <div class="ar-tip" data-tip hidden></div>
+    <button class="ar-quit" type="button" data-quit aria-label="Leave">&times;</button>
   </div>
   <div class="ar-dock">
     <div class="ar-hand">
-      <div class="ar-next"><i>Next</i><div class="ar-card mini" data-next></div></div>
+      <div class="ar-next"><i>Next</i><div data-next></div></div>
       <div class="ar-cards" data-hand></div>
     </div>
-    <div class="ar-dmt"><div class="ar-dmt-bar"><i data-dmt-fill></i><div class="ar-dmt-ticks"></div></div><b data-dmt-n>5</b><span class="ar-dmt-l">DMT</span></div>
+    <div class="ar-dmt">
+      <div class="ar-drop"><svg><use href="#i-drop"/></svg><b data-dmt-n>5</b></div>
+      <div class="ar-dmt-bar"><i data-dmt-fill></i><div class="ar-dmt-ticks"></div></div>
+    </div>
   </div>
-  <button class="ar-quit" type="button" data-quit aria-label="Leave">&times;</button>
-  <div class="ar-tip" data-tip hidden></div>
 </section>
 
 <!-- the end -->
 <section class="ar-end" data-end hidden>
+  <div class="ar-rays" aria-hidden="true"></div>
   <div class="ar-end-body">
-    <p class="ar-eyebrow" data-end-sub>Arena</p>
     <h2 data-end-title>Victory</h2>
     <div class="ar-end-crowns" data-end-crowns></div>
-    <p class="ar-end-note" data-end-note></p>
+    <div class="ar-score"><span class="you">You <b data-score-you>0</b></span><i>–</i><span class="foe"><b data-score-foe>0</b> <em data-score-rival>Rival</em></span></div>
+    <div class="ar-stats" data-end-stats></div>
+    <p class="ar-seal" data-end-note></p>
     <button class="ar-battle small" type="button" data-again><span>Battle again</span></button>
-    <button class="ar-chip wide" type="button" data-lobby>Back</button>
+    <button class="ar-ghost" type="button" data-lobby>Back to the lobby</button>
   </div>
 </section>
 
 <script src="arena/engine.js?v=2"></script>
-<script src="arena-page.js?v=3"></script>
+<script src="arena-page.js?v=4"></script>
 </body>
 </html>

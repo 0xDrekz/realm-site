@@ -52,7 +52,7 @@
   };
   const sfx = k => { try { SFX[k](); } catch { /* no audio */ } };
   const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch { /* no haptics */ } };
-  function setMute(m) { muted = m; store.set("muted", m); $$("[data-mute]").forEach(b => { b.textContent = m ? "Sound off" : "Sound on"; }); }
+  function setMute(m) { muted = m; store.set("muted", m); $$("[data-mute]").forEach(b => { b.innerHTML = `<svg><use href="#i-${m ? "mute" : "sound"}"/></svg>`; b.setAttribute("aria-pressed", String(!m)); }); }
   $$("[data-mute]").forEach(b => b.addEventListener("click", () => setMute(!muted)));
   setMute(muted);
 
@@ -73,14 +73,36 @@
   /* ============================================================
      THE LOBBY
      ============================================================ */
-  const ROLES = [["Tank", "Walks at towers, soaks hits"], ["Striker", "Fast, fierce up close"], ["Ranged", "Shoots from behind; hits flyers"], ["Caster", "Area blasts on groups"], ["Support", "Heals allies around it"]];
-  $("[data-deck-preview]").innerHTML = ROLES.slice(0, 4).map(([r, t]) => `<div class="ar-how-role"><b>${r}</b><i>${t}</i></div>`).join("");
+  const POWERS = [
+    [11, "Spore Gas", "Leaves a toxic cloud that keeps hurting", "#8dff5a"],
+    [176, "Descend", "Gods fall from the sky calling lightning", "#fde68a"],
+    [29, "Ethereal", "Entities: only towers can hurt them", "#c9a8ff"],
+    [17, "Chain Lightning", "Leaps to two more enemies", "#9fe0ff"],
+    [28, "Tractor Beam", "Flies; burns hotter the longer it holds", "#ffd27a"],
+    [71, "Star Burst", "Lands with a blast; every hit explodes", "#ffb05c"],
+    [6, "Roots", "Pins its target and mends itself", "#6dff8a"],
+    [43, "Orbit", "Moons smash everything close by", "#d9ccff"],
+    [193, "Phantom", "Unseen until its first big strike", "#e8e0ff"],
+    [445, "Frost", "Slows enemies to a crawl", "#bfeaff"],
+  ];
+  $("[data-powers]").innerHTML = POWERS.map(([n, t, d, c]) => `<div class="ar-pow" style="--pc:${c}"><img src="/thumbs/${n}.webp" alt="" loading="lazy"><span><b>${t}</b><i>${d}</i></span></div>`).join("");
+  const record = () => store.get("record", { w: 0, l: 0, d: 0 });
+  function paintLobby() {
+    $("[data-wins]").textContent = record().w;
+    const s = session(), tile = $("[data-army]");
+    tile.classList.toggle("own", !!s);
+    $("[data-army-title]").textContent = s ? "Your beings" : "Borrowed spirits";
+    $("[data-army-note]").textContent = s ? "Signed in: your own beings fight, with your $DMT boost" : "Sign in at Duels to fight with your own beings";
+  }
   $("[data-battle]").addEventListener("click", () => { sfx("tick"); battle(); });
   $("[data-again]").addEventListener("click", () => { $("[data-end]").hidden = true; battle(); });
-  $("[data-lobby]").addEventListener("click", () => { $("[data-end]").hidden = true; show("lobby"); });
+  $("[data-lobby]").addEventListener("click", () => { $("[data-end]").hidden = true; show("lobby"); paintLobby(); });
+  $("[data-how]").addEventListener("click", () => { $("[data-howsheet]").hidden = false; sfx("tick"); });
+  $$("[data-howclose]").forEach(b => b.addEventListener("click", () => { $("[data-howsheet]").hidden = true; }));
   $("[data-quit]").addEventListener("click", () => { if (G && !G.S.over && confirm("Leave this battle? It counts as a loss.")) { G.quit = true; G.S.over = true; G.S.winner = 1; endBattle(); } });
   function show(name) { $$("[data-screen]").forEach(s => { s.hidden = s.dataset.screen !== name; }); }
   const session = () => { try { const s = JSON.parse(localStorage.getItem("realm-tcg-session") || "null"); return s && Date.now() - s.at < 23 * 3600e3 ? s : null; } catch { return null; } };
+  paintLobby();
 
   /* ============================================================
      THE BATTLE
@@ -91,22 +113,35 @@
   const sprites = new Map();
 
   async function battle() {
-    $("[data-battle]").disabled = true;
+    const btn = $("[data-battle]"); btn.disabled = true;
+    $("[data-battle-label]").textContent = "Finding…"; $("[data-battle-sub]").textContent = "summoning a guardian";
     const s = session();
     let d;
     try { d = await (await fetch("/api/arena/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s ? { token: s.token } : {}) })).json(); }
     catch { d = { error: "The realm did not answer. Try again." }; }
-    $("[data-battle]").disabled = false;
-    if (d.error) { $("[data-lobby-note]").textContent = d.error; return; }
+    btn.disabled = false; $("[data-battle-label]").textContent = "Battle"; $("[data-battle-sub]").textContent = "vs the realm's guardians";
+    if (d.error) { $("[data-lobby-note]").textContent = d.error; show("lobby"); return; }
+    for (const side of d.sides) for (const c of side.deck) img(c.n);
+    await faceOff(d);
     G = { match: d.match, seed: d.seed, sides: d.sides, S: A.createMatch({ seed: d.seed, sides: d.sides }), inputs: [], acc: 0, last: 0, prev: new Map(),
       fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, river: 0, crowns: [0, 0], towerShake: new Map() };
-    for (const side of d.sides) for (const c of side.deck) img(c.n);
     $("[data-rname]").textContent = d.rival;
     show("battle"); layout(); paintHand(true); paintHud(); paintCrowns();
     banner("Battle!", "Break their towers");
     sfx("phase"); buzz(20);
     G.last = performance.now();
     requestAnimationFrame(frame);
+  }
+
+  /* the face-off: who you're fighting and the eight cards you bring */
+  function faceOff(d) {
+    const vs = $("[data-vs]");
+    $("[data-vs-rival]").textContent = d.rival;
+    $("[data-vs-army]").textContent = d.own && d.own.length ? `Your beings${d.boost ? " · $DMT boost" : ""}` : "Borrowed spirits";
+    $("[data-vs-deck]").innerHTML = d.sides[0].deck.map((c, i) => cardHtml(c, false, `animation-delay:${.45 + i * .06}s`)).join("");
+    vs.classList.remove("out"); vs.hidden = false;
+    sfx("whoosh"); setTimeout(() => { sfx("blast"); buzz(30); }, 350);
+    return new Promise(res => setTimeout(() => { vs.classList.add("out"); setTimeout(() => { vs.hidden = true; }, 350); res(); }, REDUCED ? 900 : 2300));
   }
 
   /* ---------- layout ---------- */
@@ -119,65 +154,128 @@
     // the arena itself is drawn once, on its own layer underneath
     bg.getContext("2d").drawImage(drawStatic(), 0, 0);
   }
-  window.addEventListener("resize", () => { if (G && !$("[data-screen=battle]").hidden) layout(); });
+  const relayout = () => { if (G && !$("[data-screen=battle]").hidden) layout(); };
+  window.addEventListener("resize", relayout);
+  try { new ResizeObserver(relayout).observe($("[data-stage]")); } catch { /* old browser: resize still works */ }
+  try { document.fonts.ready.then(relayout); } catch { /* fine */ }
 
   /* ---------- the arena, drawn once ---------- */
+  const SPOTS = [[3.5, 25.5, 1.1], [14.5, 25.5, 1.1], [9, 29, 1.5]];
+  const STONE = [{ h: 222, s: 30, l: 19 }, { h: 335, s: 26, l: 17 }];
   function drawStatic() {
     const c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height;
     const g = c.getContext("2d"); g.scale(dpr * ts, dpr * ts);
     const W = A.W, H = A.H, R = A.RIVER;
+    let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
     // the deep: a nebula under everything
-    let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#1a0612"); gr.addColorStop(.48, "#120a26"); gr.addColorStop(.52, "#0a1026"); gr.addColorStop(1, "#06142a");
+    let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#14040e"); gr.addColorStop(.5, "#0c0620"); gr.addColorStop(1, "#040c1e");
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    const neb = (x, y, r, col) => { const n = g.createRadialGradient(x, y, 0, x, y, r); n.addColorStop(0, col); n.addColorStop(1, "transparent"); g.fillStyle = n; g.fillRect(0, 0, W, H); };
-    neb(3, 6, 9, "rgba(255,70,110,.18)"); neb(15, 10, 8, "rgba(197,107,255,.16)"); neb(4, 24, 9, "rgba(70,160,255,.16)"); neb(14, 27, 8, "rgba(120,90,255,.14)");
-    // the two halves: floating platforms of dark crystal, laid in tiles
+    const neb = (x, y, rad, col) => { const n = g.createRadialGradient(x, y, 0, x, y, rad); n.addColorStop(0, col); n.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = n; g.fillRect(0, 0, W, H); };
+    neb(9, R, 7, "rgba(197,107,255,.35)"); neb(2, R, 4, "rgba(255,122,230,.18)"); neb(16, R, 4, "rgba(120,140,255,.2)");
+    for (let k = 0; k < 70; k++) { g.fillStyle = `rgba(255,255,255,${.2 + r() * .6})`; const x = r() * W, y = R - 1.4 + r() * 2.8; g.fillRect(x, y, .04 + r() * .05, .04 + r() * .05); }
     for (let side = 0; side < 2; side++) {
-      const y0 = side === 0 ? R + 1 : 0.3, y1 = side === 0 ? H - 0.3 : R - 1, T = TEAM[side];
+      const y0 = side === 0 ? R + 1 : 0.3, y1 = side === 0 ? H - 0.3 : R - 1, T = TEAM[side], St = STONE[side];
+      const spots = SPOTS.map(([x, y, s]) => [x, side ? H - y : y, s]);
+      const inLane = (x, y) => A.BRIDGES.some(bx => Math.abs(x - bx) < 1.25) || Math.hypot(x - 9, y - spots[2][1]) < 3.3;
       g.save();
-      g.beginPath(); roundRect(g, 0.35, y0, W - 0.7, y1 - y0, 0.8); g.clip();
-      const pg = g.createLinearGradient(0, y0, 0, y1);
-      pg.addColorStop(0, side ? "#2a1020" : "#131a33"); pg.addColorStop(1, side ? "#1a0a1c" : "#0f2238");
-      g.fillStyle = pg; g.fillRect(0, y0, W, y1 - y0);
-      for (let y = Math.floor(y0); y < y1; y++) for (let x = 0; x < W; x++) {
-        if ((x + y) % 2) { g.fillStyle = "rgba(255,255,255,.025)"; g.fillRect(x, y, 1, 1); }
+      g.beginPath(); roundRect(g, 0.35, y0, W - 0.7, y1 - y0, 0.9); g.clip();
+      g.fillStyle = `hsl(${St.h} ${St.s}% ${St.l - 7}%)`; g.fillRect(0, y0, W, y1 - y0);
+      // flagstones, laid like brick; the walked lanes are worn lighter
+      for (let row = Math.floor(y0); row < y1; row++) {
+        let x = -(row % 2) * .6 - r() * .3;
+        while (x < W) {
+          const w = [1, 1.3, 1.6, 2][Math.floor(r() * 4)], cx = x + w / 2, cy = row + .5, lane = inLane(cx, cy);
+          const l = St.l + (r() - .5) * 4 + (lane ? 5 : 0), sat = St.s - (lane ? 10 : 0);
+          g.fillStyle = `hsl(${St.h + (r() - .5) * 10} ${sat}% ${l}%)`;
+          g.beginPath(); roundRect(g, x + .05, row + .05, w - .1, .9, .14); g.fill();
+          g.fillStyle = "rgba(255,255,255,.07)"; g.fillRect(x + .12, row + .07, w - .24, .06);
+          g.fillStyle = "rgba(0,0,0,.28)"; g.fillRect(x + .1, row + .87, w - .2, .07);
+          if (r() < .08) { g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = .03; g.beginPath(); g.moveTo(x + w * .3, row + .15); g.lineTo(x + w * .45, row + .5); g.lineTo(x + w * .4, row + .85); g.stroke(); }
+          x += w;
+        }
       }
-      // faint grid lines
-      g.strokeStyle = side ? "rgba(255,120,150,.07)" : "rgba(120,190,255,.07)"; g.lineWidth = 0.03;
-      for (let x = 1; x < W; x++) { g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y1); g.stroke(); }
-      for (let y = Math.ceil(y0); y < y1; y++) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
-      // lanes: worn, glowing paths from the bridges to the towers
+      // runes glowing down the middle of each lane
       for (const bx of A.BRIDGES) {
-        const lg = g.createLinearGradient(0, y0, 0, y1);
-        lg.addColorStop(0, T.glow + (side ? ".02)" : ".10)")); lg.addColorStop(1, T.glow + (side ? ".10)" : ".02)"));
+        const lg = g.createLinearGradient(bx - 1.3, 0, bx + 1.3, 0); lg.addColorStop(0, "rgba(0,0,0,0)"); lg.addColorStop(.5, T.glow + ".09)"); lg.addColorStop(1, "rgba(0,0,0,0)");
         g.fillStyle = lg; g.fillRect(bx - 1.3, y0, 2.6, y1 - y0);
+        for (let y = Math.ceil(y0) + .5; y < y1; y += 2) { if (spots.some(([sx, sy]) => Math.hypot(bx - sx, y - sy) < 1.6)) continue; g.fillStyle = T.glow + ".35)"; g.beginPath(); g.arc(bx, y, .07, 0, Math.PI * 2); g.fill(); }
       }
-      // the summoning circle under the Throne
-      const ty = side === 0 ? H - 3 : 3;
-      mandala(g, 9, ty, 3.6, side ? "rgba(255,110,140,.32)" : "rgba(110,200,255,.32)");
+      // the summoning circle under the Throne, and rings under each tower
+      mandala(g, 9, spots[2][1], 3.4, side ? "rgba(255,140,170,.4)" : "rgba(140,210,255,.4)");
+      for (const [x, y, s] of spots) { const tg = g.createRadialGradient(x, y + .3, 0, x, y + .3, s * 2.2); tg.addColorStop(0, T.glow + ".22)"); tg.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = tg; g.fillRect(x - 4, y - 4, 8, 8); }
+      // glowing mushrooms and crystals along the walls
+      for (let k = 0, tries = 0; k < 9 && tries < 200; tries++) {
+        const x = .9 + r() * (W - 1.8), y = y0 + .8 + r() * (y1 - y0 - 1.6);
+        if (inLane(x, y) || spots.some(([sx, sy]) => Math.hypot(x - sx, y - sy) < 2.4) || Math.abs(x - 9) < 2.4) continue;
+        k++; (k % 3 ? shroom : crystal)(g, x, y, .55 + r() * .35, r, T);
+      }
+      // a soft shadow in from the walls
+      const vg = g.createRadialGradient(W / 2, (y0 + y1) / 2, 4, W / 2, (y0 + y1) / 2, 11); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.45)");
+      g.fillStyle = vg; g.fillRect(0, y0, W, y1 - y0);
       g.restore();
-      // the platform's edge glows in the team's colour
-      g.save(); g.shadowColor = T.main; g.shadowBlur = 0.6; g.strokeStyle = T.glow + ".55)"; g.lineWidth = 0.08;
-      g.beginPath(); roundRect(g, 0.35, y0, W - 0.7, y1 - y0, 0.8); g.stroke(); g.restore();
+      // the wall: dark stone, a bevel, a gold inlay and the team's glow
+      g.save(); g.lineJoin = "round";
+      g.shadowColor = T.main; g.shadowBlur = ts * dpr * .5;
+      g.strokeStyle = T.glow + ".8)"; g.lineWidth = .1; g.beginPath(); roundRect(g, 0.3, y0 - .05, W - 0.6, y1 - y0 + .1, 0.95); g.stroke();
+      g.shadowBlur = 0;
+      g.strokeStyle = "#0b0716"; g.lineWidth = .34; g.beginPath(); roundRect(g, 0.52, y0 + .17, W - 1.04, y1 - y0 - .34, 0.75); g.stroke();
+      g.strokeStyle = "rgba(227,186,92,.55)"; g.lineWidth = .045; g.beginPath(); roundRect(g, 0.7, y0 + .35, W - 1.4, y1 - y0 - .7, 0.6); g.stroke();
+      g.restore();
+      // corner pillars with a gem on top
+      for (const [px, py] of [[.75, y0 + .75], [W - .75, y0 + .75], [.75, y1 - .75], [W - .75, y1 - .75]]) pillar(g, px, py, T);
     }
     // the great mandala over the river
-    mandala(g, 9, R, 5.5, "rgba(227,186,92,.22)");
-    // bridges of gold-veined stone
-    for (const bx of A.BRIDGES) {
-      g.save();
-      g.shadowColor = "rgba(0,0,0,.6)"; g.shadowBlur = 0.4; g.shadowOffsetY = 0.15;
-      const bg = g.createLinearGradient(bx - 1.2, 0, bx + 1.2, 0); bg.addColorStop(0, "#3a2a4e"); bg.addColorStop(.5, "#5a4670"); bg.addColorStop(1, "#3a2a4e");
-      g.fillStyle = bg; g.beginPath(); roundRect(g, bx - 1.15, R - 1.35, 2.3, 2.7, 0.25); g.fill();
-      g.restore();
-      g.strokeStyle = "rgba(227,186,92,.75)"; g.lineWidth = 0.09;
-      g.beginPath(); g.moveTo(bx - 1.15, R - 1.3); g.lineTo(bx - 1.15, R + 1.3); g.moveTo(bx + 1.15, R - 1.3); g.lineTo(bx + 1.15, R + 1.3); g.stroke();
-      g.strokeStyle = "rgba(255,255,255,.08)"; g.lineWidth = 0.04;
-      for (let k = -1; k <= 1; k += 0.5) { g.beginPath(); g.moveTo(bx - 1.1, R + k); g.lineTo(bx + 1.1, R + k); g.stroke(); }
-    }
-    // stars
-    let sd = 7; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
-    for (let k = 0; k < 90; k++) { g.fillStyle = `rgba(255,255,255,${.15 + r() * .5})`; g.fillRect(r() * W, r() * H, .05 + r() * .05, .05 + r() * .05); }
+    mandala(g, 9, R, 5.2, "rgba(227,186,92,.16)");
     return c;
+  }
+  function shroom(g, x, y, s, r, T) {
+    const cols = ["#ff5fd2", "#5ff0ff", "#ffb347", "#b98bff", "#7dff6a"], col = cols[Math.floor(r() * cols.length)];
+    const gl = g.createRadialGradient(x, y, 0, x, y, s * 1.4); gl.addColorStop(0, col + "55"); gl.addColorStop(1, col + "00"); g.fillStyle = gl; g.fillRect(x - s * 1.5, y - s * 1.5, s * 3, s * 3);
+    for (let k = 0; k < 3; k++) {
+      const ox = (k - 1) * s * .42, sc = k === 1 ? 1 : .65, by = y + (k === 1 ? 0 : s * .12);
+      g.fillStyle = "#e8dcc8"; g.fillRect(x + ox - s * .06 * sc, by - s * .38 * sc, s * .12 * sc, s * .38 * sc);
+      g.fillStyle = col; g.beginPath(); g.ellipse(x + ox, by - s * .38 * sc, s * .3 * sc, s * .2 * sc, 0, Math.PI, 0); g.fill();
+      g.fillStyle = "rgba(255,255,255,.75)"; g.beginPath(); g.arc(x + ox - s * .1 * sc, by - s * .48 * sc, s * .04 * sc, 0, Math.PI * 2); g.arc(x + ox + s * .1 * sc, by - s * .44 * sc, s * .03 * sc, 0, Math.PI * 2); g.fill();
+    }
+  }
+  function crystal(g, x, y, s, r, T) {
+    const gl = g.createRadialGradient(x, y, 0, x, y, s * 1.3); gl.addColorStop(0, T.glow + ".35)"); gl.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gl; g.fillRect(x - s * 1.4, y - s * 1.4, s * 2.8, s * 2.8);
+    g.fillStyle = "rgba(0,0,0,.35)"; g.beginPath(); g.ellipse(x, y + s * .05, s * .45, s * .15, 0, 0, Math.PI * 2); g.fill();
+    for (const [ox, h, w, tilt] of [[-.22, .55, .14, -.25], [.2, .5, .13, .3], [0, .85, .18, 0]]) {
+      const bx = x + ox * s, top = y - h * s, tx = bx + tilt * s * .4;
+      const cg = g.createLinearGradient(bx - w * s, 0, bx + w * s, 0); cg.addColorStop(0, T.deep); cg.addColorStop(.5, "#ffffff"); cg.addColorStop(1, T.main);
+      g.fillStyle = cg; g.beginPath(); g.moveTo(bx - w * s, y); g.lineTo(tx, top); g.lineTo(bx + w * s, y); g.closePath(); g.fill();
+    }
+  }
+  function pillar(g, x, y, T) {
+    g.fillStyle = "rgba(0,0,0,.45)"; g.beginPath(); g.ellipse(x, y + .32, .42, .16, 0, 0, Math.PI * 2); g.fill();
+    const pg = g.createLinearGradient(x - .32, 0, x + .32, 0); pg.addColorStop(0, "#2a2238"); pg.addColorStop(.5, "#4a3e5e"); pg.addColorStop(1, "#1c1628");
+    g.fillStyle = pg; g.beginPath(); roundRect(g, x - .3, y - .5, .6, .82, .08); g.fill();
+    g.strokeStyle = "rgba(227,186,92,.7)"; g.lineWidth = .04; g.beginPath(); roundRect(g, x - .3, y - .5, .6, .82, .08); g.stroke();
+    const gg = g.createRadialGradient(x, y - .55, 0, x, y - .55, .5); gg.addColorStop(0, "#ffffff"); gg.addColorStop(.25, T.main); gg.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gg; g.fillRect(x - .5, y - 1.05, 1, 1);
+  }
+  /* the bridge: planks between gold-trimmed rails, drawn once */
+  let bridgeSpr = null, bridgeKey = 0;
+  function bridge() {
+    const key = Math.round(ts * dpr);
+    if (bridgeSpr && bridgeKey === key) return bridgeSpr;
+    const w = 2.6, h = 3, c = document.createElement("canvas"); c.width = Math.ceil(w * key); c.height = Math.ceil(h * key);
+    const g = c.getContext("2d"); g.scale(key, key);
+    g.fillStyle = "rgba(0,0,0,.5)"; g.beginPath(); roundRect(g, .15, .2, w - .3, h - .2, .2); g.fill();
+    let sd = 3; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+    for (let y = .25; y < h - .3; y += .34) {
+      g.fillStyle = `hsl(${24 + r() * 8} ${35 + r() * 10}% ${22 + r() * 8}%)`; g.beginPath(); roundRect(g, .32, y, w - .64, .29, .05); g.fill();
+      g.fillStyle = "rgba(255,220,170,.1)"; g.fillRect(.36, y + .02, w - .72, .04);
+      g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(.4 + r() * 1.4, y + .12, .06, .06);
+    }
+    for (const x of [.18, w - .38]) {
+      const rg = g.createLinearGradient(x, 0, x + .2, 0); rg.addColorStop(0, "#3a2414"); rg.addColorStop(.5, "#6a4426"); rg.addColorStop(1, "#2a180c");
+      g.fillStyle = rg; g.fillRect(x, .1, .2, h - .2);
+      g.fillStyle = "#e3ba5c"; g.fillRect(x + .07, .1, .05, h - .2);
+      for (const y of [.12, h - .42]) { g.fillStyle = "#1c1228"; g.beginPath(); roundRect(g, x - .08, y, .36, .32, .06); g.fill(); g.strokeStyle = "#e3ba5c"; g.lineWidth = .04; g.stroke(); }
+    }
+    bridgeSpr = c; bridgeKey = key; return c;
   }
   function roundRect(g, x, y, w, h, r) { g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   function mandala(g, cx, cy, R, col) {
@@ -196,15 +294,21 @@
     const px = Math.ceil(r * 2 * ts * dpr * 1.5), c = document.createElement("canvas"); c.width = c.height = px;
     const g = c.getContext("2d"), m = px / 2, rad = r * ts * dpr, T = TEAM[side];
     // team halo
-    const hg = g.createRadialGradient(m, m, rad * .6, m, m, rad * 1.45); hg.addColorStop(0, T.glow + ".55)"); hg.addColorStop(1, T.glow + "0)");
+    const hg = g.createRadialGradient(m, m, rad * .7, m, m, rad * 1.45); hg.addColorStop(0, T.glow + ".5)"); hg.addColorStop(1, T.glow + "0)");
     g.fillStyle = hg; g.beginPath(); g.arc(m, m, rad * 1.45, 0, Math.PI * 2); g.fill();
-    // rim: team colour outside, rarity inside
-    g.fillStyle = T.main; g.beginPath(); g.arc(m, m, rad, 0, Math.PI * 2); g.fill();
-    g.fillStyle = TIER_COL[def.tier] || "#c9a24e"; g.beginPath(); g.arc(m, m, rad * .9, 0, Math.PI * 2); g.fill();
-    g.save(); g.beginPath(); g.arc(m, m, rad * .8, 0, Math.PI * 2); g.clip();
+    // a metal rim: dark edge, the team's colour lit from above, then a thin rarity band
+    g.fillStyle = "#07030e"; g.beginPath(); g.arc(m, m, rad * 1.04, 0, Math.PI * 2); g.fill();
+    const rg = g.createLinearGradient(0, m - rad, 0, m + rad); rg.addColorStop(0, "#ffffff"); rg.addColorStop(.25, T.main); rg.addColorStop(1, T.deep);
+    g.fillStyle = rg; g.beginPath(); g.arc(m, m, rad, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#07030e"; g.beginPath(); g.arc(m, m, rad * .87, 0, Math.PI * 2); g.fill();
+    g.fillStyle = TIER_COL[def.tier] || "#c9a24e"; g.beginPath(); g.arc(m, m, rad * .84, 0, Math.PI * 2); g.fill();
+    g.save(); g.beginPath(); g.arc(m, m, rad * .77, 0, Math.PI * 2); g.clip();
     const im = img(def.n);
     if (im) g.drawImage(im, m - rad * .8, m - rad * .8, rad * 1.6, rad * 1.6);
     else { const bg = g.createRadialGradient(m, m * .8, 0, m, m, rad); bg.addColorStop(0, T.main); bg.addColorStop(1, T.dark); g.fillStyle = bg; g.fillRect(0, 0, px, px); }
+    // a glassy shine across the top
+    const sh = g.createLinearGradient(0, m - rad * .77, 0, m); sh.addColorStop(0, "rgba(255,255,255,.35)"); sh.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = sh; g.beginPath(); g.ellipse(m, m - rad * .38, rad * .62, rad * .36, 0, 0, Math.PI * 2); g.fill();
     g.restore();
     // a small role mark
     const mark = { tank: "▲", striker: "✦", ranged: "➶", caster: "✺", support: "✚" }[def.role];
@@ -267,7 +371,7 @@
             G.fx.push({ k: "ring", x: e.x, y: e.y, r: 6, life: .9, t: 0, col: "#fff1c2" });
             G.rubble = G.rubble || []; G.rubble.push({ x: e.x, y: e.y, big: e.tower === "throne", side: e.side });
             sfx("tower"); buzz(e.side === 0 ? [80, 40, 80] : [40]);
-            banner(e.side === 1 ? "Tower down!" : "You lost a tower", e.tower === "throne" ? "The Throne falls" : "");
+            banner(e.side === 1 ? "Tower down!" : "Tower lost", e.tower === "throne" ? "The Throne falls" : "", e.side === 0);
           } else { burst(e.x, e.y, 14, e.side ? "#ff9aac" : "#9fe0ff", 3); sfx("die"); }
           break;
         case "phase": {
@@ -292,8 +396,8 @@
     if (e.fx !== "splash") { burst(e.x, e.y, Math.round(e.r * 14), C, e.r * 2.2); G.shake = Math.max(G.shake, Math.min(.9, e.r * .25)); if (e.fx === "nova" || e.fx === "prime" || e.fx === "quake") G.flash = .25; }
     if (e.fx === "halo") sfx("heal"); else if (e.fx === "splash") sfx("hit"); else { sfx("blast"); buzz(25); }
   }
-  function banner(t, sub) {
-    const b = $("[data-banner]"); b.innerHTML = `${t}${sub ? `<small>${sub}</small>` : ""}`;
+  function banner(t, sub, foe) {
+    const b = $("[data-banner]"); b.innerHTML = `${t}${sub ? `<small>${sub}</small>` : ""}`; b.classList.toggle("foe", !!foe);
     b.classList.remove("go"); void b.offsetWidth; b.classList.add("go");
   }
 
@@ -320,9 +424,16 @@
     const s = throne ? 1.5 : 1.1, T = TEAM[side], box = 4 * s, px = Math.ceil(box * ts * dpr);
     const c = document.createElement("canvas"); c.width = c.height = px; const g = c.getContext("2d");
     g.scale(px / box, px / box); const x = box / 2, y = box * .62;
-    g.fillStyle = "rgba(0,0,0,.45)"; g.beginPath(); g.ellipse(x, y + s * .55, s * 1.05, s * .45, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = T.dark; g.strokeStyle = T.main; g.lineWidth = .07;
-    g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; const px2 = x + Math.cos(a) * s, py = y + s * .25 + Math.sin(a) * s * .5; i ? g.lineTo(px2, py) : g.moveTo(px2, py); } g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = "rgba(0,0,0,.5)"; g.beginPath(); g.ellipse(x, y + s * .6, s * 1.2, s * .5, 0, 0, Math.PI * 2); g.fill();
+    // a stepped plinth of dark stone, trimmed in gold and the team's colour
+    const oct = (cy, rx, ry) => { g.beginPath(); for (let i = 0; i < 8; i++) { const a = Math.PI / 8 + i * Math.PI / 4; const px2 = x + Math.cos(a) * rx, py = cy + Math.sin(a) * ry; i ? g.lineTo(px2, py) : g.moveTo(px2, py); } g.closePath(); };
+    for (const [cy, rx, ry, h] of [[y + s * .38, s * 1.12, s * .52, s * .26], [y + s * .14, s * .8, s * .38, s * .22]]) {
+      const sg = g.createLinearGradient(x - rx, 0, x + rx, 0); sg.addColorStop(0, "#1a1426"); sg.addColorStop(.45, "#3e3452"); sg.addColorStop(1, "#140f1e");
+      g.fillStyle = sg; oct(cy + h, rx, ry); g.fill(); g.fillRect(x - rx * .92, cy, rx * 1.84, h);
+      g.fillStyle = "#2c2440"; oct(cy, rx, ry); g.fill();
+      g.strokeStyle = T.main; g.lineWidth = .05; oct(cy, rx, ry); g.stroke();
+      g.strokeStyle = "rgba(227,186,92,.75)"; g.lineWidth = .035; oct(cy, rx * .82, ry * .82); g.stroke();
+    }
     const top = y - s * (throne ? 1.9 : 1.6), cg = g.createLinearGradient(x - s * .5, 0, x + s * .5, 0);
     cg.addColorStop(0, T.deep); cg.addColorStop(.45, T.main); cg.addColorStop(.55, "#ffffff"); cg.addColorStop(1, T.deep);
     g.shadowColor = T.main; g.shadowBlur = .8 * px / box;
@@ -333,6 +444,15 @@
     towerBodies.set(key, out); return out;
   }
 
+  let FONT = "system-ui";
+  /* text is drawn in real pixels: a font scaled down to a fraction of a pixel draws badly */
+  function txt(str, x, y, size, fill, stroke) {
+    const k = ts * dpr; ctx.save(); ctx.translate(x, y); ctx.scale(1 / k, 1 / k);
+    ctx.font = `${Math.round(size * k)}px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+    if (stroke) { ctx.lineWidth = stroke * k; ctx.strokeStyle = "#0a0514"; ctx.strokeText(str, 0, 0); }
+    ctx.fillStyle = fill; ctx.fillText(str, 0, 0); ctx.restore();
+  }
+  try { document.fonts.load("20px Lilita").then(() => { FONT = "Lilita, system-ui"; }); } catch { /* old browser */ }
   /* units look bigger than the space they take, so a phone can read them */
   const vis = r => Math.max(.9, r * 1.9);
 
@@ -380,9 +500,10 @@
     ctx.strokeStyle = col[1] + "55"; ctx.lineWidth = .18;
     ctx.beginPath(); ctx.moveTo(0, R - 1); ctx.lineTo(A.W, R - 1); ctx.moveTo(0, R + 1); ctx.lineTo(A.W, R + 1); ctx.stroke();
     ctx.strokeStyle = col[1] + "cc"; ctx.lineWidth = .05; ctx.stroke();
+    const bs = bridge(), fl = .8 + Math.sin(t * 7) * .1 + Math.sin(t * 13) * .06;
     for (const bx of A.BRIDGES) {
-      ctx.fillStyle = "rgba(70,54,92,.96)"; ctx.beginPath(); roundRect(ctx, bx - 1.1, R - 1.05, 2.2, 2.1, .2); ctx.fill();
-      ctx.strokeStyle = "rgba(227,186,92,.8)"; ctx.lineWidth = .08; ctx.beginPath(); ctx.moveTo(bx - 1.1, R - 1.05); ctx.lineTo(bx - 1.1, R + 1.05); ctx.moveTo(bx + 1.1, R - 1.05); ctx.lineTo(bx + 1.1, R + 1.05); ctx.stroke();
+      ctx.drawImage(bs, bx - 1.3, R - 1.5, 2.6, 3);
+      for (const [lx, ly] of [[bx - 1, R - 1.2], [bx + 1, R - 1.2], [bx - 1, R + 1.2], [bx + 1, R + 1.2]]) stamp("#ffd27a", lx, ly, .45 * fl);
     }
   }
   function drawZone() {
@@ -417,11 +538,16 @@
       for (let k = 0; k < 2; k++) { ctx.beginPath(); ctx.ellipse(x, y - s * .7, s * (1.05 + k * .2), s * (.3 + k * .06), (t * (k ? -.6 : .4)) % (Math.PI * 2), 0, Math.PI * 2); ctx.stroke(); }
     }
     // health
-    const w = throne ? 2.6 : 2, hy = top - (throne ? 1.15 : 1);
-    ctx.fillStyle = "rgba(0,0,0,.7)"; ctx.beginPath(); roundRect(ctx, x - w / 2 - .05, hy - .05, w + .1, .4, .12); ctx.fill();
-    ctx.fillStyle = T.main; ctx.beginPath(); roundRect(ctx, x - w / 2, hy, w * Math.max(0, e.hp / e.max), .3, .1); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.font = "bold .34px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(Math.max(0, Math.ceil(e.hp)), x, hy + .17);
+    const w = throne ? 2.5 : 1.9, hy = top - (throne ? 1.2 : 1.05), k = Math.max(0, e.hp / e.max);
+    ctx.fillStyle = "#0a0514"; ctx.beginPath(); roundRect(ctx, x - w / 2 - .07, hy - .07, w + .14, .46, .16); ctx.fill();
+    ctx.strokeStyle = "rgba(227,186,92,.8)"; ctx.lineWidth = .035; ctx.stroke();
+    if (k > 0) {
+      ctx.fillStyle = T.deep; ctx.beginPath(); roundRect(ctx, x - w / 2, hy, Math.max(.2, w * k), .32, .11); ctx.fill();
+      ctx.fillStyle = T.main; ctx.beginPath(); roundRect(ctx, x - w / 2, hy, Math.max(.2, w * k), .2, .1); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(x - w / 2 + .08, hy + .04, Math.max(0, w * k - .16), .05);
+    }
+    txt(Math.max(0, Math.ceil(e.hp)), x, hy + .18, .38, "#fff", .11);
+    if (throne) { ctx.save(); ctx.translate(x - w / 2 - .32, hy + .16); ctx.fillStyle = "#f6cf6a"; ctx.strokeStyle = "#2a1306"; ctx.lineWidth = .05; ctx.beginPath(); ctx.moveTo(-.26, .18); ctx.lineTo(-.3, -.14); ctx.lineTo(-.13, 0); ctx.lineTo(0, -.22); ctx.lineTo(.13, 0); ctx.lineTo(.3, -.14); ctx.lineTo(.26, .18); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore(); }
   }
   function drawRubble(r) {
     const s = r.big ? 1.5 : 1.1;
@@ -555,10 +681,9 @@
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const n of G.nums) {
       n.t += dt; const k = n.t / n.life; if (k >= 1) continue;
-      ctx.globalAlpha = 1 - k; ctx.font = `bold ${n.tower ? .55 : .45}px system-ui`;
-      const label = n.txt || "-" + n.n; if (n.txt) ctx.font = "bold .36px system-ui";
-      ctx.lineWidth = .08; ctx.strokeStyle = "#000"; ctx.strokeText(label, n.x, n.y - k * .9);
-      ctx.fillStyle = n.txt ? "#d9c8ff" : n.tower ? "#ffe58a" : "#fff"; ctx.fillText(label, n.x, n.y - k * .9);
+      ctx.globalAlpha = 1 - k;
+      const label = n.txt || "-" + n.n;
+      txt(label, n.x, n.y - k * .9, n.txt ? .4 : n.tower ? .6 : .5, n.txt ? "#d9c8ff" : n.tower ? "#ffe58a" : "#fff", .12);
     }
     ctx.globalAlpha = 1;
     G.nums = G.nums.filter(n => n.t < n.life);
@@ -579,11 +704,11 @@
   }
 
   /* ---------- the hand and the bar ---------- */
-  function cardHtml(def, mini) {
-    const tc = def.kind === "spell" ? "#c9a24e" : TIER_COL[def.tier];
+  function cardHtml(def, mini, extra = "") {
+    const spell = def.kind === "spell", tc = spell ? "#e3ba5c" : TIER_COL[def.tier];
     const pic = def.n ? `<img src="/thumbs/${def.n}.webp" alt="" draggable="false">` : `<svg class="ar-sig" viewBox="0 0 100 100" style="background:radial-gradient(circle at 50% 45%,#4a1a7a,#0b0616 70%)">${SPELL_ICON[def.id] || ""}</svg>`;
-    return `<div class="ar-card${mini ? " mini" : ""}" style="--tc:${tc}"><span class="ar-card-in">${pic}</span><span class="ar-card-cost">${def.cost}</span>
-      <span class="ar-card-name">${def.name}</span><span class="ar-card-role">${def.kind === "spell" ? "Spell" : def.power ? def.power.label : def.roleLabel}</span><span class="ar-card-fill"></span></div>`;
+    return `<div class="ar-card${mini ? " mini" : ""}${spell ? " spell" : ""}" style="--tc:${tc};${extra}"><span class="ar-card-in">${pic}</span><span class="ar-card-cost"><svg viewBox="0 0 24 30"><use href="#i-drop"/></svg><b>${def.cost}</b></span>
+      <span class="ar-card-name">${def.name}</span><span class="ar-card-role">${spell ? "Spell" : def.power ? def.power.label : def.roleLabel}</span><span class="ar-card-fill"></span></div>`;
   }
   let handSig = "";
   function paintHand(force) {
@@ -591,11 +716,13 @@
     if (force || sig !== handSig) {
       handSig = sig;
       $("[data-hand]").innerHTML = P.hand.map((ci, slot) => `<div data-slot="${slot}">${cardHtml(P.deck[ci])}</div>`).join("");
-      $("[data-next]").outerHTML = cardHtml(P.deck[P.queue[0]], true).replace('class="ar-card mini"', 'data-next class="ar-card mini"');
+      $("[data-next]").innerHTML = cardHtml(P.deck[P.queue[0]], true);
     }
     $$("[data-slot]").forEach(el => {
       const slot = Number(el.dataset.slot), def = P.deck[P.hand[slot]], card = el.firstElementChild;
-      card.classList.toggle("poor", P.dmt < def.cost);
+      const poor = P.dmt < def.cost;
+      if (card.classList.contains("poor") && !poor) { card.classList.remove("ready"); void card.offsetWidth; card.classList.add("ready"); }
+      card.classList.toggle("poor", poor);
       card.classList.toggle("sel", G.sel === slot);
       card.classList.toggle("dragging", !!(G.drag && G.drag.slot === slot));
       const f = card.querySelector(".ar-card-fill"); f.style.height = (P.dmt >= def.cost ? 0 : 100 * (1 - P.dmt / def.cost)) + "%";
@@ -608,7 +735,7 @@
     const whole = Math.floor(P.dmt + 1e-9);
     if (whole !== lastDmt) { $("[data-dmt-n]").textContent = whole; lastDmt = whole; }
     const left = Math.max(0, (S.time < A.MATCH_S ? A.MATCH_S : A.MATCH_S + A.OVERTIME_S) - S.time);
-    const clock = $("[data-clock]").parentElement;
+    const clock = $("[data-clockbox]");
     $("[data-clock]").textContent = Math.floor(left / 60) + ":" + String(Math.floor(left % 60)).padStart(2, "0");
     clock.className = "ar-clock " + G.phase + (left <= 10 ? " hurry" : "");
     $("[data-phase]").textContent = { calm: "Calm", rising: "Rising ×1.5", peak: "Peak ×2", overtime: "Sudden death" }[G.phase];
@@ -616,7 +743,8 @@
     paintHand(false);
     tips(S);
   }
-  function paintCrowns() { for (const side of [0, 1]) $(`[data-crowns="${side}"]`).innerHTML = [0, 1, 2].map(i => `<i class="${i < G.S.crowns[side] ? "on" : ""}"></i>`).join(""); }
+  const crown = on => `<svg viewBox="0 0 32 26" class="${on ? "on" : ""}"><use href="#i-crown"/></svg>`;
+  function paintCrowns() { for (const side of [0, 1]) $(`[data-crowns="${side}"]`).innerHTML = [0, 1, 2].map(i => crown(i < G.S.crowns[side])).join(""); }
 
   /* ---------- placing: drag a card, or tap it then tap the field ---------- */
   function toArena(clientX, clientY) {
@@ -677,7 +805,7 @@
   function tips(S) {
     if (G.tips.done) return;
     const t = S.time, P = S.sides[0];
-    if (!G.tips.placed && t > 1.5 && !G.tipShown) { G.tipShown = 1; const el = $("[data-tip]"); el.textContent = "Drag a card from your hand onto your half of the arena."; el.hidden = false; clearTimeout(tipT); }
+    if (!G.tips.placed && t > 1.5 && !G.tipShown) { G.tipShown = 1; const el = $("[data-tip]"); el.innerHTML = "<b>Drag a card</b> from your hand onto your half of the arena."; el.hidden = false; clearTimeout(tipT); }
     if (G.tips.placed && G.tipShown === 1) { G.tipShown = 2; $("[data-tip]").hidden = true; flashTip("Nice. DMT refills over time: spend it, but keep some to defend."); }
     if (P.dmt >= 9.9 && t > 8 && !G.tips.full) { G.tips.full = 1; flashTip("Your DMT is full: you're wasting it. Play a card!"); }
     if (t > 40 && G.tips.placed) { G.tips.done = 1; store.set("tips", G.tips); }
@@ -689,26 +817,30 @@
     const S = G.S, won = S.winner === 0, draw = S.winner == null && !G.quit;
     setTimeout(() => { G.done = true; }, 2500);
     sfx(won ? "win" : draw ? "phase" : "lose"); buzz(won ? [40, 60, 40, 60, 120] : [120]);
+    const rec = record(); rec[won ? "w" : draw ? "d" : "l"]++; store.set("record", rec);
     const end = $("[data-end]");
     end.classList.toggle("lost", !won && !draw);
-    $("[data-end-title]").textContent = won ? "Victory" : draw ? "Draw" : "Defeat";
-    $("[data-end-sub]").textContent = `${S.crowns[0]} – ${S.crowns[1]}`;
-    $("[data-end-crowns]").innerHTML = [0, 1, 2].map(i => `<i class="${i < S.crowns[0] ? "on" : ""}" style="animation-delay:${.5 + i * .25}s"></i>`).join("");
-    $("[data-end-note]").textContent = G.quit ? "You left the battle." : "Checking the result with the realm…";
-    setTimeout(() => { end.hidden = false; }, 1400);
+    $("[data-end-title]").textContent = won ? "Victory!" : draw ? "Draw" : "Defeat";
+    $("[data-end-crowns]").innerHTML = [0, 1, 2].map(i => crown(i < S.crowns[0]).replace("<svg ", `<svg style="animation-delay:${.6 + i * .3}s" `)).join("");
+    $("[data-score-you]").textContent = S.crowns[0]; $("[data-score-foe]").textContent = S.crowns[1]; $("[data-score-rival]").textContent = $("[data-rname]").textContent;
+    const mins = Math.floor(S.time / 60) + ":" + String(Math.floor(S.time % 60)).padStart(2, "0");
+    const stats = $("[data-end-stats]");
+    stats.innerHTML = `<span>Time<b>${mins}</b></span><span>Cards played<b>${G.inputs.length}</b></span><span>Arena wins<b>${rec.w}</b></span>`;
+    const note = $("[data-end-note]");
+    note.textContent = G.quit ? "You left the battle." : "Checking the result with the realm…";
+    setTimeout(() => { end.hidden = false; if (won) setTimeout(() => sfx("phase"), 600); }, 1400);
     if (G.quit) return;
     try {
       const r = await (await fetch("/api/arena/finish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ match: G.match, inputs: G.inputs }) })).json();
-      if (r.error) $("[data-end-note]").textContent = "The realm could not confirm this one: " + r.error;
-      else $("[data-end-note]").textContent = `Confirmed by the realm · +${r.result.xp} XP`;
-    } catch { $("[data-end-note]").textContent = "The result could not be sent. Check your connection."; }
+      if (r.error) note.textContent = "The realm could not confirm this one: " + r.error;
+      else {
+        note.innerHTML = `<svg><use href="#i-check"/></svg>Confirmed by the realm`;
+        if (r.result.xp) stats.insertAdjacentHTML("afterbegin", `<span class="xp">XP<b>+${r.result.xp}</b></span>`);
+      }
+    } catch { note.textContent = "The result could not be sent. Check your connection."; }
   }
 
   // for testing only: ?debug lets a test reach the match
   if (/[?&]debug\b/.test(location.search)) window.__arena = () => G;
 
-  // Codex-style card art for the lobby's role list
-  const style = document.createElement("style");
-  style.textContent = ".ar-how-role{padding:10px;border-radius:14px;background:rgba(18,10,36,.8);border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:3px}.ar-how-role b{font-size:.82rem}.ar-how-role i{font-style:normal;font-size:.68rem;color:#a99bd6;line-height:1.3}.ar-deck{grid-template-columns:repeat(2,1fr)!important}";
-  document.head.appendChild(style);
 })();
