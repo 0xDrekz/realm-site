@@ -108,7 +108,7 @@
     catch (e) { const m = (e && e.message) || ""; err(/reject|cancel|denied|declin/i.test(m) ? "Cancelled in the wallet." : m || "The wallet did not connect. Try again."); }
     b.disabled = false; b.textContent = "Connect wallet";
   });
-  document.addEventListener("click", e => { if (e.target.closest("[data-disconnect]")) { wallet = token = null; sess.set(null); showWho(); $("[data-pick]").hidden = true; } });
+  document.addEventListener("click", e => { if (e.target.closest("[data-disconnect]")) { if (token) fetch("/api/duel/signout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) }).catch(() => {}); wallet = token = null; sess.set(null); showWho(); $("[data-pick]").hidden = true; } });
   // on a phone with no wallet in the browser, open this page inside the wallet app
   setTimeout(() => {
     if (stdWallet() || injected() || wallet) return;
@@ -121,7 +121,9 @@
   async function load() {
     err(""); $("[data-pick]").hidden = true;
     try {
-      const { cards, boost } = await api("/api/duel/cards?token=" + encodeURIComponent(token));
+      const r = await fetch("/api/duel/cards", { headers: { Authorization: "Bearer " + token } }), d0 = await r.json();
+      if (!r.ok || d0.error) throw new Error(d0.error || "The realm did not answer.");
+      const { cards, boost } = d0;
       const lv = boost ? boost.level : 0;
       $("[data-boosted]").innerHTML = lv
         ? "<b>$DMT boost: +" + (lv * 3) + "% to every stat</b> for holding " + Number(boost.tokens).toLocaleString("en-GB") + " $DMT." + (lv < 5 ? " Hold " + ["", "250K", "1M", "5M", "10M"][lv] + " for +" + (lv * 3 + 3) + "%." : " The full boost.")

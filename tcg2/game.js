@@ -172,9 +172,10 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (!h) return { wallet, chainError: true, owned: [], boost: { level: 0, tokens: 0, boost: 1 }, eligible: false };
     return { wallet, ...h, eligible: h.owned.length > 0 || h.boost.level > 0 };
   }
+  const EXPIRED = { error: "Your sign-in has expired. Sign in again.", status: 401 };
   async function team({ token }) {
     const h = await holder(token);
-    if (!h) return { error: "Connect your wallet first." };
+    if (!h) return token ? EXPIRED : { error: "Connect your wallet first.", status: 401 };
     if (h.chainError) return { error: "Couldn't read your wallet just now. Retry in a moment." };
     return { wallet: h.wallet, boost: h.boost, eligible: h.eligible, cards: h.owned.map(n => show(n, h.boost.boost)) };
   }
@@ -207,6 +208,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     tidy();
     const L = K.LEVELS.get(String(level || ""));
     if (!L) return { error: "That level is not open." };
+    // a token that's no longer a session is an error, never a quiet guest match
+    if (token && !walletOf(token)) return EXPIRED;
     const h = L.id === "tutorial" ? null : await holder(token);
     if (h && h.chainError && L.id === "quick") return { error: "Couldn't read your wallet just now. Retry in a moment." };
     // your own beings: the team you chose, if you hold them; topped up with borrowed spirits

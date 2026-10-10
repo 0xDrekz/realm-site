@@ -8,7 +8,7 @@ const path = require("path"), fs = require("fs"), os = require("os");
 const PORT = 18000 + Math.floor(Math.random() * 1000);
 const ENDPOINTS = ["/api/rpc", "/api/arena/start", "/api/arena/finish",
   "/api/tcg/deal", "/api/tcg/start", "/api/tcg/act", "/api/tcg/view", "/api/tcg/hint", "/api/tcg/team",
-  "/api/duel/nonce", "/api/duel/signin", "/api/duel/start", "/api/duel/play", "/api/duel/nope"];
+  "/api/duel/nonce", "/api/duel/signin", "/api/duel/signout", "/api/duel/start", "/api/duel/play", "/api/duel/nope"];
 const BODIES = ["null", "[]", '"x"', "5", "true", "{", "{\"wallet\":null}", "{\"token\":5,\"match\":[],\"inputs\":null}"];
 
 let srv;

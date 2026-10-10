@@ -45,6 +45,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   async function start({ token } = {}) {
     tidy();
     const wallet = walletOf(token);
+    if (token && !wallet) return { error: "Your sign-in has expired. Sign in again.", status: 401 };
     let mine = [], boost = { level: 0, boost: 1 };
     if (wallet) {
       const [all, b] = await Promise.all([beings().catch(() => []), boostOf(wallet).catch(() => boost)]);

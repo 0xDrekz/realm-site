@@ -134,7 +134,12 @@
     try { d = await (await fetch("/api/arena/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s ? { token: s.token } : {}) })).json(); }
     catch { d = { error: "The realm did not answer. Try again." }; }
     btn.disabled = false; $("[data-battle-label]").textContent = "Battle"; $("[data-battle-sub]").textContent = "vs the realm's guardians";
-    if (d.error) { $("[data-lobby-note]").textContent = d.error; show("lobby"); return; }
+    if (d.error) {
+      // a dead session is said out loud, never turned quietly into a guest match
+      if (/sign in again/i.test(d.error)) { try { localStorage.removeItem("realm-tcg-session"); } catch { /* fine */ } paintLobby(); $("[data-lobby-note]").innerHTML = 'Your sign-in has expired. <a href="/duels">Sign in again</a>, or tap Battle to play with borrowed spirits.'; }
+      else $("[data-lobby-note]").textContent = d.error;
+      show("lobby"); return;
+    }
     // pictures load as the cards come up, not all at once
     for (const side of d.sides) for (const c of side.deck.slice(0, 8)) img(c.n);
     for (const c of d.wild || []) img(c.n);

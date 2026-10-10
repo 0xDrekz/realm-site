@@ -145,13 +145,14 @@
     HOLD = null;
     if (!SESS) return paintWallet();
     try { HOLD = await api("/api/tcg/team", { token: SESS.token }); }
-    catch (e) { if (/connect/i.test(e.message)) { SESS = null; store.set("session", null); } }
+    catch (e) { if (/connect|sign in again/i.test(e.message)) { SESS = null; store.set("session", null); } else HOLD = { error: e.message }; }
     paintWallet();
   }
   function paintWallet() {
     $("[data-w-out]").hidden = !!SESS; $("[data-w-in]").hidden = !SESS;
     if (!SESS) return;
     const b = HOLD && HOLD.boost, lv = b ? b.level : 0;
+    if (HOLD && HOLD.error) { $("[data-w-who]").innerHTML = `Connected <b>${esc(shortW(SESS.wallet))}</b><br><span class="tg-bad">${esc(HOLD.error)}</span> <button type="button" class="tg-link" data-w-retry>Retry</button>`; $("[data-team]").innerHTML = ""; return; }
     $("[data-w-who]").innerHTML = `Connected <b>${esc(shortW(SESS.wallet))}</b>` + (HOLD ? (lv ? ` · $DMT boost <b class="tg-boost">+${lv * 3}%</b>` : " · hold 50K $DMT for a +3% boost") : " · reading your beings…")
       + (HOLD && !HOLD.eligible ? `<br><span class="tg-fine">Hold a REALM being or 50K $DMT to reach the board.</span>` : "");
     const team = HOLD ? myTeam() : [], cards = HOLD ? HOLD.cards : [];
@@ -166,7 +167,8 @@
     catch (e) { const m = (e && e.message) || ""; er.textContent = /reject|cancel|denied|declin/i.test(m) ? "Cancelled in the wallet." : m || "The wallet did not connect. Try again."; er.hidden = false; }
     b.disabled = false; b.textContent = "Connect wallet";
   });
-  $("[data-w-off]").addEventListener("click", () => { SESS = null; HOLD = null; store.set("session", null); paintWallet(); paintLeaders(); });
+  document.addEventListener("click", e => { if (e.target.closest("[data-w-retry]")) loadHolder(); });
+  $("[data-w-off]").addEventListener("click", () => { if (SESS) fetch("/api/duel/signout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: SESS.token }) }).catch(() => {}); SESS = null; HOLD = null; store.set("session", null); paintWallet(); paintLeaders(); });
   // a phone with no wallet in the browser: open this page inside the wallet app
   setTimeout(() => {
     if (stdWallet() || injected() || SESS) return;
@@ -196,7 +198,7 @@
   /* ---------- the boards ---------- */
   let BTAB = "week", BOARD = null;
   async function paintLeaders(refetch = true) {
-    if (refetch) { try { BOARD = await api("/api/tcg/board" + (SESS ? "?token=" + encodeURIComponent(SESS.token) : "")); } catch { BOARD = null; } }
+    if (refetch) { try { const r = await fetch("/api/tcg/board", SESS ? { headers: { Authorization: "Bearer " + SESS.token } } : {}); BOARD = r.ok ? await r.json() : null; } catch { BOARD = null; } }
     const list = BOARD ? (BTAB === "week" ? BOARD.weekTop : BOARD.dayTop) : [], you = BOARD && BOARD.you && BOARD.you[BTAB];
     $("[data-board]").innerHTML = list.length
       ? list.slice(0, 10).map((r, i) => `<li class="${SESS && r.wallet === SESS.wallet ? "me" : ""}"><span>${i + 1}</span><a href="/wallet?a=${esc(r.wallet)}">${esc(r.short)}</a><b>${r.points.toLocaleString()}</b></li>`).join("")
@@ -364,6 +366,7 @@
     $("[data-start]").disabled = true;
     const d = await post("start", body);
     if (d.error) {
+      if (/sign in again/i.test(d.error)) { SESS = null; HOLD = null; store.set("session", null); paintWallet(); }
       if (["tutorial", "quick", "daily"].includes(body.level) || !$("[data-screen=draft]").offsetParent) { alert(d.error); return; }
       $("[data-draft-err]").textContent = d.error; $("[data-draft-err]").hidden = false; $("[data-start]").disabled = false; return;
     }

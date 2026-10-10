@@ -237,3 +237,10 @@ test("the daily challenge's day is fixed when the match starts, and a faster win
   const pts = (won, turns, life, dmg) => won ? 2000 - turns * 50 + Math.min(life, 14) * 5 : Math.min(dmg, 12) * 20;
   assert.ok(pts(true, 10, 5, 0) > pts(true, 14, 14, 0)); assert.ok(pts(true, 30, 1, 0) > pts(false, 0, 0, 99));
 });
+
+test("an expired or unknown token is a 401 'sign in again', never a quiet guest match", async () => {
+  const g = chain();
+  for (const level of ["quick", "daily", "1-1"]) { const r = await g.start({ level, token: "dead" }); assert.equal(r.status, 401, level); assert.match(r.error, /sign in again/i); }
+  assert.equal((await g.team({ token: "dead" })).status, 401);
+  assert.ok((await g.start({ level: "quick" })).match, "no token at all is a guest, as before");
+});

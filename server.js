@@ -349,47 +349,30 @@ const DUELS = require("./duels").create({ root: ROOT, beings: chainBeings, envVa
    signs it (a signature, not a transaction: nothing is sent or spent), and the
    server checks the signature against the address. A signed-in wallet gets a
    session for a day; only a signed-in wallet plays as itself or reaches the board. */
-const duelNonces = new Map(), duelSessions = new Map();
-function duelNonce(address) {
-  if (duelNonces.size > 5000) duelNonces.clear();
-  const nonce = require("crypto").randomBytes(12).toString("hex");
-  const message = "Sign in to REALM Duels\n\nWallet: " + address + "\nCode: " + nonce + "\nIssued: " + new Date().toISOString()
-    + "\n\nThis only proves you own this wallet. It is not a transaction: it costs nothing and moves nothing.";
-  duelNonces.set(nonce, { address, message, at: Date.now() });
-  return { nonce, message };
+const SESS = require("./session").create({ dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data"),
+  domain: require("./bot").envVar("PUBLIC_DOMAIN") || "dmt-realm.dev", log: m => console.log(m) });
+const duelNonce = a => SESS.nonce(a), duelVerify = j => SESS.verify(j), duelWalletOf = t => SESS.walletOf(t);
+/* a token travels in the Authorization header on GETs (never in a URL, where it ends up in logs) */
+const bearer = req => { const m = /^Bearer\s+([0-9a-f]{16,128})$/i.exec(req.headers.authorization || ""); return m ? m[1] : null; };
+/* per-caller limits; a full table drops its oldest callers, never all of them */
+function limiter(max, perMin) {
+  const hits = new Map();
+  return key => {
+    const now = Date.now(), w = (hits.get(key) || []).filter(t => now - t < 60_000); w.push(now);
+    hits.delete(key); hits.set(key, w);
+    while (hits.size > max) hits.delete(hits.keys().next().value);
+    return w.length <= perMin;
+  };
 }
-function duelVerify({ nonce, signature }) {
-  const n = duelNonces.get(nonce); duelNonces.delete(nonce);                 // each code works once
-  if (!n || Date.now() - n.at > 10 * 60_000) return null;
-  try {
-    const crypto = require("crypto"), pub = require("./payout").b58dec(n.address);
-    if (pub.length !== 32) return null;
-    const key = crypto.createPublicKey({ key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), pub]), format: "der", type: "spki" });
-    if (!crypto.verify(null, Buffer.from(n.message, "utf8"), key, Buffer.from(String(signature), "base64"))) return null;
-  } catch { return null; }
-  if (duelSessions.size > 20000) duelSessions.clear();
-  const token = require("crypto").randomBytes(24).toString("hex");
-  duelSessions.set(token, { wallet: n.address, exp: Date.now() + 24 * 3600_000 });
-  return { token, wallet: n.address };
-}
-const duelWalletOf = token => { const t = duelSessions.get(String(token || "")); return t && t.exp > Date.now() ? t.wallet : null; };
-const duelHits = new Map();
-function duelAllowed(ip) {                 // ten new runs a minute per caller is plenty for a person
-  const now = Date.now(), w = (duelHits.get(ip) || []).filter(t => now - t < 60_000); w.push(now); duelHits.set(ip, w);
-  if (duelHits.size > 5000) duelHits.clear();
-  return w.length <= 10;
-}
+const signinAllowed = limiter(5000, 10);
+const duelAllowed = limiter(5000, 10);     // ten new runs a minute per caller is plenty for a person
 
 /* the card battler (tcg2/game.js): matches live here; the page only sends moves */
 const TCG = require("./tcg2/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w),
   walletOf: duelWalletOf, dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 const ARENA = require("./arena/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf });
-const tcgHits = new Map();
-function tcgAllowed(ip, kind) {            // twenty new matches and 300 moves a minute per caller
-  const k = ip + kind, now = Date.now(), w = (tcgHits.get(k) || []).filter(t => now - t < 60_000); w.push(now); tcgHits.set(k, w);
-  if (tcgHits.size > 10000) tcgHits.clear();
-  return w.length <= (kind === "move" ? 300 : 20);
-}
+const tcgMoves = limiter(10000, 300), tcgMatches = limiter(10000, 20);   // 300 moves and 20 new matches a minute per caller
+const tcgAllowed = (ip, kind) => kind === "move" ? tcgMoves(ip) : tcgMatches(ip + kind);
 
 /* the last 120 pictures fetched, so a busy wallet page costs one fetch each */
 const IMGS = new Map();
@@ -595,7 +578,7 @@ function route(req, res) {
     readJson(req, send, 40000, j => {
       if (!tcgAllowed(ip, "arena")) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
       const fn = urlPath.endsWith("start") ? ARENA.start : ARENA.finish;
-      Promise.resolve().then(() => fn(j)).then(d => send(d.error ? 400 : 200, d))
+      Promise.resolve().then(() => fn(j)).then(d => send(d.status || (d.error ? 400 : 200), d))
         .catch(e => { console.error("arena", e); send(500, { error: "Something went wrong. Start a new match." }); });
     });
     return;
@@ -606,7 +589,7 @@ function route(req, res) {
     const send = replier(res);
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
     if (urlPath === "/api/tcg/map") return send(200, TCG.map());
-    if (urlPath === "/api/tcg/board") return send(200, TCG.board({ token: new URL(req.url, "http://x").searchParams.get("token") }));
+    if (urlPath === "/api/tcg/board") return send(200, TCG.board({ token: bearer(req) }));
     if (req.method !== "POST") return send(405, { error: "POST" });
     readJson(req, send, 4000, j => {
       const kind = urlPath === "/api/tcg/act" || urlPath === "/api/tcg/view" || urlPath === "/api/tcg/hint" ? "move" : "match";
@@ -614,7 +597,7 @@ function route(req, res) {
       const fn = { "/api/tcg/deal": TCG.deal, "/api/tcg/start": TCG.start, "/api/tcg/act": TCG.act, "/api/tcg/view": TCG.view, "/api/tcg/hint": TCG.hint, "/api/tcg/team": TCG.team }[urlPath];
       if (!fn) return send(404, { error: "Not found." });
       Promise.resolve().then(() => fn(j))
-        .then(d => send(d.error ? 400 : 200, d))
+        .then(d => send(d.status || (d.error ? 400 : 200), d))
         .catch(e => { console.error("tcg", e); send(500, { error: "Something went wrong. Start a new match." }); });
     });
     return;
@@ -627,7 +610,7 @@ function route(req, res) {
     const q = new URL(req.url, "http://x").searchParams;
     if (urlPath === "/api/duel/board") return send(200, { week: DUELS.week(), top: DUELS.top() });
     if (urlPath === "/api/duel/cards") {
-      const a = duelWalletOf(q.get("token"));
+      const a = duelWalletOf(bearer(req));
       if (!a) return send(401, { error: "Connect your wallet first." });
       if (!allowed(ip)) return send(429, { error: "Too many checks. Wait a minute." });
       Promise.all([chainBeings(), DUELS.boostOf(a)]).then(([all, boost]) => send(200, { boost,
@@ -643,6 +626,7 @@ function route(req, res) {
         return send(200, duelNonce(j.wallet));
       }
       if (urlPath === "/api/duel/signin") {
+        if (!signinAllowed(ip)) return send(429, { error: "Too many tries. Wait a minute." });
         const v = duelVerify(j);
         return v ? send(200, v) : send(401, { error: "The signature did not check out. Connect and try again." });
       }
@@ -653,6 +637,7 @@ function route(req, res) {
         if (j.token) { wallet = duelWalletOf(j.token); if (!wallet) return send(401, { error: "Your sign-in has expired. Connect your wallet again." }); }
         return DUELS.start({ wallet }).then(d => send(d.error ? 400 : 200, d)).catch(() => send(502, { error: "Could not read the realm just now." }));
       }
+      if (urlPath === "/api/duel/signout") { SESS.end(typeof j.token === "string" ? j.token : ""); return send(200, { ok: true }); }
       if (urlPath === "/api/duel/play") { const d = DUELS.play(j); return send(d.error ? 400 : 200, d); }
       send(404, { error: "Not found." });
     });
@@ -764,6 +749,8 @@ function route(req, res) {
 
 /* a last line of defence: log anything that slips through and keep serving (the mint page lives here too) */
 process.on("uncaughtException", e => console.error("uncaught", e));
+/* on a redeploy Railway sends SIGTERM: save what's in memory, then go */
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { SESS.flush(); } catch {} try { TCG.flush && TCG.flush(); } catch {} process.exit(0); });
 process.on("unhandledRejection", e => console.error("unhandled rejection", e));
 
 server.listen(PORT, "0.0.0.0", () => {

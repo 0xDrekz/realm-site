@@ -225,3 +225,9 @@ test("no sort in the engine rolls dice inside its comparisons", () => {
   const src = require("fs").readFileSync(require("path").join(__dirname, "engine.js"), "utf8");
   for (const m of src.matchAll(/\.sort\(([^;]*)\)/g)) assert.ok(!/rng\(/.test(m[1]), "a sort comparator calls rng: " + m[1]);
 });
+
+test("the arena refuses a dead session with a 401 instead of a guest match", async () => {
+  const G = require("./game").create({ walletOf: t => t === "good" ? "W" : null });
+  const r = await G.start({ token: "dead" }); assert.equal(r.status, 401); assert.match(r.error, /sign in again/i);
+  assert.ok((await G.start({})).match);
+});
