@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#05020c">
+<title>REALM Arena</title>
+<meta name="description" content="REALM Arena: three-minute real-time battles. Your beings are your army; DMT is your fuel.">
+<meta property="og:title" content="REALM Arena">
+<meta property="og:description" content="Three-minute battles. Your beings are your army. DMT is your fuel.">
+<meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="arena.css?v=2">
+</head>
+<body>
+
+<!-- the lobby -->
+<section class="ar-lobby" data-screen="lobby">
+  <div class="ar-lobby-bg" aria-hidden="true"></div>
+  <header class="ar-top">
+    <a class="ar-brand" href="/"><img src="logo-bar.png" width="34" height="34" alt="">REALM</a>
+    <button class="ar-chip" type="button" data-mute>Sound on</button>
+  </header>
+  <div class="ar-hero">
+    <p class="ar-eyebrow">Real-time battles · 3 minutes</p>
+    <h1>REALM <span>Arena</span></h1>
+    <p class="ar-lede">Drop your beings onto the field. Break their towers. Protect your Throne.</p>
+  </div>
+  <div class="ar-deck" data-deck-preview></div>
+  <button class="ar-battle" type="button" data-battle><span>Battle</span><i>vs the realm's guardians</i></button>
+  <p class="ar-note" data-lobby-note>Every match is checked by our server, so wins are real.</p>
+  <ol class="ar-how">
+    <li><b>DMT</b> fills your bar. Every card costs DMT.</li>
+    <li><b>Drag a card</b> onto your half to summon it.</li>
+    <li><b>Break towers.</b> The big Throne wins it instantly.</li>
+    <li>Every minute DMT comes <b>faster</b> and new units hit <b>harder</b>.</li>
+  </ol>
+</section>
+
+<!-- the battle -->
+<section class="ar-battlefield" data-screen="battle" hidden>
+  <div class="ar-hud">
+    <div class="ar-side ar-rival"><span class="ar-crowns" data-crowns="1"></span><b data-rname>Rival</b></div>
+    <div class="ar-clock"><b data-clock>3:00</b><i data-phase>Calm</i></div>
+    <div class="ar-side ar-you"><b>You</b><span class="ar-crowns" data-crowns="0"></span></div>
+  </div>
+  <div class="ar-stage" data-stage>
+    <div class="ar-layers" data-layers><canvas data-bg></canvas><canvas data-canvas></canvas></div>
+    <div class="ar-banner" data-banner></div>
+  </div>
+  <div class="ar-dock">
+    <div class="ar-hand">
+      <div class="ar-next"><i>Next</i><div class="ar-card mini" data-next></div></div>
+      <div class="ar-cards" data-hand></div>
+    </div>
+    <div class="ar-dmt"><div class="ar-dmt-bar"><i data-dmt-fill></i><div class="ar-dmt-ticks"></div></div><b data-dmt-n>5</b><span class="ar-dmt-l">DMT</span></div>
+  </div>
+  <button class="ar-quit" type="button" data-quit aria-label="Leave">&times;</button>
+  <div class="ar-tip" data-tip hidden></div>
+</section>
+
+<!-- the end -->
+<section class="ar-end" data-end hidden>
+  <div class="ar-end-body">
+    <p class="ar-eyebrow" data-end-sub>Arena</p>
+    <h2 data-end-title>Victory</h2>
+    <div class="ar-end-crowns" data-end-crowns></div>
+    <p class="ar-end-note" data-end-note></p>
+    <button class="ar-battle small" type="button" data-again><span>Battle again</span></button>
+    <button class="ar-chip wide" type="button" data-lobby>Back</button>
+  </div>
+</section>
+
+<script src="arena/engine.js?v=1"></script>
+<script src="arena-page.js?v=2"></script>
+</body>
+</html>
