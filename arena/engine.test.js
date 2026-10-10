@@ -189,13 +189,15 @@ test("the Mothership arrives, then burns what's under it", () => {
   assert.ok(5000 - foe.hp > 700, "the beam burned it"); assert.equal(S.ships.length, 0);
 });
 
-test("a Realm Surge sends the same wild spirit to both sides, mirrored", () => {
-  const wild = [3, 31, 14, 57, 80, 63, 8].map(n => C.fighter(n, 0.9));
+test("a Realm Surge sends each side its own wild being, at its own random spot", () => {
+  const wild = [[3, 9], [31, 33], [14, 18], [57, 59], [80, 84], [63, 66], [8, 12]].map(([a, b]) => [C.fighter(a, 0.9), C.fighter(b, 0.9)]);
   const S = A.createMatch({ seed: 21, sides: [{ deck: deckA() }, { deck: deckB() }], wild });
   run(S, 25 * A.TICK);
-  const w = S.ents.filter(e => e.wild);
-  assert.equal(w.length, 2); assert.notEqual(w[0].side, w[1].side); assert.equal(w[0].def.n, w[1].def.n);
-  assert.ok(Math.abs(w[0].x - w[1].x) < 1e-9 && Math.abs((w[0].y + w[1].y) - A.H) < 1e-9, "mirrored across the river");
+  const w = S.ents.filter(e => e.wild), mine = w.find(e => e.side === 0), theirs = w.find(e => e.side === 1);
+  assert.equal(w.length, 2); assert.ok(mine && theirs);
+  assert.notEqual(mine.def.n, theirs.def.n, "different beings");
+  assert.ok(mine.y > A.RIVER && theirs.y < A.RIVER, "each on its own half");
+  assert.ok(Math.abs(mine.x - theirs.x) > 1e-6 || Math.abs((mine.y + theirs.y) - A.H) > 1e-6, "not mirrored");
 });
 test("towers come down sooner than before", () => {
   const S = A.createMatch({ seed: 1, sides: [{ deck: deckA() }, { deck: deckB() }] });
@@ -212,4 +214,14 @@ test("in a draw, a played card is gone for good and a new one comes in", () => {
   assert.equal(A.place(S, 0, slot, 9, 24), null);
   assert.equal(P.hand[slot], 4, "the next card in the stream comes in");
   assert.ok(!P.queue.includes(ci) && !P.hand.includes(ci), "and the played one is spent");
+});
+
+test("the engine uses only exact arithmetic, so every browser and the server agree", () => {
+  const src = require("fs").readFileSync(require("path").join(__dirname, "engine.js"), "utf8");
+  for (const f of ["sin", "cos", "tan", "atan", "atan2", "pow", "exp", "log", "hypot", "cbrt"]) assert.ok(!new RegExp("Math\\." + f + "\\(").test(src), "Math." + f + " is not exact across engines");
+});
+
+test("no sort in the engine rolls dice inside its comparisons", () => {
+  const src = require("fs").readFileSync(require("path").join(__dirname, "engine.js"), "utf8");
+  for (const m of src.matchAll(/\.sort\(([^;]*)\)/g)) assert.ok(!/rng\(/.test(m[1]), "a sort comparator calls rng: " + m[1]);
 });

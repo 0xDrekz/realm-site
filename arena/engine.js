@@ -161,8 +161,10 @@
     if (def.id === "meteor") {
       // six meteors, each falling a beat after the last, scattered over the area
       for (let i = 0; i < (def.count || 6); i++) {
-        const a = rng(S) * Math.PI * 2, d = Math.sqrt(rng(S)) * def.radius * 0.85;
-        const mx = clamp(x + Math.cos(a) * d, 0.5, W - 0.5), my = clamp(y + Math.sin(a) * d, 0.5, H - 0.5), land = S.tick + 8 + i * 5;
+        // a random spot in the circle, by plain arithmetic only (sin and cos can differ between browsers)
+        const R0 = def.radius * 0.85; let dx = 0, dy = 0;
+        for (let k = 0; k < 8; k++) { dx = (rng(S) * 2 - 1) * R0; dy = (rng(S) * 2 - 1) * R0; if (dx * dx + dy * dy <= R0 * R0) break; }
+        const mx = clamp(x + dx, 0.5, W - 0.5), my = clamp(y + dy, 0.5, H - 0.5), land = S.tick + 8 + i * 5;
         S.flights.push({ side, def: { id: "meteor", radius: 1.35, amount: def.amount }, x: mx, y: my, land });
         S.events.push({ t: "launch", side, fx: "meteor", x: mx, y: my, fromX: mx + 3.5, fromY: my - 11, dur: (land - S.tick) / TICK });
       }
@@ -321,7 +323,10 @@
       if (mine.filter(u => homeY(u.y)).reduce((a, u) => a + u.def.cost, 0) >= weight * 1.2) return null;   // already covered
       const pool = affordable.filter(h => h.def.kind === "unit" && (!air || h.def.targetsAir));
       if (!pool.length) return null;
-      pool.sort((a, b) => Math.abs(a.def.cost - weight) - Math.abs(b.def.cost - weight) + (rng(S) - 0.5));
+      // a little randomness in the choice, drawn once per card in hand order: a sort that rolls dice inside
+      // its comparisons would draw a different number of times in different browsers, and the server would disagree
+      for (const h of pool) h.score = Math.abs(h.def.cost - weight) + (rng(S) - 0.5);
+      pool.sort((a, b) => a.score - b.score || a.slot - b.slot);
       const pick = pool[0], back = pick.def.range > 2 ? 3.5 : 1.5;
       const y = clamp(cy + sign * back, side === 0 ? RIVER + 1 : 1, side === 0 ? H - 1 : RIVER - 1);
       return place(S, side, pick.slot, clamp(cx + (rng(S) - 0.5), 1, W - 1), y);
@@ -351,14 +356,20 @@
     const k = S.surge++, late = S.time >= 140;
     const kinds = ["spirits", "meteors", "bloom", "spirits"], kind = k === 0 ? "spirits" : late ? "titan" : kinds[Math.floor(rng(S) * kinds.length)];
     if (kind === "spirits" || kind === "titan") {
-      const def = late ? S.wild[S.wild.length - 1] : S.wild[Math.min(S.wild.length - 2, k)];
-      const lane = rng(S) < 0.5 ? 0 : 1, x = BRIDGES[lane] + (rng(S) - 0.5) * 1.5;
-      for (let side = 0; side < 2; side++) spawn(S, side, def, x, side === 0 ? RIVER + 3 : RIVER - 3, phaseOf(S.time).power, { wake: 1.2, wild: true });
-      S.events.push({ t: "surge", kind, name: def.name, x });
+      // each side gets its own wild being (two different beings of the same rarity), each at its own random spot
+      const pick = late ? S.wild[S.wild.length - 1] : S.wild[Math.min(S.wild.length - 2, k)];
+      for (let side = 0; side < 2; side++) {
+        const def = Array.isArray(pick) ? pick[side] || pick[0] : pick;
+        const x = 2 + rng(S) * (W - 4), d = 2 + rng(S) * 4;
+        spawn(S, side, def, x, side === 0 ? RIVER + d : RIVER - d, phaseOf(S.time).power, { wake: 1.2, wild: true });
+      }
+      S.events.push({ t: "surge", kind });
     } else if (kind === "meteors") {
+      // five meteors on each half, each half its own random spots
       for (let i = 0; i < 5; i++) {
-        const x = 1.5 + rng(S) * (W - 3), y = 4 + rng(S) * (RIVER - 6), land = S.tick + 10 + i * 6;
-        for (const my of [y, H - y]) {
+        const land = S.tick + 10 + i * 6;
+        for (const half of [0, 1]) {
+          const x = 1.5 + rng(S) * (W - 3), y = 4 + rng(S) * (RIVER - 6), my = half ? y : H - y;
           S.flights.push({ side: -1, def: { id: "meteor", radius: 1.3, amount: 140 }, x, y: my, land });
           S.events.push({ t: "launch", side: -1, fx: "meteor", x, y: my, fromX: x + 3.5, fromY: my - 11, dur: (land - S.tick) / TICK });
         }

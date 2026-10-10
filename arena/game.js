@@ -58,8 +58,10 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const seed = crypto.randomInt(2 ** 32), id = crypto.randomBytes(16).toString("hex");
     const sides = [{ deck: build(mySpecs), draw: true, ai: false }, { deck: build(rivalSpecs), draw: true, ai: true, level: 1 }];
     // the wild spirits the arena sends to both sides in its Realm Surges, growing as the match goes on
-    const wildNs = ["Uncommon", "Rare", "Epic", "Rare", "Epic", "Legendary", "Mythic"].map(t => pick(BT[t], []));
-    const wild = wildNs.map(n => C.fighter(n, 0.9));
+    // two different beings of each rarity: one for you, one for the rival
+    const wildNs = ["Uncommon", "Rare", "Epic", "Rare", "Epic", "Legendary", "Mythic"].map(t => { const a = pick(BT[t], []); return [a, pick(BT[t], [a])]; });
+    const wildOf = ns => ns.map(([a, b]) => [C.fighter(a, 0.9), C.fighter(b, 0.9)]);
+    const wild = wildOf(wildNs);
     // kept small: the cards are rebuilt from these when the match comes back
     matches.set(id, { id, seed, specs, wildNs, wallet, at: Date.now(), done: false, rival: RIVALS[crypto.randomInt(RIVALS.length)] });
     return { match: id, seed, sides, wild, rival: matches.get(id).rival, own: mine.length, boost: boost.level ? boost : null };
@@ -79,7 +81,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     }
     clean.sort((a, b) => a.t - b.t);
     const sides = [{ deck: build(m.specs[0]), draw: true, ai: false }, { deck: build(m.specs[1]), draw: true, ai: true, level: 1 }];
-    const r = A.replay({ seed: m.seed, sides, wild: m.wildNs.map(n => C.fighter(n, 0.9)), inputs: clean });
+    const r = A.replay({ seed: m.seed, sides, wild: m.wildNs.map(([a, b]) => [C.fighter(a, 0.9), C.fighter(b, 0.9)]), inputs: clean });
     if (r.error) { m.done = true; return { error: r.error }; }
     const S = r.S;
     // it takes real time to play: a match can't be handed in faster than it could be played
