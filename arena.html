@@ -12,18 +12,16 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-<link rel="preload" href="fonts/lilita-one.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="arena.css?v=3">
+<link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="arena.css?v=4">
 </head>
 <body>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <symbol id="i-crown" viewBox="0 0 32 26"><path d="M2 24h28v-3H2zM2 19h28l2-14-8 6-8-10-8 10-8-6z"/></symbol>
-    <symbol id="i-drop" viewBox="0 0 24 30"><path d="M12 1C12 1 2 13 2 19.5A10 10 0 0 0 22 19.5C22 13 12 1 12 1z"/></symbol>
+    <symbol id="i-crown" viewBox="0 0 16 12"><path shape-rendering="crispEdges" d="M0 2h2v3h2V3h2V0h4v3h2v2h2V2h2v7H0zM0 10h16v2H0z"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 10 12"><path shape-rendering="crispEdges" d="M4 0h2v2h1v2h1v2h1v4H8v1H7v1H3v-1H2v-1H1V6h1V4h1V2h1z"/></symbol>
     <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 3h10v3h3v2a5 5 0 0 1-4.6 5A5 5 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A5 5 0 0 1 8.6 13 5 5 0 0 1 4 8V6h3zm0 5V8H6a3 3 0 0 0 1 2.2zm10 0v2.2A3 3 0 0 0 18 8z"/></symbol>
@@ -79,7 +77,7 @@
 
 <!-- the face-off before a battle -->
 <div class="ar-vs" data-vs hidden>
-  <div class="ar-vs-half foe"><span class="ar-vs-emblem"><svg viewBox="0 0 32 26"><use href="#i-crown"/></svg></span><b data-vs-rival>Rival</b><i>Guardian of the realm</i></div>
+  <div class="ar-vs-half foe"><span class="ar-vs-emblem"><svg viewBox="0 0 16 12"><use href="#i-crown"/></svg></span><b data-vs-rival>Rival</b><i>Guardian of the realm</i></div>
   <div class="ar-vs-mark">VS</div>
   <div class="ar-vs-half you"><b>You</b><i data-vs-army>Borrowed spirits</i><div class="ar-vs-deck" data-vs-deck></div></div>
 </div>
@@ -124,6 +122,6 @@
 </section>
 
 <script src="arena/engine.js?v=2"></script>
-<script src="arena-page.js?v=5"></script>
+<script src="arena-page.js?v=6"></script>
 </body>
 </html>

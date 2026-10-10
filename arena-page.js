@@ -150,7 +150,8 @@
   function layout() {
     const st = $("[data-stage]").getBoundingClientRect();
     ts = Math.max(8, Math.min(st.width / A.W, st.height / (A.H + TOP)));
-    dpr = Math.min(lowRes ? 1.2 : 2, window.devicePixelRatio || 1);
+    // the site's look: every canvas is drawn a little under screen size and blown up with hard edges
+    dpr = lowRes ? .6 : .8;
     for (const c of [canvas, bg]) { c.style.width = (ts * A.W) + "px"; c.style.height = (ts * (A.H + TOP)) + "px"; c.width = Math.round(ts * A.W * dpr); c.height = Math.round(ts * (A.H + TOP) * dpr); }
     sprites.clear(); towerBodies.clear();
     // the arena itself is drawn once, on its own layer underneath
@@ -180,7 +181,7 @@
       const spots = SPOTS.map(([x, y, s]) => [x, side ? H - y : y, s]);
       const inLane = (x, y) => A.BRIDGES.some(bx => Math.abs(x - bx) < 1.25) || Math.hypot(x - 9, y - spots[2][1]) < 3.3;
       g.save();
-      g.beginPath(); roundRect(g, 0.35, y0, W - 0.7, y1 - y0, 0.9); g.clip();
+      g.beginPath(); roundRect(g, 0.35, y0, W - 0.7, y1 - y0, 0.3); g.clip();
       g.fillStyle = `hsl(${St.h} ${St.s}% ${St.l - 7}%)`; g.fillRect(0, y0, W, y1 - y0);
       // flagstones, laid like brick; the walked lanes are worn lighter
       for (let row = Math.floor(y0); row < y1; row++) {
@@ -189,7 +190,7 @@
           const w = [1, 1.3, 1.6, 2][Math.floor(r() * 4)], cx = x + w / 2, cy = row + .5, lane = inLane(cx, cy);
           const l = St.l + (r() - .5) * 4 + (lane ? 5 : 0), sat = St.s - (lane ? 10 : 0);
           g.fillStyle = `hsl(${St.h + (r() - .5) * 10} ${sat}% ${l}%)`;
-          g.beginPath(); roundRect(g, x + .05, row + .05, w - .1, .9, .14); g.fill();
+          g.fillRect(x + .06, row + .06, w - .12, .88);
           g.fillStyle = "rgba(255,255,255,.07)"; g.fillRect(x + .12, row + .07, w - .24, .06);
           g.fillStyle = "rgba(0,0,0,.28)"; g.fillRect(x + .1, row + .87, w - .2, .07);
           if (r() < .08) { g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = .03; g.beginPath(); g.moveTo(x + w * .3, row + .15); g.lineTo(x + w * .45, row + .5); g.lineTo(x + w * .4, row + .85); g.stroke(); }
@@ -218,10 +219,10 @@
       // the wall: dark stone, a bevel, a gold inlay and the team's glow
       g.save(); g.lineJoin = "round";
       g.shadowColor = T.main; g.shadowBlur = ts * dpr * .5;
-      g.strokeStyle = T.glow + ".8)"; g.lineWidth = .1; g.beginPath(); roundRect(g, 0.3, y0 - .05, W - 0.6, y1 - y0 + .1, 0.95); g.stroke();
+      g.strokeStyle = T.glow + ".8)"; g.lineWidth = .1; g.beginPath(); roundRect(g, 0.3, y0 - .05, W - 0.6, y1 - y0 + .1, 0.35); g.stroke();
       g.shadowBlur = 0;
-      g.strokeStyle = "#0b0716"; g.lineWidth = .34; g.beginPath(); roundRect(g, 0.52, y0 + .17, W - 1.04, y1 - y0 - .34, 0.75); g.stroke();
-      g.strokeStyle = "rgba(227,186,92,.55)"; g.lineWidth = .045; g.beginPath(); roundRect(g, 0.7, y0 + .35, W - 1.4, y1 - y0 - .7, 0.6); g.stroke();
+      g.strokeStyle = "#0b0716"; g.lineWidth = .34; g.beginPath(); roundRect(g, 0.52, y0 + .17, W - 1.04, y1 - y0 - .34, 0.2); g.stroke();
+      g.strokeStyle = "rgba(227,186,92,.55)"; g.lineWidth = .045; g.beginPath(); roundRect(g, 0.7, y0 + .35, W - 1.4, y1 - y0 - .7, 0.1); g.stroke();
       g.restore();
       // corner pillars with a gem on top
       for (const [px, py] of [[.75, y0 + .75], [W - .75, y0 + .75], [.75, y1 - .75], [W - .75, y1 - .75]]) pillar(g, px, py, T);
@@ -446,15 +447,17 @@
     towerBodies.set(key, out); return out;
   }
 
-  let FONT = "system-ui";
+  // words in the site's pixel face; figures in its number face, which can't be misread
+  let FONT = "system-ui", NUMFONT = "system-ui";
+  try { document.fonts.load('700 20px "Space Grotesk"').then(() => { NUMFONT = '"Space Grotesk", system-ui'; }); } catch { /* old browser */ }
   /* text is drawn in real pixels: a font scaled down to a fraction of a pixel draws badly */
   function txt(str, x, y, size, fill, stroke) {
     const k = ts * dpr; ctx.save(); ctx.translate(x, y); ctx.scale(1 / k, 1 / k);
-    ctx.font = `${Math.round(size * k)}px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+    ctx.font = `700 ${Math.max(8, Math.round(size * k))}px ${typeof str === "number" || /^-?\d+$/.test(str) ? NUMFONT : FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
     if (stroke) { ctx.lineWidth = stroke * k; ctx.strokeStyle = "#0a0514"; ctx.strokeText(str, 0, 0); }
     ctx.fillStyle = fill; ctx.fillText(str, 0, 0); ctx.restore();
   }
-  try { document.fonts.load("20px Lilita").then(() => { FONT = "Lilita, system-ui"; }); } catch { /* old browser */ }
+  try { document.fonts.load('700 20px "Pixelify Sans"').then(() => { FONT = '"Pixelify Sans", system-ui'; }); } catch { /* old browser */ }
   /* units look bigger than the space they take, so a phone can read them */
   const vis = r => Math.max(.9, r * 1.9);
 
@@ -540,16 +543,17 @@
       for (let k = 0; k < 2; k++) { ctx.beginPath(); ctx.ellipse(x, y - s * .7, s * (1.05 + k * .2), s * (.3 + k * .06), (t * (k ? -.6 : .4)) % (Math.PI * 2), 0, Math.PI * 2); ctx.stroke(); }
     }
     // health
-    const w = throne ? 2.5 : 1.9, hy = top - (throne ? 1.2 : 1.05), k = Math.max(0, e.hp / e.max);
-    ctx.fillStyle = "#0a0514"; ctx.beginPath(); roundRect(ctx, x - w / 2 - .07, hy - .07, w + .14, .46, .16); ctx.fill();
-    ctx.strokeStyle = "rgba(227,186,92,.8)"; ctx.lineWidth = .035; ctx.stroke();
+    const w = throne ? 2.6 : 2, hy = top - (throne ? 1.3 : 1.15), k = Math.max(0, e.hp / e.max), bh = .56;
+    ctx.fillStyle = "#000"; ctx.fillRect(x - w / 2 - .08, hy - .08, w + .16, bh + .16);
+    ctx.fillStyle = "#e3ba5c"; ctx.fillRect(x - w / 2 - .08, hy - .08, w + .16, .06); ctx.fillRect(x - w / 2 - .08, hy + bh + .02, w + .16, .06);
+    ctx.fillRect(x - w / 2 - .08, hy - .08, .06, bh + .16); ctx.fillRect(x + w / 2 + .02, hy - .08, .06, bh + .16);
     if (k > 0) {
-      ctx.fillStyle = T.deep; ctx.beginPath(); roundRect(ctx, x - w / 2, hy, Math.max(.2, w * k), .32, .11); ctx.fill();
-      ctx.fillStyle = T.main; ctx.beginPath(); roundRect(ctx, x - w / 2, hy, Math.max(.2, w * k), .2, .1); ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(x - w / 2 + .08, hy + .04, Math.max(0, w * k - .16), .05);
+      ctx.fillStyle = T.deep; ctx.fillRect(x - w / 2, hy, w * k, bh);
+      ctx.fillStyle = T.main; ctx.fillRect(x - w / 2, hy, w * k, bh * .62);
+      ctx.fillStyle = "rgba(255,255,255,.45)"; ctx.fillRect(x - w / 2, hy, w * k, .08);
     }
-    txt(Math.max(0, Math.ceil(e.hp)), x, hy + .18, .38, "#fff", .11);
-    if (throne) { ctx.save(); ctx.translate(x - w / 2 - .32, hy + .16); ctx.fillStyle = "#f6cf6a"; ctx.strokeStyle = "#2a1306"; ctx.lineWidth = .05; ctx.beginPath(); ctx.moveTo(-.26, .18); ctx.lineTo(-.3, -.14); ctx.lineTo(-.13, 0); ctx.lineTo(0, -.22); ctx.lineTo(.13, 0); ctx.lineTo(.3, -.14); ctx.lineTo(.26, .18); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore(); }
+    txt(Math.max(0, Math.ceil(e.hp)), x, hy + bh / 2 + .02, .5, "#fff", .1);
+    if (throne) { ctx.save(); ctx.translate(x - w / 2 - .42, hy + .26); ctx.fillStyle = "#f6cf6a"; ctx.strokeStyle = "#2a1306"; ctx.lineWidth = .05; ctx.beginPath(); ctx.moveTo(-.26, .18); ctx.lineTo(-.3, -.14); ctx.lineTo(-.13, 0); ctx.lineTo(0, -.22); ctx.lineTo(.13, 0); ctx.lineTo(.3, -.14); ctx.lineTo(.26, .18); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore(); }
   }
   function drawRubble(r) {
     const s = r.big ? 1.5 : 1.1;
@@ -685,7 +689,7 @@
       n.t += dt; const k = n.t / n.life; if (k >= 1) continue;
       ctx.globalAlpha = 1 - k;
       const label = n.txt || "-" + n.n;
-      txt(label, n.x, n.y - k * .9, n.txt ? .4 : n.tower ? .6 : .5, n.txt ? "#d9c8ff" : n.tower ? "#ffe58a" : "#fff", .12);
+      txt(label, n.x, n.y - k * .9, n.txt ? .5 : n.tower ? .7 : .6, n.txt ? "#d9c8ff" : n.tower ? "#ffe58a" : "#fff", .12);
     }
     ctx.globalAlpha = 1;
     G.nums = G.nums.filter(n => n.t < n.life);
@@ -709,7 +713,7 @@
   function cardHtml(def, mini, extra = "") {
     const spell = def.kind === "spell", tc = spell ? "#e3ba5c" : TIER_COL[def.tier];
     const pic = def.n ? `<img src="/thumbs/${def.n}.webp" alt="" draggable="false">` : `<svg class="ar-sig" viewBox="0 0 100 100" style="background:radial-gradient(circle at 50% 45%,#4a1a7a,#0b0616 70%)">${SPELL_ICON[def.id] || ""}</svg>`;
-    return `<div class="ar-card${mini ? " mini" : ""}${spell ? " spell" : ""}" style="--tc:${tc};${extra}"><span class="ar-card-in">${pic}</span><span class="ar-card-cost"><svg viewBox="0 0 24 30"><use href="#i-drop"/></svg><b>${def.cost}</b></span>
+    return `<div class="ar-card${mini ? " mini" : ""}${spell ? " spell" : ""}" style="--tc:${tc};${extra}"><span class="ar-card-in">${pic}</span><span class="ar-card-cost"><svg viewBox="0 0 10 12"><use href="#i-drop"/></svg><b>${def.cost}</b></span>
       <span class="ar-card-name">${def.name}</span><span class="ar-card-role">${spell ? "Spell" : def.power ? def.power.label : def.roleLabel}</span><span class="ar-card-fill"></span></div>`;
   }
   let handSig = "";
@@ -745,7 +749,7 @@
     paintHand(false);
     tips(S);
   }
-  const crown = on => `<svg viewBox="0 0 32 26" class="${on ? "on" : ""}"><use href="#i-crown"/></svg>`;
+  const crown = on => `<svg viewBox="0 0 16 12" class="${on ? "on" : ""}"><use href="#i-crown"/></svg>`;
   function paintCrowns() { for (const side of [0, 1]) $(`[data-crowns="${side}"]`).innerHTML = [0, 1, 2].map(i => crown(i < G.S.crowns[side])).join(""); }
 
   /* ---------- placing: drag a card, or tap it then tap the field ---------- */
