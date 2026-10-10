@@ -62,7 +62,7 @@
      sides: [{ deck: [8 card defs], ai: false }, { deck, ai: true, level: 0..2 }]
      A card def is plain data made on the server (arena/cards.js). */
   function createMatch({ seed, sides }) {
-    const S = { seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], events: [], crowns: [0, 0], sides: [], log: [] };
+    const S = { seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], flights: [], events: [], crowns: [0, 0], sides: [], log: [] };
     for (let i = 0; i < 2; i++) {
       const sd = sides[i] || {};
       const order = sd.deck.map((_, k) => k);
@@ -151,8 +151,15 @@
       if (dist(e, { x, y }) <= radius + e.r) hurt(S, e, e.kind === "tower" ? dmg * 0.35 : dmg, null);
     }
   }
+  /* damage spells travel: a Supernova flies from your Throne across the arena, lightning
+     takes a breath to fall from the sky. They land where they were aimed, a moment later. */
   function cast(S, side, def, x, y) {
-    if (def.effect === "damage") blast(S, side, x, y, def.radius, def.amount, def.id);
+    if (def.effect === "damage") {
+      const fx = 9, fy = side === 0 ? H - 3 : 3, d = Math.sqrt((x - fx) * (x - fx) + (y - fy) * (y - fy));
+      const land = S.tick + (def.id === "nova" ? Math.max(8, Math.round(d / 16 * TICK)) : 6);
+      S.flights.push({ side, def, x, y, land });
+      S.events.push({ t: "launch", side, fx: def.id, x, y, fromX: fx, fromY: fy, dur: (land - S.tick) / TICK });
+    }
     if (def.effect === "heal") {
       S.events.push({ t: "blast", side, x, y, r: def.radius, fx: def.id });
       for (const e of S.ents) if (e.side === side && e.kind === "unit" && e.hp > 0 && dist(e, { x, y }) <= def.radius + e.r) { e.hp = Math.min(e.max, e.hp + def.amount); e.shield += Math.round(def.amount * 0.3); S.events.push({ t: "heal", id: e.id, n: def.amount }); }
@@ -316,6 +323,11 @@
     // the Source lifts the allies around it
     for (const u of S.ents) u.aura = 0;
     for (const u of S.ents) if (u.kind === "unit" && u.hp > 0 && u.style === "prime") for (const o of S.ents) if (o !== u && o.side === u.side && o.kind === "unit" && dist(o, u) < 3.5) o.aura = 0.2;
+    // spells in flight land
+    if (S.flights.length) {
+      for (const f of S.flights) if (f.land <= S.tick) blast(S, f.side, f.x, f.y, f.def.radius, f.def.amount, f.def.id);
+      S.flights = S.flights.filter(f => f.land > S.tick);
+    }
     // gas clouds
     for (const z of S.zones) for (const e of S.ents) if (e.side !== z.side && e.hp > 0 && !e.air && dist(e, z) <= z.r + e.r * 0.5) hurt(S, e, (e.kind === "tower" ? z.dps * 0.3 : z.dps) * DT, null);
     S.zones = S.zones.filter(z => z.until > S.time);

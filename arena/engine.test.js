@@ -148,3 +148,14 @@ test("a God descends with lightning on the enemies around it", () => {
   assert.equal(A.place(S, 0, 0, 9, 22), null);
   assert.ok(foes.every((f, i) => f.hp < hps[i] || f.hp <= 0), "all three struck");
 });
+
+test("a Supernova flies from your Throne and lands a moment later", () => {
+  const S = blank();
+  const foe = drop(S, 1, 4, 9, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000;
+  const P = S.sides[0]; P.dmt = 10; P.hand[0] = P.deck.findIndex(c => c.id === "nova");
+  assert.equal(A.place(S, 0, 0, 9, 8), null);
+  assert.equal(foe.hp, 5000, "not hit yet: it's in the air");
+  assert.equal(S.flights.length, 1);
+  for (let k = 0; k < 40 && S.flights.length; k++) A.step(S);
+  assert.equal(S.flights.length, 0); assert.ok(foe.hp < 5000, "and it lands");
+});
