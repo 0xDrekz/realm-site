@@ -141,13 +141,13 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
   }
   $("[data-w-connect]").addEventListener("click", async () => {
     const b = $("[data-w-connect]"), er = $("[data-w-err]"); er.hidden = true; b.disabled = true; b.textContent = "Check your wallet…";
-    try { const s = await connectAndSign(); SESS = { wallet: s.wallet, token: s.token, at: Date.now() }; writeSess(SESS); sfx("win"); await loadHolder(); }
+    try { const s = await connectAndSign(); SESS = { wallet: s.wallet, token: s.token, at: Date.now() }; writeSess(SESS); sfx("win"); await loadHolder(); loadProfile(); }
     catch (e) { const m = (e && e.message) || ""; er.textContent = /reject|cancel|denied|declin/i.test(m) ? "Cancelled in the wallet." : m || "The wallet didn't connect. Try again."; er.hidden = false; }
     b.disabled = false; b.textContent = "Connect wallet";
   });
   $("[data-w-off]").addEventListener("click", () => {
     if (SESS) fetch("/api/duel/signout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: SESS.token }) }).catch(() => {});
-    SESS = null; HOLD = null; writeSess(null); paintWallet();
+    SESS = null; HOLD = null; writeSess(null); paintWallet(); loadProfile();
   });
   setTimeout(() => {
     if (stdWallet() || injected() || SESS) return;
@@ -164,7 +164,29 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
   /* ---------- decks ---------- */
   let decks = store.get("decks", []);       // [{ id, name, cards }]
   let selKey = store.get("sel", "s:magic");
-  let level = store.get("level", "normal");
+  let PROF = null, pid = store.get("pid", null);
+  const RIVAL_TITLE = ["an apprentice", "a guardian", "a warden", "an elder", "an archon", "a sovereign"];
+  async function loadProfile() {
+    try {
+      const d = await api("/api/rc/me", SESS ? { token: SESS.token } : { pid });
+      if (d.pid) { pid = d.pid; store.set("pid", pid); }
+      PROF = d.profile;
+    } catch (e) { if (e.status === 401) { SESS = null; writeSess(null); paintWallet(); return loadProfile(); } }
+    paintProfile();
+  }
+  const starsHtml = (n, max, pop = -1, lost = -1) => `<span class="rc-stars">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? "on" : ""}${i === pop ? " pop" : ""}${i === lost ? " lost" : ""}"></i>`).join("")}</span>`;
+  const badge = p => `<span class="rc-badge t${p.tierIndex}"><svg width="18" height="20"><use href="#i-gem"/></svg></span>`;
+  function paintProfile() {
+    if (!PROF) return;
+    const p = PROF;
+    $("[data-rank]").innerHTML = `${badge(p)}<span class="rc-rinfo"><b>${p.tier}</b>${p.tier === "Mythic" ? "<i class='rc-fine' style='margin:0'>The top of the realm</i>" : starsHtml(p.stars, p.maxStars)}
+<span class="rc-lvl">Lv ${p.level}<span class="rc-bar"><i style="width:${Math.round(100 * p.xp / p.next)}%"></i></span></span></span>
+${p.streak ? `<span class="rc-streak"><b>${p.streak}</b>streak</span>` : ""}`;
+    const left = (() => { const n = new Date(), m = new Date(n); m.setUTCHours(24, 0, 0, 0); const h = Math.ceil((m - n) / 3600e3); return h + "h"; })();
+    $("[data-quests]").innerHTML = `<h3>Daily quests <span>new in ${left}</span></h3>` + p.quests.map(q => `<div class="rc-q${q.done ? " done" : ""}"><span>${esc(q.text)}</span><em>${q.done ? "Done" : "+" + q.xp + " xp"}</em><span class="rc-bar"><i style="width:${Math.round(100 * q.at / q.n)}%"></i></span></div>`).join("")
+      + (p.firstWinReady ? `<p class="rc-bonus">First win today: +40 xp bonus</p>` : "");
+    paintLobby();
+  }
   const allDecks = () => [...(POOL ? POOL.starters.map(s => ({ key: "s:" + s.key, name: s.name, cards: s.deck, starter: s.key })) : []), ...decks.map(d => ({ key: "c:" + d.id, name: d.name, cards: d.cards, custom: d }))];
   const deckEss = cards => [...new Set(cards.map(id => BYID[id]).filter(Boolean).map(c => c.essence))];
   const deckArt = cards => { const b = cards.map(id => BYID[id]).filter(c => c && c.n).sort((a, b) => b.cost - a.cost)[0]; return b ? `url(/thumbs/${b.n}.webp)` : "none"; };
@@ -179,12 +201,10 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     $("[data-deck-name]").textContent = d.name;
     $("[data-deck-ess]").innerHTML = deckEss(d.cards).map(e => dot(e) + ESS_NAME[e]).join(" ") + (d.starter ? " · starter" : "");
     $("[data-deck-art]").style.backgroundImage = deckArt(d.cards);
-    $$("[data-level]").forEach(b => b.setAttribute("aria-checked", String(b.dataset.level === level)));
     const bad = deckError(d.cards);
     $("[data-play]").disabled = !!bad;
-    $("[data-play-sub]").textContent = bad || ({ easy: "vs an apprentice of the realm", normal: "vs a guardian of the realm", hard: "vs an elder of the realm" })[level];
+    $("[data-play-sub]").textContent = bad || `vs ${RIVAL_TITLE[PROF ? PROF.tierIndex : 0]} of the realm`;
   }
-  $$("[data-level]").forEach(b => b.addEventListener("click", () => { level = b.dataset.level; store.set("level", level); sfx("tap"); paintLobby(); }));
   function paintDeckList() {
     const all = allDecks();
     const row = d => `<button type="button" class="rc-deckrow" data-pick="${esc(d.key)}" aria-pressed="${d.key === selKey}"><span class="rc-deckart" style="background-image:${deckArt(d.cards)}"></span><span><b>${esc(d.name)}</b><span class="rc-ess">${deckEss(d.cards).map(e => dot(e) + ESS_NAME[e]).join(" ")}${deckError(d.cards) ? ` · <span class="rc-err">${d.cards.length}/30</span>` : ""}</span></span>${d.custom ? `<span class="rc-edit" data-edit="${esc(d.custom.id)}">Edit</span>` : ""}</button>`;
@@ -359,7 +379,7 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     const err = $("[data-lobby-err]"); err.hidden = true;
     const btn = $("[data-play]"); btn.disabled = true;
     try {
-      const body = { level, ...(d.starter ? { starter: d.starter } : { deck: d.cards }), ...(SESS ? { token: SESS.token } : {}) };
+      const body = { ...(SESS ? {} : { pid }), ...(d.starter ? { starter: d.starter } : { deck: d.cards }), ...(SESS ? { token: SESS.token } : {}) };
       const r = await api("/api/rc/start", body);
       M = { id: r.match, me: 0, v: null, busy: true, mode: "idle", sel: new Set(), blocks: {}, picked: null, play: null, rival: r.rival, rivalEss: r.rivalEssences, hinted: false };
       $("[data-rname]").textContent = r.rival;
@@ -419,7 +439,7 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     if (u.frozen) cls.push("frozen");
     if (!lastUids.has(u.uid)) cls.push("new");
     const mine = u.owner === M.me, pend = M.v.pending;
-    if (M.mode === "attack" && mine && M.sel.has(u.uid)) cls.push("sel");
+    if (mine && M.sel.has(u.uid) && myMain() && !M.v.attacked) cls.push("sel");
     else if (M.mode === "idle" && mine && u.canAttack && myMain() && !M.v.attacked) cls.push("ready");
     if (pend && pend.attackers.includes(u.uid)) cls.push("attacking");
     if (M.mode === "block" && mine && Object.values(M.blocks).length && M.blocks[u.uid] != null) cls.push("blocker");
@@ -444,7 +464,7 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
   }
   function render() {
     const v = M.v;
-    $("[data-r-life]").textContent = v.rival.life; $("[data-y-life]").textContent = v.you.life;
+    $("[data-r-life]").textContent = Math.max(0, v.rival.life); $("[data-y-life]").textContent = Math.max(0, v.you.life);
     $("[data-r-life]").classList.toggle("low", v.rival.life <= 5); $("[data-y-life]").classList.toggle("low", v.you.life <= 5);
     $("[data-r-hand]").textContent = v.rival.hand; $("[data-r-deck]").textContent = v.rival.deck; $("[data-y-deck]").textContent = v.you.deck;
     $("[data-r-ess]").textContent = v.rival.maxEss;
@@ -486,25 +506,35 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     }
     if (!myMain()) { a.disabled = true; a.textContent = "Rival's turn"; return; }
     const ready = v.you.board.filter(u => u.canAttack);
-    if (M.mode === "attack") {
-      a.classList.add("attack"); a.textContent = M.sel.size ? `Attack (${M.sel.size})` : "Pick attackers"; a.disabled = !M.sel.size;
-      b.hidden = false; b.textContent = "Cancel"; return;
-    }
-    if (!v.attacked && ready.length) { a.classList.add("attack"); a.textContent = "Attack"; b.hidden = false; b.textContent = "End turn"; return; }
+    if (!v.attacked && M.sel.size) { a.classList.add("attack"); a.textContent = `Attack (${M.sel.size})`; b.hidden = false; b.textContent = "End turn"; return; }
     a.textContent = "End turn";
+    // nothing left worth doing: the button says so
+    if (!v.you.hand.some(playable) && (v.attacked || !ready.length)) a.classList.add("go");
+    if (!v.attacked && ready.length) { b.hidden = true; }
   }
 
   /* ---------- your taps ---------- */
+  /* tap a card to play it; hold it to read it */
+  function whyNot(h) {
+    const c = BYID[h.id];
+    if (M.busy || M.v.winner) return "";
+    if (h.cost > M.v.you.ess) return `Needs ${h.cost} crystals. You have ${M.v.you.ess}.`;
+    if (defending()) return "While you're being attacked, only Rites can be cast.";
+    if (!myMain()) return "Wait for your turn.";
+    return c.type === "being" ? "Your side of the table is full." : "There's nothing to target.";
+  }
+  function readCard(h) { const c = BYID[h.id], why = playable(h) ? "" : whyNot(h); zoom(c, { cost: h.cost, go: playable(h) ? (c.type === "being" ? "Play" : "Cast") : null, onGo: () => beginPlay(h) }); if (why) $("[data-zoom-kw]").insertAdjacentHTML("afterbegin", `<span class="rc-err">${esc(why)}</span><br>`); }
+  let holdT = null, held = false;
+  const handCard = e => { const el = e.target.closest("[data-h]"); return el && M && M.v ? { el, h: M.v.you.hand.find(x => x.uid === Number(el.dataset.h)) } : null; };
+  $("[data-hand]").addEventListener("pointerdown", e => { const x = handCard(e); if (!x) return; held = false; clearTimeout(holdT); holdT = setTimeout(() => { held = true; buzz(8); readCard(x.h); }, 420); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(t => $("[data-hand]").addEventListener(t, () => clearTimeout(holdT)));
+  $("[data-hand]").addEventListener("contextmenu", e => e.preventDefault());
   $("[data-hand]").addEventListener("click", e => {
-    const el = e.target.closest("[data-h]"); if (!el || !M || !M.v) return;
-    const h = M.v.you.hand.find(x => x.uid === Number(el.dataset.h)), c = BYID[h.id];
-    const ok = playable(h);
-    sfx("tap");
-    zoom(c, { cost: h.cost, go: ok ? (c.type === "being" ? "Play" : "Cast") : null, onGo: () => beginPlay(h) });
-    if (!ok && !M.busy) {
-      const why = M.v.winner ? "" : h.cost > M.v.you.ess ? `Needs ${h.cost} crystals. You have ${M.v.you.ess}.` : defending() ? "While you're being attacked, only Rites can be cast." : !myMain() ? "Wait for your turn." : c.type === "being" ? "Your side of the table is full." : "There's nothing to target.";
-      if (why) $("[data-zoom-kw]").insertAdjacentHTML("afterbegin", `<span class="rc-err">${esc(why)}</span><br>`);
-    }
+    const x = handCard(e); if (!x) return;
+    if (held) { held = false; return; }
+    if (M.mode === "target" && M.play && M.play.uid === x.h.uid) { cancelMode(); return; }
+    if (!playable(x.h)) { nudge(x.el); const why = whyNot(x.h); if (why) toast(why); return; }
+    sfx("tap"); beginPlay(x.h);
   });
   function beginPlay(h) {
     const c = BYID[h.id];
@@ -531,8 +561,7 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     if (!ue) return;
     const u = unitBy(Number(ue.dataset.u)); if (!u) return;
     const mine = u.owner === M.me;
-    if (M.mode === "attack" && mine) {
-      if (!u.canAttack) { nudge(ue); return; }
+    if (M.mode === "idle" && mine && myMain() && !M.v.attacked && u.canAttack) {
       M.sel.has(u.uid) ? M.sel.delete(u.uid) : M.sel.add(u.uid); sfx("tap"); buzz(5); render(); return;
     }
     if (M.mode === "block") {
@@ -561,15 +590,13 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     sfx("tap");
     if (defending()) { const blocks = M.blocks; M.blocks = {}; M.picked = null; send({ type: "block", blocks }); return; }
     if (!myMain()) return;
-    if (M.mode === "attack") { const ids = [...M.sel]; M.mode = "idle"; M.sel.clear(); send({ type: "attack", attackers: ids }); return; }
-    const ready = M.v.you.board.filter(u => u.canAttack);
-    if (!M.v.attacked && ready.length) { M.mode = "attack"; M.sel = new Set(ready.map(u => u.uid)); banner("Tap beings to choose who attacks", false, 0); render(); return; }
+    if (!M.v.attacked && M.sel.size) { const ids = [...M.sel]; M.sel.clear(); send({ type: "attack", attackers: ids }); return; }
     send({ type: "end" });
   });
   $("[data-act2]").addEventListener("click", () => {
     if (!M || M.busy) return;
     sfx("tap");
-    if (M.mode === "attack" || M.mode === "target") { cancelMode(); return; }
+    if (M.mode === "target") { cancelMode(); return; }
     if (myMain()) send({ type: "end" });
   });
   $("[data-hint]").addEventListener("click", async () => {
@@ -580,7 +607,7 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
       const { move } = await api("/api/rc/hint", { match: M.id });
       if (!move) return;
       if (move.type === "play") { const h = M.v.you.hand.find(x => x.uid === move.uid); const c = h && BYID[h.id]; M.play = { uid: move.uid, valid: [] }; paintHand(); M.play = null; toast(`Try: ${c ? (c.type === "being" ? "play " : "cast ") + c.name : "that card"}` + (move.target && move.target.uid ? " on " + defOf(unitBy(move.target.uid)).name : move.target ? (move.target.player === M.me ? " on yourself" : " at your rival") : ""), 2600); }
-      else if (move.type === "attack") { M.mode = "attack"; M.sel = new Set(move.attackers); render(); toast("Try attacking with these.", 2200); }
+      else if (move.type === "attack") { M.sel = new Set(move.attackers); render(); toast("Try attacking with these.", 2200); }
       else if (move.type === "block") { M.blocks = { ...move.blocks }; render(); toast(Object.keys(move.blocks).length ? "Try these blocks." : "Try taking it: no blocks.", 2200); }
       else toast("Nothing more to do: end your turn.", 2200);
     } catch (e) { toast(e.message); }
@@ -592,7 +619,7 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
   /* ---------- talking to the server ---------- */
   async function send(move) {
     if (!M || M.busy) return;
-    M.busy = true; paintActions(); paintHand();
+    M.busy = true; paintActions(); paintHand(); $("[data-coach]").hidden = true;
     try {
       const r = await api("/api/rc/act", { match: M.id, move });
       await playFrames(r.frames, r.result);
@@ -625,9 +652,9 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     let hits = 0;
     for (const e of ev) {
       switch (e.t) {
-        case "turn": banner(e.p === M.me ? "Your turn" : "Rival's turn", e.p !== M.me, 900); sfx("turn"); await wait(420); break;
+        case "turn": banner(e.p === M.me ? "Your turn" : "Rival's turn", e.p !== M.me, 900); sfx("turn"); await wait(300); break;
         case "play":
-          if (e.p !== M.me) { const c = BYID[e.id]; if (c) { const el = document.createElement("div"); el.className = "rc-cast"; el.innerHTML = cardHtml(c); document.body.appendChild(el); sfx("play"); await wait(1000); el.remove(); } }
+          if (e.p !== M.me) { const c = BYID[e.id]; if (c) { const el = document.createElement("div"); el.className = "rc-cast"; el.innerHTML = cardHtml(c); document.body.appendChild(el); sfx("play"); await wait(850); el.remove(); } }
           else sfx("play");
           break;
         case "attack": for (const id of e.attackers) uEl(id) && uEl(id).classList.add("attacking"); sfx("hit"); await wait(380); break;
@@ -653,19 +680,62 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     }
     M.busy = false;
     M.mode = defending() ? "block" : "idle";
-    M.sel.clear(); M.play = null;
-    if (defending()) { M.blocks = {}; M.picked = null; banner("Choose your blockers", true, 1600); }
+    M.play = null;
+    const sg = M.v.suggest || {};
+    M.sel = new Set(myMain() && !M.v.attacked ? sg.attackers || [] : []);
+    if (defending()) { M.blocks = { ...(sg.blocks || {}) }; M.picked = null; banner("You're attacked", true, 1400); }
     render();
+    coachNow();
     if (result) setTimeout(() => endScreen(result), 600);
   }
   function endScreen(r) {
-    const won = r.won, el = $("[data-end]");
+    const won = r.won, el = $("[data-end]"), pr = r.progress;
     el.classList.toggle("lost", !won && !r.draw);
     $("[data-end-title]").textContent = r.draw ? "Draw" : won ? "Victory" : "Defeat";
-    $("[data-end-sub]").textContent = won ? `You beat ${M.rival}.` : r.draw ? "Neither side broke." : `${M.rival} won this time.`;
-    $("[data-end-stats]").innerHTML = `<span><b>${r.turns}</b>turns</span><span><b>${Math.max(0, r.life)}</b>life left</span>`;
+    $("[data-end-sub]").textContent = won ? `You beat ${M.rival} in ${r.turns} turns.` : r.draw ? "Neither side broke." : `${M.rival} won this time.`;
+    $("[data-end-rank]").innerHTML = ""; $("[data-end-xp]").innerHTML = ""; $("[data-end-lines]").innerHTML = "";
     el.hidden = false; sfx(won ? "win" : "lose");
-    if (won) { const w = store.get("wins", 0) + 1; store.set("wins", w); }
+    store.set("coached", store.get("coached", 0) + 1);
+    $("[data-coach]").hidden = true;
+    if (!pr) return;
+    const a = pr.after, b = pr.before;
+    // the stars: the old row first, then the change
+    const rankRow = (p, pop, lost) => `${badge(p)}<b>${p.tier}</b>${p.tier === "Mythic" ? "" : starsHtml(p.stars, p.maxStars, pop, lost)}`;
+    $("[data-end-rank]").innerHTML = rankRow(b);
+    setTimeout(() => {
+      if (pr.rankUp) { $("[data-end-rank]").innerHTML = rankRow(a) + `<span class="up">Up to ${a.tier}!</span>`; sfx("win"); buzz([30, 40, 30]); }
+      else if (pr.starsMoved > 0) $("[data-end-rank]").innerHTML = rankRow(a, a.stars - 1);
+      else if (pr.starsMoved < 0) $("[data-end-rank]").innerHTML = rankRow(b, -1, b.stars - 1);
+      else if (r.hinted) $("[data-end-rank]").insertAdjacentHTML("beforeend", `<span class="rc-fine">Matches with hints don't move your stars.</span>`);
+    }, 500);
+    // xp
+    const pct = p => Math.round(100 * p.xp / p.next);
+    $("[data-end-xp]").innerHTML = `<span>Lv <b data-lv>${b.level}</b></span><span class="rc-bar"><i style="width:${pct(b)}%"></i></span><span>+${pr.xp} xp</span>`;
+    setTimeout(() => {
+      const bar = $("[data-end-xp] .rc-bar i");
+      if (pr.levelUps) { bar.style.width = "100%"; setTimeout(() => { bar.style.transition = "none"; bar.style.width = "0%"; void bar.offsetWidth; bar.style.transition = ""; bar.style.width = pct(a) + "%"; $("[data-lv]").textContent = a.level; sfx("win"); toast(`Level ${a.level}!`); }, 950); }
+      else bar.style.width = pct(a) + "%";
+    }, 700);
+    const lines = [...pr.bonus.map(x => `<p><span>${esc(x.what)}</span><em>+${x.xp} xp</em></p>`), ...pr.completed.map(q => `<p class="q"><span>Quest done: ${esc(q.text)}</span><em>+${q.xp} xp</em></p>`)];
+    if (!won && a.streak === 0 && b.streak >= 3) lines.push(`<p><span>Your ${b.streak}-win streak ended</span><em></em></p>`);
+    $("[data-end-lines]").innerHTML = lines.map((l, i) => l.replace("<p", `<p style="animation-delay:${0.9 + i * 0.25}s"`)).join("");
+    PROF = a; paintProfile();
+  }
+  /* ---------- the coach: a tip the first few times ---------- */
+  const COACH = {
+    play: "Tap a card to play it. Hold any card to read it.",
+    attack: "Your best attackers are lit up red. Tap a being to hold it back, then tap Attack.",
+    block: "You're being attacked! Your blockers are already picked. Tap Block, or tap your beings to change them.",
+    end: "Nothing left to do: tap End turn.",
+  };
+  function coachNow() {
+    const box = $("[data-coach]"); box.hidden = true;
+    if (!M || !M.v || M.v.winner || store.get("coached", 0) >= 3) return;
+    const seen = store.get("coach", {});
+    const key = defending() ? "block" : !myMain() ? null : (!M.v.attacked && M.sel.size) ? "attack" : M.v.you.hand.some(playable) ? "play" : "end";
+    if (!key || (seen[key] || 0) >= 2) return;
+    seen[key] = (seen[key] || 0) + 1; store.set("coach", seen);
+    box.textContent = COACH[key]; box.hidden = false;
   }
   window.addEventListener("resize", () => { if (M && M.v && !$("[data-screen=match]").hidden) render(); });
 
@@ -674,7 +744,7 @@ ${spell ? "" : `<div class="cd-pt"><span class="p${tone(pw, c.power)}">${pw}</sp
     try { await loadPool(); } catch (e) { $("[data-lobby-err]").textContent = e.message; $("[data-lobby-err]").hidden = false; return; }
     paintLobby(); paintWallet();
     if (SESS) loadHolder();
-    if (!store.get("seenHow", false)) { store.set("seenHow", true); openSheet("[data-howsheet]"); }
+    loadProfile();
     if (location.search.includes("debug")) window.__rc = () => ({ M, BYID, POOL });
   })();
 })();

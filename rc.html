@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="rc.css?v=1">
+<link rel="stylesheet" href="rc.css?v=2">
 </head>
 <body>
 
@@ -68,14 +68,12 @@
     </button>
   </div>
 
-  <div class="rc-levels" role="radiogroup" aria-label="Difficulty" data-levels>
-    <button type="button" data-level="easy">Easy</button>
-    <button type="button" data-level="normal">Normal</button>
-    <button type="button" data-level="hard">Hard</button>
-  </div>
+  <div class="rc-rank" data-rank></div>
 
   <button class="rc-play" type="button" data-play><span>Play</span><i data-play-sub>vs the realm's guardians</i></button>
   <p class="rc-err" data-lobby-err hidden></p>
+
+  <div class="rc-quests" data-quests></div>
 
   <div class="rc-tiles">
     <button class="rc-tile" type="button" data-build><b>Build a deck</b><i>Any being, any spell</i></button>
@@ -121,7 +119,8 @@
       <li>Blocked beings trade damage: <svg class="ic"><use href="#i-sword"/></svg> power against <svg class="ic"><use href="#i-heart"/></svg> health. Damage heals at the end of each turn.</li>
       <li><b>Rites</b> are fast: you can cast them while your rival is attacking you. <b>Rituals</b> are cast on your own turn. <b>Relics</b> stay in play.</li>
       <li><b>Essences</b> are like colours: Magic burns, Spirit grows, Knowledge draws and freezes, Light flies and protects, Dark destroys. A deck uses one or two.</li>
-      <li>Tap any card to read it.</li>
+      <li><b>Tap</b> a card to play it. <b>Hold</b> any card to read it.</li>
+      <li>Win to earn <b>stars</b> and climb from Bronze to Mythic. The higher you go, the smarter your rivals.</li>
     </ol>
     <button class="rc-play small" type="button" data-close><span>Got it</span></button>
   </div>
@@ -189,6 +188,7 @@
       <button type="button" class="rc-menu" data-menu aria-label="Menu">&#8801;</button>
     </div>
   </div>
+  <div class="rc-coach" data-coach hidden></div>
   <div class="rc-handrow">
     <div class="rc-hand" data-hand></div>
     <div class="rc-actions">
@@ -228,12 +228,14 @@
   <div class="rc-end-body">
     <h2 data-end-title>Victory</h2>
     <p class="rc-end-sub" data-end-sub></p>
-    <div class="rc-end-stats" data-end-stats></div>
+    <div class="rc-end-rank" data-end-rank></div>
+    <div class="rc-end-xp" data-end-xp></div>
+    <div class="rc-end-lines" data-end-lines></div>
     <button class="rc-play small" type="button" data-again><span>Play again</span></button>
     <button class="rc-ghost" type="button" data-to-lobby>Back</button>
   </div>
 </section>
 
-<script src="rc-page.js?v=1"></script>
+<script src="rc-page.js?v=2"></script>
 </body>
 </html>

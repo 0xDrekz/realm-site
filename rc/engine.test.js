@@ -326,3 +326,85 @@ test("game: built decks and starters are legal", async () => {
   assert.strictEqual(C.checkDeck(b.deck), null);
   assert.match((await g.build({ essences: ["nope"] })).error, /essences/);
 });
+
+/* ---------- progress: rank, xp, quests ---------- */
+const P = require("./profile");
+const winVs = async (g, pid, { hint = false } = {}) => {
+  const r = await g.start({ starter: "magic", pid, ip: "p" });
+  const m = g._match(r.match); m.S.players[1].life = 1;
+  if (hint) g.hint({ match: r.match });
+  let res = r, n = 0;
+  while (!res.result && n++ < 400) res = await g.act({ match: r.match, move: AI.move(m.S, 0, { level: 1 }) });
+  return res.result;
+};
+
+test("progress: wins climb stars and tiers, the first win of the day pays extra, streaks pay more", async () => {
+  const g = G.create({ testHooks: true });
+  const { pid, profile } = g.me({});
+  assert.match(pid, /^[0-9a-f]{32}$/);
+  assert.strictEqual(profile.tier, "Bronze"); assert.strictEqual(profile.quests.length, 3);
+  const r1 = await winVs(g, pid);
+  assert.ok(r1.won);
+  assert.strictEqual(r1.progress.starsMoved, 1);
+  assert.ok(r1.progress.bonus.some(b => /First win/.test(b.what)));
+  await winVs(g, pid);
+  const r3 = await winVs(g, pid);
+  assert.strictEqual(r3.progress.starsMoved, 2);                       // a streak of three
+  assert.ok(r3.progress.bonus.some(b => /in a row/.test(b.what)));
+  assert.ok(!r3.progress.bonus.some(b => /First win/.test(b.what)));
+  const r4 = await winVs(g, pid);
+  assert.strictEqual(r4.progress.after.tier, "Silver");
+  assert.ok(r4.progress.rankUp);
+  assert.strictEqual(g.me({ pid }).profile.wins, 4);
+});
+
+test("progress: hinted matches give xp but no stars; looking never makes a profile", async () => {
+  const g = G.create({ testHooks: true });
+  const pid = "ab".repeat(16);
+  const before = g.me({ pid });
+  assert.strictEqual(before.pid, pid);
+  const r = await winVs(g, pid, { hint: true });
+  assert.strictEqual(r.progress.starsMoved, 0);
+  assert.ok(r.progress.xp > 0);
+  const store = P.create();
+  store.view("g:" + "cd".repeat(16));
+  assert.strictEqual(Object.keys(store._all()).length, 0);
+});
+
+test("progress: the computer gets stronger as you climb", () => {
+  const store = P.create();
+  const p = store.get("g:x");
+  const lv = [];
+  for (let t = 0; t < P.TIERS.length; t++) { p.tier = t; lv.push(store.levelOf(p)); }
+  for (let i = 1; i < lv.length; i++) assert.ok(lv[i] > lv[i - 1]);
+});
+
+test("progress: losses below Gold cost nothing; from Gold a loss drops a star", () => {
+  const store = P.create();
+  const p = store.get("g:y"); p.tier = 1; p.stars = 3;
+  assert.strictEqual(store.record("g:y", { won: false, turns: 10 }).starsMoved, 0);
+  p.tier = 2; p.stars = 3;
+  assert.strictEqual(store.record("g:y", { won: false, turns: 10 }).starsMoved, -1);
+  p.stars = 0;
+  assert.strictEqual(store.record("g:y", { won: false, turns: 10 }).after.tier, "Gold");
+});
+
+test("progress: quests complete from what you actually did, once", () => {
+  const store = P.create();
+  const p = store.get("g:z"); p.quests = ["beings", "face", "play3"];
+  const r = store.record("g:z", { won: false, turns: 20, stats: { beings: 12, face: 10 } });
+  assert.deepStrictEqual(r.completed.map(q => q.id), ["beings"]);
+  const r2 = store.record("g:z", { won: false, turns: 20, stats: { beings: 12, face: 45 } });
+  assert.deepStrictEqual(r2.completed.map(q => q.id), ["face"]);
+  const r3 = store.record("g:z", { won: false, turns: 20, stats: { beings: 50 } });
+  assert.deepStrictEqual(r3.completed.map(q => q.id), ["play3"]);
+});
+
+test("progress: kept on disk", async () => {
+  const dir = require("fs").mkdtempSync(require("path").join(require("os").tmpdir(), "rc-"));
+  const a = P.create({ dir });
+  a.record("g:k", { won: true, turns: 9 });
+  a.flush();
+  const b = P.create({ dir });
+  assert.strictEqual(b.view("g:k").wins, 1);
+});

@@ -372,7 +372,8 @@ const TCG = require("./tcg2/game").create({ log: m => console.log(m), beings: ch
   walletOf: duelWalletOf, dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 const ARENA = require("./arena/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf });
 /* REALM Cards (rc/game.js): the card game against the computer; every move checked here */
-const RC = require("./rc/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf });
+const RC = require("./rc/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
+  dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 let RC_POOL = null;
 const tcgMoves = limiter(10000, 300), tcgMatches = limiter(10000, 20);   // 300 moves and 20 new matches a minute per caller
 const tcgAllowed = (ip, kind) => kind === "move" ? tcgMoves(ip) : tcgMatches(ip + kind);
@@ -622,7 +623,7 @@ function route(req, res) {
     readJson(req, send, 4000, j => {
       const kind = urlPath === "/api/rc/start" || urlPath === "/api/rc/build" ? "rc" : "move";
       if (!tcgAllowed(ip, kind)) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
-      const fn = { "/api/rc/start": RC.start, "/api/rc/act": RC.act, "/api/rc/view": RC.view, "/api/rc/hint": RC.hint, "/api/rc/build": RC.build }[urlPath];
+      const fn = { "/api/rc/start": RC.start, "/api/rc/act": RC.act, "/api/rc/view": RC.view, "/api/rc/hint": RC.hint, "/api/rc/build": RC.build, "/api/rc/me": RC.me }[urlPath];
       if (!fn) return send(404, { error: "Not found." });
       Promise.resolve().then(() => fn({ ...j, ip }))
         .then(d => send(d.status || (d.error ? 400 : 200), d))
@@ -780,7 +781,7 @@ function route(req, res) {
 /* a last line of defence: log anything that slips through and keep serving (the mint page lives here too) */
 process.on("uncaughtException", e => console.error("uncaught", e));
 /* on a redeploy Railway sends SIGTERM: save what's in memory, then go */
-for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush(), () => RC.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
 process.on("unhandledRejection", e => console.error("unhandled rejection", e));
 
 server.listen(PORT, "0.0.0.0", () => {

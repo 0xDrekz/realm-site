@@ -248,7 +248,7 @@ svg{fill:currentColor}
 .rc-act.block{background:var(--you);color:#001;box-shadow:inset 0 3px 0 #d6f2ff,inset 0 -4px 0 #1e6ea0,0 0 0 2px #000,0 4px 0 2px #000}
 .rc-act:disabled{background:#2a2238;color:var(--faint);box-shadow:0 0 0 2px #000}
 .rc-act2{padding:8px 4px;border:1px solid var(--line);background:var(--ink);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
-.rc-toast{position:fixed;left:50%;top:46%;translate:-50% -50%;z-index:70;max-width:80%;padding:10px 14px;background:#000;border:1px solid var(--gold);font-size:.86rem;text-align:center;box-shadow:3px 3px 0 #000}
+.rc-toast{position:fixed;left:50%;top:22%;translate:-50% -50%;z-index:70;max-width:80%;padding:10px 14px;background:#000;border:1px solid var(--gold);font-size:.86rem;text-align:center;box-shadow:3px 3px 0 #000}
 
 /* a card up close, and the rival's plays */
 .rc-zoom{position:fixed;inset:0;z-index:50;display:grid;place-items:center}
@@ -275,3 +275,46 @@ svg{fill:currentColor}
   .rc-plate{height:40px}
 }
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+
+/* ---------- rank, quests, progress ---------- */
+.rc-rank{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--ink);border:1px solid var(--line)}
+.rc-badge{--t:#c98b4a;width:48px;height:54px;flex:none;display:grid;place-items:center;position:relative;color:#140a02;font-weight:700;font-size:1.1rem;
+  background:var(--t);clip-path:polygon(50% 0,100% 22%,100% 70%,50% 100%,0 70%,0 22%);box-shadow:inset 0 0 0 3px rgba(0,0,0,.25)}
+.rc-badge.t1{--t:#c7d0dc}.rc-badge.t2{--t:#e3ba5c}.rc-badge.t3{--t:#5ce0d0}.rc-badge.t4{--t:#7fb4ff}.rc-badge.t5{--t:#ff5cc8}
+.rc-rinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.rc-rinfo b{font-size:1rem;letter-spacing:.08em}
+.rc-stars{display:flex;gap:4px}
+.rc-stars i{width:14px;height:14px;background:#2a2238;clip-path:polygon(50% 0,62% 36%,100% 38%,70% 60%,80% 100%,50% 76%,20% 100%,30% 60%,0 38%,38% 36%)}
+.rc-stars i.on{background:var(--gold)}
+.rc-stars i.pop{animation:rcStar .5s steps(4)}
+@keyframes rcStar{0%{transform:scale(2.2);filter:brightness(2)}}
+.rc-stars i.lost{background:#5c0f22;animation:rcHit .4s steps(3)}
+.rc-lvl{display:flex;align-items:center;gap:8px;font-size:.7rem;color:var(--faint);letter-spacing:.1em;text-transform:uppercase}
+.rc-bar{flex:1;height:8px;background:#1a1328;border:1px solid #000;position:relative;overflow:hidden}
+.rc-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--knowledge);transition:width .9s steps(12)}
+.rc-streak{display:flex;flex-direction:column;align-items:center;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.rc-streak b{font-family:var(--num);font-size:1.3rem;color:#ff9a3c;line-height:1}
+.rc-quests{display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:var(--ink);border:1px solid var(--line)}
+.rc-quests h3{margin:0 0 2px;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);display:flex;justify-content:space-between}
+.rc-quests h3 span{color:var(--faint)}
+.rc-q{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;font-size:.82rem}
+.rc-q .rc-bar{grid-column:1/-1;height:6px}
+.rc-q .rc-bar i{background:var(--good)}
+.rc-q em{font-style:normal;font-family:var(--num);font-size:.75rem;color:var(--gold)}
+.rc-q.done{color:var(--faint)}
+.rc-q.done em{color:var(--good)}
+.rc-bonus{font-size:.74rem;color:#ff9a3c;text-align:center}
+.rc-coach{position:relative;z-index:15;margin:0 10px -4px;padding:8px 12px;background:var(--gold2);color:#140a02;font-size:.84rem;line-height:1.35;box-shadow:3px 3px 0 #000;animation:rcPop .2s steps(3)}
+.rc-coach::after{content:"";position:absolute;left:30px;bottom:-8px;border:8px solid transparent;border-bottom:0;border-top-color:var(--gold2)}
+.rc-act.go{animation:rcGo 1.1s steps(2) infinite}
+@keyframes rcGo{50%{box-shadow:inset 0 3px 0 #fff1c2,inset 0 -4px 0 #a87a22,0 0 0 2px #000,0 4px 0 2px #000,0 0 20px 4px rgba(227,186,92,.8)}}
+.rc-end-rank{display:flex;flex-direction:column;align-items:center;gap:8px}
+.rc-end-rank .rc-stars i{width:24px;height:24px}
+.rc-end-rank b{font-size:1.1rem;letter-spacing:.12em}
+.rc-end-rank .up{color:var(--gold);font-size:1.3rem;animation:rcPop .4s steps(4)}
+.rc-end-xp{display:flex;align-items:center;gap:10px;font-size:.75rem;color:var(--dim)}
+.rc-end-xp .rc-bar{height:12px}
+.rc-end-lines{display:flex;flex-direction:column;gap:4px;font-size:.84rem}
+.rc-end-lines p{margin:0;display:flex;justify-content:space-between;padding:6px 10px;background:var(--ink);border:1px solid var(--line);animation:rcUp .3s steps(4) both}
+.rc-end-lines p em{font-style:normal;font-family:var(--num);color:var(--gold)}
+.rc-end-lines p.q{border-color:var(--good)}

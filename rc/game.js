@@ -8,7 +8,7 @@
    ============================================================ */
 "use strict";
 const crypto = require("crypto");
-const C = require("./cards"), E = require("./engine"), AI = require("./ai");
+const C = require("./cards"), E = require("./engine"), AI = require("./ai"), PROFILE = require("./profile");
 
 const MATCH_TTL = 2 * 3600e3, MAX_MATCHES = 5000, PER_OWNER = 8, MAX_AI_STEPS = 300;
 const LEVELS = { easy: 0.15, normal: 0.6, hard: 1 };
@@ -44,8 +44,9 @@ function pool() {
    beings()     every minted being and its owner: [{ n, owner }]
    boostOf(w)   the $DMT boost for a wallet: { level, tokens, boost }
    walletOf(t)  the wallet a sign-in token belongs to, or null */
-function create({ log = () => {}, beings = async () => [], boostOf = async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf = () => null, testHooks = false } = {}) {
+function create({ log = () => {}, beings = async () => [], boostOf = async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf = () => null, dir = null, testHooks = false } = {}) {
   const matches = new Map();
+  const PROF = PROFILE.create({ dir, log });
   const BUSY = { error: "The realm is very busy. Try again in a minute.", status: 503 };
   const EXPIRED = { error: "Your sign-in has expired. Sign in again.", status: 401 };
   const GONE = { error: "That match has ended. Start a new one." };
@@ -69,7 +70,28 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
 
   /* what the player may see of the events: the rival's raised card stays hidden */
   const seen = evs => evs.map(e => e.t === "raise" && e.p === 1 ? { t: "raise", p: 1 } : e);
-  const frame = (m, who, move) => ({ who: who === 0 ? "you" : "rival", move, ev: seen(m.S.events.splice(0)), view: E.view(m.S, 0) });
+  /* what you did, for the daily quests */
+  function tally(m, evs) {
+    const t = m.stats;
+    for (const e of evs) {
+      if (e.t === "play" && e.p === 0) {
+        const c = C.cardOf(e.id); if (!c) continue;
+        if (c.type === "being") { t.beings++; if (c.kw.includes("flying")) t.flyers++; } else t.spells++;
+        if (c.cost >= 6) t.big++;
+      }
+      if (e.t === "face" && e.p === 1) t.face += e.n;
+      if (e.t === "death" && e.p === 1) t.kills++;
+    }
+  }
+  const frame = (m, who, move) => { const evs = m.S.events.splice(0); tally(m, evs); return { who: who === 0 ? "you" : "rival", move, ev: seen(evs), view: E.view(m.S, 0) }; };
+  /* the last frame carries the computer's suggestion for your attack or your blocks, filled in for you */
+  function suggest(frames, m) {
+    const f = frames[frames.length - 1], S = m.S;
+    if (!f || S.phase === "over") return frames;
+    if (S.phase === "block" && S.active === 1) f.view.suggest = { blocks: AI.chooseBlocks(AI.clone(S), 0, 1).blocks };
+    else if (S.phase === "main" && S.active === 0 && !S.attacked) f.view.suggest = { attackers: AI.chooseAttack(AI.clone(S), 0, 1) || [] };
+    return frames;
+  }
 
   /* the computer plays until it's your decision (or the match ends) */
   function advance(m) {
@@ -89,6 +111,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (m.result) return;
     const S = m.S;
     m.result = { won: S.winner === 0, draw: S.winner == null, turns: S.turn, life: S.players[0].life, hinted: !!m.hinted };
+    if (m.pkey) m.result.progress = PROF.record(m.pkey, { won: m.result.won, draw: m.result.draw, turns: S.turn, hinted: m.hinted, stats: m.stats });
   }
 
   /* a move from the page, cleaned down to the fields the engine reads */
@@ -113,7 +136,16 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   }
 
   /* ---------- the endpoints ---------- */
-  async function start({ deck, starter, level, token, ip } = {}) {
+  /* whose progress a match counts toward: a signed-in wallet, or a guest's profile id */
+  function profileKey(wallet, pid) { return wallet ? "w:" + wallet : PROF.isGuest(pid) ? "g:" + pid : null; }
+  function me({ token, pid } = {}) {
+    let wallet = null;
+    if (token) { wallet = walletOf(token); if (!wallet) return EXPIRED; }
+    if (!wallet && !PROF.isGuest(pid)) pid = PROF.newGuest();
+    return { pid: wallet ? null : pid, wallet, profile: PROF.view(profileKey(wallet, pid)) };
+  }
+
+  async function start({ deck, starter, level, token, pid, ip } = {}) {
     tidy();
     let wallet = null;
     if (token) { wallet = walletOf(token); if (!wallet) return EXPIRED; }
@@ -123,7 +155,10 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     let mine = null;
     if (starter != null) { const s = starters().find(x => x.key === String(starter)); if (!s) return { error: "That starter deck doesn't exist." }; mine = s.deck.slice(); }
     else { if (!Array.isArray(deck)) return { error: "Pick a deck first." }; mine = deck.map(String); const bad = C.checkDeck(mine); if (bad) return { error: bad }; }
-    const lv = LEVELS[level] != null ? level : "normal";
+    // the computer plays as well as your rank: an apprentice in Bronze, its best in Mythic
+    const pkey = profileKey(wallet, pid);
+    const lv = LEVELS[level] != null ? level : null;
+    const strength = lv ? LEVELS[lv] : pkey ? PROF.levelOf(PROF.get(pkey)) : LEVELS.normal;
     // the computer's deck: one or two essences, built at random from the whole pool
     const ess = C.ESSENCES;
     const e1 = ess[crypto.randomInt(5)], e2 = crypto.randomInt(3) ? ess[crypto.randomInt(5)] : e1;
@@ -135,11 +170,12 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       if (h && h.boost && h.boost.boost > 1) for (const n of h.owned) if (mine.includes("b" + n)) scales["b" + n] = h.boost.boost;
     }
     const S = E.newMatch({ seed: crypto.randomInt(2 ** 31), sides: [{ deck: mine, name: "You", scales }, { deck: theirs, name: rivalName(e1, e2) }] });
-    const id = newId(), m = { id, S, owner, wallet, born: Date.now(), level: LEVELS[lv], levelName: lv, hinted: false, result: null };
+    const id = newId(), m = { id, S, owner, wallet, pkey: lv ? null : pkey, born: Date.now(), level: strength, hinted: false, result: null,
+      stats: { beings: 0, spells: 0, face: 0, kills: 0, big: 0, flyers: 0 } };
     matches.set(id, m);
     const first = frame(m, S.first, "start");
-    const frames = [first, ...advance(m)];
-    return { match: id, rival: S.players[1].name, rivalEssences: e1 === e2 ? [e1] : [e1, e2], level: lv, first: S.first === 0 ? "you" : "rival", boosted: Object.keys(scales).length, frames, result: m.result };
+    const frames = suggest([first, ...advance(m)], m);
+    return { match: id, rival: S.players[1].name, rivalEssences: e1 === e2 ? [e1] : [e1, e2], ranked: !!m.pkey, first: S.first === 0 ? "you" : "rival", boosted: Object.keys(scales).length, frames, result: m.result };
   }
   const RIVALS = { magic: "the Ember Court", spirit: "the Green Choir", knowledge: "the Archivists", light: "the Dawn Wardens", dark: "the Hollow Kings" };
   const rivalName = (a, b) => a === b ? RIVALS[a] : RIVALS[a] + " & " + RIVALS[b].replace(/^the /, "");
@@ -154,7 +190,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const err = E.act(S, 0, a);
     if (err) { S.events.length = 0; return { error: err, view: E.view(S, 0) }; }
     if (a.type === "resign") m.resigned = true;
-    const frames = [frame(m, 0, a.type), ...advance(m)];
+    const frames = suggest([frame(m, 0, a.type), ...advance(m)], m);
     if (S.phase === "over") finish(m);
     return { frames, result: m.result };
   }
@@ -194,7 +230,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   }
 
   const hooks = testHooks ? { _match: id => matches.get(id) } : {};
-  return { start, act, hint, view, build, pool, size: () => matches.size, ...hooks };
+  return { start, act, hint, view, build, me, pool, flush: () => PROF.flush(), size: () => matches.size, ...hooks };
 }
 
 module.exports = { create, pool, starters, LEVELS };
