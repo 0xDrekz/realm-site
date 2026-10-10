@@ -145,11 +145,13 @@
   }
 
   /* ---------- layout ---------- */
+  // headroom above the rival's Throne, so its crystal and health bar sit clear of the top bar
+  const TOP = 1.7;
   function layout() {
     const st = $("[data-stage]").getBoundingClientRect();
-    ts = Math.max(8, Math.min(st.width / A.W, st.height / A.H));
+    ts = Math.max(8, Math.min(st.width / A.W, st.height / (A.H + TOP)));
     dpr = Math.min(lowRes ? 1.2 : 2, window.devicePixelRatio || 1);
-    for (const c of [canvas, bg]) { c.style.width = (ts * A.W) + "px"; c.style.height = (ts * A.H) + "px"; c.width = Math.round(ts * A.W * dpr); c.height = Math.round(ts * A.H * dpr); }
+    for (const c of [canvas, bg]) { c.style.width = (ts * A.W) + "px"; c.style.height = (ts * (A.H + TOP)) + "px"; c.width = Math.round(ts * A.W * dpr); c.height = Math.round(ts * (A.H + TOP) * dpr); }
     sprites.clear(); towerBodies.clear();
     // the arena itself is drawn once, on its own layer underneath
     bg.getContext("2d").drawImage(drawStatic(), 0, 0);
@@ -164,12 +166,12 @@
   const STONE = [{ h: 222, s: 30, l: 19 }, { h: 335, s: 26, l: 17 }];
   function drawStatic() {
     const c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height;
-    const g = c.getContext("2d"); g.scale(dpr * ts, dpr * ts);
+    const g = c.getContext("2d"); g.scale(dpr * ts, dpr * ts); g.translate(0, TOP);
     const W = A.W, H = A.H, R = A.RIVER;
     let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
     // the deep: a nebula under everything
     let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#14040e"); gr.addColorStop(.5, "#0c0620"); gr.addColorStop(1, "#040c1e");
-    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = gr; g.fillRect(0, -TOP, W, H + TOP);
     const neb = (x, y, rad, col) => { const n = g.createRadialGradient(x, y, 0, x, y, rad); n.addColorStop(0, col); n.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = n; g.fillRect(0, 0, W, H); };
     neb(9, R, 7, "rgba(197,107,255,.35)"); neb(2, R, 4, "rgba(255,122,230,.18)"); neb(16, R, 4, "rgba(120,140,255,.2)");
     for (let k = 0; k < 70; k++) { g.fillStyle = `rgba(255,255,255,${.2 + r() * .6})`; const x = r() * W, y = R - 1.4 + r() * 2.8; g.fillRect(x, y, .04 + r() * .05, .04 + r() * .05); }
@@ -467,7 +469,7 @@
     G.shake = Math.max(0, G.shake - dt * 2.2);
     const sh = REDUCED ? 0 : G.shake * ts * .35;
     layers.style.transform = sh > .2 ? `translate(${((Math.random() - .5) * sh).toFixed(1)}px,${((Math.random() - .5) * sh).toFixed(1)}px)` : "";
-    ctx.scale(dpr * ts, dpr * ts);
+    ctx.scale(dpr * ts, dpr * ts); ctx.translate(0, TOP);
     drawRiver(S);
     drawZone();
     // rubble where towers stood
@@ -483,7 +485,7 @@
     drawFx(dt);
     drawGhost();
     // the flash of something big
-    if (G.flash > 0) { ctx.fillStyle = `rgba(255,240,220,${G.flash * .5})`; ctx.fillRect(0, 0, W, H); G.flash = Math.max(0, G.flash - dt * 1.6); }
+    if (G.flash > 0) { ctx.fillStyle = `rgba(255,240,220,${G.flash * .5})`; ctx.fillRect(0, -TOP, W, H + TOP); G.flash = Math.max(0, G.flash - dt * 1.6); }
   }
   let riverGrad = null, riverKey = "";
   function drawRiver(S) {
@@ -749,7 +751,7 @@
   /* ---------- placing: drag a card, or tap it then tap the field ---------- */
   function toArena(clientX, clientY) {
     const r = canvas.getBoundingClientRect();
-    return { x: (clientX - r.left) / ts, y: (clientY - r.top) / ts, inside: clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom };
+    const y = (clientY - r.top) / ts - TOP; return { x: (clientX - r.left) / ts, y, inside: clientX >= r.left && clientX <= r.right && y >= 0 && clientY <= r.bottom };
   }
   function tryPlace(slot, x, y) {
     const S = G.S, P = S.sides[0], def = P.deck[P.hand[slot]];
