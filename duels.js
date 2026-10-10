@@ -72,17 +72,13 @@ function create({ root, beings, envVar, tokensOf = async () => 0, bands = [], lo
   /* ---------- the board, a week at a time ---------- */
   const dir = envVar("SNAPSHOT_DIR") || path.join(root, "snapshot-data");
   const file = path.join(dir, "duels.json");
-  let board = {};
-  try { board = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+  const jf = require("./jsonfile").create(file, { log: m => log("duels: " + m) });
+  let board = jf.load();
   const week = (d = new Date()) => {                                // the Monday 00:00 UTC that starts this week
     const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
     m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); return m.toISOString().slice(0, 10);
   };
-  let saveTimer = null;
-  const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => {
-    try { const keep = Object.keys(board).sort().slice(-6); const b = {}; keep.forEach(k => b[k] = board[k]); board = b;
-      fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file, JSON.stringify(board)); } catch (e) { log("duels: could not save the board: " + e.message); }
-  }, 2000); };
+  const save = () => jf.save(() => { const keep = Object.keys(board).sort().slice(-6); const b = {}; keep.forEach(k => b[k] = board[k]); return (board = b); });
   function record(run) {
     if (!run.wallet || run.stage < 1) return;
     const wk = week(), b = board[wk] = board[wk] || {};
@@ -216,7 +212,7 @@ function create({ root, beings, envVar, tokensOf = async () => 0, bands = [], lo
     return view(run, { last: run.log[run.log.length - 1], played });
   }
 
-  return { start, play, card, top, week, boostOf, runs: () => runs.size };
+  return { flush: () => jf.flush(), start, play, card, top, week, boostOf, runs: () => runs.size };
 }
 
 module.exports = { create, TOTAL };

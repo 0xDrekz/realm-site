@@ -30,3 +30,14 @@ test("no JSON body on any POST endpoint can crash the server", async () => {
   assert.equal(srv.exitCode, null, "the server is still running");
   const home = await fetch(`http://127.0.0.1:${PORT}/mint`); assert.equal(home.status, 200, "and still serves the mint page");
 });
+
+test("the snapshot folder can't be reached by any spelling of its path", async () => {
+  const dir = path.join(__dirname, "..", "snapshot-data"), f = path.join(dir, "zz-probe.json"), had = fs.existsSync(dir);
+  fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(f, "{}");
+  try {
+    for (const u of ["/snapshot-data/zz-probe.json", "//snapshot-data/zz-probe.json", "/./snapshot-data/zz-probe.json", "/a/../snapshot-data/zz-probe.json", "/%2Fsnapshot-data/zz-probe.json", "/Snapshot-Data/zz-probe.json"]) {
+      const r = await new Promise(res => require("http").get({ host: "127.0.0.1", port: PORT, path: u }, res));
+      assert.equal(r.statusCode, 404, u); r.resume();
+    }
+  } finally { fs.unlinkSync(f); if (!had) fs.rmdirSync(dir); }
+});

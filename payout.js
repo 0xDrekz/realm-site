@@ -269,7 +269,7 @@ function create(opt) {
         if (minted < total) { last = { stage: "waiting for the mint to finish", minted, of: total }; return; }
         log("payout: all minted, taking the snapshot");
         snap = await takeSnapshot(opt.snapshotFrom());
-        try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file, JSON.stringify(snap, null, 1)); } catch (e) { log("payout: could not save the snapshot: " + e.message); }
+        try { require("./jsonfile").writeAtomic(file, JSON.stringify(snap, null, 1)); } catch (e) { log("payout: could not save the snapshot: " + e.message); }
         log("payout: snapshot " + snap.hash);
         await notify(`The REALM is full. Snapshot taken: ${snap.holders.length} holders, ${snap.minted} beings.\nHash ${snap.hash}\nPayout: ${dueAt().replace("T", " ").slice(0, 16)} UTC. Every share is listed at dmt-realm.dev/payout`);
       }

@@ -64,21 +64,11 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   const file = dir ? path.join(dir, "tcg2-boards.json") : null;
   // weeks: points by wallet; days: the daily challenge; claims: which wallet each being qualified this week;
   // seen: every wallet each being turned up with; dmt: $DMT balances seen at scoring (for the payout audit)
-  let boards = { weeks: {}, days: {}, claims: {}, seen: {}, dmt: {} };
-  if (file) { try { boards = JSON.parse(fs.readFileSync(file, "utf8")); } catch { /* first run */ } }
+  const jf = file ? require("../jsonfile").create(file, { log: m => log("card battler: " + m) }) : null;
+  let boards = jf ? jf.load() : { weeks: {}, days: {}, claims: {}, seen: {}, dmt: {} };
   for (const k of ["weeks", "days", "claims", "seen", "dmt"]) boards[k] = boards[k] || {};
-  let saveTimer = null;
-  const save = () => {
-    if (!file) return;
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      try {
-        const trim = o => Object.fromEntries(Object.keys(o).sort().slice(-14).map(k => [k, o[k]]));
-        boards = { weeks: trim(boards.weeks), days: trim(boards.days), claims: trim(boards.claims), seen: trim(boards.seen), dmt: trim(boards.dmt) };
-        fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file, JSON.stringify(boards));
-      } catch (e) { log("card battler: could not save the boards: " + e.message); }
-    }, 1500);
-  };
+  const trim = o => Object.fromEntries(Object.keys(o).sort().slice(-14).map(k => [k, o[k]]));
+  const save = () => { if (jf) jf.save(() => (boards = { weeks: trim(boards.weeks), days: trim(boards.days), claims: trim(boards.claims), seen: trim(boards.seen), dmt: trim(boards.dmt) })); };
   const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
   const weekKey = (d = new Date()) => { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); return m.toISOString().slice(0, 10); };
   const POINTS_PER_DAY = 25;      // wins that score each day: plenty for a person, a wall for a bot
@@ -381,7 +371,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       levels: r.levels.map(l => ({ id: l.id, name: l.name, boss: !!l.boss, rival: l.rival.name, life: l.rival.life, face: l.rival.champions[0] })) })),
   });
 
-  return { deal, start, act, view, map, hint, team, board, audit, stats: () => ({ matches: matches.size, results: results.slice(-200) }) };
+  return { flush: () => jf && jf.flush(), deal, start, act, view, map, hint, team, board, audit, stats: () => ({ matches: matches.size, results: results.slice(-200) }) };
 }
 
 module.exports = { create };

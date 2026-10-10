@@ -438,8 +438,9 @@ function route(req, res) {
   if (urlPath === "/arena") urlPath = "/arena.html";
   if (urlPath === "/codex") urlPath = "/codex.html";
   if (urlPath === "/duels-beta") { res.writeHead(301, { Location: "/duels" }).end(); return; }
-  // the saved snapshot is served through /api/snapshot only, after its hash is checked
-  if (urlPath.startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
+  // the saved snapshot is served through /api/snapshot only, after its hash is checked. Checked on the
+  // normalised path (so //snapshot-data/, /./snapshot-data/ and the like are caught) and again on disk below.
+  if (path.posix.normalize(urlPath.replace(/\\/g, "/")).replace(/^\/+/, "/").toLowerCase().startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
 
   /* ---- the mint page's line to Solana ----
      The page in the visitor's browser reads the candy machine and sends the
@@ -716,6 +717,8 @@ function route(req, res) {
   }
 
   const filePath = path.join(ROOT, path.normalize(urlPath));
+  const SNAPDIR = path.join(ROOT, "snapshot-data");
+  if (filePath === SNAPDIR || filePath.startsWith(SNAPDIR + path.sep) || /(^|[\\/])\.(env|git)/.test(urlPath)) { res.writeHead(404).end(); return; }
   if (!filePath.startsWith(ROOT)) {
     res.writeHead(403).end("Forbidden");
     return;
@@ -750,7 +753,7 @@ function route(req, res) {
 /* a last line of defence: log anything that slips through and keep serving (the mint page lives here too) */
 process.on("uncaughtException", e => console.error("uncaught", e));
 /* on a redeploy Railway sends SIGTERM: save what's in memory, then go */
-for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { SESS.flush(); } catch {} try { TCG.flush && TCG.flush(); } catch {} process.exit(0); });
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
 process.on("unhandledRejection", e => console.error("unhandled rejection", e));
 
 server.listen(PORT, "0.0.0.0", () => {
