@@ -99,7 +99,7 @@ test("experience is decided on the server; leaving earns none", async () => {
 
 /* a pretend chain: one holder with a God and a Common, and a $DMT boost */
 const HOLDER = "Hold1111111111111111111111111111111111111111";
-const chain = (extra = {}) => require("./game").create({
+const chain = (extra = {}) => require("./game").create({ testHooks: true,
   beings: async () => [{ n: 842, owner: HOLDER }, { n: 4, owner: HOLDER }, { n: 1111, owner: "someoneelse" }],
   boostOf: async w => w === HOLDER ? { level: 2, tokens: 300000, boost: 1.06 } : { level: 0, tokens: 0, boost: 1 },
   walletOf: t => t === "tok" ? HOLDER : null, ...extra });
@@ -145,8 +145,10 @@ async function playOut(g, s) {
   }
   return res;
 }
+/* a match the test is sure to win: the rival starts on 1 life (tests only; the hook doesn't exist in production) */
+async function startWinnable(g, token) { const s = await g.start({ level: "quick", token }); if (s.match) g._match(s.match).S.players[1].life = 1; return s; }
 async function winOne(g, token) {
-  for (let k = 0; k < 60; k++) { const s = await g.start({ level: "quick", token }); const res = await playOut(g, s); if (res && res.won) return res; }
+  for (let k = 0; k < 20; k++) { const s = await startWinnable(g, token); const res = await playOut(g, s); if (res && res.won) return res; }
   return null;
 }
 
@@ -161,7 +163,7 @@ test("quick wins score weekly points for holders, capped each day", async () => 
 test("a match where Hint was used doesn't score", async () => {
   const g = chain();
   for (let k = 0; k < 60; k++) {
-    const s = await g.start({ level: "quick", token: "tok" });
+    const s = await startWinnable(g, "tok");
     g.hint({ match: s.match });
     const res = await playOut(g, s);
     if (res && res.won) { assert.equal(res.unscored, "hint"); assert.equal(res.points, undefined); return; }
@@ -172,7 +174,7 @@ test("a match where Hint was used doesn't score", async () => {
 test("one being qualifies only one wallet a week", async () => {
   const A = "AAAA111111111111111111111111111111111111111", B = "BBBB111111111111111111111111111111111111111";
   let owner = A;   // the being moves from A to B between A's win and B's
-  const g = require("./game").create({ beings: async () => [{ n: 4, owner }], boostOf: async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf: t => ({ a: A, b: B })[t] || null });
+  const g = require("./game").create({ testHooks: true, beings: async () => [{ n: 4, owner }], boostOf: async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf: t => ({ a: A, b: B })[t] || null });
   const ra = await winOne(g, "a"); assert.ok(ra && ra.points >= 10, "the first wallet scores");
   owner = B;
   const rb = await winOne(g, "b"); assert.ok(rb, "won");
@@ -184,9 +186,9 @@ test("one being qualifies only one wallet a week", async () => {
 test("a being sold during the match doesn't score; holdings are re-read at the finish", async () => {
   const A = "AAAA111111111111111111111111111111111111111";
   let owner = A;
-  const g = require("./game").create({ beings: async () => [{ n: 4, owner }], boostOf: async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf: t => t === "a" ? A : null });
+  const g = require("./game").create({ testHooks: true, beings: async () => [{ n: 4, owner }], boostOf: async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf: t => t === "a" ? A : null });
   for (let k = 0; k < 60; k++) {
-    owner = A; const s = await g.start({ level: "quick", token: "a" }); owner = "someoneelse";
+    owner = A; const s = await startWinnable(g, "a"); owner = "someoneelse";
     const res = await playOut(g, s);
     if (res && res.won) { assert.equal(res.unscored, "moved"); return; }
   }
@@ -205,7 +207,7 @@ test("a match that runs past 20 minutes doesn't score", async () => {
   const g = chain(), real = Date.now;
   try {
     for (let k = 0; k < 60; k++) {
-      const s = await g.start({ level: "quick", token: "tok" });
+      const s = await startWinnable(g, "tok");
       Date.now = () => real() + 21 * 60e3;
       const res = await playOut(g, s);
       Date.now = real;

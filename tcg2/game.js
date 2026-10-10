@@ -24,7 +24,7 @@ const newId = () => crypto.randomBytes(16).toString("hex");
    boostOf(w)     the $DMT boost for a wallet: { level, tokens, boost }
    walletOf(t)    the wallet a sign-in token belongs to, or null
    dir            where the boards are kept (a volume that survives deploys) */
-function create({ log = () => {}, beings = async () => [], boostOf = async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf = () => null, dir = null } = {}) {
+function create({ log = () => {}, beings = async () => [], boostOf = async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf = () => null, dir = null, testHooks = false } = {}) {
   const matches = new Map(), deals = new Map(), results = [];
   const byTier = {};
   C.all().forEach(c => (byTier[c.tier] = byTier[c.tier] || []).push(c.n));
@@ -385,7 +385,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       levels: r.levels.map(l => ({ id: l.id, name: l.name, boss: !!l.boss, rival: l.rival.name, life: l.rival.life, face: l.rival.champions[0] })) })),
   });
 
-  return { flush: () => jf && jf.flush(), deal, start, act, view, map, hint, team, board, audit, stats: () => ({ matches: matches.size, results: results.slice(-200) }) };
+  return { ...(testHooks ? { _match: id => matches.get(id) } : {}), flush: () => jf && jf.flush(), deal, start, act, view, map, hint, team, board, audit, stats: () => ({ matches: matches.size, results: results.slice(-200) }) };
 }
 
 module.exports = { create };

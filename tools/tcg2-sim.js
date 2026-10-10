@@ -57,4 +57,13 @@ for (const a of T) console.log("  " + a.padEnd(10) + T.map(b => mat[a + ">" + b]
 console.log("\nWIN RATE BY ESSENCE (side's main essence; same-tier matches, essences differ)");
 for (const e of C.ESSENCES) console.log("  " + e.padEnd(10) + pct(essFair[e]) + "  (" + essFair[e][1] + " games)");
 console.log("\n  (all games, tier mixed in: " + C.ESSENCES.map(e => e + " " + pct(ess[e]).trim()).join(", ") + ")");
-module.exports = { stat, ess, essFair, mat };
+// THE LADDER: each tier against the one below, enough games to trust (the table above is ~150 games a cell, about ±8%)
+const LADDER = Number(process.argv[3]) || 2000, ladder = {};
+console.log(`\nLADDER (each tier vs the tier below, ${LADDER} games each, sides alternating; ±2%)`);
+for (let i = 1; i < T.length; i++) {
+  let w = 0;
+  for (let g = 0; g < LADDER; g++) { const hi = g % 2, r = play(hi ? T[i - 1] : T[i], hi ? T[i] : T[i - 1], 500000 + i * 10000 + g); if (r.winner === hi) w++; }
+  ladder[T[i]] = w / LADDER;
+  console.log("  " + T[i].padEnd(10) + "beats " + T[i - 1].padEnd(10) + (100 * w / LADDER).toFixed(1).padStart(5) + "%");
+}
+module.exports = { stat, ess, essFair, mat, ladder };

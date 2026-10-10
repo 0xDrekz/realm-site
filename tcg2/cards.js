@@ -8,7 +8,8 @@
      ESSENCE   the top stat (and the second, if within 8%): Magic, Spirit,
                Knowledge, Light or Dark.
      COST      by tier: Common 1, Uncommon 2, Rare 2, Epic 3, Legendary 4,
-               Mythic 5, Entity 6, God 7, Source 8.
+               Mythic 5, Entity 5, God 6, Source 7 (set by the balance sim:
+               at 6-8 the great ones came too late to matter).
      KEYWORDS  from traits (UFOs, Lightning, Mushrooms, Trees, Planets,
                Supernova, Moon Dust, Aura, Geometry), stronger for rarer values.
      LEGENDARY the one-of trait values, the 20 Entities, the 10 Gods and the
@@ -26,10 +27,11 @@ const path = require("path");
 const ROOT = path.join(__dirname, "..");
 const ESSENCES = ["magic", "spirit", "knowledge", "light", "dark"];
 const TIERS = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Entity", "God", "Source"];
-const COST = { Common: 1, Uncommon: 2, Rare: 2, Epic: 3, Legendary: 4, Mythic: 5, Entity: 6, God: 7, Source: 8 };
+const COST = { Common: 1, Uncommon: 2, Rare: 2, Epic: 3, Legendary: 4, Mythic: 5, Entity: 5, God: 6, Source: 7 };
 // stat points a card of each tier gets before abilities are paid for
-const BUDGET = { Common: 3.4, Uncommon: 6.8, Rare: 7.0, Epic: 9.0, Legendary: 12.0, Mythic: 12.8, Entity: 17.4, God: 17.4, Source: 19 };
+const BUDGET = { Common: 3.4, Uncommon: 6.8, Rare: 7.0, Epic: 9.0, Legendary: 12.6, Mythic: 14.6, Entity: 18.6, God: 22.4, Source: 23.0 };
 // how many trait abilities a tier can carry (the rest of its traits are flavour)
+const ESS_ADJ = { magic: 1, spirit: 1, knowledge: 1.08, light: 0.97, dark: 0.98 };
 const SLOTS = { Common: 1, Uncommon: 2, Rare: 3, Epic: 3, Legendary: 3, Mythic: 4, Entity: 4, God: 4, Source: 4 };
 
 /* ---------- abilities: what each is worth in stat points ---------- */
@@ -182,8 +184,9 @@ function cardOf(n) {
     .slice(0, SLOTS[tier]).forEach(t => t.fn());
 
   // what is left of the budget becomes power and health, split by the being's stats
-  const left = Math.max(1.5, BUDGET[tier] * 0.35, BUDGET[tier] - spent);
-  const lean = 0.5 + ((s.magic + s.dark) / (s.magic + s.dark + s.spirit + s.knowledge) - 0.5) * 0.5;   // ~0.42..0.58
+  // a small even-up by essence, set by the balance sim (knowledge beings lean to health and lose races)
+  const left = Math.max(1.5, BUDGET[tier] * 0.35, BUDGET[tier] - spent) * (ESS_ADJ[essence[0]] || 1);
+  const lean = 0.5 + ((s.magic + s.dark) / (s.magic + s.dark + s.spirit + s.knowledge) - 0.5) * 0.15;   // ~0.47..0.53
   let p = Math.round(left * lean), h = Math.round(left - p);
   p = Math.max(1, p + extraPower); h = Math.max(1, h + extraHealth);
   if (kw.has("doubleStrike")) p = Math.max(1, Math.round(p * 0.8));
@@ -218,12 +221,12 @@ const SHARED = [
   { id: "s-halo",   kind: "unit", name: "Halo Sentinel",  cost: 4, power: 3, health: 4, kw: ["lifelink"], essence: ["light"] },
   { id: "s-lurker", kind: "unit", name: "Abyss Lurker",   cost: 5, power: 5, health: 4, kw: [], essence: ["dark"] },
   { id: "r-strike", kind: "ritual", name: "Lightning Strike", cost: 1, essence: ["magic"], effect: { k: "dmg", to: "anyTarget", n: 3 }, attuned: { k: "dmg", to: "anyTarget", n: 4 }, text: "Deal 3 damage to a unit or player. Attuned: 4." },
-  { id: "r-nova",   kind: "ritual", name: "Supernova",      cost: 4, essence: ["light"], effect: { k: "dmg", to: "enemyUnits", n: 2 }, attuned: { k: "dmg", to: "enemyUnits", n: 3 }, text: "Deal 2 damage to every enemy unit. Attuned: 3." },
-  { id: "r-halo",   kind: "ritual", name: "Halo",           cost: 1, essence: ["spirit"], effect: { k: "healFace", n: 5 }, attuned: { k: "healFace", n: 7 }, text: "Gain 5 life. Attuned: 7." },
+  { id: "r-nova",   kind: "ritual", name: "Supernova",      cost: 4, essence: ["light"], effect: { k: "dmg", to: "enemyUnits", n: 2 }, attuned: { k: "dmg", to: "enemyUnits", n: 2 }, text: "Deal 2 damage to every enemy unit." },
+  { id: "r-halo",   kind: "ritual", name: "Halo",           cost: 1, essence: ["spirit"], effect: { k: "healFace", n: 6 }, attuned: { k: "healFace", n: 8 }, text: "Gain 6 life. Attuned: 8." },
   { id: "r-geo",    kind: "ritual", name: "Sacred Geometry", cost: 2, essence: ["knowledge"], effect: { k: "draw", n: 2 }, attuned: { k: "draw", n: 3 }, text: "Draw 2 cards. Attuned: 3." },
   { id: "r-eclipse",kind: "ritual", name: "Eclipse",        cost: 3, essence: ["dark"], effect: { k: "destroy", to: "enemyUnit", maxPower: 3 }, attuned: { k: "destroy", to: "enemyUnit", maxPower: 4 }, text: "Destroy an enemy unit with 3 or less power. Attuned: 4 or less." },
-  { id: "r-ward",   kind: "ritual", name: "Mandala Ward",   cost: 1, essence: ["knowledge"], effect: { k: "buffUnit", power: 0, health: 3 }, attuned: { k: "buffUnit", power: 1, health: 3 }, text: "Give your unit +0/+3. Attuned: +1/+3." },
-  { id: "r-aura",   kind: "ritual", name: "Warm Aura",      cost: 2, essence: ["spirit"], effect: { k: "buffUnit", power: 2, health: 1 }, attuned: { k: "buffUnit", power: 3, health: 2 }, text: "Give your unit +2/+1. Attuned: +3/+2." },
+  { id: "r-ward",   kind: "ritual", name: "Mandala Ward",   cost: 1, essence: ["knowledge"], effect: { k: "buffUnit", power: 1, health: 3 }, attuned: { k: "buffUnit", power: 2, health: 4 }, text: "Give your unit +1/+3. Attuned: +2/+4." },
+  { id: "r-aura",   kind: "ritual", name: "Warm Aura",      cost: 2, essence: ["spirit"], effect: { k: "buffUnit", power: 2, health: 2 }, attuned: { k: "buffUnit", power: 3, health: 3 }, text: "Give your unit +2/+2. Attuned: +3/+3." },
   { id: "r-dust",   kind: "ritual", name: "Moon Dust",      cost: 2, essence: ["magic"], effect: { k: "freezeDraw", to: "enemyUnit", n: 1 }, attuned: { k: "freezeDraw", to: "enemyUnit", n: 2 }, text: "Freeze an enemy unit and draw a card. Attuned: draw 2." },
 ];
 const SHARED_DECK = SHARED.flatMap(c => [c.id, c.id]);   // 30 cards

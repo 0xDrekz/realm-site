@@ -23,7 +23,7 @@
      hit the player. Damage on units stays until healed.
    - Keywords: Flying (only flying units can block it), Haste, Veiled (its first
      attack can't be blocked), Unblockable, Lifelink (damage it deals heals
-     you), Poison (destroys any unit it damages), Freeze (a unit it damages
+     you), Poison (destroys any unit costing 5 or less that it damages), Freeze (a unit it damages
      can't attack next turn), First strike, Double strike, Tough (extra health).
    - Up to 6 units a side; up to 9 cards in hand (more are burned). An empty
      deck deals 1, 2, 3… damage per draw. After turn 40 the higher life wins.
@@ -134,7 +134,8 @@ function heal(S, P, n) { if (n > 0) { P.life += n; emit(S, { t: "heal", p: P.i, 
 function hurtUnit(S, u, n, src) {
   if (n <= 0 || u.dead) return;
   u.damage += n; emit(S, { t: "damage", uid: u.uid, n });
-  if (src && has(src, "poison")) u.poisoned = true;
+  // poison kills what it touches, except the great ones: Entities, Gods and the Source (cost 6+) shrug it off
+  if (src && has(src, "poison") && !((u.def && u.def.cost) >= 6)) u.poisoned = true;
   if (src && has(src, "freeze")) u.frozen = true;
   if (src && has(src, "lifelink")) heal(S, S.players[src.owner], n);
 }

@@ -53,7 +53,7 @@ test("Gods, Entities and the Source carry hand-written powers", () => {
     assert.ok(C.NAMED[c.n], "#" + c.n + " has a named power");
     assert.ok(c.legendary);
   }
-  assert.equal(C.cardOf(1111).cost, 8);
+  assert.equal(C.cardOf(1111).cost, 7);
 });
 
 test("the shared deck is 30 cards", () => {
