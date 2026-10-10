@@ -11,7 +11,8 @@ const run = (S, until) => { while (!S.over && S.tick < until) A.step(S); return 
 test("a being always makes the same fighter; roles come from its top essence", () => {
   assert.deepEqual(C.fighter(842), C.fighter(842));
   const f = C.fighter(1111);
-  assert.equal(f.cost, 9); assert.equal(f.signature, "prime");
+  assert.equal(f.cost, 9); assert.equal(f.style, "prime");
+  assert.equal(C.fighter(842).style, "descend", "Gods descend"); assert.equal(C.fighter(29).style, "ethereal", "Entities are ethereal");
   for (const n of [1, 100, 500, 900]) assert.ok(["tank", "striker", "ranged", "caster", "support"].includes(C.fighter(n).role));
   assert.ok(C.fighter(842, 1.15).hp > C.fighter(842).hp, "the $DMT boost makes it stronger");
 });
@@ -104,4 +105,46 @@ test("the server replays a finished match and decides it; a match can't be count
   assert.equal(r.result.won, S2.winner === 0);
   assert.deepEqual(r.result.crowns, S2.crowns);
   assert.match(G.finish({ match: s2.match, inputs: [] }).error, /already/);
+});
+
+const blank = () => { const S = A.createMatch({ seed: 11, sides: [{ deck: deckA() }, { deck: deckB() }] }); S.ents = S.ents.filter(e => e.kind === "tower"); return S; };
+const drop = (S, side, n, x, y) => { const d = C.fighter(n); A.place; return S.ents[S.ents.push({ ...{ id: ++S.id, side, kind: "unit", def: d, style: d.style, x, y, r: d.r, hp: d.hp, max: d.hp, shield: 0, dmg: d.dmg, hit: d.hit, range: d.range, speed: d.speed, air: d.air, targetsAir: d.targetsAir, buildings: d.buildings, splash: d.splash, cd: 0, wake: 0, target: null, slowUntil: 0, rootUntil: 0, ramp: 1, tick: 0, cloaked: d.style === "cloak", ethereal: d.style === "ethereal" } }) - 1]; };
+
+test("an Entity can only be hurt by towers: units and spells pass through it", () => {
+  const S = blank();
+  const ent = drop(S, 1, 29, 9, 20);
+  const foe = drop(S, 0, 4, 9, 20.8);                 // a striker right beside it
+  const hp = ent.hp;
+  for (let k = 0; k < 40; k++) A.step(S);
+  assert.equal(ent.hp, hp, "the striker can't touch it");
+  // a spell can't either
+  S.sides[0].dmt = 10; const slot = S.sides[0].hand.findIndex(ci => S.sides[0].deck[ci].kind === "spell");
+  if (slot >= 0) { A.place(S, 0, slot, ent.x, ent.y); A.step(S); assert.equal(ent.hp, hp, "spells pass through"); }
+  // walk it into a tower's range and it starts to break
+  ent.x = 3.5; ent.y = 21.5;
+  for (let k = 0; k < 60; k++) A.step(S);
+  assert.ok(ent.hp < hp, "towers hurt it");
+});
+
+test("Spore Gas leaves a cloud that keeps hurting enemies standing in it", () => {
+  const S = blank();
+  const g = drop(S, 0, [...Array(1100).keys()].map(i => i + 1).find(n => C.fighter(n).style === "gas" && C.fighter(n).range < 1.6 && !C.fighter(n).buildings), 9, 22);
+  const victim = drop(S, 1, 4, 9, 22.9); victim.hp = victim.max = 5000; victim.speed = 0; victim.dmg = 0;
+  for (let k = 0; k < 30 && !S.zones.length; k++) A.step(S);
+  assert.ok(S.zones.length, "a cloud appears");
+  const z = S.zones[0]; g.hp = 0; A.step(S);                 // the caster gone, the cloud lingers
+  const before = victim.hp; for (let k = 0; k < 20; k++) A.step(S);
+  assert.ok(victim.hp < before, "the cloud still hurts");
+  for (let k = 0; k < 80; k++) A.step(S);
+  assert.ok(!S.zones.includes(z), "and then it fades");
+});
+
+test("a God descends with lightning on the enemies around it", () => {
+  const S = blank();
+  const foes = [drop(S, 1, 4, 8, 21), drop(S, 1, 31, 10, 21), drop(S, 1, 8, 9, 23)];
+  foes.forEach(f => { f.speed = 0; f.dmg = 0; });
+  const hps = foes.map(f => f.hp);
+  S.sides[0].dmt = 10; S.sides[0].deck[S.sides[0].hand[0]] = C.fighter(842);
+  assert.equal(A.place(S, 0, 0, 9, 22), null);
+  assert.ok(foes.every((f, i) => f.hp < hps[i] || f.hp <= 0), "all three struck");
 });

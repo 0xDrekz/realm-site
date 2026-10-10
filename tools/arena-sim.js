@@ -30,9 +30,9 @@ for (let g = 0; g < GAMES; g++) {
   if (w != null) {
     bump(tierW, ta, w === 0 ? 1 : 0); bump(tierW, tb, w === 1 ? 1 : 0);
     for (const [d, me] of [[da, 0], [db, 1]]) for (const c of d) if (c.kind === "unit") {
-      if (ta === tb) { bump(fairW, "role:" + c.role, w === me ? 1 : 0); if (c.ability || c.signature) bump(fairW, "power:" + (c.ability || c.signature), w === me ? 1 : 0); }
+      if (ta === tb) { bump(fairW, "role:" + c.role, w === me ? 1 : 0); bump(fairW, "style:" + c.style, w === me ? 1 : 0); }
       bump(cardW, "role:" + c.role, w === me ? 1 : 0);
-      if (c.ability || c.signature) bump(cardW, "power:" + (c.ability || c.signature), w === me ? 1 : 0);
+      bump(cardW, "style:" + c.style, w === me ? 1 : 0);
     }
   }
 }

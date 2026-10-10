@@ -62,7 +62,7 @@
      sides: [{ deck: [8 card defs], ai: false }, { deck, ai: true, level: 0..2 }]
      A card def is plain data made on the server (arena/cards.js). */
   function createMatch({ seed, sides }) {
-    const S = { seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], events: [], crowns: [0, 0], sides: [], log: [] };
+    const S = { seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], events: [], crowns: [0, 0], sides: [], log: [] };
     for (let i = 0; i < 2; i++) {
       const sd = sides[i] || {};
       const order = sd.deck.map((_, k) => k);
@@ -103,28 +103,46 @@
     return null;
   }
 
-  /* ---------- units ---------- */
+  /* ---------- units ----------
+     Every fighter has a STYLE, its own way of killing:
+       gas     a toxic cloud that keeps hurting whatever stands in it
+       chain   lightning that jumps from enemy to enemy
+       beam    a beam that grows hotter the longer it holds one target
+       burst   lands with a blast; every hit is an explosion
+       roots   pins its target in place
+       orbit   moons circle it and smash everything close
+       cloak   unseen (can't be targeted) until it strikes
+       frost   freezes; acid poisons; drain heals itself; fire burns; first hits double once
+       descend a God: falls from the sky striking lightning, and keeps calling bolts down
+       ethereal an Entity: marches on towers, and only towers can hurt it
+       prime   the Source: a cataclysm on arrival, and allies near it hit harder */
   function spawn(S, side, def, x, y, power, extra = {}) {
-    const hp = Math.round(def.hp * power), u = {
-      id: ++S.id, side, kind: "unit", def, name: def.name, n: def.n || null, x: clamp(x, 0.5, W - 0.5), y: clamp(y, 0.5, H - 0.5), r: def.r || 0.45,
-      hp, max: hp, shield: def.ability === "shield" ? Math.round(hp * 0.3) : 0, dmg: Math.round(def.dmg * power), hit: def.hit, range: def.range,
+    const hp = Math.round(def.hp * power), st = def.style, u = {
+      id: ++S.id, side, kind: "unit", def, style: st || null, name: def.name, n: def.n || null, x: clamp(x, 0.5, W - 0.5), y: clamp(y, 0.5, H - 0.5), r: def.r || 0.45,
+      hp, max: hp, shield: 0, dmg: Math.round(def.dmg * power), hit: def.hit, range: def.range,
       speed: def.speed, air: !!def.air, targetsAir: !!def.targetsAir, buildings: !!def.buildings, splash: def.splash || 0,
-      cd: 0, wake: 1, target: null, slowUntil: 0, poison: null, firstHit: def.ability === "first", tick: 0, ...extra,
+      cd: 0, wake: st === "descend" || st === "prime" ? 1.3 : 1, target: null, slowUntil: 0, rootUntil: 0, poison: null, burn: null, firstHit: st === "first",
+      cloaked: st === "cloak", ethereal: st === "ethereal", ramp: 1, rampOn: null, tick: 0, ...extra,
     };
     S.ents.push(u);
-    S.events.push({ t: "spawn", id: u.id, side, x: u.x, y: u.y, n: u.n, big: !!def.signature });
+    S.events.push({ t: "spawn", id: u.id, side, x: u.x, y: u.y, n: u.n, style: st || null, big: st === "descend" || st === "prime" || st === "ethereal" });
     return u;
   }
   function deploy(S, side, def, x, y, power) {
     const u = spawn(S, side, def, x, y, power);
-    const ab = def.ability, sig = def.signature;
-    if (ab === "blast") blast(S, side, x, y, 2.5, def.blastDmg * power, "blast");
-    if (ab === "spores") for (let k = 0; k < 2; k++) spawn(S, side, SPORE, x + (k ? 0.7 : -0.7), y + 0.3, power, { wake: 1.2 });
-    if (sig === "quake") blast(S, side, x, y, 3, def.blastDmg * power, "quake");
-    if (sig === "prime") blast(S, side, x, y, 4, def.blastDmg * power, "prime");
+    if (def.style === "burst") blast(S, side, x, y, 2.5, def.blastDmg * power, "burst");
+    if (def.style === "descend") bolts(S, u, 3, def.blastDmg * power);
+    if (def.style === "prime") { blast(S, side, x, y, 4, def.blastDmg * power, "prime"); bolts(S, u, 5, def.blastDmg * power * 0.6); }
     return u;
   }
-  const SPORE = { id: "spore", kind: "unit", name: "Spore", hp: 90, dmg: 32, hit: 1.0, range: 0.8, speed: 1.3, r: 0.32, targetsAir: false };
+
+  /* lightning from the sky onto up to k enemies near a God */
+  function bolts(S, u, k, dmg) {
+    const near = S.ents.filter(e => e.side !== u.side && e.hp > 0 && !e.ethereal && dist(e, u) <= 6.5)
+      .sort((a, b) => dist(a, u) - dist(b, u)).slice(0, k);
+    S.events.push({ t: "bolts", side: u.side, x: u.x, y: u.y, pts: near.map(e => ({ x: e.x, y: e.y })) });
+    for (const e of near) { hurt(S, e, e.kind === "tower" ? dmg * 0.35 : dmg, null); if (e.kind === "unit") { e.slowUntil = S.time + 1; e.frozen = true; } }
+  }
 
   function blast(S, side, x, y, radius, dmg, fx) {
     S.events.push({ t: "blast", side, x, y, r: radius, fx });
@@ -141,32 +159,40 @@
     }
     if (def.effect === "freeze") {
       S.events.push({ t: "blast", side, x, y, r: def.radius, fx: def.id });
-      for (const e of S.ents) if (e.side !== side && e.kind === "unit" && e.hp > 0 && dist(e, { x, y }) <= def.radius + e.r) e.slowUntil = S.time + def.amount, e.frozen = true;
+      for (const e of S.ents) if (e.side !== side && e.kind === "unit" && e.hp > 0 && !e.ethereal && dist(e, { x, y }) <= def.radius + e.r) e.slowUntil = S.time + def.amount, e.frozen = true;
     }
   }
 
   function hurt(S, e, n, src) {
     if (e.hp <= 0) return;
+    // an Entity is beyond the reach of anything but a tower
+    if (e.ethereal && !(src && src.kind === "tower")) { if (n >= 1) S.events.push({ t: "immune", id: e.id, x: e.x, y: e.y }); return; }
     n = Math.round(n);
     if (e.shield > 0) { const s = Math.min(e.shield, n); e.shield -= s; n -= s; }
     e.hp -= n;
     S.events.push({ t: "hit", id: e.id, n, x: e.x, y: e.y, tower: e.kind === "tower" });
-    if (src && src.def && src.def.ability === "lifesteal") src.hp = Math.min(src.max, src.hp + n * 0.3);
-    if (src && src.def && src.def.ability === "slow" && e.kind === "unit") e.slowUntil = S.time + 1.5;
-    if (src && src.def && src.def.ability === "poison" && e.kind === "unit") e.poison = { dps: src.dmg * 0.25, until: S.time + 3 };
+    const st = src && src.style;
+    if (!st || e.kind !== "unit") { if (st === "drain") src.hp = Math.min(src.max, src.hp + n * 0.35); return; }
+    if (st === "drain") src.hp = Math.min(src.max, src.hp + n * 0.35);
+    if (st === "frost") { e.slowUntil = S.time + 1.6; e.chilled = true; }
+    if (st === "acid") e.poison = { dps: src.dmg * 0.3, until: S.time + 3 };
+    if (st === "fire") e.burn = { dps: src.dmg * 0.25, until: S.time + 2.5 };
+    if (st === "roots") { e.rootUntil = S.time + 1.3; S.events.push({ t: "roots", id: e.id, x: e.x, y: e.y }); }
   }
 
   /* what a unit goes for: the nearest enemy it can hit, within sight; else a tower down its lane */
-  function canHit(a, e) {
+  function canHit(S, a, e) {
     if (e.side === a.side || e.hp <= 0) return false;
+    if (e.cloaked) return false;
     if (a.buildings) return e.kind === "tower";
     if (e.air && !a.targetsAir) return false;
+    if (e.ethereal && a.kind !== "tower") return false;    // no point: only towers can hurt it
     return true;
   }
   function pickTarget(S, u) {
     let best = null, bd = 1e9;
     for (const e of S.ents) {
-      if (!canHit(u, e)) continue;
+      if (!canHit(S, u, e)) continue;
       const d = dist(u, e) - e.r;
       if (d < bd && (d <= SIGHT || e.kind === "tower")) { bd = d; best = e; }
     }
@@ -187,15 +213,51 @@
     return { x: bx, y: mySideBelow ? RIVER + 0.6 : RIVER - 0.6 };
   }
 
+  /* a gas cloud: hurts every enemy on the ground inside it, every tick */
+  function gas(S, side, x, y, r, dps, from) {
+    S.zones = S.zones.filter(z => z.from !== from);          // one cloud per caster at a time
+    S.zones.push({ id: ++S.id, side, x, y, r, dps, until: S.time + 3.2, from, kind: "gas" });
+    S.events.push({ t: "gas", side, x, y, r });
+  }
+
   function strike(S, a, t) {
     let dmg = a.dmg;
     if (a.firstHit) { dmg *= 2.5; a.firstHit = false; }
     if (a.aura) dmg *= 1 + a.aura;
-    if (a.range > 1.6 || a.kind === "tower") {
-      S.shots.push({ id: ++S.id, side: a.side, from: a.id, x: a.x, y: a.y, to: t.id, dmg, splash: a.splash, speed: 11, kind: a.kind === "tower" ? "tower" : a.def.role });
+    if (a.cloaked) { a.cloaked = false; dmg *= 1.5; S.events.push({ t: "reveal", id: a.id, x: a.x, y: a.y }); }
+    if (a.kind === "tower") { S.shots.push({ id: ++S.id, side: a.side, from: a.id, x: a.x, y: a.y, to: t.id, dmg, splash: 0, speed: 11, kind: "tower" }); return; }
+    const st = a.style;
+    if (st === "chain") {
+      // the bolt leaps on to two more enemies near the last one it struck
+      const pts = [{ x: a.x, y: a.y }], hit = [t];
+      let last = t; hurt(S, t, dmg, a); pts.push({ x: t.x, y: t.y });
+      for (let k = 0; k < 2; k++) {
+        let nx = null, nd = 2.8;
+        for (const e of S.ents) if (canHit(S, a, e) && !hit.includes(e) && e.kind === "unit") { const d = dist(e, last); if (d < nd) { nd = d; nx = e; } }
+        if (!nx) break;
+        hit.push(nx); dmg *= 0.7; hurt(S, nx, dmg, a); pts.push({ x: nx.x, y: nx.y }); last = nx;
+      }
+      S.events.push({ t: "chain", side: a.side, pts });
+      return;
+    }
+    if (st === "beam") {
+      a.ramp = a.rampOn === t.id ? Math.min(3, a.ramp + 0.4) : 1; a.rampOn = t.id;
+      S.events.push({ t: "beam", id: a.id, to: t.id, ramp: a.ramp });
+      hurt(S, t, dmg * a.ramp, a);
+      return;
+    }
+    if (st === "descend") {
+      S.events.push({ t: "bolt", side: a.side, x: t.x, y: t.y });
+      for (const e of S.ents) if (canHit(S, a, e) && dist(e, t) <= 1.2 + e.r) hurt(S, e, dmg, a);
+      return;
+    }
+    if (a.range > 1.6) {
+      S.shots.push({ id: ++S.id, side: a.side, from: a.id, x: a.x, y: a.y, to: t.id, dmg, splash: st === "burst" ? 1.2 : a.splash, speed: st === "gas" ? 8 : 11, kind: st || a.def.role, style: st });
     } else {
-      S.events.push({ t: "swing", id: a.id, to: t.id });
-      if (a.splash) { for (const e of S.ents) if (canHit(a, e) && dist(e, t) <= a.splash + e.r) hurt(S, e, dmg, a); }
+      S.events.push({ t: "swing", id: a.id, to: t.id, style: st || null });
+      if (st === "gas") { hurt(S, t, dmg * 0.5, a); gas(S, a.side, t.x, t.y, a.def.gasR, a.dmg * 0.75, a.id); return; }
+      const splash = st === "burst" ? 1.2 : a.splash;
+      if (splash) { if (st === "burst") S.events.push({ t: "blast", side: a.side, x: t.x, y: t.y, r: splash, fx: "splash" }); for (const e of S.ents) if (canHit(S, a, e) && dist(e, t) <= splash + e.r) hurt(S, e, dmg, a); }
       else hurt(S, t, dmg, a);
     }
   }
@@ -206,7 +268,8 @@
     const homeY = y => side === 0 ? y > RIVER : y < RIVER;
     const hand = P.hand.map((ci, slot) => ({ slot, def: P.deck[ci] }));
     const affordable = hand.filter(h => h.def.cost <= P.dmt);
-    const threats = S.ents.filter(e => e.kind === "unit" && e.side !== me && e.hp > 0 && homeY(e.y));
+    // Entities are left to the towers: nothing else can touch them
+    const threats = S.ents.filter(e => e.kind === "unit" && e.side !== me && e.hp > 0 && homeY(e.y) && !e.ethereal && !e.cloaked);
     const mine = S.ents.filter(e => e.kind === "unit" && e.side === me && e.hp > 0);
     const lvl = P.ai.level;
     if (threats.length) {
@@ -250,13 +313,12 @@
       P.dmt = Math.min(MAX_DMT, P.dmt + DMT_PER_S * ph.rate * DT);
       if (P.ai) { P.ai.next -= DT; if (P.ai.next <= 0) { aiThink(S, P.i); P.ai.next = (P.ai.level >= 2 ? 0.5 : 0.8) + rng(S) * 0.6; } }
     }
-    // auras: geometry and the Source lift nearby allies
+    // the Source lifts the allies around it
     for (const u of S.ents) u.aura = 0;
-    for (const u of S.ents) {
-      if (u.kind !== "unit" || u.hp <= 0) continue;
-      const boost = u.def.ability === "aura" ? 0.2 : u.def.signature === "prime" ? 0.2 : 0;
-      if (boost) for (const o of S.ents) if (o !== u && o.side === u.side && o.kind === "unit" && dist(o, u) < 3.5) o.aura = Math.max(o.aura, boost);
-    }
+    for (const u of S.ents) if (u.kind === "unit" && u.hp > 0 && u.style === "prime") for (const o of S.ents) if (o !== u && o.side === u.side && o.kind === "unit" && dist(o, u) < 3.5) o.aura = 0.2;
+    // gas clouds
+    for (const z of S.zones) for (const e of S.ents) if (e.side !== z.side && e.hp > 0 && !e.air && dist(e, z) <= z.r + e.r * 0.5) hurt(S, e, (e.kind === "tower" ? z.dps * 0.3 : z.dps) * DT, null);
+    S.zones = S.zones.filter(z => z.until > S.time);
     // units and towers act
     for (const u of S.ents) {
       if (u.hp <= 0) continue;
@@ -264,23 +326,29 @@
         if (u.wake > 0) { u.wake -= DT; continue; }
         u.tick++;
         if (u.poison && S.time < u.poison.until) hurt(S, u, u.poison.dps * DT, null);
-        if (u.def.ability === "regen") u.hp = Math.min(u.max, u.hp + u.max * 0.03 * DT);
-        if (u.def.role === "support" && u.tick % TICK === 0) {
-          for (const o of S.ents) if (o.side === u.side && o.kind === "unit" && o.hp > 0 && o.hp < o.max && dist(o, u) <= 3) { const h = Math.min(o.max - o.hp, u.def.heal); o.hp += h; S.events.push({ t: "heal", id: o.id, n: Math.round(h) }); }
+        if (u.burn && S.time < u.burn.until) hurt(S, u, u.burn.dps * DT, null);
+        if (u.style === "roots") u.hp = Math.min(u.max, u.hp + u.max * 0.02 * DT);       // the rooted ones mend
+        if (u.style === "orbit" && u.tick % TICK === 0) {                               // the moons come round
+          let any = false;
+          for (const e of S.ents) if (canHit(S, u, e) && e.kind === "unit" && dist(e, u) <= 1.9 + e.r) { hurt(S, e, u.dmg * 0.45, u); any = true; }
+          if (any) S.events.push({ t: "orbit", id: u.id, x: u.x, y: u.y });
         }
-        if (u.def.signature === "brood" && u.tick % (TICK * 4) === 0) spawn(S, u.side, SPORE, u.x + 0.6, u.y, 1, { wake: 0.3 });
-        if (u.def.signature === "sanctum" && u.tick % TICK === 0) for (const o of S.ents) if (o.side === u.side && o.kind === "unit" && o.hp > 0 && dist(o, u) <= 3.5) o.hp = Math.min(o.max, o.hp + u.def.heal);
-        let t = u.target && u.target.hp > 0 && canHit(u, u.target) ? u.target : null;
+        if (u.def.role === "support" && u.tick % TICK === 0) {
+          for (const o of S.ents) if (o.side === u.side && o.kind === "unit" && o.hp > 0 && o.hp < o.max && !o.ethereal && dist(o, u) <= 3) { const h = Math.min(o.max - o.hp, u.def.heal); o.hp += h; S.events.push({ t: "heal", id: o.id, n: Math.round(h) }); }
+        }
+        let t = u.target && u.target.hp > 0 && canHit(S, u, u.target) ? u.target : null;
         if (!t || (t.kind === "tower" && u.tick % 10 === 0)) t = pickTarget(S, u);
         u.target = t;
         if (!t) continue;
         const reach = u.range + u.r + t.r, d = dist(u, t);
         if (d > reach) {
-          const wp = waypoint(u, t), dd = dist(u, wp) || 1, sp = u.speed * (S.time < u.slowUntil ? (u.frozen ? 0 : 0.6) : 1) * DT;
-          if (S.time >= u.slowUntil) u.frozen = false;
+          if (S.time >= u.slowUntil) { u.frozen = false; u.chilled = false; }
+          const held = S.time < u.rootUntil;
+          const wp = waypoint(u, t), dd = dist(u, wp) || 1, sp = held ? 0 : u.speed * (S.time < u.slowUntil ? (u.frozen ? 0 : 0.55) : 1) * DT;
           u.x += (wp.x - u.x) / dd * Math.min(sp, dd); u.y += (wp.y - u.y) / dd * Math.min(sp, dd);
           u.cd = Math.max(u.cd, u.hit * 0.4);
         } else {
+          if (S.time >= u.slowUntil) { u.frozen = false; u.chilled = false; }
           if (S.time < u.slowUntil && u.frozen) continue;
           u.cd -= DT;
           if (u.cd <= 0) { strike(S, u, t); u.cd = u.hit * (S.time < u.slowUntil ? 1.4 : 1); }
@@ -290,7 +358,7 @@
         u.cd -= DT;
         if (u.cd > 0) continue;
         let best = null, bd = 1e9;
-        for (const e of S.ents) { if (e.kind !== "unit" || e.side === u.side || e.hp <= 0 || e.wake > 0.5) continue; const d = dist(u, e); if (d <= u.range && d < bd) { bd = d; best = e; } }
+        for (const e of S.ents) { if (e.kind !== "unit" || e.side === u.side || e.hp <= 0 || e.wake > 0.5 || e.cloaked) continue; const d = dist(u, e); if (d <= u.range && d < bd) { bd = d; best = e; } }
         if (best) { strike(S, u, best); u.cd = u.hit; }
       }
     }
@@ -301,8 +369,9 @@
       const d = dist(s, t), mv = s.speed * DT;
       if (d <= mv + t.r * 0.5) {
         s.done = true;
-        const src = S.ents.find(e => e.id === s.from) || null;
-        if (s.splash) { S.events.push({ t: "blast", side: s.side, x: t.x, y: t.y, r: s.splash, fx: "splash" }); for (const e of S.ents) if (e.side !== s.side && e.hp > 0 && dist(e, t) <= s.splash + e.r && (!e.air || (src && src.targetsAir))) hurt(S, e, s.dmg, src); }
+        const src = S.ents.find(e => e.id === s.from) || { id: s.from, side: s.side, kind: s.kind === "tower" ? "tower" : "unit", style: s.style, dmg: s.dmg, max: 1, hp: 0 };
+        if (s.style === "gas") { hurt(S, t, s.dmg * 0.5, src); gas(S, s.side, t.x, t.y, (src.def && src.def.gasR) || 1.6, s.dmg * 0.75, s.from); }
+        else if (s.splash) { S.events.push({ t: "blast", side: s.side, x: t.x, y: t.y, r: s.splash, fx: "splash" }); for (const e of S.ents) if (e.side !== s.side && e.hp > 0 && dist(e, t) <= s.splash + e.r && (!e.air || src.targetsAir)) hurt(S, e, s.dmg, src); }
         else hurt(S, t, s.dmg, src);
       } else { s.x += (t.x - s.x) / d * mv; s.y += (t.y - s.y) / d * mv; }
     }

@@ -23,30 +23,27 @@ const ROLES = {
   tank:    { hp: 470, dmg: 42, hit: 1.5, range: 0.8, speed: 0.75, r: 0.6, buildings: true,  targetsAir: false, label: "Tank",    blurb: "Walks straight at towers and soaks the hits." },
   striker: { hp: 140, dmg: 49, hit: 1.0, range: 0.9, speed: 1.45, r: 0.45, buildings: false, targetsAir: false, label: "Striker", blurb: "Fast and fierce up close." },
   ranged:  { hp: 72,  dmg: 25, hit: 1.1, range: 5.0, speed: 1.0, r: 0.42, buildings: false, targetsAir: true,  label: "Ranged",  blurb: "Shoots from behind your front line. Hits flyers." },
-  caster:  { hp: 88,  dmg: 23, hit: 1.4, range: 4.0, speed: 1.0, r: 0.42, buildings: false, targetsAir: true,  label: "Caster",  blurb: "Blasts groups with area damage." , splash: 1.3 },
+  caster:  { hp: 92,  dmg: 26, hit: 1.4, range: 4.0, speed: 1.0, r: 0.42, buildings: false, targetsAir: true,  label: "Caster",  blurb: "Blasts groups with area damage." , splash: 1.3 },
   support: { hp: 104, dmg: 12, hit: 1.2, range: 3.5, speed: 1.0, r: 0.42, buildings: false, targetsAir: true,  label: "Support", blurb: "Heals the allies around it." },
 };
 
-const POWERS = {
-  flying:    { label: "Flying",      text: "Flies over the river; only ranged units, casters and supports can hit it." },
-  blast:     { label: "Supernova",   text: "Lands with a blast that hurts every enemy nearby." },
-  spores:    { label: "Spores",      text: "Brings two spores with it." },
-  fast:      { label: "Lightning",   text: "Moves and strikes faster." },
-  regen:     { label: "Rooted",      text: "Heals itself over time." },
-  shield:    { label: "Moon Dust",   text: "Arrives with a shield." },
-  slow:      { label: "Cold",        text: "Its hits slow the enemy." },
-  poison:    { label: "Acid",        text: "Its hits poison." },
-  lifesteal: { label: "Rose",        text: "Heals itself as it hits." },
-  first:     { label: "Opposed",     text: "Its first hit lands double." },
-  aura:      { label: "Geometry",    text: "Nearby allies hit harder." },
-  warm:      { label: "Warm",        text: "Hits harder." },
-};
-const SIGNATURES = {
-  quake:   { label: "Quake",   text: "Lands with a huge blast." },
-  brood:   { label: "Brood",   text: "Spawns a spore every few seconds." },
-  sanctum: { label: "Sanctum", text: "Heals every ally around it, every second." },
-  wrath:   { label: "Wrath",   text: "Every hit lands as an area blast." },
-  prime:   { label: "Prime",   text: "Lands with a vast blast; allies near it hit harder." },
+/* each being's way of killing, from its most striking trait */
+const STYLES = {
+  gas:      { label: "Spore Gas",       text: "Leaves a toxic cloud that keeps hurting everything inside it.", tax: 0.82 },
+  chain:    { label: "Chain Lightning", text: "Its lightning leaps to two more enemies.",                     tax: 0.9 },
+  beam:     { label: "Tractor Beam",    text: "Flies. Its beam burns hotter the longer it holds a target.",   tax: 0.5 },
+  burst:    { label: "Star Burst",      text: "Lands with a blast; every hit explodes.",                       tax: 0.95 },
+  roots:    { label: "Roots",           text: "Pins its target in place, and slowly mends itself.",            tax: 0.88 },
+  orbit:    { label: "Orbit",           text: "Moons circle it and smash every enemy close by, as well as its own attack.",               tax: 0.9 },
+  cloak:    { label: "Phantom",         text: "Can't be seen until it strikes, and its first strike lands hard.", tax: 0.64 },
+  frost:    { label: "Frost",           text: "Its hits slow enemies to a crawl.",                             tax: 0.98 },
+  acid:     { label: "Acid",            text: "Its hits poison.",                                              tax: 0.88 },
+  drain:    { label: "Drain",           text: "Heals itself with every hit.",                                  tax: 0.98 },
+  fire:     { label: "Fire",            text: "Its hits set enemies burning.",                                 tax: 0.88 },
+  first:    { label: "Ambush",          text: "Its first hit lands two and a half times as hard.",             tax: 1.05 },
+  descend:  { label: "Descend",         text: "A God. Falls from the sky striking lightning at three enemies, then keeps calling bolts down.", tax: 0.9 },
+  ethereal: { label: "Ethereal",        text: "An Entity. Marches on towers, and only towers can hurt it.",    tax: 1 },
+  prime:    { label: "Prime",           text: "The Source. Arrives in a cataclysm of light; allies near it hit harder.", tax: 0.85 },
 };
 
 let MAP = null, STATS = null;
@@ -57,20 +54,18 @@ function load() {
 }
 const on = v => v && v !== "None";
 
-function powerOf(traits) {
-  if (on(traits.UFOs)) return "flying";
-  if (on(traits.Supernova)) return "blast";
-  if (on(traits.Mushrooms)) return "spores";
-  if (on(traits.Lightning)) return "fast";
-  if (on(traits.Trees)) return "regen";
-  if (on(traits["Moon Dust"])) return "shield";
-  if (traits.Aura === "Cold") return "slow";
-  if (traits.Aura === "Acid") return "poison";
-  if (traits.Aura === "Rose") return "lifesteal";
-  if (traits.Aura === "Opposed") return "first";
-  if (on(traits.Geometry) && ["Mandala", "Rosette", "Flower", "Yantra", "Lattice", "Metatron"].includes(traits.Geometry)) return "aura";
-  if (traits.Aura === "Warm") return "warm";
-  return null;
+function styleOf(tier, n, traits) {
+  if (n === 1111) return "prime";
+  if (tier === "God") return "descend";
+  if (tier === "Entity") return "ethereal";
+  if (on(traits.Mushrooms)) return "gas";
+  if (on(traits.Lightning)) return "chain";
+  if (on(traits.UFOs)) return "beam";
+  if (on(traits.Supernova)) return "burst";
+  if (on(traits.Trees)) return "roots";
+  if (on(traits.Planets)) return "orbit";
+  if (on(traits["Moon Dust"])) return "cloak";
+  return { Cold: "frost", Acid: "acid", Rose: "drain", Warm: "fire", Opposed: "first" }[traits.Aura] || "first";
 }
 
 /* one being, one fighter. boost: the $DMT boost (1..1.15) */
@@ -79,29 +74,32 @@ function fighter(n, boost = 1) {
   const [tier, being, traits = {}] = MAP[n - 1];
   const s = STATS(n), ES = ["magic", "spirit", "knowledge", "light", "dark"];
   const top = ES.slice().sort((a, b) => s[b] - s[a])[0];
-  const role = ROLE_OF[top], R = ROLES[role], cost = COST[tier];
+  const style = styleOf(tier, n, traits), ST = STYLES[style];
+  // Entities are siege spirits: they always go for towers
+  const role = style === "ethereal" ? "tank" : ROLE_OF[top], R = ROLES[role], cost = COST[tier];
   // cheap cards are better value per DMT (they die to towers fast); rarer beings a touch stronger
   const eff = Math.pow(cost / 4, -0.15) * (1 + 0.012 * TIER_RANK[tier]) * boost;
   // the other essences lean it: sturdier (spirit, dark) or sharper (magic, light)
   const sum = ES.reduce((a, k) => a + s[k], 0);
   const lean = ((s.spirit + s.dark) - (s.magic + s.light)) / sum;          // about -0.2 .. 0.2
-  const sig = tier === "God" || tier === "Entity" || tier === "Source"
-    ? (n === 1111 ? "prime" : ["quake", "brood", "sanctum", "wrath"][n % 4]) : null;
-  const power = sig ? null : powerOf(traits);
-  const tax = power || sig ? 0.9 : 1;
-  let hp = R.hp * cost * eff * (1 + lean * 0.6) * tax, dmg = R.dmg * cost * eff * (1 - lean * 0.6) * tax;
-  let hit = R.hit, speed = R.speed;
-  if (power === "fast") { speed *= 1.35; hit *= 0.85; }
-  if (power === "warm") dmg *= 1.15;
+  let hp = R.hp * cost * eff * (1 + lean * 0.6), dmg = R.dmg * cost * eff * (1 - lean * 0.6) * ST.tax;
+  let hit = R.hit, speed = R.speed, range = R.range;
+  if (style === "chain") { hit *= 0.9; speed *= 1.1; }
+
+  if (style === "beam") { range = Math.max(range, 3); hit = 0.5; dmg *= 0.5; }      // a steady beam: quick, small hits that grow
+  if (style === "descend") range = Math.max(range, 4.5);
+  if (style === "ethereal") { hp *= 0.55; dmg *= 1.25; speed = 0.9; }            // only towers can hurt it, so it carries less
   const card = {
-    id: "b" + n, n, kind: "unit", name: being || tier + " #" + n, tier, cost, role, essence: top,
-    hp: Math.round(hp), dmg: Math.round(dmg), hit: +hit.toFixed(2), range: R.range, speed: +speed.toFixed(2), r: R.r + (cost >= 7 ? 0.1 : 0),
-    buildings: R.buildings, targetsAir: R.targetsAir, air: power === "flying", splash: sig === "wrath" ? 1.6 : R.splash || 0,
-    heal: role === "support" || sig === "sanctum" ? Math.round(11 * cost * eff) : 0,
-    ability: power, signature: sig, blastDmg: Math.round(60 * cost * eff * (sig === "prime" ? 2.2 : sig === "quake" ? 1.6 : 1)),
+    id: "b" + n, n, kind: "unit", name: being || tier + " #" + n, tier, cost, role, essence: top, style,
+    hp: Math.round(hp), dmg: Math.round(dmg), hit: +hit.toFixed(2), range, speed: +speed.toFixed(2), r: R.r + (cost >= 7 ? 0.1 : 0),
+    buildings: R.buildings, targetsAir: R.targetsAir || style === "chain" || style === "descend" || style === "beam", air: style === "beam",
+    splash: role === "caster" ? R.splash : 0,
+    gasR: style === "gas" ? +(1.4 + cost * 0.12).toFixed(2) : 0,
+    heal: role === "support" ? Math.round(11 * cost * eff) : 0,
+    blastDmg: Math.round(60 * cost * eff * (style === "prime" ? 2.2 : style === "descend" ? 1.2 : 1)),
   };
-  card.power = sig ? SIGNATURES[sig] : power ? POWERS[power] : null;
-  card.roleLabel = R.label;
+  card.power = { label: ST.label, text: ST.text };
+  card.roleLabel = role === "tank" && style === "ethereal" ? "Siege" : R.label;
   return card;
 }
 
@@ -125,4 +123,4 @@ function byTier() {
   return BY_TIER;
 }
 
-module.exports = { fighter, deck, SPELLS, ROLES, POWERS, SIGNATURES, COST, byTier };
+module.exports = { fighter, deck, SPELLS, ROLES, STYLES, COST, byTier };
