@@ -371,6 +371,9 @@ const duelAllowed = limiter(5000, 10);     // ten new runs a minute per caller i
 const TCG = require("./tcg2/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w),
   walletOf: duelWalletOf, dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 const ARENA = require("./arena/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf });
+/* REALM Cards (rc/game.js): the card game against the computer; every move checked here */
+const RC = require("./rc/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf });
+let RC_POOL = null;
 const tcgMoves = limiter(10000, 300), tcgMatches = limiter(10000, 20);   // 300 moves and 20 new matches a minute per caller
 const tcgAllowed = (ip, kind) => kind === "move" ? tcgMoves(ip) : tcgMatches(ip + kind);
 
@@ -600,6 +603,29 @@ function route(req, res) {
       Promise.resolve().then(() => fn({ ...j, ip }))
         .then(d => send(d.status || (d.error ? 400 : 200), d))
         .catch(e => { console.error("tcg", e); send(500, { error: "Something went wrong. Start a new match." }); });
+    });
+    return;
+  }
+
+  /* ---- REALM Cards: every move checked, every result decided here ---- */
+  if (urlPath.startsWith("/api/rc/")) {
+    const send = replier(res);
+    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
+    if (urlPath === "/api/rc/cards") {
+      if (!RC_POOL) { const json = Buffer.from(JSON.stringify(RC.pool())); RC_POOL = { json, gz: require("zlib").gzipSync(json) }; }
+      const gz = /\bgzip\b/.test(req.headers["accept-encoding"] || "");
+      res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "public, max-age=600", "Vary": "Accept-Encoding", ...(gz ? { "Content-Encoding": "gzip" } : {}) });
+      return res.end(gz ? RC_POOL.gz : RC_POOL.json);
+    }
+    if (req.method !== "POST") return send(405, { error: "POST" });
+    readJson(req, send, 4000, j => {
+      const kind = urlPath === "/api/rc/start" || urlPath === "/api/rc/build" ? "rc" : "move";
+      if (!tcgAllowed(ip, kind)) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
+      const fn = { "/api/rc/start": RC.start, "/api/rc/act": RC.act, "/api/rc/view": RC.view, "/api/rc/hint": RC.hint, "/api/rc/build": RC.build }[urlPath];
+      if (!fn) return send(404, { error: "Not found." });
+      Promise.resolve().then(() => fn({ ...j, ip }))
+        .then(d => send(d.status || (d.error ? 400 : 200), d))
+        .catch(e => { console.error("rc", e); send(500, { error: "Something went wrong. Start a new match." }); });
     });
     return;
   }
