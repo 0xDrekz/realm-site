@@ -19,7 +19,6 @@ html,body{margin:0;height:100%;background:var(--void);color:var(--bone);font-fam
 button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 a{color:inherit}
 svg{fill:currentColor}
-img,canvas{image-rendering:pixelated;image-rendering:crisp-edges}
 [hidden]{display:none!important}
 
 /* ---------- lobby ---------- */

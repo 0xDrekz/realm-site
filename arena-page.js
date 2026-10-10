@@ -150,8 +150,7 @@
   function layout() {
     const st = $("[data-stage]").getBoundingClientRect();
     ts = Math.max(8, Math.min(st.width / A.W, st.height / (A.H + TOP)));
-    // the site's look: every canvas is drawn a little under screen size and blown up with hard edges
-    dpr = lowRes ? .6 : .8;
+    dpr = Math.min(lowRes ? 1.2 : 2, window.devicePixelRatio || 1);
     for (const c of [canvas, bg]) { c.style.width = (ts * A.W) + "px"; c.style.height = (ts * (A.H + TOP)) + "px"; c.width = Math.round(ts * A.W * dpr); c.height = Math.round(ts * (A.H + TOP) * dpr); }
     sprites.clear(); towerBodies.clear();
     // the arena itself is drawn once, on its own layer underneath
