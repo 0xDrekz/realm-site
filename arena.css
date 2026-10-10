@@ -151,8 +151,10 @@ svg{fill:currentColor}
 
 /* ---------- battle ---------- */
 .ar-battlefield{position:fixed;inset:0;display:grid;grid-template-rows:1fr auto;max-width:620px;margin:0 auto;user-select:none;-webkit-user-select:none;touch-action:none;background:var(--void)}
-.ar-hud{position:absolute;left:0;right:0;top:0;z-index:3;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;padding:calc(4px + env(safe-area-inset-top)) 8px 10px;background:linear-gradient(180deg,rgba(7,4,15,.92) 60%,rgba(7,4,15,0))}
-.ar-plate{display:flex;flex-direction:column;gap:4px;min-width:0;padding:4px 9px}
+.ar-hud{position:absolute;left:0;right:0;top:0;z-index:3;display:grid;grid-template-columns:minmax(0,auto) 1fr minmax(0,auto) auto;align-items:center;gap:6px;padding:calc(6px + env(safe-area-inset-top)) 8px 6px;pointer-events:none}
+.ar-hud>*{pointer-events:auto}
+.ar-plate{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:34vw;padding:5px 9px;background:rgba(7,4,15,.82);box-shadow:3px 3px 0 rgba(0,0,0,.6)}
+.ar-plate.foe{grid-column:1;grid-row:1}.ar-plate.you{grid-column:3;grid-row:1}.ar-clock{grid-column:4;grid-row:1}
 .ar-plate b{font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ar-plate.foe{border-left:3px solid var(--foe)}
 .ar-plate.foe b{color:#ffc2cc}

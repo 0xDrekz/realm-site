@@ -136,7 +136,7 @@
     for (const c of d.wild || []) img(c.n);
     await faceOff(d);
     G = { match: d.match, seed: d.seed, sides: d.sides, wild: d.wild, S: A.createMatch({ seed: d.seed, sides: d.sides, wild: d.wild }), inputs: [], acc: 0, last: 0, prev: new Map(),
-      fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, seen: new Set(), river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
+      fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, overlays: [], seen: new Set(), river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
     $("[data-rname]").textContent = d.rival;
     show("battle"); layout(); paintHand(true); paintHud(); paintCrowns();
     banner("Battle!");
@@ -678,6 +678,7 @@
     for (const s of S.shots) drawShot(s, alpha);
     drawFx(dt);
     drawShips(dt);
+    drawOverlays();
     drawGhost();
     // the flash of something big
     if (G.flash > 0) { ctx.fillStyle = `rgba(255,240,220,${G.flash * .5})`; ctx.fillRect(-OX, -OY, VW, VH); G.flash = Math.max(0, G.flash - dt * 1.6); }
@@ -740,6 +741,8 @@
     // health: above your towers, below theirs (theirs sit at the top edge)
     const w = throne ? 2.6 : 2, bh = .56, k = Math.max(0, e.hp / e.max);
     const hy = e.side === 0 ? top - .75 : y + .5;
+    // drawn last, over everything, so it can't be hidden in a busy fight
+    overlay(() => {
     ctx.fillStyle = "#000"; ctx.fillRect(x - w / 2 - .08, hy - .08, w + .16, bh + .16);
     ctx.fillStyle = "#e3ba5c"; ctx.fillRect(x - w / 2 - .08, hy - .08, w + .16, .06); ctx.fillRect(x - w / 2 - .08, hy + bh + .02, w + .16, .06);
     ctx.fillRect(x - w / 2 - .08, hy - .08, .06, bh + .16); ctx.fillRect(x + w / 2 + .02, hy - .08, .06, bh + .16);
@@ -750,7 +753,11 @@
     }
     txt(Math.max(0, Math.ceil(e.hp)), x, hy + bh / 2 + .02, .5, "#fff", .1);
     if (throne) { ctx.save(); ctx.translate(x - w / 2 - .42, hy + .26); ctx.fillStyle = "#f6cf6a"; ctx.strokeStyle = "#2a1306"; ctx.lineWidth = .05; ctx.beginPath(); ctx.moveTo(-.26, .18); ctx.lineTo(-.3, -.14); ctx.lineTo(-.13, 0); ctx.lineTo(0, -.22); ctx.lineTo(.13, 0); ctx.lineTo(.3, -.14); ctx.lineTo(.26, .18); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore(); }
+    });
   }
+  /* things that must stay readable (health bars) are queued and drawn last, in the place they were meant for */
+  function overlay(fn) { G.overlays.push({ m: ctx.getTransform(), fn }); }
+  function drawOverlays() { for (const o of G.overlays) { ctx.save(); ctx.setTransform(o.m); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; o.fn(); ctx.restore(); } G.overlays.length = 0; }
   function drawRubble(r) {
     const s = r.big ? 1.5 : 1.1;
     ctx.fillStyle = "rgba(0,0,0,.4)"; ctx.beginPath(); ctx.ellipse(r.x, r.y + s * .5, s, s * .45, 0, 0, Math.PI * 2); ctx.fill();
@@ -828,10 +835,15 @@
     if (e.wake > 0 && !drop) { ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = .07; ctx.beginPath(); ctx.ellipse(p.x, p.y, w * .4, .26, 0, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - Math.max(0, e.wake) / wake0)); ctx.stroke(); }
     // health and shield, over its head
     if (e.hp < e.max || e.shield > 0) {
-      const bw = Math.max(1, Math.min(1.6, w * .7)), by = fy - lift - h + .05;
-      ctx.fillStyle = "rgba(0,0,0,.75)"; ctx.fillRect(fx - bw / 2 - .03, by - .03, bw + .06, .2);
-      ctx.fillStyle = e.ethereal ? "#c9a8ff" : T.main; ctx.fillRect(fx - bw / 2, by, bw * Math.max(0, e.hp / e.max), .14);
-      if (e.shield > 0) { ctx.fillStyle = "#ffe58a"; ctx.fillRect(fx - bw / 2, by - .1, bw * Math.min(1, e.shield / e.max), .07); }
+      const bw = Math.max(1.2, Math.min(1.8, w * .8)), by = fy - lift - h - .05, k = Math.max(0, e.hp / e.max);
+      overlay(() => {
+        ctx.fillStyle = "#000"; ctx.fillRect(fx - bw / 2 - .07, by - .07, bw + .14, .4);
+        ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.fillRect(fx - bw / 2 - .07, by - .07, bw + .14, .04);
+        ctx.fillStyle = "#2a2236"; ctx.fillRect(fx - bw / 2, by, bw, .26);
+        ctx.fillStyle = e.ethereal ? "#c9a8ff" : k < .3 ? "#ff9a3c" : T.main; ctx.fillRect(fx - bw / 2, by, bw * k, .26);
+        ctx.fillStyle = "rgba(255,255,255,.4)"; ctx.fillRect(fx - bw / 2, by, bw * k, .07);
+        if (e.shield > 0) { ctx.fillStyle = "#ffe58a"; ctx.fillRect(fx - bw / 2, by - .16, bw * Math.min(1, e.shield / e.max), .1); }
+      });
     }
   }
   /* scorched ground where meteors struck and the beam burned */
