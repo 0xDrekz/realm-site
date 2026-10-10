@@ -100,7 +100,7 @@
     const s = session(), tile = $("[data-army]");
     tile.classList.toggle("own", !!s);
     $("[data-army-title]").textContent = s ? "Your beings" : "Borrowed spirits";
-    $("[data-army-note]").textContent = s ? "Signed in: your own beings fight, with your $DMT boost" : "Sign in at Duels to fight with your own beings";
+    $("[data-army-note]").textContent = s ? "Signed in: your own beings turn up more often, with your $DMT boost" : "Sign in at Duels and your own beings turn up more often";
   }
   $("[data-battle]").addEventListener("click", () => { sfx("tick"); battle(); });
   $("[data-again]").addEventListener("click", () => { $("[data-end]").hidden = true; battle(); });
@@ -129,11 +129,12 @@
     catch { d = { error: "The realm did not answer. Try again." }; }
     btn.disabled = false; $("[data-battle-label]").textContent = "Battle"; $("[data-battle-sub]").textContent = "vs the realm's guardians";
     if (d.error) { $("[data-lobby-note]").textContent = d.error; show("lobby"); return; }
-    for (const side of d.sides) for (const c of side.deck) img(c.n);
+    // pictures load as the cards come up, not all at once
+    for (const side of d.sides) for (const c of side.deck.slice(0, 8)) img(c.n);
     for (const c of d.wild || []) img(c.n);
     await faceOff(d);
     G = { match: d.match, seed: d.seed, sides: d.sides, wild: d.wild, S: A.createMatch({ seed: d.seed, sides: d.sides, wild: d.wild }), inputs: [], acc: 0, last: 0, prev: new Map(),
-      fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
+      fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, seen: new Set(), river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
     $("[data-rname]").textContent = d.rival;
     show("battle"); layout(); paintHand(true); paintHud(); paintCrowns();
     banner("Battle!");
@@ -146,8 +147,10 @@
   function faceOff(d) {
     const vs = $("[data-vs]");
     $("[data-vs-rival]").textContent = d.rival;
-    $("[data-vs-army]").textContent = d.own && d.own.length ? `Your beings${d.boost ? " · $DMT boost" : ""}` : "Borrowed spirits";
-    $("[data-vs-deck]").innerHTML = d.sides[0].deck.map((c, i) => cardHtml(c, false, `animation-delay:${.45 + i * .06}s`)).join("");
+    $("[data-vs-army]").textContent = d.own ? `All 1,111 in play · your beings come up more${d.boost ? " · $DMT boost" : ""}` : "All 1,111 in play · every card a gamble";
+    // the opening hand, then the unknown: every card after is a random being, gone once played
+    const back = i => `<div class="ar-card back" style="animation-delay:${.45 + i * .06}s"><span class="ar-card-in"><b>?</b></span></div>`;
+    $("[data-vs-deck]").innerHTML = d.sides[0].deck.slice(0, 4).map((c, i) => cardHtml(c, false, `animation-delay:${.45 + i * .06}s`)).join("") + [4, 5, 6, 7].map(back).join("");
     vs.classList.remove("out"); vs.hidden = false;
     sfx("whoosh"); setTimeout(() => { sfx("blast"); buzz(30); }, 350);
     return new Promise(res => setTimeout(() => { vs.classList.add("out"); setTimeout(() => { vs.hidden = true; }, 350); res(); }, REDUCED ? 900 : 2300));
@@ -1104,9 +1107,20 @@
   function paintHand(force) {
     const P = G.S.sides[0], sig = P.hand.join() + ":" + P.queue[0];
     if (force || sig !== handSig) {
+      const fresh = P.hand.filter(ci => !G.seen.has(ci));
       handSig = sig;
       $("[data-hand]").innerHTML = P.hand.map((ci, slot) => `<div data-slot="${slot}">${cardHtml(P.deck[ci])}</div>`).join("");
       $("[data-next]").innerHTML = cardHtml(P.deck[P.queue[0]], true);
+      for (const ci of P.queue.slice(0, 4)) img(P.deck[ci].n);
+      // a jackpot: a God, an Entity, the Source or a Mythic turns up in your hand
+      for (const ci of fresh) {
+        G.seen.add(ci); const c = P.deck[ci];
+        if (G.S.tick > 0 && c.kind === "unit" && ["Mythic", "Entity", "God", "Source"].includes(c.tier)) {
+          const el = $(`[data-slot="${P.hand.indexOf(ci)}"] .ar-card`); if (el) el.classList.add("jackpot");
+          banner(c.tier === "Source" ? "The Source!" : "Jackpot!", c.tier === "Mythic" ? "A Mythic in your hand" : `${c.tier === "God" ? "A God" : c.tier === "Entity" ? "An Entity" : "The Prime Source"} in your hand`);
+          sfx("epic"); buzz([30, 30, 30, 30, 80]);
+        }
+      }
     }
     $$("[data-slot]").forEach(el => {
       const slot = Number(el.dataset.slot), def = P.deck[P.hand[slot]], card = el.firstElementChild;

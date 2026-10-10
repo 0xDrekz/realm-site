@@ -65,9 +65,11 @@
     const S = { wild: Array.isArray(wild) && wild.length ? wild : null, surge: 0, seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], flights: [], holes: [], ships: [], events: [], crowns: [0, 0], sides: [], log: [] };
     for (let i = 0; i < 2; i++) {
       const sd = sides[i] || {};
+      // a draw: the server dealt a random stream of cards, in order; a played card is gone for good.
+      // otherwise a classic deck, shuffled, where played cards cycle to the back.
       const order = sd.deck.map((_, k) => k);
-      for (let k = order.length - 1; k > 0; k--) { const j = Math.floor(rng(S) * (k + 1)); [order[k], order[j]] = [order[j], order[k]]; }
-      S.sides.push({ i, deck: sd.deck, hand: order.slice(0, 4), queue: order.slice(4), dmt: 5, ai: sd.ai ? { level: sd.level || 1, next: 1 + rng(S) * 1.5 } : null, gatesDown: [false, false] });
+      if (!sd.draw) for (let k = order.length - 1; k > 0; k--) { const j = Math.floor(rng(S) * (k + 1)); [order[k], order[j]] = [order[j], order[k]]; }
+      S.sides.push({ i, draw: !!sd.draw, deck: sd.deck, hand: order.slice(0, 4), queue: order.slice(4), dmt: 5, ai: sd.ai ? { level: sd.level || 1, next: 1 + rng(S) * 1.5 } : null, gatesDown: [false, false] });
       for (const t of TOWERS) {
         const st = TOWER_STATS[t.kind], y = i === 0 ? t.y : H - t.y;
         S.ents.push({ id: ++S.id, side: i, kind: "tower", tower: t.kind, lane: t.lane, x: t.x, y, r: st.r, hp: st.hp, max: st.hp, dmg: st.dmg, hit: st.hit, range: st.range, cd: 0, air: false, targetsAir: true });
@@ -96,7 +98,9 @@
     if (P.dmt + 1e-9 < def.cost) return "Not enough DMT.";
     if (!canPlaceAt(S, side, def, x, y)) return "You can't place it there.";
     P.dmt -= def.cost;
-    P.hand[slot] = P.queue.shift(); P.queue.push(ci);
+    // a drawn card is spent; only when the stream runs dry do spent cards come round again
+    if (!P.draw || P.queue.length <= 1) P.queue.push(ci);
+    P.hand[slot] = P.queue.shift();
     S.events.push({ t: "play", side, card: def.id, x, y });
     if (def.kind === "spell") cast(S, side, def, x, y);
     else deploy(S, side, def, x, y, phaseOf(S.time).power);

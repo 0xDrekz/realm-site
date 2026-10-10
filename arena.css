@@ -115,6 +115,12 @@ svg{fill:currentColor}
 @keyframes arReady{50%{transform:translateY(-6px)}}
 .ar-card.sel{transform:translateY(-12px);box-shadow:0 0 0 2px #fff,4px 4px 0 2px #000}
 .ar-card.dragging{opacity:.35}
+.ar-card.back{background:linear-gradient(135deg,#3a1a5a,#e3ba5c 50%,#3a1a5a)}
+.ar-card.back .ar-card-in{display:grid;place-items:center;background:repeating-conic-gradient(from 45deg,#1a0a2e 0 25%,#120822 0 50%) 0 0/12px 12px}
+.ar-card.back .ar-card-in b{font-size:2rem;color:var(--gold);text-shadow:3px 3px 0 #000}
+.ar-card.back .ar-card-in::after{display:none}
+.ar-card.jackpot{animation:arJackpot .9s steps(6) 3}
+@keyframes arJackpot{0%,100%{box-shadow:0 0 0 1px #000,3px 3px 0 1px #000}50%{box-shadow:0 0 0 2px #fff1c2,0 0 26px 6px #e3ba5c;transform:translateY(-8px)}}
 .ar-card.epic{background:linear-gradient(135deg,#ff7ae6,#e3ba5c 50%,#c56bff);box-shadow:0 0 0 1px #000,3px 3px 0 1px #000,0 0 14px rgba(255,122,230,.55);animation:arEpic 1.6s steps(8) infinite}
 .ar-card.epic.poor{animation:none;box-shadow:0 0 0 1px #000,3px 3px 0 1px #000}
 .ar-card.epic .ar-card-role{color:#ffd1ff}

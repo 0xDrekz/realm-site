@@ -87,7 +87,7 @@ test("after 3 minutes, more towers wins; level goes to sudden death", () => {
 test("the server replays a finished match and decides it; a match can't be counted twice", async () => {
   const G = require("./game").create();
   const s = await G.start({});
-  assert.equal(s.sides[0].deck.length, 8); assert.ok(s.sides[1].ai);
+  assert.equal(s.sides[0].deck.length, 64); assert.ok(s.sides[0].draw); assert.ok(s.sides[1].ai);
   const S = A.createMatch({ seed: s.seed, sides: s.sides, wild: s.wild }), inputs = [];
   while (!S.over) {
     if (S.tick % 40 === 0) { const P = S.sides[0]; const slot = P.hand.findIndex(ci => P.deck[ci].cost <= P.dmt); if (slot >= 0) { const d = P.deck[P.hand[slot]]; const x = 14.5, y = d.kind === "spell" ? 6.5 : 23; if (!A.place(S, 0, slot, x, y)) inputs.push({ t: S.tick, slot, x, y }); } }
@@ -201,4 +201,15 @@ test("towers come down sooner than before", () => {
   const S = A.createMatch({ seed: 1, sides: [{ deck: deckA() }, { deck: deckB() }] });
   const g = S.ents.find(e => e.tower === "gate"), t = S.ents.find(e => e.tower === "throne");
   assert.equal(g.max, 1000); assert.equal(t.max, 1800);
+});
+
+test("in a draw, a played card is gone for good and a new one comes in", () => {
+  const deck = [...Array(20).keys()].map(i => C.fighter(1 + i * 7));
+  const S = A.createMatch({ seed: 3, sides: [{ deck, draw: true }, { deck: deckB() }] });
+  const P = S.sides[0];
+  assert.deepEqual(P.hand, [0, 1, 2, 3], "dealt in the server's order");
+  P.dmt = 10; const slot = P.hand.findIndex(ci => P.deck[ci].cost <= 5), ci = P.hand[slot];
+  assert.equal(A.place(S, 0, slot, 9, 24), null);
+  assert.equal(P.hand[slot], 4, "the next card in the stream comes in");
+  assert.ok(!P.queue.includes(ci) && !P.hand.includes(ci), "and the played one is spent");
 });
