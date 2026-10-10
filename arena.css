@@ -94,7 +94,7 @@ svg{fill:currentColor}
 .ar-how-n{flex:none;width:28px;height:28px;display:grid;place-items:center;font-weight:700;color:#140a02;background:var(--gold);box-shadow:2px 2px 0 #000}
 
 /* ---------- cards (hand, face-off) ---------- */
-.ar-card{--tc:#9ca3af;position:relative;aspect-ratio:3/4;border:0;padding:0;background:var(--tc);
+.ar-card{--tc:#9ca3af;position:relative;aspect-ratio:5/6;border:0;padding:0;background:var(--tc);
   box-shadow:0 0 0 1px #000,3px 3px 0 1px #000;transition:transform .12s steps(3),filter .2s,opacity .2s;touch-action:none}
 .ar-card-in{position:absolute;inset:2px;overflow:hidden;background:#000}
 .ar-card img,.ar-card .ar-sig{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -138,8 +138,8 @@ svg{fill:currentColor}
 @keyframes arFade{to{opacity:0}}
 
 /* ---------- battle ---------- */
-.ar-battlefield{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;max-width:620px;margin:0 auto;padding-top:env(safe-area-inset-top);user-select:none;-webkit-user-select:none;touch-action:none;background:var(--void)}
-.ar-hud{position:relative;z-index:2;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;padding:4px 8px;background:var(--ink);border-bottom:1px solid var(--line)}
+.ar-battlefield{position:fixed;inset:0;display:grid;grid-template-rows:1fr auto;max-width:620px;margin:0 auto;user-select:none;-webkit-user-select:none;touch-action:none;background:var(--void)}
+.ar-hud{position:absolute;left:0;right:0;top:0;z-index:3;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;padding:calc(4px + env(safe-area-inset-top)) 8px 10px;background:linear-gradient(180deg,rgba(7,4,15,.92) 60%,rgba(7,4,15,0))}
 .ar-plate{display:flex;flex-direction:column;gap:4px;min-width:0;padding:4px 9px}
 .ar-plate b{font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ar-plate.foe{border-left:3px solid var(--foe)}
@@ -169,7 +169,7 @@ svg{fill:currentColor}
 .ar-banner small{display:block;margin-top:2px;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
 .ar-banner.go{animation:arBanner 1.3s steps(13) both}
 @keyframes arBanner{0%{opacity:0;transform:translate(-50%,-8px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}
-.ar-dock{position:relative;z-index:2;padding:10px 8px calc(8px + env(safe-area-inset-bottom));background:var(--ink);border-top:1px solid var(--line-lit);display:flex;flex-direction:column;gap:8px}
+.ar-dock{position:relative;z-index:2;padding:8px 8px calc(6px + env(safe-area-inset-bottom));background:var(--ink);border-top:1px solid var(--line-lit);display:flex;flex-direction:column;gap:7px}
 .ar-hand{display:flex;align-items:flex-end;gap:9px;max-width:460px;width:100%;margin:0 auto}
 .ar-next{display:flex;flex-direction:column;align-items:center;gap:5px;padding-bottom:2px}
 .ar-next i{font-style:normal;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
@@ -178,10 +178,10 @@ svg{fill:currentColor}
 .ar-drop{position:relative;flex:none;width:28px;height:34px;display:grid;place-items:center;margin:-4px 0;filter:drop-shadow(2px 2px 0 #000)}
 .ar-drop svg{position:absolute;inset:0;width:100%;height:100%;color:var(--dmt)}
 .ar-drop b{position:relative;top:4px;font-family:var(--num);font-weight:700;font-size:1.05rem;color:#fff;text-shadow:1px 1px 0 var(--dmt-d)}
-.ar-dmt-bar{position:relative;flex:1;height:18px;background:#000;border:1px solid var(--dmt);box-shadow:3px 3px 0 #000}
+.ar-dmt-bar{position:relative;flex:1;height:15px;background:#000;border:1px solid var(--dmt);box-shadow:3px 3px 0 #000}
 .ar-dmt-bar i{position:absolute;left:0;top:0;bottom:0;width:50%;background:var(--dmt);box-shadow:inset 0 3px 0 #ecbfff,inset 0 -3px 0 #8a2cdf}
 .ar-dmt-ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),#000 calc(10% - 2px) 10%)}
-.ar-quit{position:absolute;top:8px;left:8px;z-index:5;width:30px;height:30px;border:1px solid var(--line);background:rgba(3,1,10,.75);color:var(--dim);font-size:1.1rem;line-height:1}
+.ar-quit{position:absolute;top:calc(56px + env(safe-area-inset-top));left:8px;z-index:5;width:30px;height:30px;border:1px solid var(--line);background:rgba(3,1,10,.75);color:var(--dim);font-size:1.1rem;line-height:1}
 .ar-tip{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--ink);border-bottom:1px solid var(--line-lit);
   font-size:.8rem;line-height:1.3;text-align:center;pointer-events:none;animation:arTip .2s steps(3) both}
 .ar-tip b{color:var(--gold)}

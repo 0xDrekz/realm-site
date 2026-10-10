@@ -63,14 +63,6 @@
     if (!IMG.has(n)) { const i = new Image(); i.decoding = "async"; i.src = "/thumbs/" + n + ".webp"; i.onload = () => { sprites.clear(); }; IMG.set(n, i); }
     const i = IMG.get(n); return i.complete && i.naturalWidth ? i : null;
   }
-  /* the beings themselves, cut out of their cards (cut/), for the battlefield */
-  const CUT = new Map();
-  function cut(n) {
-    if (!n) return null;
-    if (!CUT.has(n)) { const i = new Image(); i.decoding = "async"; i.src = "/cut/" + n + ".webp"; i.onload = () => { figures.clear(); }; CUT.set(n, i); }
-    const i = CUT.get(n); return i.complete && i.naturalWidth ? i : null;
-  }
-  const figures = new Map();
   const SPELL_ICON = {
     strike: '<path d="M58 8 30 52h18L38 92l34-48H54z" fill="#fff6c8" stroke="#ffd65c" stroke-width="3"/>',
     nova: '<circle cx="50" cy="50" r="14" fill="#ffd1ff"/><path d="M50 10v24M50 66v24M10 50h24M66 50h24M22 22l16 16M62 62l16 16M78 22 62 38M38 62 22 78" stroke="#ff7ae6" stroke-width="6" stroke-linecap="round"/>',
@@ -129,7 +121,7 @@
     catch { d = { error: "The realm did not answer. Try again." }; }
     btn.disabled = false; $("[data-battle-label]").textContent = "Battle"; $("[data-battle-sub]").textContent = "vs the realm's guardians";
     if (d.error) { $("[data-lobby-note]").textContent = d.error; show("lobby"); return; }
-    for (const side of d.sides) for (const c of side.deck) { img(c.n); cut(c.n); }
+    for (const side of d.sides) for (const c of side.deck) img(c.n);
     await faceOff(d);
     G = { match: d.match, seed: d.seed, sides: d.sides, S: A.createMatch({ seed: d.seed, sides: d.sides }), inputs: [], acc: 0, last: 0, prev: new Map(),
       fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], gait: new Map(), swing: new Map(), jolt: new Map() };
@@ -155,14 +147,19 @@
   /* ---------- layout ---------- */
   // headroom above the rival's Throne, so its crystal and health bar sit clear of the top bar
   const TOP = 1.9, CROP = 1.6;
+  let OX = 0, OY = TOP, VW = 18, VH = 34;
   const stageEl = $("[data-stage]");
   function layout() {
     const st = $("[data-stage]").getBoundingClientRect();
-    // fill the width; on a short screen, the strip behind your own Throne may fall below the cards
-    ts = Math.max(8, Math.min(st.width / A.W, st.height / (A.H + TOP - CROP)));
+    // the canvas fills the whole stage; the arena is as big as fits (its outer rim may be trimmed),
+    // centred, with open sky painted around it. The top bar floats over the headroom.
+    const hud = $(".ar-hud").getBoundingClientRect().height - 8, HEAD = 1.45;   // room for the rival's tree under the bar
+    ts = Math.max(8, Math.min(st.width / (A.W - .7), (st.height - hud) / (A.H + HEAD - CROP)));
     dpr = Math.min(lowRes ? 1.2 : 2, window.devicePixelRatio || 1);
-    for (const c of [canvas, bg]) { c.style.width = (ts * A.W) + "px"; c.style.height = (ts * (A.H + TOP)) + "px"; c.width = Math.round(ts * A.W * dpr); c.height = Math.round(ts * (A.H + TOP) * dpr); }
-    sprites.clear(); towerArt.clear(); figures.clear();
+    VW = st.width / ts; VH = st.height / ts;
+    OX = (VW - A.W) / 2; OY = hud / ts + HEAD + Math.max(0, (VH - hud / ts - (A.H + HEAD - CROP)) / 2);
+    for (const c of [canvas, bg]) { c.style.width = st.width + "px"; c.style.height = st.height + "px"; c.width = Math.round(st.width * dpr); c.height = Math.round(st.height * dpr); }
+    sprites.clear(); towerArt.clear();
     // the arena itself is drawn once, on its own layer underneath
     bg.getContext("2d").drawImage(drawStatic(), 0, 0);
   }
@@ -176,15 +173,19 @@
   const STONE = [{ h: 222, s: 30, l: 19 }, { h: 335, s: 26, l: 17 }];
   function drawStatic() {
     const c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height;
-    const g = c.getContext("2d"); g.scale(dpr * ts, dpr * ts); g.translate(0, TOP);
+    const g = c.getContext("2d"); g.scale(dpr * ts, dpr * ts); g.translate(OX, OY);
     const W = A.W, H = A.H, R = A.RIVER;
     let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
     // the deep: a nebula under everything
     let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#14040e"); gr.addColorStop(.5, "#0c0620"); gr.addColorStop(1, "#040c1e");
-    g.fillStyle = gr; g.fillRect(0, -TOP, W, H + TOP);
-    const neb = (x, y, rad, col) => { const n = g.createRadialGradient(x, y, 0, x, y, rad); n.addColorStop(0, col); n.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = n; g.fillRect(0, 0, W, H); };
+    const L = -OX, T0 = -OY, FW = VW, FH = VH;
+    g.fillStyle = gr; g.fillRect(L, T0, FW, FH);
+    const neb = (x, y, rad, col) => { const n = g.createRadialGradient(x, y, 0, x, y, rad); n.addColorStop(0, col); n.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = n; g.fillRect(L, T0, FW, FH); };
     neb(9, R, 7, "rgba(197,107,255,.35)"); neb(2, R, 4, "rgba(255,122,230,.18)"); neb(16, R, 4, "rgba(120,140,255,.2)");
-    for (let k = 0; k < 70; k++) { g.fillStyle = `rgba(255,255,255,${.2 + r() * .6})`; const x = r() * W, y = R - 1.4 + r() * 2.8; g.fillRect(x, y, .04 + r() * .05, .04 + r() * .05); }
+    neb(-1, 7, 5, "rgba(255,70,110,.16)"); neb(W + 1, 25, 5, "rgba(70,150,255,.16)"); neb(-1, 26, 4, "rgba(150,90,255,.14)"); neb(W + 1, 6, 4, "rgba(255,110,200,.12)");
+    for (let k = 0; k < 160; k++) { g.fillStyle = `rgba(255,255,255,${.2 + r() * .6})`; const x = L + r() * FW, y = T0 + r() * FH; g.fillRect(x, y, .04 + r() * .05, .04 + r() * .05); }
+    // floating rocks in the open sky either side of the arena
+    if (OX > .4) for (let k = 0; k < 10; k++) { const left = k % 2 === 0, x = left ? -OX * (.25 + r() * .5) : W + OX * (.25 + r() * .5), y = 2 + r() * (H - 4); if (Math.abs(y - R) < 2) continue; skyRock(g, x, y, Math.min(.9, OX * .35) * (.6 + r() * .5), r); }
     for (let side = 0; side < 2; side++) {
       const y0 = side === 0 ? R + 1 : 0.3, y1 = side === 0 ? H - 0.3 : R - 1, T = TEAM[side], St = STONE[side];
       const spots = SPOTS.map(([x, y, s]) => [x, side ? H - y : y, s]);
@@ -239,6 +240,14 @@
     // the great mandala over the river
     mandala(g, 9, R, 5.2, "rgba(227,186,92,.16)");
     return c;
+  }
+  function skyRock(g, x, y, s, r) {
+    const gl = g.createRadialGradient(x, y + s * .3, 0, x, y + s * .3, s * 2); gl.addColorStop(0, "rgba(150,110,255,.18)"); gl.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gl; g.fillRect(x - s * 2, y - s * 2, s * 4, s * 4);
+    g.fillStyle = "#2a2140"; g.strokeStyle = "#0a0514"; g.lineWidth = .05;
+    g.beginPath(); g.moveTo(x - s, y); g.lineTo(x - s * .6, y - s * .3); g.lineTo(x + s * .5, y - s * .35); g.lineTo(x + s, y); g.lineTo(x + s * .3, y + s * .9); g.lineTo(x - s * .2, y + s * .6); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = "#3e3458"; g.beginPath(); g.moveTo(x - s, y); g.lineTo(x - s * .6, y - s * .3); g.lineTo(x + s * .5, y - s * .35); g.lineTo(x + s, y); g.closePath(); g.fill();
+    const cols = ["#7fe8ff", "#ff8ad8", "#b98bff", "#8dff6a"], col = cols[Math.floor(r() * 4)];
+    for (const [ox, h] of [[-.25, .55], [.1, .8], [.35, .45]]) { g.fillStyle = col; g.beginPath(); g.moveTo(x + (ox - .08) * s, y - s * .3); g.lineTo(x + ox * s, y - s * (.3 + h)); g.lineTo(x + (ox + .08) * s, y - s * .3); g.closePath(); g.fill(); }
   }
   function shroom(g, x, y, s, r, T) {
     const cols = ["#ff5fd2", "#5ff0ff", "#ffb347", "#b98bff", "#7dff6a"], col = cols[Math.floor(r() * cols.length)];
@@ -592,7 +601,7 @@
     G.shake = Math.max(0, G.shake - dt * 2.2);
     const sh = REDUCED ? 0 : G.shake * ts * .35;
     layers.style.transform = sh > .2 ? `translate(${((Math.random() - .5) * sh).toFixed(1)}px,${((Math.random() - .5) * sh).toFixed(1)}px)` : "";
-    ctx.scale(dpr * ts, dpr * ts); ctx.translate(0, TOP);
+    ctx.scale(dpr * ts, dpr * ts); ctx.translate(OX, OY);
     drawRiver(S);
     drawZone();
     // rubble where towers stood
@@ -608,22 +617,22 @@
     drawFx(dt);
     drawGhost();
     // the flash of something big
-    if (G.flash > 0) { ctx.fillStyle = `rgba(255,240,220,${G.flash * .5})`; ctx.fillRect(0, -TOP, W, H + TOP); G.flash = Math.max(0, G.flash - dt * 1.6); }
+    if (G.flash > 0) { ctx.fillStyle = `rgba(255,240,220,${G.flash * .5})`; ctx.fillRect(-OX, -OY, VW, VH); G.flash = Math.max(0, G.flash - dt * 1.6); }
   }
   let riverGrad = null, riverKey = "";
   function drawRiver(S) {
     const R = A.RIVER, t = G.river;
     const col = G.phase === "peak" || G.phase === "overtime" ? ["#ff9ad8", "#fff1c2"] : G.phase === "rising" ? ["#e05cff", "#ff7ae6"] : ["#7a3cff", "#c56bff"];
     if (riverKey !== col[0]) { riverKey = col[0]; riverGrad = ctx.createLinearGradient(0, R - 1, 0, R + 1); riverGrad.addColorStop(0, "rgba(10,4,24,.9)"); riverGrad.addColorStop(.5, col[0] + "55"); riverGrad.addColorStop(1, "rgba(10,4,24,.9)"); }
-    ctx.fillStyle = riverGrad; ctx.fillRect(0, R - 1, A.W, 2);
+    ctx.fillStyle = riverGrad; ctx.fillRect(-OX, R - 1, VW, 2);
     const st = streak(col[1]);
     for (let k = 0; k < 14; k++) {
       const y = R - .8 + ((k * 0.37) % 1.6), speed = .8 + (k % 5) * .25, len = 1.2 + (k % 3) * .7;
-      const x = ((t * speed * 2 + k * 3.7) % (A.W + len * 2)) - len;
+      const x = ((t * speed * 2 + k * 3.7) % (VW + len * 2)) - len - OX;
       ctx.drawImage(st, x, y - .06, len, .12 + (k % 3) * .04);
     }
     ctx.strokeStyle = col[1] + "55"; ctx.lineWidth = .18;
-    ctx.beginPath(); ctx.moveTo(0, R - 1); ctx.lineTo(A.W, R - 1); ctx.moveTo(0, R + 1); ctx.lineTo(A.W, R + 1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-OX, R - 1); ctx.lineTo(VW - OX, R - 1); ctx.moveTo(-OX, R + 1); ctx.lineTo(VW - OX, R + 1); ctx.stroke();
     ctx.strokeStyle = col[1] + "cc"; ctx.lineWidth = .05; ctx.stroke();
     const bs = bridge(), fl = .8 + Math.sin(t * 7) * .1 + Math.sin(t * 13) * .06;
     for (const bx of A.BRIDGES) {
@@ -694,22 +703,6 @@
     for (let k = 0; k < 6; k++) { const a = k * 1.1, d = s * (.25 + (k % 3) * .2); ctx.beginPath(); ctx.arc(r.x + Math.cos(a) * d, r.y + Math.sin(a) * d * .5, s * .22, 0, Math.PI * 2); ctx.fill(); }
     if (Math.random() < .05) G.parts.push({ x: r.x + (Math.random() - .5), y: r.y, vx: 0, vy: -.6, life: 1.2, t: 0, col: "rgba(160,150,180,.5)", s: .18, smoke: true });
   }
-  /* a being, cut out of its card, with a thin outline in its team's colour */
-  function figure(n, side, hu) {
-    const im = cut(n); if (!im) return null;
-    const k = ts * dpr, hp = Math.max(10, Math.round(hu * k)), key = n + ":" + side + ":" + hp;
-    if (figures.has(key)) return figures.get(key);
-    const wp = Math.max(4, Math.round(hp * im.naturalWidth / im.naturalHeight)), pad = Math.max(2, Math.round(hp * .035));
-    const sil = document.createElement("canvas"); sil.width = wp; sil.height = hp; const sg = sil.getContext("2d");
-    sg.drawImage(im, 0, 0, wp, hp); sg.globalCompositeOperation = "source-in"; sg.fillStyle = TEAM[side].main; sg.fillRect(0, 0, wp, hp);
-    const c = document.createElement("canvas"); c.width = wp + pad * 2; c.height = hp + pad * 2; const g = c.getContext("2d");
-    const o = Math.max(1, hp * .011);
-    g.globalAlpha = .85; for (let a = 0; a < 8; a++) g.drawImage(sil, pad + Math.cos(a * Math.PI / 4) * o, pad + Math.sin(a * Math.PI / 4) * o); g.globalAlpha = 1;
-    g.drawImage(im, pad, pad, wp, hp);
-    const out = { c, w: c.width / k, h: c.height / k, pad: pad / k };
-    figures.set(key, out); return out;
-  }
-  const figH = e => e.air ? 2.0 : Math.min(2.9, Math.max(2.0, 1.45 + e.r * 1.7));
   function drawUnit(e, alpha) {
     const p = pos(e.id, e.x, e.y, alpha), T = TEAM[e.side], t = G.river, st = e.style;
     const wake0 = st === "descend" || st === "prime" ? 1.3 : 1;
@@ -722,11 +715,10 @@
       const lg = ctx.createLinearGradient(0, p.y - 12, 0, p.y); lg.addColorStop(0, "rgba(255,241,194,0)"); lg.addColorStop(1, "rgba(255,241,194,.55)");
       ctx.fillStyle = lg; ctx.fillRect(p.x - .5 - k * .3, p.y - 12, 1 + k * .6, 12);
     }
-    const fig = figure(e.def.n, e.side, figH(e));
+    const vr = vis(e.r);
     // how it moves: walkers hop and sway, flyers and Entities float, everyone breathes; it faces where it goes
     const gt = G.gait.get(e.id) || { x: p.x, y: p.y, ph: e.id, face: 1, still: 0 };
     const dx = p.x - gt.x, dy = p.y - gt.y, moved = Math.hypot(dx, dy);
-    if (Math.abs(dx) > .003) gt.face = dx > 0 ? 1 : -1;
     gt.ph += moved * 6.5; gt.still = moved > .002 ? 0 : gt.still + 1; gt.x = p.x; gt.y = p.y; G.gait.set(e.id, gt);
     const walking = gt.still < 3 && e.wake <= 0, floats = e.air || e.ethereal || st === "beam";
     let lift = 0, rot = 0, sy = 1;
@@ -739,7 +731,7 @@
     if (sw && t - sw.t < .22) { const tg = G.S.ents.find(q => q.id === sw.to), k = Math.sin((t - sw.t) / .22 * Math.PI); if (tg) { const d = Math.hypot(tg.x - p.x, tg.y - p.y) || 1; lx = (tg.x - p.x) / d * k * .32; ly = (tg.y - p.y) / d * k * .32; } sy *= 1 + k * .06; }
     const jt = G.jolt.get(e.id); if (jt != null && t - jt < .12) lx += (Math.random() - .5) * .14;
     const fx = p.x + lx, fy = p.y + ly - drop;
-    const w = fig ? fig.w * scale : 1.6, h = fig ? fig.h * scale : 1.6;
+    const w = vr * 2 * scale, h = vr * 2 * scale;
     // shadow and the team's ring on the ground
     const sh = Math.max(.35, 1 - lift * .35);
     ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.beginPath(); ctx.ellipse(p.x + lx, p.y + ly, w * .3 * sh, .2 * sh, 0, 0, TAU); ctx.fill();
@@ -750,15 +742,11 @@
     const cy = fy - lift - h * .45;                                                            // the middle of the body
     if (e.ethereal) { a0 *= .75; ctx.globalAlpha = .4 + Math.sin(t * 3 + e.id) * .15; stamp("#c9a8ff", fx, cy, h * .8); }
     ctx.globalAlpha = a0;
-    if (fig) {
-      ctx.save(); ctx.translate(fx, fy - lift); ctx.rotate(rot); ctx.scale(gt.face * scale, sy * scale);
-      ctx.drawImage(fig.c, -fig.w / 2, -fig.h + fig.pad, fig.w, fig.h);
-      ctx.restore();
-    } else {
-      // the picture hasn't arrived yet: the old token stands in
-      const vr = vis(e.r), spr = sprite(e.def, e.side, vr), size = vr * 3 * scale;
-      ctx.drawImage(spr, fx - size / 2, cy - size / 2, size, size);
-    }
+    // the being in its medallion, hopping, floating or breathing
+    const spr = sprite(e.def, e.side, vr), size = vr * 3;
+    ctx.save(); ctx.translate(fx, cy); ctx.rotate(rot); ctx.scale(scale, sy * scale);
+    ctx.drawImage(spr, -size / 2, -size / 2, size, size);
+    ctx.restore();
     ctx.globalAlpha = 1;
     if (e.ethereal) { ctx.strokeStyle = `rgba(214,190,255,${.5 + Math.sin(t * 4 + e.id) * .3})`; ctx.lineWidth = .06; ctx.setLineDash([.2, .15]); ctx.beginPath(); ctx.ellipse(fx, cy, w * .55, h * .58, 0, t % 6.28, t % 6.28 + 6); ctx.stroke(); ctx.setLineDash([]); }
     if (st === "orbit" && e.wake <= 0) for (let k = 0; k < 3; k++) { const a = t * 2.4 + k * 2.094; stamp("#d9ccff", fx + Math.cos(a) * 1.4, cy + Math.sin(a) * .7, .22); }
@@ -913,9 +901,8 @@
       ctx.beginPath(); ctx.arc(a.x, a.y, def.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); return;
     }
     ctx.globalAlpha = ok ? .8 : .45;
-    const fg = figure(def.n, 0, Math.min(2.9, Math.max(2.0, 1.45 + (def.r || .45) * 1.7)));
-    if (fg) ctx.drawImage(fg.c, a.x - fg.w / 2, a.y - fg.h + fg.pad, fg.w, fg.h);
-    else { const vr = vis(def.r || .45), spr = sprite(def, 0, vr), size = vr * 3; ctx.drawImage(spr, a.x - size / 2, a.y - size / 2, size, size); }
+    const vr = vis(def.r || .45), spr = sprite(def, 0, vr), size = vr * 3;
+    ctx.drawImage(spr, a.x - size / 2, a.y - size / 2, size, size);
     ctx.globalAlpha = 1;
     if (def.range > 1.6) { ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.setLineDash([.25, .2]); ctx.lineWidth = .05; ctx.beginPath(); ctx.arc(a.x, a.y, def.range + .5, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
     if (!ok) { ctx.strokeStyle = "#ff5470"; ctx.lineWidth = .12; ctx.beginPath(); ctx.moveTo(a.x - .5, a.y - .5); ctx.lineTo(a.x + .5, a.y + .5); ctx.moveTo(a.x + .5, a.y - .5); ctx.lineTo(a.x - .5, a.y + .5); ctx.stroke(); }
@@ -967,7 +954,8 @@
   /* ---------- placing: drag a card, or tap it then tap the field ---------- */
   function toArena(clientX, clientY) {
     const r = canvas.getBoundingClientRect();
-    const y = (clientY - r.top) / ts - TOP; return { x: (clientX - r.left) / ts, y, inside: clientX >= r.left && clientX <= r.right && y >= 0 && clientY <= Math.min(r.bottom, stageEl.getBoundingClientRect().bottom) };
+    const x = (clientX - r.left) / ts - OX, y = (clientY - r.top) / ts - OY;
+    return { x, y, inside: x >= 0 && x <= A.W && y >= 0 && y <= A.H && clientY <= r.bottom };
   }
   function tryPlace(slot, x, y) {
     const S = G.S, P = S.sides[0], def = P.deck[P.hand[slot]];
