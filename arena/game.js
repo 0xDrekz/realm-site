@@ -50,8 +50,10 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const rivalDeck = [...rivalNs.map(n => C.fighter(n, 0.88)), ...spells().map(id => ({ ...C.SPELLS[id] }))];
     const seed = crypto.randomInt(2 ** 32), id = crypto.randomBytes(16).toString("hex");
     const sides = [{ deck, ai: false }, { deck: rivalDeck, ai: true, level: 1 }];
-    matches.set(id, { id, seed, sides, wallet, at: Date.now(), done: false, rival: RIVALS[crypto.randomInt(RIVALS.length)] });
-    return { match: id, seed, sides, rival: matches.get(id).rival, own: mine, boost: boost.level ? boost : null };
+    // the wild spirits the arena sends to both sides in its Realm Surges, growing as the match goes on
+    const wild = ["Uncommon", "Rare", "Epic", "Rare", "Epic", "Legendary", "Mythic"].map(t => C.fighter(pick(BT[t], []), 0.9));
+    matches.set(id, { id, seed, sides, wild, wallet, at: Date.now(), done: false, rival: RIVALS[crypto.randomInt(RIVALS.length)] });
+    return { match: id, seed, sides, wild, rival: matches.get(id).rival, own: mine, boost: boost.level ? boost : null };
   }
 
   /* the match is over on the page: replay it here from the placements and decide */
@@ -67,7 +69,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       clean.push({ t, slot, x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 });
     }
     clean.sort((a, b) => a.t - b.t);
-    const r = A.replay({ seed: m.seed, sides: m.sides, inputs: clean });
+    const r = A.replay({ seed: m.seed, sides: m.sides, wild: m.wild, inputs: clean });
     if (r.error) { m.done = true; return { error: r.error }; }
     const S = r.S;
     // it takes real time to play: a match can't be handed in faster than it could be played

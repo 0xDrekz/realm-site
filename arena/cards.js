@@ -31,19 +31,26 @@ const ROLES = {
 const STYLES = {
   gas:      { label: "Spore Gas",       text: "Leaves a toxic cloud that keeps hurting everything inside it.", tax: 0.82 },
   chain:    { label: "Chain Lightning", text: "Its lightning leaps to two more enemies.",                     tax: 0.9 },
-  beam:     { label: "Tractor Beam",    text: "Flies. Its beam burns hotter the longer it holds a target.",   tax: 0.5 },
+  beam:     { label: "Tractor Beam",    text: "Flies. Its beam burns hotter the longer it holds a target.",   tax: 0.44 },
   burst:    { label: "Star Burst",      text: "Lands with a blast; every hit explodes.",                       tax: 0.95 },
   roots:    { label: "Roots",           text: "Pins its target in place, and slowly mends itself.",            tax: 0.88 },
-  orbit:    { label: "Orbit",           text: "Moons circle it and smash every enemy close by, as well as its own attack.",               tax: 0.9 },
-  cloak:    { label: "Phantom",         text: "Can't be seen until it strikes, and its first strike lands hard.", tax: 0.64 },
+  orbit:    { label: "Orbit",           text: "Moons circle it and smash every enemy close by, as well as its own attack.",               tax: 0.98 },
+  cloak:    { label: "Phantom",         text: "Can't be seen until it strikes, and its first strike lands hard.", tax: 0.7 },
   frost:    { label: "Frost",           text: "Its hits slow enemies to a crawl.",                             tax: 0.98 },
-  acid:     { label: "Acid",            text: "Its hits poison.",                                              tax: 0.88 },
-  drain:    { label: "Drain",           text: "Heals itself with every hit.",                                  tax: 0.98 },
-  fire:     { label: "Fire",            text: "Its hits set enemies burning.",                                 tax: 0.88 },
+  acid:     { label: "Acid",            text: "Its hits poison.",                                              tax: 0.84 },
+  drain:    { label: "Drain",           text: "Heals itself with every hit.",                                  tax: 1.02 },
+  fire:     { label: "Fire",            text: "Its hits set enemies burning.",                                 tax: 1.05 },
   first:    { label: "Ambush",          text: "Its first hit lands two and a half times as hard.",             tax: 1.05 },
   descend:  { label: "Descend",         text: "A God. Falls from the sky striking lightning at three enemies, then keeps calling bolts down.", tax: 0.9 },
   ethereal: { label: "Ethereal",        text: "An Entity. Marches on towers, and only towers can hurt it.",    tax: 1 },
   prime:    { label: "Prime",           text: "The Source. Arrives in a cataclysm of light; allies near it hit harder.", tax: 0.85 },
+  // from its sacred geometry, for the beings no other trait claims
+  wing:     { label: "Sky Diver",       text: "Flies, and dives on its prey from above.",                      tax: 0.76 },
+  bomber:   { label: "Sky Bomber",      text: "Flies straight for towers and drops bombs on them. Explodes when it falls.", tax: 1 },
+  charge:   { label: "Charge",          text: "After a short run it charges, and its next hit lands double.",   tax: 0.74 },
+  quake:    { label: "Quake",           text: "Slams the ground: hurts and stuns everything around its target.", tax: 0.95 },
+  summon:   { label: "Summoner",        text: "Calls two spirit wisps to fight for it every few seconds.",      tax: 0.72 },
+  split:    { label: "Splitter",        text: "When it falls, it splits into two smaller copies.",              tax: 0.75 },
 };
 
 let MAP = null, STATS = null;
@@ -59,8 +66,10 @@ function styleOf(tier, n, traits) {
   if (tier === "God") return "descend";
   if (tier === "Entity") return "ethereal";
   if (on(traits.Mushrooms)) return "gas";
-  if (on(traits.Lightning)) return "chain";
   if (on(traits.UFOs)) return "beam";
+  const geo = { Rays: "wing", Metatron: "bomber", Gatefold: "charge", Lattice: "quake", Spiral: "summon", Weird: "split" }[traits.Geometry];
+  if (geo) return geo;
+  if (on(traits.Lightning)) return "chain";
   if (on(traits.Supernova)) return "burst";
   if (on(traits.Trees)) return "roots";
   if (on(traits.Planets)) return "orbit";
@@ -89,10 +98,16 @@ function fighter(n, boost = 1) {
   if (style === "beam") { range = Math.max(range, 3); hit = 0.5; dmg *= 0.5; }      // a steady beam: quick, small hits that grow
   if (style === "descend") range = Math.max(range, 4.5);
   if (style === "ethereal") { hp *= 0.55; dmg *= 1.25; speed = 0.9; }            // only towers can hurt it, so it carries less
+  let air = style === "beam", targetsAirX = false, buildings = R.buildings;
+  if (style === "wing") { const B = ROLES.striker; hp = B.hp * cost * eff * 0.85; dmg = B.dmg * cost * eff * ST.tax; range = 0.8; speed = 1.55; hit = 0.95; air = true; targetsAirX = true; buildings = false; }
+  if (style === "bomber") { const B = ROLES.tank; hp = B.hp * cost * eff * 0.6; dmg = B.dmg * cost * eff * 1.9; range = 0.6; speed = 0.8; hit = 2; air = true; buildings = true; }
+  // the bruisers fight up close whatever their essence: built from the striker, sturdier
+  if (style === "quake") { const B = ROLES.striker; hp = B.hp * cost * eff * 1.7; dmg = B.dmg * cost * eff * 0.75 * ST.tax; range = 0.9; hit = 1.4; speed = 0.95; buildings = false; }
+  if (style === "charge") { const B = ROLES.striker; hp = B.hp * cost * eff * 1.05; dmg = B.dmg * cost * eff * ST.tax; range = 0.9; hit = 1.15; speed = 1.15; buildings = false; }
   const card = {
     id: "b" + n, n, kind: "unit", name: being || tier + " #" + n, tier, cost, role, essence: top, style,
     hp: Math.round(hp), dmg: Math.round(dmg), hit: +hit.toFixed(2), range, speed: +speed.toFixed(2), r: R.r + (cost >= 7 ? 0.1 : 0),
-    buildings: R.buildings, targetsAir: R.targetsAir || style === "chain" || style === "descend" || style === "beam", air: style === "beam",
+    buildings, targetsAir: !buildings && (R.targetsAir || targetsAirX || style === "chain" || style === "descend" || style === "beam"), air,
     splash: role === "caster" ? R.splash : 0,
     gasR: style === "gas" ? +(1.4 + cost * 0.12).toFixed(2) : 0,
     heal: role === "support" ? Math.round(11 * cost * eff) : 0,

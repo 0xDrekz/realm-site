@@ -88,7 +88,7 @@ test("the server replays a finished match and decides it; a match can't be count
   const G = require("./game").create();
   const s = await G.start({});
   assert.equal(s.sides[0].deck.length, 8); assert.ok(s.sides[1].ai);
-  const S = A.createMatch({ seed: s.seed, sides: s.sides }), inputs = [];
+  const S = A.createMatch({ seed: s.seed, sides: s.sides, wild: s.wild }), inputs = [];
   while (!S.over) {
     if (S.tick % 40 === 0) { const P = S.sides[0]; const slot = P.hand.findIndex(ci => P.deck[ci].cost <= P.dmt); if (slot >= 0) { const d = P.deck[P.hand[slot]]; const x = 14.5, y = d.kind === "spell" ? 6.5 : 23; if (!A.place(S, 0, slot, x, y)) inputs.push({ t: S.tick, slot, x, y }); } }
     A.step(S);
@@ -96,7 +96,7 @@ test("the server replays a finished match and decides it; a match can't be count
   const early = G.finish({ match: s.match, inputs });
   assert.match(early.error, /faster than it could be played/, "an instant hand-in is refused");
   const s2 = await G.start({});
-  const S2 = A.createMatch({ seed: s2.seed, sides: s2.sides });
+  const S2 = A.createMatch({ seed: s2.seed, sides: s2.sides, wild: s2.wild });
   while (!S2.over) A.step(S2);
   // pretend the match took as long as it really lasts
   const realNow = Date.now; Date.now = () => realNow() + S2.time * 1000;
@@ -113,7 +113,7 @@ const drop = (S, side, n, x, y) => { const d = C.fighter(n); A.place; return S.e
 test("an Entity can only be hurt by towers: units and spells pass through it", () => {
   const S = blank();
   const ent = drop(S, 1, 29, 9, 20);
-  const foe = drop(S, 0, 4, 9, 20.8);                 // a striker right beside it
+  const foe = drop(S, 0, 3, 9, 20.8);                 // a striker right beside it
   const hp = ent.hp;
   for (let k = 0; k < 40; k++) A.step(S);
   assert.equal(ent.hp, hp, "the striker can't touch it");
@@ -129,7 +129,7 @@ test("an Entity can only be hurt by towers: units and spells pass through it", (
 test("Spore Gas leaves a cloud that keeps hurting enemies standing in it", () => {
   const S = blank();
   const g = drop(S, 0, [...Array(1100).keys()].map(i => i + 1).find(n => C.fighter(n).style === "gas" && C.fighter(n).range < 1.6 && !C.fighter(n).buildings), 9, 22);
-  const victim = drop(S, 1, 4, 9, 22.9); victim.hp = victim.max = 5000; victim.speed = 0; victim.dmg = 0;
+  const victim = drop(S, 1, 3, 9, 22.9); victim.hp = victim.max = 5000; victim.speed = 0; victim.dmg = 0;
   for (let k = 0; k < 30 && !S.zones.length; k++) A.step(S);
   assert.ok(S.zones.length, "a cloud appears");
   const z = S.zones[0]; g.hp = 0; A.step(S);                 // the caster gone, the cloud lingers
@@ -141,7 +141,7 @@ test("Spore Gas leaves a cloud that keeps hurting enemies standing in it", () =>
 
 test("a God descends with lightning on the enemies around it", () => {
   const S = blank();
-  const foes = [drop(S, 1, 4, 8, 21), drop(S, 1, 31, 10, 21), drop(S, 1, 8, 9, 23)];
+  const foes = [drop(S, 1, 3, 8, 21), drop(S, 1, 31, 10, 21), drop(S, 1, 8, 9, 23)];
   foes.forEach(f => { f.speed = 0; f.dmg = 0; });
   const hps = foes.map(f => f.hp);
   S.sides[0].dmt = 10; S.sides[0].deck[S.sides[0].hand[0]] = C.fighter(842);
@@ -151,7 +151,7 @@ test("a God descends with lightning on the enemies around it", () => {
 
 test("a Supernova flies from your Throne and lands a moment later", () => {
   const S = blank();
-  const foe = drop(S, 1, 4, 9, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000;
+  const foe = drop(S, 1, 3, 9, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000;
   const P = S.sides[0]; P.dmt = 10; P.hand[0] = P.deck.findIndex(c => c.id === "nova");
   assert.equal(A.place(S, 0, 0, 9, 8), null);
   assert.equal(foe.hp, 5000, "not hit yet: it's in the air");
@@ -171,7 +171,7 @@ test("Meteor Shower drops six meteors, one after another", () => {
 });
 test("a Black Hole drags enemies in, then implodes", () => {
   const S = blank();
-  const foe = drop(S, 1, 4, 11, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000; foe.style = null;
+  const foe = drop(S, 1, 3, 11, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000; foe.style = null;
   const d0 = Math.hypot(foe.x - 9, foe.y - 8);
   assert.equal(cast(S, "hole", 9, 8), null);
   for (let k = 0; k < 20; k++) A.step(S);
@@ -181,10 +181,24 @@ test("a Black Hole drags enemies in, then implodes", () => {
 });
 test("the Mothership arrives, then burns what's under it", () => {
   const S = blank();
-  const foe = drop(S, 1, 4, 9, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000; foe.style = null;   // no self-mending
+  const foe = drop(S, 1, 3, 9, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000; foe.style = null;   // no self-mending
   assert.equal(cast(S, "mother", 9, 8), null);
   for (let k = 0; k < 12; k++) A.step(S);
   assert.equal(foe.hp, 5000, "still arriving");
   for (let k = 0; k < 70; k++) A.step(S);
   assert.ok(5000 - foe.hp > 700, "the beam burned it"); assert.equal(S.ships.length, 0);
+});
+
+test("a Realm Surge sends the same wild spirit to both sides, mirrored", () => {
+  const wild = [3, 31, 14, 57, 80, 63, 8].map(n => C.fighter(n, 0.9));
+  const S = A.createMatch({ seed: 21, sides: [{ deck: deckA() }, { deck: deckB() }], wild });
+  run(S, 25 * A.TICK);
+  const w = S.ents.filter(e => e.wild);
+  assert.equal(w.length, 2); assert.notEqual(w[0].side, w[1].side); assert.equal(w[0].def.n, w[1].def.n);
+  assert.ok(Math.abs(w[0].x - w[1].x) < 1e-9 && Math.abs((w[0].y + w[1].y) - A.H) < 1e-9, "mirrored across the river");
+});
+test("towers come down sooner than before", () => {
+  const S = A.createMatch({ seed: 1, sides: [{ deck: deckA() }, { deck: deckB() }] });
+  const g = S.ents.find(e => e.tower === "gate"), t = S.ents.find(e => e.tower === "throne");
+  assert.equal(g.max, 1000); assert.equal(t.max, 1800);
 });

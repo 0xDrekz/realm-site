@@ -130,8 +130,9 @@
     btn.disabled = false; $("[data-battle-label]").textContent = "Battle"; $("[data-battle-sub]").textContent = "vs the realm's guardians";
     if (d.error) { $("[data-lobby-note]").textContent = d.error; show("lobby"); return; }
     for (const side of d.sides) for (const c of side.deck) img(c.n);
+    for (const c of d.wild || []) img(c.n);
     await faceOff(d);
-    G = { match: d.match, seed: d.seed, sides: d.sides, S: A.createMatch({ seed: d.seed, sides: d.sides }), inputs: [], acc: 0, last: 0, prev: new Map(),
+    G = { match: d.match, seed: d.seed, sides: d.sides, wild: d.wild, S: A.createMatch({ seed: d.seed, sides: d.sides, wild: d.wild }), inputs: [], acc: 0, last: 0, prev: new Map(),
       fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
     $("[data-rname]").textContent = d.rival;
     show("battle"); layout(); paintHand(true); paintHud(); paintCrowns();
@@ -388,7 +389,24 @@
   function events(evs) {
     for (const e of evs) {
       switch (e.t) {
-        case "spawn": G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.big ? 3.5 : 1.6, life: e.big ? .8 : .45, t: 0, col: e.side ? "#ff7a90" : "#7fd8ff" }); if (e.big) { G.shake = Math.max(G.shake, .5); sfx("spawnBig"); burst(e.x, e.y, 30, "#fff1c2", 5); } break;
+        case "spawn":
+          G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.big ? 3.5 : 1.6, life: e.big ? .8 : .45, t: 0, col: e.side ? "#ff7a90" : "#7fd8ff" });
+          G.fx.push({ k: "beamin", x: e.x, y: e.y, life: .45, t: 0, col: e.side ? "#ff9aac" : "#9fe0ff" });
+          if (e.wild) G.fx.push({ k: "portal", x: e.x, y: e.y, life: 1.4, t: 0 });
+          if (e.big) { G.shake = Math.max(G.shake, .5); sfx("spawnBig"); burst(e.x, e.y, 30, "#fff1c2", 5); }
+          break;
+        case "charge": sfx("whoosh"); break;
+        case "slam": G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1.6, life: .4, t: 0, col: "#ffd27a", fill: true }); burst(e.x, e.y - .6, 16, "#ffd27a", 3.5); G.shake = Math.max(G.shake, .45); sfx("blast"); break;
+        case "quake": G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + .5, life: .5, t: 0, col: "#e8c08a" }, { k: "ring", x: e.x, y: e.y, r: e.r, life: .35, t: 0, col: "#ffefc8", fill: true }); G.scorch.push({ x: e.x, y: e.y, r: 1.4, t: 0, life: 4, crack: true }); burst(e.x, e.y, 14, "#9a8060", 2.5); G.shake = Math.max(G.shake, .5); sfx("blast"); buzz(15); break;
+        case "bomb": { const b = G.S.ents.find(q => q.id === e.id); G.fx.push({ k: "bombfall", x0: b ? b.x : e.x, y0: (b ? b.y : e.y) - 1.8, x: e.x, y: e.y, life: .35, t: 0 }); break; }
+        case "summon": G.fx.push({ k: "circle", x: e.x, y: e.y, life: .9, t: 0 }); sfx("heal"); break;
+        case "split": burst(e.x, e.y - .6, 26, "#e6d0ff", 3.5); G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1.4, life: .4, t: 0, col: "#e6d0ff", fill: true }); break;
+        case "surge": {
+          const T = { spirits: ["Realm Surge", "Wild spirits join both sides"], titan: ["Realm Surge", "A titan rises for both sides"], meteors: ["Realm Surge", "Meteor storm!"], bloom: ["Realm Surge", "+3 DMT for everyone"] }[e.kind] || ["Realm Surge", ""];
+          banner(T[0], T[1]); sfx("phase"); buzz([20, 30, 20]);
+          if (e.kind === "bloom") { for (let i = 0; i < 60; i++) G.parts.push({ x: Math.random() * A.W, y: Math.random() * A.H, vx: 0, vy: -.8 - Math.random(), life: 1.2 + Math.random(), t: 0, col: Math.random() < .5 ? "#ff7ae6" : "#c56bff", s: .07 }); G.flash = .25; }
+          break;
+        }
         case "swing": G.swing.set(e.id, { t: G.river, to: e.to }); break;
         case "play": {
           sfx("place"); if (e.side === 0) buzz(10);
@@ -426,7 +444,7 @@
             G.rubble = G.rubble || []; G.rubble.push({ x: e.x, y: e.y, big: e.tower === "throne", side: e.side });
             sfx("tower"); buzz(e.side === 0 ? [80, 40, 80] : [40]);
             banner(e.side === 1 ? "Tower down!" : "Tower lost", e.tower === "throne" ? "The Throne falls" : "", e.side === 0);
-          } else { burst(e.x, e.y - .9, 18, e.side ? "#ff9aac" : "#9fe0ff", 3); G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1.1, life: .35, t: 0, col: e.side ? "#ff9aac" : "#9fe0ff" }); sfx("die"); }
+          } else { burst(e.x, e.y - .9, 18, e.side ? "#ff9aac" : "#9fe0ff", 3); G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1.1, life: .35, t: 0, col: e.side ? "#ff9aac" : "#9fe0ff" }, { k: "soul", x: e.x, y: e.y - .9, life: .9, t: 0, col: e.side ? "#ffb3c0" : "#b8e6ff" }); sfx("die"); }
           break;
         case "phase": {
           const P = { rising: ["Rising", "DMT ×1.5 · units +15%"], peak: ["Peak", "DMT ×2 · units +30%"], overtime: ["Sudden death", "Next tower wins"] }[e.name];
@@ -451,6 +469,10 @@
       G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + .6, life: .5, t: 0, col: "#ffb347", fill: true });
       burst(e.x, e.y, 22, "#ffb347", 3.2); burst(e.x, e.y, 10, "#4a3428", 2.4); G.scorch.push({ x: e.x, y: e.y, r: 1.3, t: 0, life: 7 });
       G.shake = Math.max(G.shake, .55); sfx("blast"); buzz(20); return;
+    }
+    if (e.fx === "bomb") {
+      G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + .5, life: .45, t: 0, col: "#ff9a3c", fill: true });
+      burst(e.x, e.y, 26, "#ffb347", 4); burst(e.x, e.y, 8, "#3a3030", 2.5); G.scorch.push({ x: e.x, y: e.y, r: 1.2, t: 0, life: 6 }); G.shake = Math.max(G.shake, .5); sfx("blast"); return;
     }
     if (e.fx === "hole") {
       G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r * 1.9, life: .7, t: 0, col: "#ffffff" }, { k: "ring", x: e.x, y: e.y, r: e.r * 1.3, life: .5, t: 0, col: "#c48bff", fill: true });
@@ -769,11 +791,26 @@
     const cy = fy - lift - h * .45;                                                            // the middle of the body
     if (e.ethereal) { a0 *= .75; ctx.globalAlpha = .4 + Math.sin(t * 3 + e.id) * .15; stamp("#c9a8ff", fx, cy, h * .8); }
     ctx.globalAlpha = a0;
-    // the being in its medallion, hopping, floating or breathing
-    const spr = sprite(e.def, e.side, vr), size = vr * 3;
-    ctx.save(); ctx.translate(fx, cy); ctx.rotate(rot); ctx.scale(scale, sy * scale);
-    ctx.drawImage(spr, -size / 2, -size / 2, size, size);
-    ctx.restore();
+    // trails: a charger kicks up dust and speed lines, a flyer leaves a streak of light
+    if (e.charging) { ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = "rgba(255,220,150,.6)"; ctx.lineWidth = .06; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(fx + i * .3, cy + .2); ctx.lineTo(fx + i * .3 - (gt.x - (gt.px ?? gt.x)) * 30, cy + .2 - (gt.y - (gt.py ?? gt.y)) * 30); ctx.stroke(); } ctx.globalCompositeOperation = "source-over"; if (Math.random() < .5) G.parts.push({ x: p.x, y: p.y, vx: (Math.random() - .5) * .6, vy: -.3, life: .5, t: 0, col: "rgba(160,140,120,.5)", s: .1, smoke: true }); }
+    if (e.air && e.def.id !== "wisp" && Math.random() < .35) G.parts.push({ x: fx + (Math.random() - .5) * .4, y: cy + .3, vx: 0, vy: .25, life: .5, t: 0, col: e.style === "bomber" ? "rgba(200,190,180,.4)" : T.main, s: .06, smoke: e.style === "bomber" });
+    gt.px = gt.x; gt.py = gt.y;
+    if (e.def.id === "wisp") {
+      // a wisp: a little spirit of light with a flickering heart
+      ctx.globalCompositeOperation = "lighter"; stamp(T.main, fx, cy - .1, .7 + Math.sin(t * 9 + e.id) * .08); stamp("#ffffff", fx, cy - .1, .22); ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "#0a0514"; ctx.fillRect(fx - .1, cy - .16, .05, .07); ctx.fillRect(fx + .05, cy - .16, .05, .07);
+      if (Math.random() < .3) G.parts.push({ x: fx, y: cy, vx: (Math.random() - .5) * .4, vy: .3, life: .4, t: 0, col: T.main, s: .05 });
+    } else {
+      // the being in its medallion, hopping, floating or breathing
+      const spr = sprite(e.def, e.side, vr), size = vr * 3;
+      ctx.save(); ctx.translate(fx, cy); ctx.rotate(rot); ctx.scale(scale, sy * scale);
+      ctx.drawImage(spr, -size / 2, -size / 2, size, size);
+      ctx.restore();
+      // a bomber carries its bomb slung beneath
+      if (e.style === "bomber") { ctx.strokeStyle = "#8a8ea8"; ctx.lineWidth = .03; ctx.beginPath(); ctx.moveTo(fx, cy + vr * .9); ctx.lineTo(fx, cy + vr * 1.25); ctx.stroke(); ctx.fillStyle = "#1c1a24"; ctx.beginPath(); ctx.arc(fx, cy + vr * 1.4, .17, 0, TAU); ctx.fill(); stamp("#ffb347", fx + .08, cy + vr * 1.22, .14 + Math.random() * .05); }
+      // a summoner glows with green motes; a splitter shimmers at its edges
+      if (e.style === "summon" && Math.random() < .2) G.parts.push({ x: fx + (Math.random() - .5) * vr * 2, y: cy + vr * .6, vx: 0, vy: -.6, life: .7, t: 0, col: "#9dffcf", s: .05 });
+    }
     ctx.globalAlpha = 1;
     if (e.ethereal) { ctx.strokeStyle = `rgba(214,190,255,${.5 + Math.sin(t * 4 + e.id) * .3})`; ctx.lineWidth = .06; ctx.setLineDash([.2, .15]); ctx.beginPath(); ctx.ellipse(fx, cy, w * .55, h * .58, 0, t % 6.28, t % 6.28 + 6); ctx.stroke(); ctx.setLineDash([]); }
     if (st === "orbit" && e.wake <= 0) for (let k = 0; k < 3; k++) { const a = t * 2.4 + k * 2.094; stamp("#d9ccff", fx + Math.cos(a) * 1.4, cy + Math.sin(a) * .7, .22); }
@@ -795,7 +832,11 @@
   function drawScorch(dt) {
     if (!G.scorch.length) return;
     if (!scorchSpr) { const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(12,6,4,.85)"); gr.addColorStop(.55, "rgba(30,14,8,.55)"); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 14; i++) { g.fillStyle = `rgba(255,${100 + Math.random() * 100 | 0},40,.8)`; g.fillRect(16 + Math.random() * 32, 16 + Math.random() * 32, 2, 2); } scorchSpr = c; }
-    for (const sc of G.scorch) { sc.t += dt; ctx.globalAlpha = Math.max(0, 1 - sc.t / sc.life) * .9; ctx.drawImage(scorchSpr, sc.x - sc.r, sc.y - sc.r * .6, sc.r * 2, sc.r * 1.2); }
+    for (const sc of G.scorch) {
+      sc.t += dt; ctx.globalAlpha = Math.max(0, 1 - sc.t / sc.life) * .9;
+      if (sc.crack) { ctx.strokeStyle = "#140c08"; ctx.lineWidth = .07; for (let i = 0; i < 7; i++) { const a = i * TAU / 7 + sc.x; ctx.beginPath(); ctx.moveTo(sc.x, sc.y); ctx.lineTo(sc.x + Math.cos(a) * sc.r * .6, sc.y + Math.sin(a) * sc.r * .35); ctx.lineTo(sc.x + Math.cos(a + .3) * sc.r, sc.y + Math.sin(a + .3) * sc.r * .55); ctx.stroke(); } }
+      else ctx.drawImage(scorchSpr, sc.x - sc.r, sc.y - sc.r * .6, sc.r * 2, sc.r * 1.2);
+    }
     ctx.globalAlpha = 1; G.scorch = G.scorch.filter(sc => sc.t < sc.life);
   }
   /* a black hole: the arena dims, light spirals in, and an event horizon glows */
@@ -953,6 +994,8 @@
     G.flies = G.flies.filter(f => f.t < f.dur);
   }
   function drawFx(dt) {
+    // light adds up: glows, rings and sparks blend additively, so overlapping magic blazes
+    ctx.globalCompositeOperation = "lighter";
     drawFlies(dt);
     for (const f of G.fx) {
       f.t += dt; const k = f.t / f.life;
@@ -972,6 +1015,34 @@
         }
         ctx.globalAlpha = 1;
       }
+      if (f.k === "beamin") {
+        ctx.globalAlpha = Math.max(0, 1 - k) * .7; const w = .9 * (1 - k * .5);
+        const lg = ctx.createLinearGradient(0, f.y - 7, 0, f.y); lg.addColorStop(0, "rgba(255,255,255,0)"); lg.addColorStop(1, f.col);
+        ctx.fillStyle = lg; ctx.fillRect(f.x - w / 2, f.y - 7, w, 7); ctx.globalAlpha = 1;
+      }
+      if (f.k === "soul") { ctx.globalAlpha = Math.max(0, 1 - k) * .9; stamp(f.col, f.x + Math.sin(k * 9) * .15, f.y - k * 1.6, .45 * (1 - k * .4)); stamp("#ffffff", f.x + Math.sin(k * 9) * .15, f.y - k * 1.6, .15); ctx.globalAlpha = 1; }
+      if (f.k === "portal") {
+        // a rift tears open and the wild spirit steps through
+        const a = Math.sin(Math.min(1, k * 1.4) * Math.PI), t2 = G.river;
+        ctx.globalAlpha = a; stamp("#c56bff", f.x, f.y - .8, 2.2); stamp("#ffd27a", f.x, f.y - .8, 1.0);
+        for (let i = 0; i < 4; i++) { ctx.strokeStyle = i % 2 ? "#ffd27a" : "#e6d0ff"; ctx.lineWidth = .08; ctx.beginPath(); ctx.ellipse(f.x, f.y - .8, (1.4 - i * .25) * a, (2 - i * .35) * a, 0, t2 * (i % 2 ? -3 : 3) + i, t2 * (i % 2 ? -3 : 3) + i + 4.5); ctx.stroke(); }
+        if (Math.random() < .25) { const a1 = Math.random() * TAU, a2 = a1 + 1 + Math.random(); G.fx.push({ k: "chain", pts: [{ x: f.x + Math.cos(a1) * 1.2, y: f.y - .8 + Math.sin(a1) * 1.6 }, { x: f.x + Math.cos(a2) * .5, y: f.y - .8 + Math.sin(a2) * .7 }], life: .15, t: 0, seed: Math.random() * 1000 }); }
+        ctx.globalAlpha = 1;
+      }
+      if (f.k === "circle") {
+        // the summoner's circle: a rotating ring of runes
+        ctx.globalAlpha = Math.max(0, 1 - k); ctx.strokeStyle = "#9dffcf"; ctx.lineWidth = .06;
+        ctx.save(); ctx.translate(f.x, f.y); ctx.scale(1, .5); ctx.rotate(G.river * 2);
+        ctx.beginPath(); ctx.arc(0, 0, 1.4, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, 1.0, 0, TAU); ctx.stroke();
+        for (let i = 0; i < 6; i++) { const a = i * TAU / 6; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 1.0, Math.sin(a) * 1.0); ctx.lineTo(Math.cos(a + 2.1) * 1.0, Math.sin(a + 2.1) * 1.0); ctx.stroke(); }
+        ctx.restore(); stamp("#9dffcf", f.x, f.y, 1.2 * (1 - k)); ctx.globalAlpha = 1;
+      }
+      if (f.k === "bombfall") {
+        const bx = lerp(f.x0, f.x, k), by = lerp(f.y0, f.y, k * k);
+        ctx.fillStyle = "#1c1a24"; ctx.beginPath(); ctx.arc(bx, by, .2, 0, TAU); ctx.fill(); ctx.strokeStyle = "#8a8ea8"; ctx.lineWidth = .04; ctx.stroke();
+        stamp("#ffb347", bx + .1, by - .22, .18);
+        if (k > .95 && !f.boom) { f.boom = true; blastFx({ fx: "bomb", x: f.x, y: f.y, r: 1 }); }
+      }
       if (f.k === "pillar") {
         ctx.globalAlpha = Math.max(0, 1 - k);
         const w = 1.4 * (1 - k * .5), lg = ctx.createLinearGradient(0, f.y - 14, 0, f.y); lg.addColorStop(0, "rgba(255,241,194,0)"); lg.addColorStop(1, "rgba(255,255,255,.9)");
@@ -987,13 +1058,15 @@
       }
     }
     G.fx = G.fx.filter(f => f.t < f.life);
+    ctx.globalCompositeOperation = "source-over";
     for (const p of G.parts) {
       p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .92; p.vy *= .92;
       const k = 1 - p.t / p.life; if (k <= 0) continue;
+      ctx.globalCompositeOperation = p.smoke ? "source-over" : "lighter";
       ctx.globalAlpha = k; ctx.fillStyle = p.col;
       const ps = p.smoke ? p.s * (2 - k) : p.s * k + .02; ctx.fillRect(p.x - ps, p.y - ps, ps * 2, ps * 2);
     }
-    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
     G.parts = G.parts.filter(p => p.t < p.life);
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const n of G.nums) {

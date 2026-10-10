@@ -56,13 +56,13 @@
   const TOWERS = [
     { kind: "gate", lane: 0, x: 3.5, y: 25.5 }, { kind: "gate", lane: 1, x: 14.5, y: 25.5 }, { kind: "throne", lane: -1, x: 9, y: 29 },
   ];
-  const TOWER_STATS = { gate: { hp: 1350, dmg: 75, hit: 0.8, range: 7, r: 1.1 }, throne: { hp: 2400, dmg: 95, hit: 1.0, range: 7.5, r: 1.5 } };
+  const TOWER_STATS = { gate: { hp: 1000, dmg: 70, hit: 0.8, range: 7, r: 1.1 }, throne: { hp: 1800, dmg: 90, hit: 1.0, range: 7.5, r: 1.5 } };
 
   /* ---------- making a match ----------
      sides: [{ deck: [8 card defs], ai: false }, { deck, ai: true, level: 0..2 }]
      A card def is plain data made on the server (arena/cards.js). */
-  function createMatch({ seed, sides }) {
-    const S = { seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], flights: [], holes: [], ships: [], events: [], crowns: [0, 0], sides: [], log: [] };
+  function createMatch({ seed, sides, wild }) {
+    const S = { wild: Array.isArray(wild) && wild.length ? wild : null, surge: 0, seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], flights: [], holes: [], ships: [], events: [], crowns: [0, 0], sides: [], log: [] };
     for (let i = 0; i < 2; i++) {
       const sd = sides[i] || {};
       const order = sd.deck.map((_, k) => k);
@@ -125,7 +125,7 @@
       cloaked: st === "cloak", ethereal: st === "ethereal", ramp: 1, rampOn: null, tick: 0, ...extra,
     };
     S.ents.push(u);
-    S.events.push({ t: "spawn", id: u.id, side, x: u.x, y: u.y, n: u.n, style: st || null, big: st === "descend" || st === "prime" || st === "ethereal" });
+    S.events.push({ t: "spawn", id: u.id, side, x: u.x, y: u.y, n: u.n, style: st || null, big: st === "descend" || st === "prime" || st === "ethereal", wild: !!u.wild });
     return u;
   }
   function deploy(S, side, def, x, y, power) {
@@ -251,6 +251,7 @@
   function strike(S, a, t) {
     let dmg = a.dmg;
     if (a.firstHit) { dmg *= 2.5; a.firstHit = false; }
+    if (a.charging) { dmg *= 2; a.charging = false; a.run = 0; S.events.push({ t: "slam", id: a.id, x: t.x, y: t.y }); }
     if (a.aura) dmg *= 1 + a.aura;
     if (a.cloaked) { a.cloaked = false; dmg *= 1.5; S.events.push({ t: "reveal", id: a.id, x: a.x, y: a.y }); }
     if (a.kind === "tower") { S.shots.push({ id: ++S.id, side: a.side, from: a.id, x: a.x, y: a.y, to: t.id, dmg, splash: 0, speed: 11, kind: "tower" }); return; }
@@ -277,6 +278,20 @@
     if (st === "descend") {
       S.events.push({ t: "bolt", side: a.side, x: t.x, y: t.y });
       for (const e of S.ents) if (canHit(S, a, e) && dist(e, t) <= 1.2 + e.r) hurt(S, e, dmg, a);
+      return;
+    }
+    if (st === "quake") {
+      // a slam: everything around the target is hurt and stunned for a moment
+      S.events.push({ t: "swing", id: a.id, to: t.id, style: st });
+      S.events.push({ t: "quake", side: a.side, x: t.x, y: t.y, r: 1.6 });
+      for (const e of S.ents) if (canHit(S, a, e) && !e.air && dist(e, t) <= 1.6 + e.r) { hurt(S, e, dmg, a); if (e.kind === "unit" && !e.ethereal) { e.slowUntil = Math.max(e.slowUntil, S.time + 0.5); e.frozen = true; } }
+      return;
+    }
+    if (st === "bomber") {
+      // a bomb from above: the tower takes it in full, the ground around it is scorched
+      S.events.push({ t: "bomb", side: a.side, id: a.id, x: t.x, y: t.y });
+      hurt(S, t, dmg, a);
+      for (const e of S.ents) if (e !== t && e.side !== a.side && e.hp > 0 && !e.air && e.kind === "unit" && dist(e, t) <= 1.4 + e.r) hurt(S, e, dmg * 0.35, a);
       return;
     }
     if (a.range > 1.6) {
@@ -333,6 +348,31 @@
     return place(S, side, (ahead ? units.find(h => h.def.role !== "tank") || tank : tank).slot, lx + (rng(S) - 0.5) * 2, y);
   }
 
+  /* a Realm Surge: wild spirits for both sides, a meteor storm on both halves, or a bloom of DMT.
+     Everything is mirrored, so it changes the battle without favouring anyone. */
+  function surge(S) {
+    const k = S.surge++, late = S.time >= 140;
+    const kinds = ["spirits", "meteors", "bloom", "spirits"], kind = k === 0 ? "spirits" : late ? "titan" : kinds[Math.floor(rng(S) * kinds.length)];
+    if (kind === "spirits" || kind === "titan") {
+      const def = late ? S.wild[S.wild.length - 1] : S.wild[Math.min(S.wild.length - 2, k)];
+      const lane = rng(S) < 0.5 ? 0 : 1, x = BRIDGES[lane] + (rng(S) - 0.5) * 1.5;
+      for (let side = 0; side < 2; side++) spawn(S, side, def, x, side === 0 ? RIVER + 3 : RIVER - 3, phaseOf(S.time).power, { wake: 1.2, wild: true });
+      S.events.push({ t: "surge", kind, name: def.name, x });
+    } else if (kind === "meteors") {
+      for (let i = 0; i < 5; i++) {
+        const x = 1.5 + rng(S) * (W - 3), y = 4 + rng(S) * (RIVER - 6), land = S.tick + 10 + i * 6;
+        for (const my of [y, H - y]) {
+          S.flights.push({ side: -1, def: { id: "meteor", radius: 1.3, amount: 140 }, x, y: my, land });
+          S.events.push({ t: "launch", side: -1, fx: "meteor", x, y: my, fromX: x + 3.5, fromY: my - 11, dur: (land - S.tick) / TICK });
+        }
+      }
+      S.events.push({ t: "surge", kind });
+    } else {
+      for (const P of S.sides) P.dmt = Math.min(MAX_DMT, P.dmt + 3);
+      S.events.push({ t: "surge", kind });
+    }
+  }
+
   /* ---------- one step of the world ---------- */
   function step(S) {
     if (S.over) return;
@@ -347,6 +387,8 @@
     // the Source lifts the allies around it
     for (const u of S.ents) u.aura = 0;
     for (const u of S.ents) if (u.kind === "unit" && u.hp > 0 && u.style === "prime") for (const o of S.ents) if (o !== u && o.side === u.side && o.kind === "unit" && dist(o, u) < 3.5) o.aura = 0.2;
+    // Realm Surges: every half minute the arena itself joins in, the same for both sides
+    if (S.wild && S.tick % (30 * TICK) === 25 * TICK) surge(S);
     // spells in flight land
     if (S.flights.length) {
       for (const f of S.flights) if (f.land <= S.tick) blast(S, f.side, f.x, f.y, f.def.radius, f.def.amount, f.def.id);
@@ -388,6 +430,11 @@
         if (u.poison && S.time < u.poison.until) hurt(S, u, u.poison.dps * DT, null);
         if (u.burn && S.time < u.burn.until) hurt(S, u, u.burn.dps * DT, null);
         if (u.style === "roots") u.hp = Math.min(u.max, u.hp + u.max * 0.02 * DT);       // the rooted ones mend
+        if (u.style === "summon" && u.tick % (6 * TICK) === 3 * TICK) {                   // the summoner calls its wisps
+          const c = u.def.cost, wisp = { id: "wisp", kind: "unit", name: "Wisp", tier: "Common", cost: 1, role: "striker", style: null, hp: Math.round(45 + c * 16), dmg: Math.round(12 + c * 5), hit: 0.8, range: 0.6, speed: 1.75, r: 0.3, buildings: false, targetsAir: false, air: false, splash: 0 };
+          for (const dx of [-0.7, 0.7]) spawn(S, u.side, wisp, u.x + dx, u.y + (u.side === 0 ? -0.4 : 0.4), 1, { wake: 0.35 });
+          S.events.push({ t: "summon", id: u.id, x: u.x, y: u.y });
+        }
         if (u.style === "orbit" && u.tick % TICK === 0) {                               // the moons come round
           let any = false;
           for (const e of S.ents) if (canHit(S, u, e) && e.kind === "unit" && dist(e, u) <= 1.9 + e.r) { hurt(S, e, u.dmg * 0.45, u); any = true; }
@@ -404,8 +451,9 @@
         if (d > reach) {
           if (S.time >= u.slowUntil) { u.frozen = false; u.chilled = false; }
           const held = S.time < u.rootUntil;
-          const wp = waypoint(u, t), dd = dist(u, wp) || 1, sp = held ? 0 : u.speed * (S.time < u.slowUntil ? (u.frozen ? 0 : 0.55) : 1) * DT;
+          const wp = waypoint(u, t), dd = dist(u, wp) || 1, sp = held ? 0 : u.speed * (u.charging ? 2 : 1) * (S.time < u.slowUntil ? (u.frozen ? 0 : 0.55) : 1) * DT;
           u.x += (wp.x - u.x) / dd * Math.min(sp, dd); u.y += (wp.y - u.y) / dd * Math.min(sp, dd);
+          if (u.style === "charge" && !u.charging) { u.run = (u.run || 0) + Math.min(sp, dd); if (u.run >= 2.5) { u.charging = true; S.events.push({ t: "charge", id: u.id }); } }
           u.cd = Math.max(u.cd, u.hit * 0.4);
         } else {
           if (S.time >= u.slowUntil) { u.frozen = false; u.chilled = false; }
@@ -450,6 +498,12 @@
       if (e.hp > 0 || e.gone) continue;
       e.gone = true;
       S.events.push({ t: "death", id: e.id, side: e.side, x: e.x, y: e.y, tower: e.tower || null, n: e.n || null, air: !!e.air });
+      if (e.kind === "unit" && e.style === "split" && !e.child) {
+        const half = { ...e.def, hp: Math.round(e.def.hp * 0.42), dmg: Math.round(e.def.dmg * 0.5), r: e.def.r * 0.8 };
+        for (const dx of [-0.45, 0.45]) spawn(S, e.side, half, e.x + dx, e.y, 1, { wake: 0.25, child: true });
+        S.events.push({ t: "split", id: e.id, x: e.x, y: e.y });
+      }
+      if (e.kind === "unit" && e.style === "bomber") blast(S, e.side, e.x, e.y, 1.5, e.dmg * 0.6, "bomb");
       if (e.kind === "tower") {
         const foe = 1 - e.side;
         if (e.tower === "throne") { S.crowns[foe] = 3; finish(S, foe); }
@@ -473,8 +527,8 @@
   function finish(S, winner) { if (S.over) return; S.over = true; S.winner = winner; S.events.push({ t: "over", winner }); }
 
   /* ---------- run a match from placements alone (the server's replay) ---------- */
-  function replay({ seed, sides, inputs, maxTicks = (MATCH_S + OVERTIME_S) * TICK + 5 }) {
-    const S = createMatch({ seed, sides });
+  function replay({ seed, sides, wild, inputs, maxTicks = (MATCH_S + OVERTIME_S) * TICK + 5 }) {
+    const S = createMatch({ seed, sides, wild });
     const byTick = new Map();
     for (const inp of inputs || []) { if (!byTick.has(inp.t)) byTick.set(inp.t, []); byTick.get(inp.t).push(inp); }
     for (let k = 0; k < maxTicks && !S.over; k++) {
