@@ -115,6 +115,10 @@ svg{fill:currentColor}
 @keyframes arReady{50%{transform:translateY(-6px)}}
 .ar-card.sel{transform:translateY(-12px);box-shadow:0 0 0 2px #fff,4px 4px 0 2px #000}
 .ar-card.dragging{opacity:.35}
+.ar-card.epic{background:linear-gradient(135deg,#ff7ae6,#e3ba5c 50%,#c56bff);box-shadow:0 0 0 1px #000,3px 3px 0 1px #000,0 0 14px rgba(255,122,230,.55);animation:arEpic 1.6s steps(8) infinite}
+.ar-card.epic.poor{animation:none;box-shadow:0 0 0 1px #000,3px 3px 0 1px #000}
+.ar-card.epic .ar-card-role{color:#ffd1ff}
+@keyframes arEpic{50%{box-shadow:0 0 0 1px #000,3px 3px 0 1px #000,0 0 22px rgba(255,200,120,.75)}}
 .ar-card-fill{position:absolute;left:2px;right:2px;bottom:2px;z-index:1;background:repeating-linear-gradient(0deg,rgba(197,107,255,.45) 0 2px,rgba(197,107,255,.2) 2px 4px);border-top:2px solid var(--dmt);pointer-events:none}
 
 /* ---------- the face-off ---------- */
@@ -163,7 +167,7 @@ svg{fill:currentColor}
 .ar-layers{position:relative;will-change:transform}
 .ar-stage canvas{display:block;touch-action:none}
 .ar-layers canvas[data-canvas]{position:absolute;inset:0}
-.ar-banner{position:absolute;left:50%;top:22px;transform:translateX(-50%);padding:6px 16px 5px;white-space:nowrap;text-align:center;pointer-events:none;font-weight:700;font-size:1.15rem;line-height:1.1;letter-spacing:.08em;
+.ar-banner{position:absolute;left:50%;top:calc(72px + env(safe-area-inset-top));transform:translateX(-50%);padding:6px 16px 5px;white-space:nowrap;text-align:center;pointer-events:none;font-weight:700;font-size:1.15rem;line-height:1.1;letter-spacing:.08em;
   color:var(--gold);background:rgba(3,1,10,.85);border:1px solid var(--line-lit);box-shadow:3px 3px 0 #000;opacity:0}
 .ar-banner.foe{color:#ff8a9a;border-color:var(--foe)}
 .ar-banner small{display:block;margin-top:2px;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}

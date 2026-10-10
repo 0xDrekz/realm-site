@@ -49,6 +49,11 @@
     gas: () => noise(.5, { v: .07, f: 500 }),
     thunder: () => { noise(.9, { v: .3, f: 260 }); tone(55, .8, { type: "sawtooth", v: .12, to: 35 }); tone(1800, .12, { type: "square", v: .03, to: 400 }); },
     whoosh: () => noise(.25, { v: .1, f: 1600 }),
+    epic: () => { tone(55, 1.2, { type: "sawtooth", v: .12, to: 110 }); tone(82, 1.2, { type: "triangle", v: .1, to: 165, at: .05 }); [262, 330, 392, 523].forEach((f, i) => tone(f, .6, { type: "triangle", v: .05, at: .15 + i * .08 })); },
+    meteor: () => { tone(1800, .5, { type: "sine", v: .03, to: 300 }); },
+    implode: () => { tone(40, 1.0, { type: "sine", v: .3, to: 25 }); noise(.8, { v: .3, f: 200 }); tone(900, .4, { type: "square", v: .03, to: 60 }); },
+    drone: () => { tone(48, 2.0, { type: "sawtooth", v: .06, to: 90 }); tone(97, 2.0, { type: "sine", v: .05, to: 30 }); },
+    hum: () => { tone(70, 4.2, { type: "sawtooth", v: .04, to: 66 }); tone(140, 4.2, { type: "sine", v: .03, to: 150, at: .8 }); },
   };
   const sfx = k => { try { SFX[k](); } catch { /* no audio */ } };
   const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch { /* no haptics */ } };
@@ -68,6 +73,9 @@
     nova: '<circle cx="50" cy="50" r="14" fill="#ffd1ff"/><path d="M50 10v24M50 66v24M10 50h24M66 50h24M22 22l16 16M62 62l16 16M78 22 62 38M38 62 22 78" stroke="#ff7ae6" stroke-width="6" stroke-linecap="round"/>',
     halo: '<ellipse cx="50" cy="50" rx="32" ry="12" fill="none" stroke="#9dffcf" stroke-width="7"/>',
     dust: '<path d="M62 18a32 32 0 1 0 20 50 26 26 0 1 1-20-50z" fill="#cfefff"/>',
+    meteor: '<path d="M88 10 46 46" stroke="#ffb347" stroke-width="10" stroke-linecap="round" opacity=".6"/><path d="M80 14 40 50" stroke="#fff2c0" stroke-width="4" stroke-linecap="round"/><circle cx="36" cy="60" r="22" fill="#ff7a2a"/><circle cx="36" cy="60" r="15" fill="#4a2a1a"/><circle cx="30" cy="54" r="4" fill="#7a4a2a"/><circle cx="42" cy="66" r="3" fill="#2a1a10"/>',
+    hole: '<circle cx="50" cy="50" r="40" fill="#1a0630"/><path d="M50 14a36 36 0 0 1 30 56M86 50a36 36 0 0 1-56 30M50 86a36 36 0 0 1-30-56M14 50a36 36 0 0 1 56-30" stroke="#c48bff" stroke-width="5" fill="none"/><ellipse cx="50" cy="50" rx="20" ry="8" fill="none" stroke="#ffcf7a" stroke-width="4"/><circle cx="50" cy="50" r="11" fill="#000"/>',
+    mother: '<path d="M30 58 18 92h64L70 58z" fill="#7fffd0" opacity=".35"/><ellipse cx="50" cy="52" rx="42" ry="12" fill="#8a8ea8"/><ellipse cx="50" cy="48" rx="42" ry="9" fill="#c8ccdc"/><path d="M30 46a20 18 0 0 1 40 0z" fill="#7fe8ff"/><circle cx="22" cy="54" r="3" fill="#ffe58a"/><circle cx="38" cy="58" r="3" fill="#ff7ae6"/><circle cx="62" cy="58" r="3" fill="#7fffd0"/><circle cx="78" cy="54" r="3" fill="#ffe58a"/>',
   };
 
   /* ============================================================
@@ -124,7 +132,7 @@
     for (const side of d.sides) for (const c of side.deck) img(c.n);
     await faceOff(d);
     G = { match: d.match, seed: d.seed, sides: d.sides, S: A.createMatch({ seed: d.seed, sides: d.sides }), inputs: [], acc: 0, last: 0, prev: new Map(),
-      fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], gait: new Map(), swing: new Map(), jolt: new Map() };
+      fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
     $("[data-rname]").textContent = d.rival;
     show("battle"); layout(); paintHand(true); paintHud(); paintCrowns();
     banner("Battle!");
@@ -382,7 +390,14 @@
       switch (e.t) {
         case "spawn": G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.big ? 3.5 : 1.6, life: e.big ? .8 : .45, t: 0, col: e.side ? "#ff7a90" : "#7fd8ff" }); if (e.big) { G.shake = Math.max(G.shake, .5); sfx("spawnBig"); burst(e.x, e.y, 30, "#fff1c2", 5); } break;
         case "swing": G.swing.set(e.id, { t: G.river, to: e.to }); break;
-        case "play": sfx("place"); if (e.side === 0) buzz(10); break;
+        case "play": {
+          sfx("place"); if (e.side === 0) buzz(10);
+          const def = G.S.sides[e.side].deck.find(c => c.id === e.card);
+          if (def && def.epic) { banner(def.name, e.side ? "The rival unleashes" : "Unleashed", e.side === 1); sfx("epic"); G.shake = Math.max(G.shake, .6); buzz([30, 40, 60]); }
+          break;
+        }
+        case "hole": G.holes.push({ x: e.x, y: e.y, r: e.r, dur: e.dur, t: 0 }); sfx("drone"); break;
+        case "ship": G.ships.push({ x: e.x, y: e.y, r: e.r, arrive: e.arrive, dur: e.dur, t: 0, side: e.side }); sfx("hum"); break;
         case "hit": {
           burst(e.x, e.y + (e.tower ? -1.6 : -.9), e.tower ? 3 : 2, e.tower ? "#ffd65c" : "#ffffff", 2);
           // no floating numbers: the fight stays readable; health bars tell the story
@@ -432,6 +447,15 @@
     }
   }
   function blastFx(e) {
+    if (e.fx === "meteor") {
+      G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + .6, life: .5, t: 0, col: "#ffb347", fill: true });
+      burst(e.x, e.y, 22, "#ffb347", 3.2); burst(e.x, e.y, 10, "#4a3428", 2.4); G.scorch.push({ x: e.x, y: e.y, r: 1.3, t: 0, life: 7 });
+      G.shake = Math.max(G.shake, .55); sfx("blast"); buzz(20); return;
+    }
+    if (e.fx === "hole") {
+      G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r * 1.9, life: .7, t: 0, col: "#ffffff" }, { k: "ring", x: e.x, y: e.y, r: e.r * 1.3, life: .5, t: 0, col: "#c48bff", fill: true });
+      burst(e.x, e.y, 70, "#e6d0ff", 7); burst(e.x, e.y, 30, "#ffcf7a", 5); G.flash = .6; G.shake = 1.2; sfx("implode"); buzz([60, 30, 120]); return;
+    }
     const C = { strike: "#fff6a0", nova: "#ff7ae6", halo: "#7dffb8", dust: "#bfeaff", burst: "#ffb05c", prime: "#ffffff", splash: "#ffc48a" }[e.fx] || "#ffffff";
     G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + .3, life: e.fx === "splash" ? .3 : .6, t: 0, col: C, fill: e.fx !== "splash" });
     if (e.fx === "strike") G.fx.push({ k: "bolt", x: e.x, y: e.y, life: .35, t: 0, seed: Math.random() * 1000 });
@@ -608,13 +632,16 @@
     for (const r of G.rubble || []) drawRubble(r);
     // towers, then ground units by depth, then flyers, then shots
     const ents = S.ents.slice().sort((a, b) => a.y - b.y);
+    drawScorch(dt);
     drawZones(S);
+    drawHoles(dt);
     for (const e of ents) if (e.kind === "tower") drawTower(e, alpha, dt);
     for (const e of ents) if (e.kind === "unit" && !e.air) drawUnit(e, alpha);
     for (const e of ents) if (e.kind === "unit" && e.air) drawUnit(e, alpha);
     drawBeams(S, alpha);
     for (const s of S.shots) drawShot(s, alpha);
     drawFx(dt);
+    drawShips(dt);
     drawGhost();
     // the flash of something big
     if (G.flash > 0) { ctx.fillStyle = `rgba(255,240,220,${G.flash * .5})`; ctx.fillRect(-OX, -OY, VW, VH); G.flash = Math.max(0, G.flash - dt * 1.6); }
@@ -763,6 +790,76 @@
       if (e.shield > 0) { ctx.fillStyle = "#ffe58a"; ctx.fillRect(fx - bw / 2, by - .1, bw * Math.min(1, e.shield / e.max), .07); }
     }
   }
+  /* scorched ground where meteors struck and the beam burned */
+  let scorchSpr = null;
+  function drawScorch(dt) {
+    if (!G.scorch.length) return;
+    if (!scorchSpr) { const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(12,6,4,.85)"); gr.addColorStop(.55, "rgba(30,14,8,.55)"); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); for (let i = 0; i < 14; i++) { g.fillStyle = `rgba(255,${100 + Math.random() * 100 | 0},40,.8)`; g.fillRect(16 + Math.random() * 32, 16 + Math.random() * 32, 2, 2); } scorchSpr = c; }
+    for (const sc of G.scorch) { sc.t += dt; ctx.globalAlpha = Math.max(0, 1 - sc.t / sc.life) * .9; ctx.drawImage(scorchSpr, sc.x - sc.r, sc.y - sc.r * .6, sc.r * 2, sc.r * 1.2); }
+    ctx.globalAlpha = 1; G.scorch = G.scorch.filter(sc => sc.t < sc.life);
+  }
+  /* a black hole: the arena dims, light spirals in, and an event horizon glows */
+  function drawHoles(dt) {
+    for (const h of G.holes) {
+      h.t += dt; const k = Math.min(1, h.t / h.dur), grow = Math.min(1, h.t * 3), t = G.river;
+      ctx.fillStyle = `rgba(4,0,12,${.28 * grow})`; ctx.fillRect(-OX, -OY, VW, VH);
+      const rr = h.r * (1.15 + .1 * Math.sin(t * 6)) * grow;
+      const dg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, rr); dg.addColorStop(0, "rgba(0,0,0,.95)"); dg.addColorStop(.35, "rgba(20,4,40,.8)"); dg.addColorStop(.75, "rgba(90,30,160,.35)"); dg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = dg; ctx.beginPath(); ctx.ellipse(h.x, h.y, rr, rr * .62, 0, 0, TAU); ctx.fill();
+      ctx.lineCap = "round";
+      for (let arm = 0; arm < 4; arm++) {
+        ctx.strokeStyle = arm % 2 ? "#c48bff" : "#ffcf7a"; ctx.globalAlpha = .75; ctx.lineWidth = .1;
+        ctx.beginPath();
+        for (let i = 0; i <= 24; i++) { const f = i / 24, rad = rr * (1 - f) + .2, a = t * (3 + k * 5) + arm * Math.PI / 2 + f * 4.2; const px = h.x + Math.cos(a) * rad, py = h.y + Math.sin(a) * rad * .62; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      stamp("#ffcf7a", h.x, h.y, .9 + k * .6); ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(h.x, h.y, .42 + k * .2, .28 + k * .12, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#fff1c2"; ctx.lineWidth = .06; ctx.beginPath(); ctx.ellipse(h.x, h.y, .7 + k * .3, .3 + k * .12, Math.sin(t) * .2, 0, TAU); ctx.stroke();
+      for (let i = 0; i < 3 && G.parts.length < 420; i++) { const a = Math.random() * TAU, d = h.r + .6; G.parts.push({ x: h.x + Math.cos(a) * d, y: h.y + Math.sin(a) * d * .62, vx: -Math.cos(a) * d * 2.2, vy: -Math.sin(a) * d * 1.4, life: .45, t: 0, col: Math.random() < .5 ? "#e6d0ff" : "#ffcf7a", s: .05 }); }
+    }
+    G.holes = G.holes.filter(h => h.t < h.dur);
+  }
+  /* the Mothership: it descends from beyond the top of the screen, burns, then lifts away */
+  function shipArt() {
+    return art("ship", 5, 2.4, 2.5, 1.3, g => {
+      g.fillStyle = "rgba(127,255,208,.25)"; g.beginPath(); g.ellipse(0, .35, 1.4, .3, 0, 0, TAU); g.fill();
+      const bg = g.createLinearGradient(0, -.3, 0, .5); bg.addColorStop(0, "#d8dcec"); bg.addColorStop(.5, "#8a8ea8"); bg.addColorStop(1, "#3a3c52");
+      g.fillStyle = bg; g.strokeStyle = OUT; g.lineWidth = .06; g.beginPath(); g.ellipse(0, .1, 2.35, .55, 0, 0, TAU); g.fill(); g.stroke();
+      g.fillStyle = "#5a5e78"; g.beginPath(); g.ellipse(0, .2, 1.9, .3, 0, 0, Math.PI); g.fill();
+      g.strokeStyle = "rgba(255,255,255,.5)"; g.lineWidth = .04; g.beginPath(); g.ellipse(0, .02, 2.1, .38, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
+      const dg = g.createRadialGradient(-.25, -.5, .05, 0, -.25, .9); dg.addColorStop(0, "#e8fbff"); dg.addColorStop(.5, "#7fe8ff"); dg.addColorStop(1, "#1a5a7a");
+      g.fillStyle = dg; g.strokeStyle = OUT; g.beginPath(); g.ellipse(0, -.12, .95, .72, 0, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
+      for (let i = 0; i < 9; i++) { const a = Math.PI * (.1 + .8 * i / 8); ell(g, -Math.cos(a) * 2.0, .2 + Math.sin(a) * .2, .07, .05, "#2a2c3a"); }
+    });
+  }
+  function drawShips(dt) {
+    for (const s of G.ships) {
+      s.t += dt; const t = G.river, hoverY = s.y - 3.4;
+      let sy, sc = 1, beam = 0;
+      if (s.t < s.arrive) { const k = s.t / s.arrive, e = 1 - (1 - k) * (1 - k); sy = lerp(hoverY - 16, hoverY, e); sc = 1.5 - .5 * e; }
+      else if (s.t < s.arrive + s.dur) { sy = hoverY + Math.sin(t * 2.5) * .12; beam = Math.min(1, (s.t - s.arrive) * 5); }
+      else { const k = (s.t - s.arrive - s.dur) / .7; sy = hoverY - k * k * 16; }
+      // its shadow on the ground
+      const near = Math.max(0, 1 - Math.abs(sy - hoverY) / 16);
+      ctx.fillStyle = `rgba(0,0,0,${.35 * near})`; ctx.beginPath(); ctx.ellipse(s.x, s.y, 2.2 * near, .8 * near, 0, 0, TAU); ctx.fill();
+      if (beam > 0) {
+        const pulse = .75 + Math.sin(t * 18) * .15, r = s.r;
+        const bg = ctx.createLinearGradient(0, sy + .4, 0, s.y); bg.addColorStop(0, `rgba(200,255,240,${.75 * beam * pulse})`); bg.addColorStop(1, `rgba(90,255,200,${.4 * beam * pulse})`);
+        ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(s.x - .55, sy + .45); ctx.lineTo(s.x + .55, sy + .45); ctx.lineTo(s.x + r, s.y); ctx.lineTo(s.x - r, s.y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = `rgba(230,255,248,${.55 * beam})`; ctx.beginPath(); ctx.moveTo(s.x - .18, sy + .45); ctx.lineTo(s.x + .18, sy + .45); ctx.lineTo(s.x + r * .35, s.y); ctx.lineTo(s.x - r * .35, s.y); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = .9 * beam; stamp("#7fffd0", s.x, s.y, r * 1.1); ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#e8fff6"; ctx.lineWidth = .07; ctx.setLineDash([.4, .25]); ctx.beginPath(); ctx.ellipse(s.x, s.y, r, r * .45, 0, t * 3, t * 3 + TAU); ctx.stroke(); ctx.setLineDash([]);
+        if (Math.random() < .7) G.parts.push({ x: s.x + (Math.random() - .5) * r * 2, y: s.y + (Math.random() - .5) * r * .8, vx: 0, vy: -1.6, life: .5, t: 0, col: Math.random() < .5 ? "#7fffd0" : "#ffb347", s: .07 });
+        if (Math.random() < .08) G.scorch.push({ x: s.x + (Math.random() - .5) * r, y: s.y + (Math.random() - .5) * r * .4, r: .9, t: 0, life: 5 });
+        if (Math.random() < .25) G.shake = Math.max(G.shake, .25);
+      }
+      const a = shipArt(); sc *= 1.3; ctx.save(); ctx.translate(s.x, sy); ctx.scale(sc, sc); ctx.drawImage(a.c, -a.ax, -a.ay, a.w, a.h); ctx.restore();
+      for (let i = 0; i < 7; i++) { const lx = s.x + (i - 3) * .62 * sc, ly = sy + .2 * sc + Math.abs(i - 3) * -.04; const on = Math.floor(t * 8 + i) % 3 === 0; stamp(on ? "#ffe58a" : ["#ff7ae6", "#7fffd0", "#7fe8ff"][i % 3], lx, ly, on ? .32 : .2); }
+      stamp("#7fe8ff", s.x, sy - .3 * sc, .7 * sc);
+    }
+    G.ships = G.ships.filter(s => s.t < s.arrive + s.dur + .7);
+  }
   /* toxic clouds: layered puffs that drift and fade */
   function drawZones(S) {
     for (const z of S.zones) {
@@ -818,6 +915,21 @@
   function drawFlies(dt) {
     for (const f of G.flies) {
       f.t += dt; const k = Math.min(1, f.t / f.dur), T = TEAM[f.side];
+      if (f.fx === "meteor") {
+        // each meteor shows its mark, then streaks down from the sky in its last moments
+        const left = f.dur - f.t, kk = Math.max(0, 1 - left / .45);
+        ctx.globalAlpha = .35 + .5 * Math.min(1, f.t / f.dur); ctx.strokeStyle = "#ff8a3c"; ctx.lineWidth = .06;
+        ctx.beginPath(); ctx.arc(f.x1, f.y1, 1.35 * (1.25 - .25 * kk), 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
+        if (kk > 0) {
+          const q = kk * kk, mx = lerp(f.x0, f.x1, q), my = lerp(f.y0, f.y1, q), ang = Math.atan2(f.y1 - f.y0, f.x1 - f.x0);
+          for (let i = 10; i >= 1; i--) { ctx.globalAlpha = (1 - i / 11) * .8; stamp(i < 4 ? "#ffd27a" : i < 7 ? "#ff8a3c" : "#c8361a", mx - Math.cos(ang) * i * .32, my - Math.sin(ang) * i * .32, .75 - i * .05); }
+          ctx.globalAlpha = 1; stamp("#ffb347", mx, my, .9); stamp("#fff2c0", mx, my, .4);
+          ctx.fillStyle = "#3a2418"; ctx.beginPath(); ctx.arc(mx, my, .2, 0, TAU); ctx.fill();
+          if (Math.random() < .8) G.parts.push({ x: mx, y: my, vx: (Math.random() - .5) * 1.2, vy: (Math.random() - .5) * 1.2, life: .4, t: 0, col: Math.random() < .5 ? "#ffd27a" : "#ff6a2a", s: .07 });
+          if (!f.whistled) { f.whistled = true; sfx("meteor"); }
+        }
+        continue;
+      }
       if (f.fx === "nova") {
         // a burning star arcs high over the arena and comes down on the mark
         const d = Math.hypot(f.x1 - f.x0, f.y1 - f.y0), hgt = 1.5 + d * .22;
@@ -912,8 +1024,8 @@
   function cardHtml(def, mini, extra = "") {
     const spell = def.kind === "spell", tc = spell ? "#e3ba5c" : TIER_COL[def.tier];
     const pic = def.n ? `<img src="/thumbs/${def.n}.webp" alt="" draggable="false">` : `<svg class="ar-sig" viewBox="0 0 100 100" style="background:radial-gradient(circle at 50% 45%,#4a1a7a,#0b0616 70%)">${SPELL_ICON[def.id] || ""}</svg>`;
-    return `<div class="ar-card${mini ? " mini" : ""}${spell ? " spell" : ""}" style="--tc:${tc};${extra}"><span class="ar-card-in">${pic}</span><span class="ar-card-cost"><svg viewBox="0 0 10 12"><use href="#i-drop"/></svg><b>${def.cost}</b></span>
-      <span class="ar-card-name">${def.name}</span><span class="ar-card-role">${spell ? "Spell" : def.power ? def.power.label : def.roleLabel}</span><span class="ar-card-fill"></span></div>`;
+    return `<div class="ar-card${mini ? " mini" : ""}${spell ? " spell" : ""}${def.epic ? " epic" : ""}" style="--tc:${tc};${extra}"><span class="ar-card-in">${pic}</span><span class="ar-card-cost"><svg viewBox="0 0 10 12"><use href="#i-drop"/></svg><b>${def.cost}</b></span>
+      <span class="ar-card-name">${def.name}</span><span class="ar-card-role">${def.epic ? "Epic spell" : spell ? "Spell" : def.power ? def.power.label : def.roleLabel}</span><span class="ar-card-fill"></span></div>`;
   }
   let handSig = "";
   function paintHand(force) {
@@ -1049,6 +1161,6 @@
   }
 
   // for testing only: ?debug lets a test reach the match
-  if (/[?&]debug\b/.test(location.search)) window.__arena = () => G;
+  if (/[?&]debug\b/.test(location.search)) { window.__arena = () => G; window.__arenaPlace = (slot, x, y) => { const ok = tryPlace(slot, x, y); paintHand(true); return ok; }; }
 
 })();

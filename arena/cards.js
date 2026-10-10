@@ -109,7 +109,12 @@ const SPELLS = {
   nova:   { id: "nova",   kind: "spell", name: "Supernova",        cost: 4, effect: "damage", radius: 2.8, amount: 380, text: "A big blast over a wide area. Towers take a third." },
   halo:   { id: "halo",   kind: "spell", name: "Halo",             cost: 3, effect: "heal",   radius: 3,   amount: 450, text: "Heals and shields your units in an area." },
   dust:   { id: "dust",   kind: "spell", name: "Moon Dust",        cost: 3, effect: "freeze", radius: 2.5, amount: 3,   text: "Freezes enemy units in an area for 3 seconds." },
+  // the epic ones: dear, slow to land, and ruinous
+  meteor: { id: "meteor", kind: "spell", name: "Meteor Shower",    cost: 5, effect: "damage", radius: 3.0, amount: 185, count: 6, epic: true, text: "Six burning meteors rain down across a wide area." },
+  hole:   { id: "hole",   kind: "spell", name: "Black Hole",       cost: 6, effect: "damage", radius: 3.2, amount: 620, epic: true, text: "Drags every enemy near it into a vortex for two seconds, then implodes." },
+  mother: { id: "mother", kind: "spell", name: "Mothership",       cost: 7, effect: "damage", radius: 2.3, amount: 300, epic: true, text: "A colossal ship descends and burns the ground under it with a death beam for three seconds." },
 };
+const SMALL = ["strike", "nova"], EPIC = ["meteor", "hole", "mother"];
 
 /* a deck: six beings and two spells */
 function deck(beings, boost = 1, spells = ["strike", "nova"]) {
@@ -123,4 +128,4 @@ function byTier() {
   return BY_TIER;
 }
 
-module.exports = { fighter, deck, SPELLS, ROLES, STYLES, COST, byTier };
+module.exports = { fighter, deck, SPELLS, SMALL, EPIC, ROLES, STYLES, COST, byTier };

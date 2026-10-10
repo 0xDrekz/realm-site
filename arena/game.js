@@ -12,7 +12,7 @@ const crypto = require("crypto");
 const A = require("./engine"), C = require("./cards");
 
 const TTL = 20 * 60e3;
-const POOL = [["Common", 30], ["Uncommon", 30], ["Rare", 25], ["Epic", 15]];
+const POOL = [["Common", 22], ["Uncommon", 24], ["Rare", 22], ["Epic", 16], ["Legendary", 10], ["Mythic", 6]];
 const RIVALS = ["Spore Drifter", "Moth Caller", "Root Wanderer", "Star Scribe", "Lantern Eye", "Dust Walker", "Tide Singer", "Hollow Knight", "Ember Twin", "Veil Weaver"];
 
 function create({ log = () => {}, beings = async () => [], boostOf = async () => ({ level: 0, boost: 1 }), walletOf = () => null } = {}) {
@@ -42,10 +42,12 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       mine = all.filter(x => x.owner === wallet).map(x => x.n).sort((a, b) => C.COST[tierOf(b)] - C.COST[tierOf(a)] || a - b).slice(0, 6);
     }
     const yours = [...mine, ...borrowed(6 - mine.length, mine)];
-    const deck = [...yours.map(n => C.fighter(n, mine.includes(n) ? boost.boost : 0.92 * boost.boost)), { ...C.SPELLS.strike }, { ...C.SPELLS.nova }];
+    // every deck carries one small spell and one epic (5 to 7 DMT); the rival gets the same kinds
+    const spells = () => [C.SMALL[crypto.randomInt(C.SMALL.length)], C.EPIC[crypto.randomInt(C.EPIC.length)]];
+    const deck = [...yours.map(n => C.fighter(n, mine.includes(n) ? boost.boost : 0.92 * boost.boost)), ...spells().map(id => ({ ...C.SPELLS[id] }))];
     // the rival: the same tiers, other beings, a touch weaker so a good player wins more than they lose
     const rivalNs = yours.map(n => { let t = tierOf(n); if (t === "Source") t = "God"; return pick(BT[t].filter(x => x !== 1111), [...yours]); });
-    const rivalDeck = [...rivalNs.map(n => C.fighter(n, 0.88)), { ...C.SPELLS.strike }, { ...C.SPELLS.nova }];
+    const rivalDeck = [...rivalNs.map(n => C.fighter(n, 0.88)), ...spells().map(id => ({ ...C.SPELLS[id] }))];
     const seed = crypto.randomInt(2 ** 32), id = crypto.randomBytes(16).toString("hex");
     const sides = [{ deck, ai: false }, { deck: rivalDeck, ai: true, level: 1 }];
     matches.set(id, { id, seed, sides, wallet, at: Date.now(), done: false, rival: RIVALS[crypto.randomInt(RIVALS.length)] });

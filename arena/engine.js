@@ -62,7 +62,7 @@
      sides: [{ deck: [8 card defs], ai: false }, { deck, ai: true, level: 0..2 }]
      A card def is plain data made on the server (arena/cards.js). */
   function createMatch({ seed, sides }) {
-    const S = { seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], flights: [], events: [], crowns: [0, 0], sides: [], log: [] };
+    const S = { seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], flights: [], holes: [], ships: [], events: [], crowns: [0, 0], sides: [], log: [] };
     for (let i = 0; i < 2; i++) {
       const sd = sides[i] || {};
       const order = sd.deck.map((_, k) => k);
@@ -154,6 +154,27 @@
   /* damage spells travel: a Supernova flies from your Throne across the arena, lightning
      takes a breath to fall from the sky. They land where they were aimed, a moment later. */
   function cast(S, side, def, x, y) {
+    if (def.id === "meteor") {
+      // six meteors, each falling a beat after the last, scattered over the area
+      for (let i = 0; i < (def.count || 6); i++) {
+        const a = rng(S) * Math.PI * 2, d = Math.sqrt(rng(S)) * def.radius * 0.85;
+        const mx = clamp(x + Math.cos(a) * d, 0.5, W - 0.5), my = clamp(y + Math.sin(a) * d, 0.5, H - 0.5), land = S.tick + 8 + i * 5;
+        S.flights.push({ side, def: { id: "meteor", radius: 1.35, amount: def.amount }, x: mx, y: my, land });
+        S.events.push({ t: "launch", side, fx: "meteor", x: mx, y: my, fromX: mx + 3.5, fromY: my - 11, dur: (land - S.tick) / TICK });
+      }
+      return;
+    }
+    if (def.id === "hole") {
+      S.holes.push({ side, x, y, r: def.radius, dmg: def.amount, until: S.tick + 2 * TICK });
+      S.events.push({ t: "hole", side, x, y, r: def.radius, dur: 2 });
+      return;
+    }
+    if (def.id === "mother") {
+      const start = S.tick + Math.round(0.8 * TICK);
+      S.ships.push({ side, x, y, r: def.radius, dps: def.amount, start, until: start + 3 * TICK });
+      S.events.push({ t: "ship", side, x, y, r: def.radius, arrive: 0.8, dur: 3 });
+      return;
+    }
     if (def.effect === "damage") {
       const fx = 9, fy = side === 0 ? H - 3 : 3, d = Math.sqrt((x - fx) * (x - fx) + (y - fy) * (y - fy));
       const land = S.tick + (def.id === "nova" ? Math.max(8, Math.round(d / 16 * TICK)) : 6);
@@ -300,6 +321,9 @@
       const hp = l => { const t = ts.find(x => x.lane === l); return t ? t.hp : 99999; };
       return hp(0) <= hp(1) ? 0 : 1;
     })();
+    // a full bar and an epic in hand: rain it on the weaker tower
+    const epic = affordable.find(h => h.def.epic);
+    if (epic && P.dmt >= 9 && rng(S) < 0.35) return place(S, side, epic.slot, lane === 0 ? 3.5 : 14.5, side === 0 ? 6.5 : 25.5);
     const units = affordable.filter(h => h.def.kind === "unit");
     if (!units.length) return null;
     const tank = units.find(h => h.def.role === "tank") || units.sort((a, b) => b.def.hp - a.def.hp)[0];
@@ -327,6 +351,30 @@
     if (S.flights.length) {
       for (const f of S.flights) if (f.land <= S.tick) blast(S, f.side, f.x, f.y, f.def.radius, f.def.amount, f.def.id);
       S.flights = S.flights.filter(f => f.land > S.tick);
+    }
+    // black holes drag enemies in, then implode
+    if (S.holes.length) {
+      for (const h of S.holes) {
+        for (const e of S.ents) {
+          if (e.side === h.side || e.kind !== "unit" || e.hp <= 0 || e.ethereal) continue;
+          const dx = h.x - e.x, dy = h.y - e.y, d = Math.sqrt(dx * dx + dy * dy);
+          if (d > h.r + 1 || d < 0.25) continue;
+          const pull = 2.6 * DT / d, nx = e.x + dx * pull, ny = e.y + dy * pull;
+          const wet = Math.abs(ny - RIVER) < 1 && !BRIDGES.some(b => Math.abs(nx - b) < 1.1);
+          if (e.air || !wet) { e.x = nx; e.y = ny; }
+          hurt(S, e, 45 * DT, null);
+        }
+        if (S.tick >= h.until) blast(S, h.side, h.x, h.y, h.r * 0.75, h.dmg, "hole");
+      }
+      S.holes = S.holes.filter(h => S.tick < h.until);
+    }
+    // the Mothership's beam burns all under it
+    if (S.ships.length) {
+      for (const sh of S.ships) {
+        if (S.tick < sh.start) continue;
+        for (const e of S.ents) if (e.side !== sh.side && e.hp > 0 && dist(e, sh) <= sh.r + e.r) hurt(S, e, (e.kind === "tower" ? sh.dps * 0.35 : sh.dps) * DT, null);
+      }
+      S.ships = S.ships.filter(sh => S.tick < sh.until);
     }
     // gas clouds
     for (const z of S.zones) for (const e of S.ents) if (e.side !== z.side && e.hp > 0 && !e.air && dist(e, z) <= z.r + e.r * 0.5) hurt(S, e, (e.kind === "tower" ? z.dps * 0.3 : z.dps) * DT, null);

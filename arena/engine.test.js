@@ -159,3 +159,32 @@ test("a Supernova flies from your Throne and lands a moment later", () => {
   for (let k = 0; k < 40 && S.flights.length; k++) A.step(S);
   assert.equal(S.flights.length, 0); assert.ok(foe.hp < 5000, "and it lands");
 });
+
+const cast = (S, id, x, y) => { const P = S.sides[0]; P.dmt = 10; P.deck.push({ ...C.SPELLS[id] }); P.hand[0] = P.deck.length - 1; return A.place(S, 0, 0, x, y); };
+test("Meteor Shower drops six meteors, one after another", () => {
+  const S = blank();
+  assert.equal(cast(S, "meteor", 9, 8), null);
+  assert.equal(S.flights.length, 6);
+  const lands = S.flights.map(f => f.land); assert.ok(lands.every((t, i) => !i || t > lands[i - 1]), "staggered");
+  for (let k = 0; k < 60; k++) A.step(S);
+  assert.equal(S.flights.length, 0);
+});
+test("a Black Hole drags enemies in, then implodes", () => {
+  const S = blank();
+  const foe = drop(S, 1, 4, 11, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000; foe.style = null;
+  const d0 = Math.hypot(foe.x - 9, foe.y - 8);
+  assert.equal(cast(S, "hole", 9, 8), null);
+  for (let k = 0; k < 20; k++) A.step(S);
+  assert.ok(Math.hypot(foe.x - 9, foe.y - 8) < d0 - 0.5, "pulled toward the middle");
+  const mid = foe.hp; for (let k = 0; k < 25; k++) A.step(S);
+  assert.equal(S.holes.length, 0); assert.ok(mid - foe.hp > 400, "and crushed when it implodes");
+});
+test("the Mothership arrives, then burns what's under it", () => {
+  const S = blank();
+  const foe = drop(S, 1, 4, 9, 8); foe.speed = 0; foe.dmg = 0; foe.hp = foe.max = 5000; foe.style = null;   // no self-mending
+  assert.equal(cast(S, "mother", 9, 8), null);
+  for (let k = 0; k < 12; k++) A.step(S);
+  assert.equal(foe.hp, 5000, "still arriving");
+  for (let k = 0; k < 70; k++) A.step(S);
+  assert.ok(5000 - foe.hp > 700, "the beam burned it"); assert.equal(S.ships.length, 0);
+});
