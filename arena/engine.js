@@ -9,7 +9,7 @@
 
    THE RULES
    - Portrait arena, 18 wide and 32 tall. You hold the bottom half, the
-     rival the top. A river crosses the middle; two bridges cross it.
+     rival the top. The ground is open: a line of light marks the halves, and anyone may cross anywhere.
    - Each side has two Gate towers and a Throne. Destroy the Throne and you
      win at once; otherwise, after 3 minutes, more towers destroyed wins.
      Level? One minute of sudden death: the next tower to fall decides it.
@@ -31,7 +31,7 @@
   const W = 18, H = 32, RIVER = 16;
   const BRIDGES = [3.5, 14.5];
   const MATCH_S = 180, OVERTIME_S = 60, MAX_DMT = 10;
-  const SIGHT = 6;
+  const SIGHT = 4.5;          // how near an enemy must be before a unit turns to fight it
 
   /* ---------- a small seeded generator (mulberry32) ---------- */
   function rng(S) {
@@ -83,7 +83,7 @@
     if (!(x >= 0.5 && x <= W - 0.5 && y >= 0.5 && y <= H - 0.5)) return false;
     if (def.kind === "spell") return true;
     // your own half; or the enemy's, in a lane whose Gate has fallen
-    const own = side === 0 ? y >= RIVER + 1 : y <= RIVER - 1;
+    const own = side === 0 ? y >= RIVER + 0.5 : y <= RIVER - 0.5;
     if (own) return true;
     const lane = x < W / 2 ? 0 : 1, enemy = S.sides[1 - side];
     if (!enemy.gatesDown[lane]) return false;
@@ -229,21 +229,14 @@
       if (d < bd && (d <= SIGHT || e.kind === "tower")) { bd = d; best = e; }
     }
     if (best && (best.kind !== "tower" || bd <= SIGHT)) return best;
-    // no one near: march on the nearest standing tower in this lane, then the Throne
-    const lane = u.x < W / 2 ? 0 : 1;
-    const towers = S.ents.filter(e => e.kind === "tower" && e.side !== u.side && e.hp > 0);
-    return towers.find(t => t.lane === lane) || towers.find(t => t.tower === "throne") || towers[0] || null;
+    // no enemy near enough to bother with: head for the nearest standing tower
+    let tw = null, td = 1e9;
+    for (const e of S.ents) if (e.kind === "tower" && e.side !== u.side && e.hp > 0) { const d = dist(u, e); if (d < td) { td = d; tw = e; } }
+    return tw;
   }
 
-  /* where to walk: straight for flyers; ground units cross at a bridge */
-  function waypoint(u, tg) {
-    if (u.air) return tg;
-    const mySideBelow = u.y > RIVER, tgBelow = tg.y > RIVER;
-    const onBridge = Math.abs(u.y - RIVER) < 1.4 && BRIDGES.some(b => Math.abs(u.x - b) < 1);
-    if (mySideBelow === tgBelow || onBridge) return tg;
-    const bx = Math.abs(u.x - BRIDGES[0]) + Math.abs(tg.x - BRIDGES[0]) <= Math.abs(u.x - BRIDGES[1]) + Math.abs(tg.x - BRIDGES[1]) ? BRIDGES[0] : BRIDGES[1];
-    return { x: bx, y: mySideBelow ? RIVER + 0.6 : RIVER - 0.6 };
-  }
+  /* where to walk: the arena is open ground, so everyone goes straight for its target */
+  function waypoint(u, tg) { return tg; }
 
   /* a gas cloud: hurts every enemy on the ground inside it, every tick */
   function gas(S, side, x, y, r, dps, from) {
@@ -406,8 +399,7 @@
           const dx = h.x - e.x, dy = h.y - e.y, d = Math.sqrt(dx * dx + dy * dy);
           if (d > h.r + 1 || d < 0.25) continue;
           const pull = 2.6 * DT / d, nx = e.x + dx * pull, ny = e.y + dy * pull;
-          const wet = Math.abs(ny - RIVER) < 1 && !BRIDGES.some(b => Math.abs(nx - b) < 1.1);
-          if (e.air || !wet) { e.x = nx; e.y = ny; }
+          e.x = nx; e.y = ny;
           hurt(S, e, 45 * DT, null);
         }
         if (S.tick >= h.until) blast(S, h.side, h.x, h.y, h.r * 0.75, h.dmg, "hole");

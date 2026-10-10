@@ -208,11 +208,11 @@
     // floating rocks in the open sky either side of the arena
     if (OX > .4) for (let k = 0; k < 10; k++) { const left = k % 2 === 0, x = left ? -OX * (.25 + r() * .5) : W + OX * (.25 + r() * .5), y = 2 + r() * (H - 4); if (Math.abs(y - R) < 2) continue; skyRock(g, x, y, Math.min(.9, OX * .35) * (.6 + r() * .5), r); }
     for (let side = 0; side < 2; side++) {
-      const y0 = side === 0 ? R + 1 : 0.3, y1 = side === 0 ? H - 0.3 : R - 1, T = TEAM[side], St = STONE[side];
+      const y0 = side === 0 ? R : 0.3, y1 = side === 0 ? H - 0.3 : R, T = TEAM[side], St = STONE[side];
       const spots = SPOTS.map(([x, y, s]) => [x, side ? H - y : y, s]);
       const inLane = (x, y) => A.BRIDGES.some(bx => Math.abs(x - bx) < 1.25) || Math.hypot(x - 9, y - spots[2][1]) < 3.3;
       g.save();
-      g.beginPath(); roundRect(g, 0.35, y0, W - 0.7, y1 - y0, 0.3); g.clip();
+      g.beginPath(); roundRect(g, 0.35, 0.3, W - 0.7, H - 0.6, 0.3); g.clip(); g.beginPath(); g.rect(0, y0, W, y1 - y0); g.clip();
       g.fillStyle = `hsl(${St.h} ${St.s}% ${St.l - 7}%)`; g.fillRect(0, y0, W, y1 - y0);
       // flagstones, laid like brick; the walked lanes are worn lighter
       for (let row = Math.floor(y0); row < y1; row++) {
@@ -248,18 +248,20 @@
       g.fillStyle = vg; g.fillRect(0, y0, W, y1 - y0);
       g.restore();
       // the wall: dark stone, a bevel, a gold inlay and the team's glow
-      g.save(); g.lineJoin = "round";
+      g.save(); g.lineJoin = "round"; g.beginPath(); g.rect(-5, y0, W + 10, y1 - y0); g.clip();
       g.shadowColor = T.main; g.shadowBlur = ts * dpr * .5;
-      g.strokeStyle = T.glow + ".8)"; g.lineWidth = .1; g.beginPath(); roundRect(g, 0.3, y0 - .05, W - 0.6, y1 - y0 + .1, 0.35); g.stroke();
+      g.strokeStyle = T.glow + ".8)"; g.lineWidth = .1; g.beginPath(); roundRect(g, 0.3, 0.25, W - 0.6, H - 0.5, 0.35); g.stroke();
       g.shadowBlur = 0;
-      g.strokeStyle = "#0b0716"; g.lineWidth = .34; g.beginPath(); roundRect(g, 0.52, y0 + .17, W - 1.04, y1 - y0 - .34, 0.2); g.stroke();
-      g.strokeStyle = "rgba(227,186,92,.55)"; g.lineWidth = .045; g.beginPath(); roundRect(g, 0.7, y0 + .35, W - 1.4, y1 - y0 - .7, 0.1); g.stroke();
+      g.strokeStyle = "#0b0716"; g.lineWidth = .34; g.beginPath(); roundRect(g, 0.52, 0.47, W - 1.04, H - 0.94, 0.2); g.stroke();
+      g.strokeStyle = "rgba(227,186,92,.55)"; g.lineWidth = .045; g.beginPath(); roundRect(g, 0.7, 0.65, W - 1.4, H - 1.3, 0.1); g.stroke();
       g.restore();
       // corner pillars with a gem on top
-      for (const [px, py] of [[.75, y0 + .75], [W - .75, y0 + .75], [.75, y1 - .75], [W - .75, y1 - .75]]) pillar(g, px, py, T);
+      const yb = side === 0 ? H - 1.05 : 1.05;
+      for (const px of [.75, W - .75]) pillar(g, px, yb, T);
     }
-    // the great mandala over the river
-    mandala(g, 9, R, 5.2, "rgba(227,186,92,.16)");
+    // the great mandala at the heart of the arena, and gold pillars where the halves meet
+    mandala(g, 9, R, 5.2, "rgba(227,186,92,.2)");
+    for (const px of [.75, W - .75]) pillar(g, px, R + .3, { main: "#e3ba5c" });
     return c;
   }
   function skyRock(g, x, y, s, r) {
@@ -681,25 +683,16 @@
     if (G.flash > 0) { ctx.fillStyle = `rgba(255,240,220,${G.flash * .5})`; ctx.fillRect(-OX, -OY, VW, VH); G.flash = Math.max(0, G.flash - dt * 1.6); }
   }
   let riverGrad = null, riverKey = "";
+  /* the line where the halves meet: a seam of living light, brighter as the match heats up */
   function drawRiver(S) {
     const R = A.RIVER, t = G.river;
     const col = G.phase === "peak" || G.phase === "overtime" ? ["#ff9ad8", "#fff1c2"] : G.phase === "rising" ? ["#e05cff", "#ff7ae6"] : ["#7a3cff", "#c56bff"];
-    if (riverKey !== col[0]) { riverKey = col[0]; riverGrad = ctx.createLinearGradient(0, R - 1, 0, R + 1); riverGrad.addColorStop(0, "rgba(10,4,24,.9)"); riverGrad.addColorStop(.5, col[0] + "55"); riverGrad.addColorStop(1, "rgba(10,4,24,.9)"); }
-    ctx.fillStyle = riverGrad; ctx.fillRect(-OX, R - 1, VW, 2);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = col[0] + "55"; ctx.lineWidth = .32; ctx.beginPath(); ctx.moveTo(.7, R); ctx.lineTo(A.W - .7, R); ctx.stroke();
+    ctx.strokeStyle = col[1] + "cc"; ctx.lineWidth = .06; ctx.setLineDash([.6, .3]); ctx.lineDashOffset = -t * 1.5; ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
     const st = streak(col[1]);
-    for (let k = 0; k < 14; k++) {
-      const y = R - .8 + ((k * 0.37) % 1.6), speed = .8 + (k % 5) * .25, len = 1.2 + (k % 3) * .7;
-      const x = ((t * speed * 2 + k * 3.7) % (VW + len * 2)) - len - OX;
-      ctx.drawImage(st, x, y - .06, len, .12 + (k % 3) * .04);
-    }
-    ctx.strokeStyle = col[1] + "55"; ctx.lineWidth = .18;
-    ctx.beginPath(); ctx.moveTo(-OX, R - 1); ctx.lineTo(VW - OX, R - 1); ctx.moveTo(-OX, R + 1); ctx.lineTo(VW - OX, R + 1); ctx.stroke();
-    ctx.strokeStyle = col[1] + "cc"; ctx.lineWidth = .05; ctx.stroke();
-    const bs = bridge(), fl = .8 + Math.sin(t * 7) * .1 + Math.sin(t * 13) * .06;
-    for (const bx of A.BRIDGES) {
-      ctx.drawImage(bs, bx - 1.3, R - 1.5, 2.6, 3);
-      for (const [lx, ly] of [[bx - 1, R - 1.2], [bx + 1, R - 1.2], [bx - 1, R + 1.2], [bx + 1, R + 1.2]]) stamp("#ffd27a", lx, ly, .45 * fl);
-    }
+    for (let k = 0; k < 6; k++) { const len = 1.4 + (k % 3) * .6, x = ((t * (1.2 + k * .3) * 2 + k * 3.7) % (A.W + len)) - len * .5; ctx.globalAlpha = .7; ctx.drawImage(st, x, R - .07, len, .14); }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
   }
   function drawZone() {
     const card = G.drag ? G.drag.def : G.sel != null ? G.S.sides[0].deck[G.S.sides[0].hand[G.sel]] : null;
@@ -708,15 +701,15 @@
     const S = G.S, R = A.RIVER;
     ctx.fillStyle = "rgba(255,40,80,.16)";
     const down = S.sides[1].gatesDown;
-    if (!down[0] && !down[1]) ctx.fillRect(0, 0, A.W, R + 1);
+    if (!down[0] && !down[1]) ctx.fillRect(0, 0, A.W, R + .5);
     else {
       for (let lane = 0; lane < 2; lane++) {
         const x0 = lane ? A.W / 2 : 0;
-        ctx.fillRect(x0, 0, A.W / 2, down[lane] ? 10 : R + 1);
+        ctx.fillRect(x0, 0, A.W / 2, down[lane] ? 10 : R + .5);
       }
     }
     ctx.strokeStyle = "rgba(255,90,120,.6)"; ctx.setLineDash([.3, .2]); ctx.lineWidth = .06;
-    ctx.beginPath(); ctx.moveTo(0, R + 1); ctx.lineTo(A.W, R + 1); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(0, R + .5); ctx.lineTo(A.W, R + .5); ctx.stroke(); ctx.setLineDash([]);
   }
   const drawTower = (e, alpha, dt) => upright(e.x, e.y + .4, () => drawTowerUp(e, alpha, dt));
   function drawTowerUp(e, alpha, dt) {
