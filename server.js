@@ -435,8 +435,9 @@ function route(req, res) {
   if (urlPath === "/owner") urlPath = "/owner.html";
   if (urlPath === "/wallet") urlPath = "/wallet.html";
   if (urlPath === "/payout") urlPath = "/payout.html";
-  // REALM Duels is the card battler now; the first Duels lives on at /duels-classic
-  if (urlPath === "/duels") urlPath = "/duels-beta.html";
+  // REALM Duels is REALM Cards now; the card battler before it lives on at /battler, the first Duels at /duels-classic
+  if (urlPath === "/duels") urlPath = "/rc.html";
+  if (urlPath === "/battler") urlPath = "/duels-beta.html";
   if (urlPath === "/duels-classic") urlPath = "/duels.html";
   if (urlPath === "/arena") urlPath = "/arena.html";
   if (urlPath === "/codex") urlPath = "/codex.html";

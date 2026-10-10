@@ -30,9 +30,11 @@ function starters() {
 
 /* every card as the page shows it; sent once and cached */
 function pool() {
+  // tgt: what the card asks you to pick, so the page can light up the right targets
+  const tgt = c => { const t = E.targetOf(c); return t ? { to: t.to, maxPower: t.maxPower == null ? null : t.maxPower } : null; };
   const beings = C.allBeings().map(c => ({ id: c.id, n: c.n, type: "being", name: c.name, tier: c.tier, cost: c.cost, essence: c.essence,
-    power: c.power, health: c.health, kw: c.kw, text: c.text, named: c.named }));
-  const spells = C.SPELLS.map(s => ({ id: s.id, type: s.type, name: s.name, cost: s.cost, essence: s.essence, text: s.text, target: !!E.targetOf(s) }));
+    power: c.power, health: c.health, kw: c.kw, text: c.text, named: c.named, tgt: tgt(c) }));
+  const spells = C.SPELLS.map(s => ({ id: s.id, type: s.type, name: s.name, cost: s.cost, essence: s.essence, text: s.text, tgt: tgt(s), fx: (s.fx || s.turnStart || s.turnEnd || [{ k: "relic" }])[0].k }));
   const tokens = Object.fromEntries(Object.entries(C.TOKENS).map(([k, t]) => [k, { ...t }]));
   const kw = Object.fromEntries(Object.entries(C.KW).map(([k, v]) => [k, { name: v.name, rule: v.rule }]));
   return { v: 1, cards: [...beings, ...spells], tokens, kw, starters: starters().map(s => ({ key: s.key, name: s.name, essences: s.essences, deck: s.deck })) };

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#05020c">
+<title>REALM Cards</title>
+<meta name="description" content="REALM Cards: a card game where all 1,111 beings are cards. Build a deck from five essences, then outplay the realm's guardians. Free to play.">
+<meta property="og:title" content="REALM Cards">
+<meta property="og:description" content="All 1,111 beings are cards. Build a deck, outplay the realm. Free to play.">
+<meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="rc.css?v=1">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-gem" viewBox="0 0 12 14"><path shape-rendering="crispEdges" d="M3 0h6v2h2v2h1v6h-1v2H9v2H3v-2H1v-2H0V4h1V2h2z"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 14 12"><path shape-rendering="crispEdges" d="M1 0h4v1h1v1h2V1h1V0h4v1h1v5h-1v1h-1v1h-1v1H9v1H8v1H6v-1H5V9H4V8H3V7H2V6H1V5H0V1h1z"/></symbol>
+    <symbol id="i-sword" viewBox="0 0 12 12"><path shape-rendering="crispEdges" d="M8 0h4v4h-1v1h-1v1H9v1H8v1h1v1h1v2H9v1H7v-1H6v-1H5v1H4v1H3v1H0V9h1V8h1V7h1V6H2V5H1V3h2v1h1v1h1V4h1V3h1V2h1z"/></symbol>
+    <symbol id="i-deck" viewBox="0 0 12 14"><path shape-rendering="crispEdges" d="M2 0h10v12H2zM0 2h1v12h9v-1H1z"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 14 12"><path shape-rendering="crispEdges" d="M0 3h5v9H0zM5 1h4v11H5zM9 3h5v9H9z" opacity=".9"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <!-- keywords -->
+    <symbol id="k-flying" viewBox="0 0 16 16"><path d="M1 9c3-1 5-3 7-7 0 4 2 7 7 8-3 1-6 0-7-2-1 3-4 4-7 1z"/></symbol>
+    <symbol id="k-reach" viewBox="0 0 16 16"><path d="M8 1l5 6h-3v8H6V7H3z"/></symbol>
+    <symbol id="k-haste" viewBox="0 0 16 16"><path d="M10 0 3 9h4l-2 7 8-10H9z"/></symbol>
+    <symbol id="k-lifelink" viewBox="0 0 16 16"><path d="M8 15 1.5 8.5A4 4 0 0 1 8 3.3a4 4 0 0 1 6.5 5.2z"/></symbol>
+    <symbol id="k-deathtouch" viewBox="0 0 16 16"><path d="M8 1a6 6 0 0 0-6 6c0 2 1 3 2 4v3h8v-3c1-1 2-2 2-4a6 6 0 0 0-6-6zM5.5 6a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm5 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/></symbol>
+    <symbol id="k-firstStrike" viewBox="0 0 16 16"><path d="M11 0h5v5L7 14l1 1-1 1-3-3-3 3-1-1 3-3-3-3 1-1 1 1z"/></symbol>
+    <symbol id="k-doubleStrike" viewBox="0 0 16 16"><path d="M10 0h4v4L7 11l1 1-1 1-2-2-3 3-1-1 3-3-2-2 1-1 1 1zM14 6l2 0v4l-4 4-1-1 3-3z"/></symbol>
+    <symbol id="k-trample" viewBox="0 0 16 16"><path d="M1 4h5l4 4-4 4H1l4-4zM8 4h3l4 4-4 4H8l4-4z"/></symbol>
+    <symbol id="k-vigilance" viewBox="0 0 16 16"><path d="M8 3C4 3 1 8 1 8s3 5 7 5 7-5 7-5-3-5-7-5zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/></symbol>
+    <symbol id="k-veiled" viewBox="0 0 16 16"><path d="M8 1 2 3v5c0 4 3 6 6 7 3-1 6-3 6-7V3z"/></symbol>
+    <symbol id="k-frost" viewBox="0 0 16 16"><path d="M7 0h2v3l2-2 1 1-3 3v2h2l3-3 1 1-2 2h3v2h-3l2 2-1 1-3-3H9v2l3 3-1 1-2-2v3H7v-3l-2 2-1-1 3-3V9H5l-3 3-1-1 2-2H0V7h3L1 5l1-1 3 3h2V5L4 2l1-1 2 2z"/></symbol>
+    <symbol id="k-elusive" viewBox="0 0 16 16"><path d="M8 1a6 6 0 0 0-6 6v8l2-2 2 2 2-2 2 2 2-2 2 2V7a6 6 0 0 0-6-6zM6 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm4 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></symbol>
+  </defs>
+</svg>
+
+<!-- ===== the lobby ===== -->
+<section class="rc-lobby" data-screen="lobby">
+  <div class="rc-sky" aria-hidden="true"><i></i><i class="b"></i></div>
+  <header class="rc-top">
+    <a class="rc-brand" href="/"><img src="logo-bar.png" width="28" height="28" alt="">REALM</a>
+    <button class="rc-icon" type="button" data-mute aria-label="Sound"><svg><use href="#i-sound"/></svg></button>
+  </header>
+
+  <div class="rc-hero">
+    <div class="rc-fan" aria-hidden="true"><img src="/thumbs/176.webp" alt="" class="f1"><img src="/thumbs/1111.webp" alt="" class="f2"><img src="/thumbs/762.webp" alt="" class="f3"></div>
+    <h1 class="rc-title"><small>REALM</small>CARDS</h1>
+    <p class="rc-sub">All 1,111 beings are cards · Free to play</p>
+  </div>
+
+  <div class="rc-deckpick" data-deckpick>
+    <button type="button" class="rc-deckbox" data-open-decks>
+      <span class="rc-deckart" data-deck-art></span>
+      <span class="rc-deckmeta"><i>Your deck</i><b data-deck-name>Wildfire</b><span class="rc-ess" data-deck-ess></span></span>
+      <span class="rc-chev">Change</span>
+    </button>
+  </div>
+
+  <div class="rc-levels" role="radiogroup" aria-label="Difficulty" data-levels>
+    <button type="button" data-level="easy">Easy</button>
+    <button type="button" data-level="normal">Normal</button>
+    <button type="button" data-level="hard">Hard</button>
+  </div>
+
+  <button class="rc-play" type="button" data-play><span>Play</span><i data-play-sub>vs the realm's guardians</i></button>
+  <p class="rc-err" data-lobby-err hidden></p>
+
+  <div class="rc-tiles">
+    <button class="rc-tile" type="button" data-build><b>Build a deck</b><i>Any being, any spell</i></button>
+    <button class="rc-tile" type="button" data-how><b>How to play</b><i>The rules in a minute</i></button>
+  </div>
+
+  <div class="rc-wallet" data-wallet>
+    <div data-w-out>
+      <p class="rc-fine">Hold REALM beings? Connect and they play <b>stronger</b> for you with $DMT, and the deck builder puts them first. It's a signature, not a transaction.</p>
+      <button type="button" class="rc-ghost" data-w-connect>Connect wallet</button>
+      <a class="rc-ghost" data-w-phantom hidden>Open in Phantom</a>
+      <p class="rc-err" data-w-err hidden></p>
+    </div>
+    <div data-w-in hidden>
+      <p class="rc-fine" data-w-who></p>
+      <button type="button" class="rc-link" data-w-off>Disconnect</button>
+    </div>
+  </div>
+
+  <p class="rc-foot"><a href="/codex">Codex</a> · <a href="/arena">Arena</a> · <a href="/battler">Card Battler</a> · <a href="/">REALM</a></p>
+</section>
+
+<!-- ===== deck list ===== -->
+<div class="rc-sheet" data-decks hidden>
+  <div class="rc-sheet-bg" data-close></div>
+  <div class="rc-sheet-body tall">
+    <h2>Choose a deck</h2>
+    <div class="rc-decklist" data-decklist></div>
+    <button class="rc-ghost" type="button" data-close>Close</button>
+  </div>
+</div>
+
+<!-- ===== how to play ===== -->
+<div class="rc-sheet" data-howsheet hidden>
+  <div class="rc-sheet-bg" data-close></div>
+  <div class="rc-sheet-body tall">
+    <h2>How to play</h2>
+    <ol class="rc-how">
+      <li><b>Bring your rival from 20 life to 0.</b></li>
+      <li><b>Crystals</b> <svg class="ic gem"><use href="#i-gem"/></svg> pay for cards. You get one more every turn, up to 10, and they refill each turn.</li>
+      <li><b>Beings</b> fight for you. They can't attack the turn they arrive (unless they have <b>Haste</b>).</li>
+      <li><b>Attack once a turn</b> with any of your ready beings. Your rival chooses blockers: one blocker per attacker. Unblocked attackers hit the rival.</li>
+      <li>Blocked beings trade damage: <svg class="ic"><use href="#i-sword"/></svg> power against <svg class="ic"><use href="#i-heart"/></svg> health. Damage heals at the end of each turn.</li>
+      <li><b>Rites</b> are fast: you can cast them while your rival is attacking you. <b>Rituals</b> are cast on your own turn. <b>Relics</b> stay in play.</li>
+      <li><b>Essences</b> are like colours: Magic burns, Spirit grows, Knowledge draws and freezes, Light flies and protects, Dark destroys. A deck uses one or two.</li>
+      <li>Tap any card to read it.</li>
+    </ol>
+    <button class="rc-play small" type="button" data-close><span>Got it</span></button>
+  </div>
+</div>
+
+<!-- ===== the deck builder ===== -->
+<section class="rc-builder" data-screen="builder" hidden>
+  <header class="rc-bhead">
+    <button type="button" class="rc-back" data-builder-back aria-label="Back">&lsaquo;</button>
+    <input class="rc-dname" data-dname maxlength="24" value="My deck" aria-label="Deck name">
+    <button type="button" class="rc-mini" data-auto>Auto-fill</button>
+  </header>
+  <div class="rc-filters">
+    <div class="rc-chips" data-f-ess></div>
+    <div class="rc-chips" data-f-cost></div>
+    <div class="rc-chips small" data-f-type></div>
+    <input class="rc-search" data-f-q placeholder="Search names and abilities" aria-label="Search">
+  </div>
+  <div class="rc-grid" data-grid></div>
+  <div class="rc-more" data-more></div>
+  <footer class="rc-dbar">
+    <button type="button" class="rc-dcount" data-dlist><b data-dn>0</b><i>/30</i></button>
+    <div class="rc-curve" data-curve></div>
+    <button type="button" class="rc-mini gold" data-dsave>Save</button>
+  </footer>
+</section>
+
+<!-- the deck you're building, as a list -->
+<div class="rc-sheet" data-dsheet hidden>
+  <div class="rc-sheet-bg" data-close></div>
+  <div class="rc-sheet-body tall">
+    <h2 data-dsheet-title>Deck</h2>
+    <div class="rc-dl" data-dl></div>
+    <p class="rc-err" data-dsheet-err hidden></p>
+    <div class="rc-row"><button class="rc-ghost" type="button" data-dclear>Clear</button><button class="rc-ghost" type="button" data-ddelete hidden>Delete deck</button><button class="rc-ghost" type="button" data-close>Close</button></div>
+  </div>
+</div>
+
+<!-- ===== the match ===== -->
+<section class="rc-match" data-screen="match" hidden>
+  <div class="rc-felt" aria-hidden="true"></div>
+  <div class="rc-side foe" data-side="rival">
+    <div class="rc-plate" data-face="1">
+      <span class="rc-emblem" data-rival-emblem></span>
+      <span class="rc-pname" data-rname>Rival</span>
+      <span class="rc-stat hand"><svg><use href="#i-hand"/></svg><b data-r-hand>0</b></span>
+      <span class="rc-stat deck"><svg><use href="#i-deck"/></svg><b data-r-deck>0</b></span>
+      <span class="rc-stat gems"><svg><use href="#i-gem"/></svg><b data-r-ess>0</b></span>
+      <span class="rc-life" data-r-life>20</span>
+    </div>
+    <div class="rc-relics" data-r-relics></div>
+    <div class="rc-board" data-r-board></div>
+  </div>
+  <div class="rc-mid">
+    <div class="rc-banner" data-banner></div>
+  </div>
+  <div class="rc-side you" data-side="you">
+    <div class="rc-board" data-y-board></div>
+    <div class="rc-relics" data-y-relics></div>
+    <div class="rc-plate" data-face="0">
+      <span class="rc-life" data-y-life>20</span>
+      <span class="rc-gems" data-y-gems></span>
+      <span class="rc-stat deck"><svg><use href="#i-deck"/></svg><b data-y-deck>0</b></span>
+      <button type="button" class="rc-hint" data-hint aria-label="Suggest a move">?</button>
+      <button type="button" class="rc-menu" data-menu aria-label="Menu">&#8801;</button>
+    </div>
+  </div>
+  <div class="rc-handrow">
+    <div class="rc-hand" data-hand></div>
+    <div class="rc-actions">
+      <button type="button" class="rc-act" data-act>End turn</button>
+      <button type="button" class="rc-act2" data-act2 hidden>Cancel</button>
+    </div>
+  </div>
+</section>
+<div class="rc-toast" data-toast hidden></div>
+
+<!-- a card up close -->
+<div class="rc-zoom" data-zoom hidden>
+  <div class="rc-zoom-bg" data-zoom-close></div>
+  <div class="rc-zoom-body">
+    <div data-zoom-card></div>
+    <p class="rc-zoom-kw" data-zoom-kw></p>
+    <div class="rc-row">
+      <button type="button" class="rc-play small" data-zoom-go hidden><span>Play</span></button>
+      <button type="button" class="rc-ghost" data-zoom-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- the menu in a match -->
+<div class="rc-sheet" data-msheet hidden>
+  <div class="rc-sheet-bg" data-close></div>
+  <div class="rc-sheet-body">
+    <h2>Paused</h2>
+    <button class="rc-play small" type="button" data-close><span>Back to the match</span></button>
+    <button class="rc-ghost" type="button" data-how2>How to play</button>
+    <button class="rc-ghost danger" type="button" data-resign>Concede</button>
+  </div>
+</div>
+
+<!-- the end -->
+<section class="rc-end" data-end hidden>
+  <div class="rc-end-body">
+    <h2 data-end-title>Victory</h2>
+    <p class="rc-end-sub" data-end-sub></p>
+    <div class="rc-end-stats" data-end-stats></div>
+    <button class="rc-play small" type="button" data-again><span>Play again</span></button>
+    <button class="rc-ghost" type="button" data-to-lobby>Back</button>
+  </div>
+</section>
+
+<script src="rc-page.js?v=1"></script>
+</body>
+</html>
