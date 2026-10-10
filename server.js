@@ -568,9 +568,9 @@ const server = http.createServer((req, res) => {
     req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
     req.on("end", () => {
       let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
-      const kind = urlPath === "/api/tcg/act" || urlPath === "/api/tcg/view" ? "move" : "match";
+      const kind = urlPath === "/api/tcg/act" || urlPath === "/api/tcg/view" || urlPath === "/api/tcg/hint" ? "move" : "match";
       if (!tcgAllowed(ip, kind)) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
-      const fn = { "/api/tcg/deal": TCG.deal, "/api/tcg/start": TCG.start, "/api/tcg/act": TCG.act, "/api/tcg/view": TCG.view }[urlPath];
+      const fn = { "/api/tcg/deal": TCG.deal, "/api/tcg/start": TCG.start, "/api/tcg/act": TCG.act, "/api/tcg/view": TCG.view, "/api/tcg/hint": TCG.hint }[urlPath];
       if (!fn) return send(404, { error: "Not found." });
       let d; try { d = fn(j); } catch (e) { console.error("tcg", e); return send(500, { error: "Something went wrong. Start a new match." }); }
       send(d.error ? 400 : 200, d);

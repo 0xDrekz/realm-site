@@ -149,7 +149,7 @@ function sweep(S) {
       u.dead = true;
       const P = S.players[u.owner];
       P.board = P.board.filter(x => x !== u);
-      emit(S, { t: "death", uid: u.uid });
+      emit(S, { t: "death", uid: u.uid, p: u.owner, name: u.name });
       if (u.champion != null) { const c = P.champions[u.champion]; c.home = true; c.tax += 2; }
       for (const e of u.def.death || []) run(S, P, e, u, null);
     }

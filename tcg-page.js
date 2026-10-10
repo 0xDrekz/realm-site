@@ -12,7 +12,8 @@
   const RC = window.RealmCard, { esc, ESS_COL, TIER_COL } = RC;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const pace = ms => REDUCED ? Math.min(ms, 120) : ms;
+  let SPEED = 1;      // set from "Fast animations" below
+  const pace = ms => (REDUCED || (typeof M !== "undefined" && M && M.skip)) ? Math.min(ms, 80) : Math.round(ms * SPEED);
 
   /* ---------- saved on this device ---------- */
   const store = {
@@ -20,6 +21,98 @@
     set(k, v) { try { localStorage.setItem("realm-tcg-" + k, JSON.stringify(v)); } catch { /* private mode */ } },
   };
   let progress = store.get("progress", { tutorial: false, stars: {} });
+  SPEED = store.get("fast", false) ? .6 : 1;
+
+  /* ---------- you: level, experience, quests, streak, card backs ----------
+     Kept on this device until wallet sign-in arrives. Experience for a
+     match comes from the server's result; quests count what you did. */
+  const today = () => new Date().toISOString().slice(0, 10);          // the day, in UTC
+  const need = lv => 150 + 60 * (lv - 1);
+  const BACKS = [{ id: "realm", name: "Realm", lv: 1 }, { id: "spore", name: "Spore", lv: 3 }, { id: "nebula", name: "Nebula", lv: 5 },
+    { id: "solar", name: "Solar", lv: 7 }, { id: "void", name: "Void", lv: 10 }, { id: "prime", name: "Prime", lv: 15 }];
+  const TITLES = [[1, "Wanderer"], [3, "Spore Walker"], [5, "Seeker"], [8, "Adept"], [12, "Oracle"], [20, "Ascended"]];
+  const QUESTS = [
+    { id: "win2", text: "Win 2 matches", goal: 2, of: r => r.won ? 1 : 0 },
+    { id: "play3", text: "Play 3 matches", goal: 3, of: () => 1 },
+    { id: "champ6", text: "Summon 6 champions", goal: 6, of: r => r.stats.champions },
+    { id: "kill10", text: "Destroy 10 rival units", goal: 10, of: r => r.stats.kills },
+    { id: "rit5", text: "Cast 5 rituals", goal: 5, of: r => r.stats.rituals },
+    { id: "dmg30", text: "Deal 30 damage to rivals", goal: 30, of: r => r.stats.damage },
+    { id: "quick1", text: "Win a Quick match", goal: 1, of: r => r.won && r.level === "quick" ? 1 : 0 },
+    { id: "star3", text: "Get 3 stars on a campaign level", goal: 1, of: r => r.stars === 3 && /^\d/.test(r.level) ? 1 : 0 },
+  ];
+  let me = store.get("me", { xp: 0, level: 1, total: 0, back: "realm", streak: 0, lastDay: null, firstWin: null, wins: 0, games: 0, quests: null });
+  const titleOf = lv => TITLES.reduce((t, [l, n]) => lv >= l ? n : t, "Wanderer");
+  function dayQuests() {
+    if (me.quests && me.quests.day === today()) return me.quests;
+    let h = 7; for (const ch of today()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const pool = QUESTS.map(q => q.id), list = [];
+    while (list.length < 3) { h = (h * 1103515245 + 12345) >>> 0; list.push(pool.splice(h % pool.length, 1)[0]); }
+    me.quests = { day: today(), list: list.map(id => ({ id, n: 0, done: false })) };
+    store.set("me", me);
+    return me.quests;
+  }
+  /* add a match to your record; what changed, for the reward screen */
+  function gain(res) {
+    if (!res || !res.xp) return null;              // left early, or lost in a handful of turns
+    const out = { lines: [], before: { level: me.level, xp: me.xp }, ups: [] }, d = today();
+    out.lines.push([res.won ? "Victory" : "Good fight", res.xp]);
+    if (me.lastDay !== d) {
+      const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+      me.streak = me.lastDay === y ? me.streak + 1 : 1; me.lastDay = d;
+      if (me.streak > 1) out.lines.push([`${me.streak} day streak`, 10 * Math.min(me.streak, 10)]);
+    }
+    if (res.won && me.firstWin !== d) { me.firstWin = d; out.lines.push(["First win of the day", 100]); }
+    me.games++; if (res.won) me.wins++;
+    for (const q of dayQuests().list) {
+      if (q.done) continue;
+      const def = QUESTS.find(x => x.id === q.id);
+      q.n = Math.min(def.goal, q.n + def.of(res));
+      if (q.n >= def.goal) { q.done = true; out.lines.push([`Quest done: ${def.text}`, 150]); }
+    }
+    out.add = out.lines.reduce((a, [, v]) => a + v, 0);
+    me.total += out.add; me.xp += out.add;
+    while (me.xp >= need(me.level)) {
+      me.xp -= need(me.level); me.level++;
+      const b = BACKS.find(x => x.lv === me.level), t = TITLES.find(([l]) => l === me.level);
+      out.ups.push({ level: me.level, back: b && b.name, title: t && t[1] });
+    }
+    out.after = { level: me.level, xp: me.xp };
+    store.set("me", me);
+    return out;
+  }
+  function paintMe() {
+    document.body.dataset.back = me.back;
+    $("[data-lvl]").textContent = me.level;
+    $("[data-title]").textContent = titleOf(me.level);
+    $("[data-xpfill]").style.width = (100 * me.xp / need(me.level)).toFixed(1) + "%";
+    $("[data-xptext]").textContent = `${me.xp} / ${need(me.level)} XP to level ${me.level + 1}`;
+    const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10), live = me.lastDay === today() || me.lastDay === y;
+    const st = $("[data-streak]"); st.hidden = !(live && me.streak > 1); st.textContent = `${me.streak} day streak`;
+    const qs = dayQuests();
+    $("[data-quests]").innerHTML = qs.list.map(q => {
+      const def = QUESTS.find(x => x.id === q.id);
+      return `<li class="${q.done ? "done" : ""}"><span class="tg-q-t">${esc(def.text)}</span><span class="tg-q-r">${q.done ? "Done" : "+150 XP"}</span>
+        <span class="tg-q-bar"><i style="width:${(100 * q.n / def.goal).toFixed(0)}%"></i></span><span class="tg-q-n">${q.n}/${def.goal}</span></li>`;
+    }).join("");
+    const mid = new Date(); mid.setUTCHours(24, 0, 0, 0);
+    const hrs = Math.max(1, Math.round((mid - Date.now()) / 36e5));
+    $("[data-quest-reset]").textContent = `New quests in ${hrs}h`;
+    $("[data-backs]").innerHTML = BACKS.map(b => {
+      const open = me.level >= b.lv;
+      return `<button type="button" class="tg-bk${me.back === b.id ? " on" : ""}" data-bk="${b.id}" ${open ? "" : "disabled"}><span class="tg-bk-card" data-back="${b.id}"></span><b>${b.name}</b><i>${open ? (me.back === b.id ? "In use" : "Use") : "Level " + b.lv}</i></button>`;
+    }).join("");
+    const pl = $("[data-play-label]"), ps = $("[data-play-sub]");
+    if (!progress.tutorial) { pl.textContent = "Play"; ps.textContent = "Start with a 2-minute guided game"; }
+    else { pl.textContent = "Play"; ps.textContent = "Quick match · about 3 minutes"; }
+  }
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-bk]"); if (!b || b.disabled) return;
+    me.back = b.dataset.bk; store.set("me", me); sfx("tap"); paintMe();
+  });
+  $("[data-play]").addEventListener("click", () => { sfx("tap"); buzz(10); begin(progress.tutorial ? "quick" : "tutorial"); });
+  $("[data-fast]").checked = SPEED < 1;
+  $("[data-fast]").addEventListener("change", e => { SPEED = e.target.checked ? .6 : 1; store.set("fast", e.target.checked); });
 
   /* ---------- sound: a small synth, no files to load ---------- */
   let ac = null, muted = store.get("muted", false);
@@ -97,6 +190,7 @@
   }
   async function hub() {
     screen("hub");
+    paintMe();
     if (!MAP) { try { MAP = await (await fetch("/api/tcg/map")).json(); } catch { $("[data-realms]").innerHTML = '<p class="tg-bad">The map could not be read. Pull to refresh.</p>'; return; } }
     $(".tg-tut").classList.toggle("done", !!progress.tutorial);
     $("[data-tut-note]").textContent = progress.tutorial ? "Done. Play it again any time." : "Start here: learn to play in a few minutes";
@@ -124,7 +218,7 @@
      ============================================================ */
   let draft = null;
   async function begin(level) {
-    if (level === "tutorial") return startMatch({ level });
+    if (level === "tutorial" || level === "quick") return startMatch({ level });
     screen("draft");
     const meta = MAP && MAP.realms.flatMap(r => r.levels).find(l => l.id === level);
     $("[data-draft-title]").textContent = meta ? `${level} · ${meta.name}` : level;
@@ -173,11 +267,11 @@
       $("[data-draft-err]").textContent = d.error; $("[data-draft-err]").hidden = false; $("[data-start]").disabled = false; return;
     }
     M = { id: d.match, level: d.level, name: d.name, rival: d.rival, boss: d.boss, tutorial: d.tutorial, defs: d.defs,
-      shared: Object.fromEntries(d.shared.map(c => [c.id, c])), view: d.view, busy: true, mode: "idle", hold: new Set(), blocks: {}, aim: null, tips: new Set(), saying: false };
+      shared: Object.fromEntries(d.shared.map(c => [c.id, c])), view: d.view, busy: true, mode: "idle", hold: new Set(), blocks: {}, aim: null, tips: new Set(), saying: false, skip: false, hint: null };
     tiles.forEach(t => t.clear()); handEls.clear();
     $$("[data-board]").forEach(b => { b.innerHTML = ""; }); $("[data-hand]").innerHTML = "";
     $("[data-over]").hidden = true; hidePeek(); coach(null);
-    $("[data-level-name]").textContent = (M.tutorial ? "Tutorial · " : M.level + " · ") + M.name;
+    $("[data-level-name]").textContent = M.tutorial ? "Tutorial" : M.level === "quick" ? "Quick match" : M.level + " · " + M.name;
     $('[data-name="1"]').textContent = M.rival;
     screen("match");
     render(M.view, { deal: true });
@@ -403,7 +497,7 @@
       if (go.length) { L.hidden = false; L.className = "tm-btn red"; L.textContent = `Attack (${go.length})`; }
       R.textContent = "End turn";
       const anything = handItems(v).some(c => !playable(c));
-      R.className = "tm-btn" + (anything || go.length ? " ghost" : "");
+      R.className = "tm-btn" + (anything || go.length ? " ghost" : " nudge");
       ph.innerHTML = go.length ? "Your turn · <b>Ready</b> units can attack" : anything ? "Your turn · play a <b>glowing</b> card" : "Your turn · nothing left to do: <b>End turn</b>";
     } else { R.disabled = true; R.textContent = "…"; ph.textContent = ""; }
   }
@@ -506,9 +600,12 @@
   let toastT;
   function toast(t) { $("[data-phase]").textContent = t; clearTimeout(toastT); toastT = setTimeout(() => paintControls(), 1800); }
 
+  // tap anywhere while the rival plays to hurry it along
+  $(".tm").addEventListener("pointerdown", () => { if (M && M.busy) M.skip = true; });
+
   /* ---------- a move, and what came of it ---------- */
   async function send(move) {
-    M.busy = true; hidePeek(); coach(null); render(M.view);
+    M.busy = true; M.hint = null; hidePeek(); coach(null); render(M.view);
     const d = await post("act", { match: M.id, move });
     if (d.error) {
       M.busy = false;
@@ -518,7 +615,7 @@
       return;
     }
     await playFrames(d.frames);
-    M.busy = false;
+    M.busy = false; M.skip = false;
     if (d.result) return over(d.result);
     afterFrames();
   }
@@ -655,23 +752,51 @@
 
   /* ---------- the end ---------- */
   function over(res) {
-    const won = res.won, o = $("[data-over]");
+    const won = res.won, o = $("[data-over]"), quick = M.level === "quick";
     if (M.level === "tutorial" && won) progress.tutorial = true;
-    if (won && M.level !== "tutorial") progress.stars[M.level] = Math.max(progress.stars[M.level] || 0, res.stars);
+    if (won && !M.tutorial && !quick) progress.stars[M.level] = Math.max(progress.stars[M.level] || 0, res.stars);
     store.set("progress", progress);
+    const g = gain(res);
     o.classList.toggle("lost", !won);
-    $("[data-over-sub]").textContent = M.tutorial ? "Tutorial" : `${M.level} · ${M.name}`;
+    $("[data-over-sub]").textContent = M.tutorial ? "Tutorial" : quick ? "Quick match" : `${M.level} · ${M.name}`;
     $("[data-over-title]").textContent = won ? (M.boss ? "Boss down!" : "Victory") : "Defeat";
-    $("[data-stars]").innerHTML = M.tutorial ? "" : [0, 1, 2].map(() => '<svg viewBox="0 0 24 24"><path d="M12 2l3 6.9 7.5.6-5.7 4.9 1.8 7.3L12 17.8 5.4 21.7l1.8-7.3L1.5 9.5 9 8.9z"/></svg>').join("");
+    const campaign = !M.tutorial && !quick;
+    $("[data-stars]").innerHTML = campaign ? [0, 1, 2].map(() => '<svg viewBox="0 0 24 24"><path d="M12 2l3 6.9 7.5.6-5.7 4.9 1.8 7.3L12 17.8 5.4 21.7l1.8-7.3L1.5 9.5 9 8.9z"/></svg>').join("") : "";
     $("[data-over-note]").textContent = won
-      ? (M.tutorial ? "You know the basics. The Spore Fields are open." : `Won in ${res.turns} turns with ${res.life} life left. Stars: a win, half your life or more, and a win by turn 16.`)
-      : (M.tutorial ? "Try again: summon early, and attack when the rival has no good blocks." : "Your borrowed spirits fell. Deal again and try another three.");
-    const order = levelOrder(), next = M.tutorial ? order[0] : order[order.indexOf(M.level) + 1];
+      ? (M.tutorial ? "You know the basics. Now the real thing." : quick ? `Won in ${res.turns} turns.` : `Won in ${res.turns} turns with ${res.life} life left.`)
+      : (M.tutorial ? "Try again: summon early, and attack when you can." : res.xp ? "So close. Go again?" : "No experience for leaving early.");
+    // experience, line by line, then the bar fills
+    const rw = $("[data-rewards]"), lu = $("[data-lvlup]");
+    rw.innerHTML = ""; lu.hidden = true;
+    if (g) {
+      rw.innerHTML = g.lines.map(([t, v]) => `<div class="tm-rw"><span>${esc(t)}</span><b>+${v} XP</b></div>`).join("") +
+        `<div class="tm-rwbar"><b data-rwlvl>Level ${g.before.level}</b><span class="tg-xpbar"><i data-rwfill style="width:${(100 * g.before.xp / need(g.before.level)).toFixed(1)}%"></i></span></div>`;
+      $$(".tm-rw", rw).forEach((r, i) => { r.style.animationDelay = (300 + i * 260) + "ms"; setTimeout(() => sfx("star"), 300 + i * 260); });
+      const t0 = 400 + g.lines.length * 260;
+      let lv = g.before.level, steps = g.ups.length;
+      const fill = $("[data-rwfill]");
+      setTimeout(function step() {
+        if (steps > 0) {
+          fill.style.width = "100%";
+          setTimeout(() => {
+            lv++; steps--; $("[data-rwlvl]").textContent = `Level ${lv}`;
+            fill.style.transition = "none"; fill.style.width = "0%"; void fill.offsetWidth; fill.style.transition = "";
+            const u = g.ups[g.ups.length - steps - 1];
+            lu.hidden = false; lu.innerHTML = `<b>Level ${u.level}!</b>${u.title ? ` New title: ${esc(u.title)}.` : ""}${u.back ? ` New card back: ${esc(u.back)}.` : ""}`;
+            sfx("win"); buzz([20, 40, 60]);
+            step();
+          }, 700);
+        } else fill.style.width = (100 * g.after.xp / need(g.after.level)).toFixed(1) + "%";
+      }, t0);
+    }
+    const order = levelOrder(), next = M.tutorial ? null : quick ? null : order[order.indexOf(M.level) + 1];
     const nb = $("[data-next]"); nb.hidden = !(won && next); nb.onclick = () => { o.hidden = true; begin(next); };
-    $("[data-retry]").onclick = () => { o.hidden = true; begin(M.level); };
+    const ag = $("[data-again]"); ag.hidden = !(quick || M.tutorial); ag.textContent = M.tutorial ? (won ? "Play a quick match" : "Try again") : "Play again";
+    ag.onclick = () => { o.hidden = true; begin(M.tutorial && !won ? "tutorial" : "quick"); };
+    const rt = $("[data-retry]"); rt.hidden = quick || M.tutorial; rt.onclick = () => { o.hidden = true; begin(M.level); };
     o.hidden = false;
     sfx(won ? "win" : "lose"); buzz(won ? [30, 60, 30, 60, 80] : [80]);
-    if (won && !M.tutorial) $$("[data-stars] svg").forEach((s, i) => { if (i < res.stars) setTimeout(() => { s.classList.add("on"); sfx("star"); buzz(12); }, 450 + i * 320); });
+    if (won && campaign) $$("[data-stars] svg").forEach((s, i) => { if (i < res.stars) setTimeout(() => { s.classList.add("on"); sfx("star"); buzz(12); }, 450 + i * 320); });
   }
 
   /* ---------- the tutorial: one step at a time, pointing at what to tap ---------- */
@@ -710,6 +835,7 @@
     c.hidden = false;
   }
   function coachCheck() {
+    if (M && M.hint && !M.busy) return coach({ id: "hint", info: true }, M.hint.text, M.hint.el && document.contains(M.hint.el) ? M.hint.el : null);
     if (!M || !M.tutorial || M.busy || M.view.phase === "over") return coach(null);
     const v = M.view;
     STEPS.forEach(st => { if (!M.tips.has(st.id) && st.done && st.done(v)) M.tips.add(st.id); });
@@ -720,7 +846,24 @@
     if (M.mode === "target") return coach({ id: "aim", info: false }, "Tap a glowing target. To hit the rival directly, tap their heart.", (M.aim.uids.length ? tileOf(M.aim.uids[0]) : null) || lifeEl(1));
     coach(STEPS.find(st => !M.tips.has(st.id) && st.when(v)) || null);
   }
-  $("[data-coach-ok]").addEventListener("click", () => { if (coachStep) M.tips.add(coachStep.id); coach(null); sfx("tap"); setTimeout(coachCheck, 200); });
+  $("[data-coach-ok]").addEventListener("click", () => { if (coachStep) M.tips.add(coachStep.id); M.hint = null; coach(null); sfx("tap"); setTimeout(coachCheck, 200); });
+
+  /* ---------- a hint: what the AI would do in your seat ---------- */
+  $("[data-hint]").addEventListener("click", async () => {
+    if (!M || M.busy) return; sfx("tap");
+    const d = await post("hint", { match: M.id });
+    const mv = d.move; if (!mv) return;
+    let el = null, text = "";
+    if (mv.type === "block") { M.blocks = mv.blocks || {}; render(M.view); el = $("[data-right]"); text = Object.keys(M.blocks).length ? "These blocks keep you safest. Tap Confirm." : "Better to take this hit. Tap Take the hit."; }
+    else if (mv.type === "play") {
+      const key = mv.champion != null ? "c" + mv.champion : "h" + mv.uid; el = handEls.get(key);
+      const c = el && el._c; text = c ? `Try ${c.def.name}${c.champ ? " (your champion)" : ""}. Tap it, then ${c.kind === "ritual" ? "Cast" : "Summon"}.` : "Play a glowing card.";
+    }
+    else if (mv.type === "attack") { el = $("[data-left]"); text = "Attack now. Tap a unit first if you want to keep it back."; }
+    else { el = $("[data-right]"); text = "Nothing more worth doing this turn. Tap End turn."; }
+    M.hint = { el, text };
+    coach({ id: "hint", info: true }, text, el);
+  });
 
   /* ---------- how to play ---------- */
   $("[data-help]").addEventListener("click", () => { sfx("tap"); $("[data-rules]").hidden = false; });

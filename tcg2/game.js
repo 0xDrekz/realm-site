@@ -40,19 +40,24 @@ function create({ log = () => {} } = {}) {
     return v;
   };
 
+  /* k different beings, drawn by tier weight */
+  function draw(pool, k, not = []) {
+    const weights = Object.entries(pool), total = weights.reduce((a, [, w]) => a + w, 0), ns = [];
+    while (ns.length < k) {
+      let r = crypto.randomInt(total), tier = weights[0][0];
+      for (const [t, w] of weights) { if (r < w) { tier = t; break; } r -= w; }
+      const list = byTier[tier], n = list[crypto.randomInt(list.length)];
+      if (!ns.includes(n) && !not.includes(n)) ns.push(n);
+    }
+    return ns;
+  }
+
   /* ---------- the deal: five borrowed spirits, keep three ---------- */
   function deal({ level }) {
     tidy();
     const L = K.LEVELS.get(String(level || ""));
-    if (!L || L.id === "tutorial") return { error: "That level is not open." };
-    const pool = K.POOL[L.realm], weights = Object.entries(pool), total = weights.reduce((a, [, w]) => a + w, 0);
-    const ns = [];
-    while (ns.length < 5) {
-      let r = crypto.randomInt(total), tier = weights[0][0];
-      for (const [t, w] of weights) { if (r < w) { tier = t; break; } r -= w; }
-      const list = byTier[tier], n = list[crypto.randomInt(list.length)];
-      if (!ns.includes(n)) ns.push(n);
-    }
+    if (!L || L.id === "tutorial" || L.id === "quick") return { error: "That level is not open." };
+    const ns = draw(K.POOL[L.realm], 5);
     const id = token();
     deals.set(id, { ns, level: L.id, at: Date.now() });
     return { deal: id, level: L.id, cards: ns.map(n => show(n, K.BORROWED_SCALE)) };
@@ -63,8 +68,12 @@ function create({ log = () => {} } = {}) {
     tidy();
     const L = K.LEVELS.get(String(level || ""));
     if (!L) return { error: "That level is not open." };
-    let champions, scale = 1, deck;
+    let champions, scale = 1, deck, rival = L.rival;
     if (L.id === "tutorial") { champions = L.you.champions; deck = L.you.deck; }
+    else if (L.id === "quick") {
+      champions = draw(L.pool, 3); scale = K.BORROWED_SCALE;
+      rival = { name: L.rivals[crypto.randomInt(L.rivals.length)], champions: draw(L.pool, 3, champions), life: L.rivalLife, scale: L.rivalScale };
+    }
     else {
       const d = deals.get(String(dealId || ""));
       if (!d || d.level !== L.id) return { error: "That deal has expired. Deal again." };
@@ -74,20 +83,32 @@ function create({ log = () => {} } = {}) {
       champions = p.map(i => d.ns[i]); scale = K.BORROWED_SCALE;
     }
     const S = E.newMatch({ seed: crypto.randomInt(2 ** 32), first: L.first,
-      sides: [{ name: "You", champions, scale, deck }, { name: L.rival.name, champions: L.rival.champions, life: L.rival.life, scale: L.rival.scale || 1, deck: L.rival.deck }] });
+      sides: [{ name: "You", champions, scale, deck, life: L.id === "quick" ? L.life : undefined }, { name: rival.name, champions: rival.champions, life: rival.life, scale: rival.scale || 1, deck: rival.deck }] });
     S.events.length = 0;
-    const id = token(), m = { id, S, level: L.id, at: Date.now(), done: false };
+    const id = token(), m = { id, S, level: L.id, at: Date.now(), done: false, stats: { summons: 0, champions: 0, kills: 0, rituals: 0, damage: 0 } };
     matches.set(id, m);
     const first = E.view(S, 0);
     const defs = { you: first.you.champions.map(c => c.card), rival: first.rival.champions.map(c => c.card) };
     const frames = advance(m);
-    return { match: id, level: L.id, name: L.name, boss: !!L.boss, rival: L.rival.name, tutorial: L.id === "tutorial", defs, shared: C.SHARED, view: lite(first), frames, result: m.result || null };
+    return { match: id, level: L.id, name: L.name, boss: !!L.boss, rival: rival.name, tutorial: L.id === "tutorial", defs, shared: C.SHARED, view: lite(first), frames, result: m.result || null };
   }
+
+  /* what you did, for the daily quests */
+  function count(m, evs) {
+    for (const e of evs) {
+      if (e.t === "summon" && e.p === 0) { m.stats.summons++; if (e.n) m.stats.champions++; }
+      else if (e.t === "death" && e.p === 1) m.stats.kills++;
+      else if (e.t === "cast" && e.p === 0) m.stats.rituals++;
+      else if (e.t === "face" && e.p === 1) m.stats.damage += e.n;
+    }
+    return evs;
+  }
+  const frame = (m, who, type) => { const S = m.S; return { who, move: type, ev: count(m, S.events.splice(0)), view: lite(E.view(S, 0), S) }; };
 
   /* run the rival until it is your move again; every step becomes a frame */
   function advance(m) {
     const S = m.S, frames = [];
-    S.onAct = (who, a) => frames.push({ who, move: a.type, ev: S.events.splice(0), view: lite(E.view(S, 0), S) });
+    S.onAct = (who, a) => frames.push(frame(m, who, a.type));
     try {
       for (let g = 0; g < 80 && S.phase !== "over"; g++) {
         if (S.phase === "block") {
@@ -109,7 +130,10 @@ function create({ log = () => {} } = {}) {
     const S = m.S;
     m.done = true;
     const L = K.LEVELS.get(m.level), won = S.winner === 0;
-    m.result = { won, stars: K.stars(S, 0, L), turns: S.turn, life: S.players[0].life, level: m.level };
+    const st = K.stars(S, 0, L);
+    // no experience for leaving, or for a loss in a handful of turns (no farming)
+    const xp = m.resigned || (!won && S.turn < 8) ? 0 : K.xp(won, st, L);
+    m.result = { won, stars: st, turns: S.turn, life: S.players[0].life, level: m.level, xp, stats: m.stats };
     results.push({ ...m.result, at: Date.now() }); if (results.length > 2000) results.shift();
     log(`card battler: ${m.level} ${won ? "won" : "lost"} in ${S.turn} turns (${m.result.stars} stars)`);
   }
@@ -142,17 +166,31 @@ function create({ log = () => {} } = {}) {
     const a = clean(move);
     if (!a) return { error: "That move is not allowed." };
     if (a.type === "resign") {
-      S.winner = 1; S.phase = "over"; S.events.push({ t: "over", winner: 1 });
+      S.winner = 1; S.phase = "over"; S.events.push({ t: "over", winner: 1 }); m.resigned = true;
       finish(m);
       return { frames: [{ who: 0, move: "resign", ev: S.events.splice(0), view: lite(E.view(S, 0), S) }], result: m.result };
     }
     const frames = [];
-    S.onAct = (who, mv) => frames.push({ who, move: mv.type, ev: S.events.splice(0), view: lite(E.view(S, 0), S) });
+    S.onAct = (who, mv) => frames.push(frame(m, who, mv.type));
     const err = E.act(S, 0, a);
     S.onAct = null;
     if (err) { S.events.length = 0; return { error: err, view: lite(E.view(S, 0), S) }; }
     frames.push(...advance(m));
     return { frames, result: m.result || null };
+  }
+
+  /* a suggested move: what the AI would do in your seat */
+  function hint({ match }) {
+    const m = matches.get(String(match || ""));
+    if (!m) return { error: "That match has ended. Start a new one." };
+    const S = m.S;
+    if (S.phase === "block" && S.active === 1) return { move: { type: "block", blocks: AI.suggestBlocks(S, 0) } };
+    if (S.phase !== "main" || S.active !== 0) return { move: null };
+    const copy = structuredClone({ ...S, onAct: null });
+    const play = AI.bestPlay(copy, 0);
+    if (play) return { move: play };
+    const go = AI.chooseAttackers(copy, 0);
+    return { move: go.length ? { type: "attack", attackers: go } : { type: "end" } };
   }
 
   function view({ match }) {
@@ -169,7 +207,7 @@ function create({ log = () => {} } = {}) {
       levels: r.levels.map(l => ({ id: l.id, name: l.name, boss: !!l.boss, rival: l.rival.name, life: l.rival.life, face: l.rival.champions[0] })) })),
   });
 
-  return { deal, start, act, view, map, stats: () => ({ matches: matches.size, results: results.slice(-200) }) };
+  return { deal, start, act, view, map, hint, stats: () => ({ matches: matches.size, results: results.slice(-200) }) };
 }
 
 module.exports = { create };

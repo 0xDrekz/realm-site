@@ -20,6 +20,15 @@ const TUTORIAL = {
   first: 0,
 };
 
+/* Quick Play: one tap, about three minutes. Both sides get three borrowed
+   spirits at random and a little less life, so it moves fast. */
+const QUICK = {
+  // the rival is a touch weaker, so a good player wins about two in three
+  id: "quick", name: "Quick Play", realm: 0, life: 14, rivalLife: 12, rivalScale: 0.8,
+  pool: { Common: 40, Uncommon: 30, Rare: 20, Epic: 10 },
+  rivals: ["Spore Drifter", "Moth Caller", "Root Wanderer", "Star Scribe", "Lantern Eye", "Dust Walker", "Tide Singer", "Hollow Knight", "Ember Twin", "Veil Weaver"],
+};
+
 const REALMS = [
   { id: 1, name: "The Spore Fields", tier: "Common", blurb: "Where every being starts: a field of small, strange mushrooms that do not like visitors.",
     levels: [
@@ -36,11 +45,11 @@ const REALMS = [
 const POOL = { 1: { Common: 60, Uncommon: 30, Rare: 10 } };
 const BORROWED_SCALE = 0.9;
 
-const LEVELS = new Map([[TUTORIAL.id, TUTORIAL], ...REALMS.flatMap(r => r.levels.map(l => [l.id, { ...l, realm: r.id }]))]);
+const LEVELS = new Map([[TUTORIAL.id, TUTORIAL], [QUICK.id, QUICK], ...REALMS.flatMap(r => r.levels.map(l => [l.id, { ...l, realm: r.id }]))]);
 
 /* stars: win; win with half your life or more; win quickly */
 function stars(S, me, level) {
-  if (S.winner !== me) return 0;
+  if (S.winner !== me || !level || level.id === "quick" || level.id === "tutorial") return S.winner === me ? 1 : 0;
   const P = S.players[me];
   let n = 1;
   if (P.life * 2 >= P.startLife) n++;
@@ -48,4 +57,13 @@ function stars(S, me, level) {
   return n;
 }
 
-module.exports = { TUTORIAL, REALMS, LEVELS, POOL, BORROWED_SCALE, stars };
+/* experience for a match: decided here, so it can't be made up on the page */
+function xp(won, starsWon, level) {
+  if (level.id === "tutorial") return won ? 150 : 50;
+  let n = won ? 100 : 35;
+  if (won && level.id !== "quick") n += starsWon * 20;
+  if (won && level.boss) n += 100;
+  return n;
+}
+
+module.exports = { TUTORIAL, QUICK, REALMS, LEVELS, POOL, BORROWED_SCALE, stars, xp };

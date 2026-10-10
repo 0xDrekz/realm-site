@@ -53,34 +53,40 @@ function judge(S, P, ref) {
   return null;
 }
 
+/* the best single play right now, or null */
+function bestPlay(S, me) {
+  const P = S.players[me];
+  const refs = [...P.hand.map(c => ({ ...c, kindOf: "hand" })),
+    ...P.champions.map((c, i) => c.home ? { def: c.def, champion: i, kindOf: "champ" } : null).filter(Boolean)];
+  let best = null;
+  for (const r of refs) {
+    const cost = E.costOf(S, P, r);
+    if (cost > P.ess) continue;
+    const j = judge(S, P, r);
+    if (!j || j.v <= 0.5) continue;
+    // spend well: prefer plays that use more of what is left
+    const score = j.v + cost * 0.9;
+    if (!best || score > best.score) best = { score, r, j };
+  }
+  if (!best) return null;
+  return best.r.champion != null ? { type: "play", champion: best.r.champion, target: best.j.target } : { type: "play", uid: best.r.uid, target: best.j.target };
+}
+
 /* spend essence: the best play per essence, again and again */
 function mainPhase(S, me) {
   for (let guard = 0; guard < 20 && S.phase === "main" && S.active === me; guard++) {
-    const P = S.players[me];
-    const refs = [...P.hand.map(c => ({ ...c, kindOf: "hand" })),
-      ...P.champions.map((c, i) => c.home ? { def: c.def, champion: i, kindOf: "champ" } : null).filter(Boolean)];
-    let best = null;
-    for (const r of refs) {
-      const cost = E.costOf(S, P, r);
-      if (cost > P.ess) continue;
-      const j = judge(S, P, r);
-      if (!j || j.v <= 0.5) continue;
-      // spend well: prefer plays that use more of what is left
-      const score = j.v + cost * 0.9;
-      if (!best || score > best.score) best = { score, r, j };
-    }
-    if (!best) return;
-    const err = E.act(S, me, best.r.champion != null ? { type: "play", champion: best.r.champion, target: best.j.target } : { type: "play", uid: best.r.uid, target: best.j.target });
-    if (err) return;
+    const move = bestPlay(S, me);
+    if (!move || E.act(S, me, move)) return;
   }
 }
 
-/* attack with what is safe, or with everything when the race is won */
-function attackPhase(S, me) {
-  if (S.phase !== "main" || S.active !== me) return;
+/* who should attack: what is safe, or everything when the race is won */
+function chooseAttackers(S, me) {
+  if (S.phase !== "main" || S.active !== me) return [];
   const P = S.players[me], Op = S.players[1 - me];
+  if (P.attacked) return [];
   const ready = P.board.filter(u => E.canAttack(S, u));
-  if (!ready.length) return;
+  if (!ready.length) return [];
   const blockers = Op.board.filter(b => !b.exhausted);
   const unblockable = a => !blockers.some(b => E.canBlock(S, b, a));
   const dmg = a => E.powerOf(S, a) * (a.kw.includes("doubleStrike") ? 2 : 1);
@@ -88,7 +94,7 @@ function attackPhase(S, me) {
   const all = ready.reduce((s, a) => s + dmg(a), 0);
   let go;
   if (evasive >= Op.life || (blockers.length === 0 && all >= 1)) go = ready;
-  else if (all - blockers.reduce((s, b) => s + 0, 0) >= Op.life + blockers.length * 3) go = ready;   // swarm through
+  else if (all >= Op.life + blockers.length * 3) go = ready;   // swarm through
   else {
     // keep back enough to survive their counter-attack
     const theirs = Op.board.reduce((s, u) => s + E.powerOf(S, u), 0);
@@ -101,7 +107,11 @@ function attackPhase(S, me) {
       return true;
     });
   }
-  if (go.length) E.act(S, me, { type: "attack", attackers: go.map(u => u.uid) });
+  return go.map(u => u.uid);
+}
+function attackPhase(S, me) {
+  const go = chooseAttackers(S, me);
+  if (go.length) E.act(S, me, { type: "attack", attackers: go });
 }
 
 /* blocks: survive first, then trade up. suggestBlocks only works them out
@@ -158,4 +168,4 @@ function playOut(S, maxSteps = 4000) {
   return S.winner;
 }
 
-module.exports = { step, finish, blockPhase, suggestBlocks, mainPhase, attackPhase, playOut, value };
+module.exports = { step, finish, blockPhase, suggestBlocks, bestPlay, chooseAttackers, mainPhase, attackPhase, playOut, value };

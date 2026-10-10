@@ -17,7 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="tcg-card.css?v=1">
-<link rel="stylesheet" href="tcg.css?v=2">
+<link rel="stylesheet" href="tcg.css?v=3">
 </head>
 <body class="tg">
 
@@ -28,18 +28,45 @@
     <span class="tg-beta">Beta</span>
     <button class="tg-mute" type="button" data-mute aria-pressed="false" aria-label="Sound">Sound on</button>
   </header>
+  <!-- you: level, experience, streak -->
+  <div class="tg-me" data-me>
+    <div class="tg-lvl"><b data-lvl>1</b><i>level</i></div>
+    <div class="tg-me-mid">
+      <div class="tg-me-top"><b data-title>Wanderer</b><span class="tg-streak" data-streak hidden></span></div>
+      <div class="tg-xpbar"><i data-xpfill></i></div>
+      <span class="tg-xptext" data-xptext></span>
+    </div>
+  </div>
+
   <div class="tg-hero">
     <p class="tg-eyebrow">REALM Duels · the card battler</p>
     <h1>Your beings are the cards.</h1>
-    <p class="tg-lede">Summon champions, cast rituals, break the rival. Every move is checked on our server, so nobody can fake a win.</p>
   </div>
+
+  <button class="tg-play" type="button" data-play>
+    <span class="tg-play-main" data-play-label>Play</span>
+    <span class="tg-play-sub" data-play-sub>Quick match · about 3 minutes</span>
+  </button>
+
+  <section class="tg-quests" data-quests-wrap>
+    <div class="tg-sec-head"><h3>Today's quests</h3><span data-quest-reset></span></div>
+    <ol class="tg-qlist" data-quests></ol>
+  </section>
+
   <button class="tg-tut" type="button" data-level="tutorial">
     <span class="tg-tut-back"></span>
     <span class="tg-tut-copy"><b>Tutorial</b><i data-tut-note>Learn to play in a few minutes</i></span>
     <span class="tg-tut-go" aria-hidden="true">&rarr;</span>
   </button>
+
+  <div class="tg-sec-head"><h3>Campaign</h3></div>
   <div class="tg-realms" data-realms></div>
   <p class="tg-fine">Progress is kept on this device for now. Wallet sign-in, your own beings, the weekly run and the boards are coming next. Until then, this week's board and its $DMT prizes stay in <a href="/duels-classic">Duels Classic</a>.</p>
+  <section class="tg-backs-wrap">
+    <div class="tg-sec-head"><h3>Card backs</h3><span>Unlock more as you level up</span></div>
+    <div class="tg-backs" data-backs></div>
+  </section>
+  <label class="tg-fast"><input type="checkbox" data-fast> Fast animations</label>
   <p class="tg-fine"><a href="/codex">Browse all 1,111 cards in the Codex</a></p>
 </section>
 
@@ -62,6 +89,7 @@
   <div class="tm-top">
     <button class="tm-x" type="button" data-resign aria-label="Leave the match">&times;</button>
     <span class="tm-level" data-level-name></span>
+    <button class="tm-hint" type="button" data-hint aria-label="Suggest a move">Hint</button>
     <button class="tm-help" type="button" data-help aria-label="How to play">?</button>
     <button class="tm-snd" type="button" data-mute aria-pressed="false" aria-label="Sound"></button>
   </div>
@@ -125,8 +153,11 @@
       <h2 data-over-title></h2>
       <div class="tm-stars" data-stars></div>
       <p class="tm-over-note" data-over-note></p>
+      <div class="tm-rewards" data-rewards></div>
+      <div class="tm-lvlup" data-lvlup hidden></div>
       <div class="tm-over-acts">
         <button class="tg-go" type="button" data-next hidden>Next level</button>
+        <button class="tg-go" type="button" data-again hidden>Play again</button>
         <button class="tm-btn ghost" type="button" data-retry>Play again</button>
         <button class="tm-btn ghost" type="button" data-to-hub>Back to the map</button>
       </div>
@@ -135,6 +166,6 @@
 </section>
 
 <script src="tcg-card.js?v=1"></script>
-<script src="tcg-page.js?v=2"></script>
+<script src="tcg-page.js?v=3"></script>
 </body>
 </html>

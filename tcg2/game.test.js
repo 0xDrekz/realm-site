@@ -75,3 +75,24 @@ test("resigning is a loss with no stars", () => {
   const r = g.act({ match: s.match, move: { type: "resign" } });
   assert.equal(r.result.won, false); assert.equal(r.result.stars, 0);
 });
+
+test("Quick Play deals both sides at random, with 14 life", () => {
+  const g = G(), s = g.start({ level: "quick" });
+  assert.ok(s.match); assert.equal(s.defs.you.length, 3); assert.equal(s.view.you.life, 14);
+  assert.ok(!s.defs.you.some(c => s.defs.rival.some(r => r.n === c.n)), "no being on both sides");
+});
+
+test("a hint is a move the server would accept", () => {
+  const g = G(), s = g.start({ level: "tutorial" });
+  const h = g.hint({ match: s.match });
+  assert.ok(h.move);
+  const r = g.act({ match: s.match, move: h.move });
+  assert.ok(!r.error, r.error);
+});
+
+test("experience is decided on the server; leaving earns none", () => {
+  const g = G(), s = g.start({ level: "tutorial" });
+  const r = g.act({ match: s.match, move: { type: "resign" } });
+  assert.equal(r.result.xp, 0);
+  assert.deepEqual(Object.keys(r.result.stats).sort(), ["champions", "damage", "kills", "rituals", "summons"]);
+});
