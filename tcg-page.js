@@ -368,7 +368,7 @@
       $("[data-draft-err]").textContent = d.error; $("[data-draft-err]").hidden = false; $("[data-start]").disabled = false; return;
     }
     M = { id: d.match, level: d.level, name: d.name, rival: d.rival, boss: d.boss, tutorial: d.tutorial, defs: d.defs,
-      shared: Object.fromEntries(d.shared.map(c => [c.id, c])), view: d.view, busy: true, mode: "idle", hold: new Set(), blocks: {}, aim: null, tips: new Set(), saying: false, skip: false, hint: null };
+      shared: Object.fromEntries(d.shared.map(c => [c.id, c])), view: d.view, busy: true, mode: "idle", hold: new Set(), blocks: {}, aim: null, tips: new Set(), saying: false, skip: false, hint: null, scores: !!d.scores, hinted: false };
     tiles.forEach(t => t.clear()); handEls.clear();
     $$("[data-board]").forEach(b => { b.innerHTML = ""; }); $("[data-hand]").innerHTML = "";
     $("[data-over]").hidden = true; hidePeek(); coach(null);
@@ -861,6 +861,9 @@
     const g = gain(res);
     if (g && res.points) g.lines.splice(1, 0, [M.level === "daily" ? `Challenge score ${res.points.toLocaleString()}${res.best ? " · your best today" : ""}` : `+${res.points} board points`, 0]);
     if (g && res.capped) g.lines.push(["Board points done for today (25 wins)", 0]);
+    const WHY = { hint: "No board points: a hint was used", slow: "No board points: the match ran over 20 minutes", claimed: "No board points: your beings already scored for another wallet this week",
+      moved: "No board points: the beings you started with aren't in your wallet any more", chain: "Couldn't read your wallet to score this one. Retry later.", replaced: "This match was replaced by a newer one" };
+    if (g && res.unscored && WHY[res.unscored]) g.lines.push([WHY[res.unscored], 0]);
     o.classList.toggle("lost", !won);
     $("[data-over-sub]").textContent = M.tutorial ? "Tutorial" : quick ? "Quick match" : M.level === "daily" ? "Daily challenge" : `${M.level} · ${M.name}`;
     $("[data-over-title]").textContent = won ? (M.boss ? "Boss down!" : "Victory") : "Defeat";
@@ -956,6 +959,9 @@
   /* ---------- a hint: what the AI would do in your seat ---------- */
   $("[data-hint]").addEventListener("click", async () => {
     if (!M || M.busy) return; sfx("tap");
+    // a hint is the AI playing for you, so a helped match doesn't count for the board
+    if (M.scores && !M.hinted && (M.level === "quick" || M.level === "daily") && !confirm("Using a hint means this match won't earn board points. Show a hint?")) return;
+    M.hinted = true;
     const d = await post("hint", { match: M.id });
     const mv = d.move; if (!mv) return;
     let el = null, text = "";

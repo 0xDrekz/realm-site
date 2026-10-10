@@ -12,6 +12,8 @@ const crypto = require("crypto"), fs = require("fs"), path = require("path");
 const E = require("./engine"), AI = require("./ai"), C = require("./cards"), K = require("./campaign");
 
 const MATCH_TTL = 2 * 3600e3, DEAL_TTL = 30 * 60e3, MAX_MATCHES = 5000;
+// a match only scores if it ends within 20 minutes of starting (the clock is never refreshed by moves)
+const SCORE_MAX_AGE = 20 * 60e3, MAX_OPEN_QUICK = 2;
 const newId = () => crypto.randomBytes(16).toString("hex");
 
 /* deps (all optional, so tests run without the chain):
@@ -26,7 +28,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
 
   function tidy() {
     const now = Date.now();
-    for (const [k, m] of matches) if (now - m.at > MATCH_TTL) matches.delete(k);
+    for (const [k, m] of matches) if (now - m.born > MATCH_TTL) matches.delete(k);
     for (const [k, d] of deals) if (now - d.at > DEAL_TTL) deals.delete(k);
     while (matches.size > MAX_MATCHES) matches.delete(matches.keys().next().value);
     while (deals.size > MAX_MATCHES) deals.delete(deals.keys().next().value);
@@ -60,8 +62,11 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
 
   /* ---------- the boards: a week of points, a day of challenge ---------- */
   const file = dir ? path.join(dir, "tcg2-boards.json") : null;
-  let boards = { weeks: {}, days: {} };
+  // weeks: points by wallet; days: the daily challenge; claims: which wallet each being qualified this week;
+  // seen: every wallet each being turned up with; dmt: $DMT balances seen at scoring (for the payout audit)
+  let boards = { weeks: {}, days: {}, claims: {}, seen: {}, dmt: {} };
   if (file) { try { boards = JSON.parse(fs.readFileSync(file, "utf8")); } catch { /* first run */ } }
+  for (const k of ["weeks", "days", "claims", "seen", "dmt"]) boards[k] = boards[k] || {};
   let saveTimer = null;
   const save = () => {
     if (!file) return;
@@ -69,7 +74,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     saveTimer = setTimeout(() => {
       try {
         const trim = o => Object.fromEntries(Object.keys(o).sort().slice(-14).map(k => [k, o[k]]));
-        boards = { weeks: trim(boards.weeks), days: trim(boards.days) };
+        boards = { weeks: trim(boards.weeks), days: trim(boards.days), claims: trim(boards.claims), seen: trim(boards.seen), dmt: trim(boards.dmt) };
         fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file, JSON.stringify(boards));
       } catch (e) { log("card battler: could not save the boards: " + e.message); }
     }, 1500);
@@ -77,24 +82,67 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
   const weekKey = (d = new Date()) => { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); return m.toISOString().slice(0, 10); };
   const POINTS_PER_DAY = 25;      // wins that score each day: plenty for a person, a wall for a bot
-  function score(m) {
-    const r = m.result; if (!m.wallet || !m.eligible) return;
+
+  /* Who may score this week. Holdings are read at the start AND again at the finish, and only what
+     the wallet held both times counts. Each being qualifies ONE wallet a week: the first to score with
+     it claims it, and the same being turning up in another wallet qualifies nothing there. A wallet
+     with no claimable being may still qualify on $DMT, checked at both ends; every balance seen is
+     kept so the payout audit can catch one bag passed between wallets. */
+  async function eligibility(m) {
+    if (!m.wallet || !m.q) return { ok: false, why: "guest" };
+    const now = await holdingsOf(m.wallet);
+    if (!now) return { ok: false, why: "chain" };
+    const kept = m.q.owned.filter(n => now.owned.includes(n));
+    const wk = m.week, claims = boards.claims[wk] = boards.claims[wk] || {}, seen = boards.seen[wk] = boards.seen[wk] || {};
+    for (const n of kept) { const l = seen[n] = seen[n] || []; if (!l.includes(m.wallet)) l.push(m.wallet); }
+    const mine = kept.filter(n => !claims[n] || claims[n] === m.wallet);
+    const dmtOk = m.q.dmtLevel > 0 && now.boost.level > 0;
+    if (dmtOk) { const d = boards.dmt[wk] = boards.dmt[wk] || {}; (d[m.wallet] = d[m.wallet] || []).push([Date.now(), now.boost.tokens || 0]); if (d[m.wallet].length > 60) d[m.wallet].shift(); }
+    if (!mine.length && !dmtOk) return { ok: false, why: kept.length ? "claimed" : "moved" };
+    return { ok: true, claim: mine };
+  }
+
+  async function score(m) {
+    const r = m.result;
+    if (!m.wallet || !m.q || (m.level !== "quick" && m.level !== "daily")) return;
+    if (m.hinted) { r.unscored = "hint"; return; }
+    if (m.resigned) return;
+    if (Date.now() - m.born > SCORE_MAX_AGE) { r.unscored = "slow"; return; }
+    const el = await eligibility(m);
+    if (!el.ok) { r.unscored = el.why; return; }
     if (m.level === "quick" && r.won) {
-      const wk = boards.weeks[weekKey()] = boards.weeks[weekKey()] || {};
-      const me = wk[m.wallet] = wk[m.wallet] || { points: 0, wins: 0, games: 0, today: dayKey(), todayWins: 0 };
-      if (me.today !== dayKey()) { me.today = dayKey(); me.todayWins = 0; }
+      const claims = boards.claims[m.week]; for (const n of el.claim) claims[n] = m.wallet;
+      const wk = boards.weeks[m.week] = boards.weeks[m.week] || {};
+      const me = wk[m.wallet] = wk[m.wallet] || { points: 0, wins: 0, games: 0, today: m.day, todayWins: 0 };
+      if (me.today !== m.day) { me.today = m.day; me.todayWins = 0; }
       me.games++;
       if (me.todayWins < POINTS_PER_DAY) { me.todayWins++; me.wins++; const pts = 10 + Math.max(0, Math.min(10, r.life)); me.points += pts; r.points = pts; me.at = Date.now(); }
       else r.capped = true;
       save();
     }
     if (m.level === "daily") {
+      // for fun and bragging only: never a prize (the deal and the rival are the same all day, so it can be
+      // practised offline). A faster win scores more; a loss scores below any win and can't be stalled up.
       const day = boards.days[m.day] = boards.days[m.day] || {};
-      const pts = r.won ? 1000 + r.life * 25 - r.turns * 10 : m.stats.damage * 10;
-      r.points = pts;
-      if (!day[m.wallet] || pts > day[m.wallet].points) { day[m.wallet] = { points: pts, won: r.won, turns: r.turns, at: Date.now() }; r.best = true; }
+      const pts = r.won ? 2000 - r.turns * 50 + Math.min(r.life, m.startLife) * 5 : Math.min(m.stats.damage, m.rivalLife) * 20;
+      r.points = Math.max(0, pts);
+      if (!day[m.wallet] || r.points > day[m.wallet].points) { day[m.wallet] = { points: r.points, won: r.won, turns: r.turns, at: Date.now() }; r.best = true; }
       save();
     }
+  }
+
+  /* before ANY payout: wallets that shared a being this week, and wallets whose $DMT rose as another's fell
+     by about the same amount, are dropped from the week's list. Returns the clean ranking and the reasons. */
+  function audit(week = weekKey()) {
+    const wk = boards.weeks[week] || {}, seen = boards.seen[week] || {}, dmt = boards.dmt[week] || {};
+    const flagged = new Map();
+    const flag = (w, why) => { if (!flagged.has(w)) flagged.set(w, []); flagged.get(w).push(why); };
+    for (const [n, ws] of Object.entries(seen)) if (ws.length > 1) for (const w of ws) flag(w, `being #${n} also played by ${ws.filter(x => x !== w).map(short).join(", ")}`);
+    const moves = [];
+    for (const [w, list] of Object.entries(dmt)) for (let i = 1; i < list.length; i++) { const d = list[i][1] - list[i - 1][1]; if (Math.abs(d) > 0) moves.push({ w, t: list[i][0], d }); }
+    for (const a of moves) for (const b of moves) if (a.w !== b.w && a.d < 0 && b.d > 0 && Math.abs(a.d + b.d) <= Math.max(1, Math.abs(a.d) * 0.02) && Math.abs(a.t - b.t) < 24 * 3600e3) { flag(a.w, `$DMT moved to ${short(b.w)}`); flag(b.w, `$DMT moved from ${short(a.w)}`); }
+    const ranking = Object.entries(wk).map(([w, r]) => ({ wallet: w, points: r.points, wins: r.wins, dropped: flagged.get(w) || null })).sort((a, b) => b.points - a.points);
+    return { week, clean: ranking.filter(r => !r.dropped), dropped: ranking.filter(r => r.dropped) };
   }
   const short = w => w.slice(0, 4) + "…" + w.slice(-4);
   function board({ token } = {}) {
@@ -108,17 +156,26 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   }
 
   /* ---------- a signed-in wallet: its beings, its boost ---------- */
+  /* what a wallet holds right now, or null if the chain couldn't be read */
+  async function holdingsOf(wallet) {
+    try {
+      const [all, boost] = await Promise.all([beings(), boostOf(wallet)]);
+      const owned = all.filter(b => b.owner === wallet).map(b => b.n)
+        .sort((a, b) => TIER_ORDER.indexOf(tierOf(b)) - TIER_ORDER.indexOf(tierOf(a)) || a - b);
+      return { owned, boost: boost || { level: 0, tokens: 0, boost: 1 } };
+    } catch { return null; }
+  }
   async function holder(token) {
     const wallet = walletOf(token);
     if (!wallet) return null;
-    const [all, boost] = await Promise.all([beings().catch(() => []), boostOf(wallet).catch(() => ({ level: 0, tokens: 0, boost: 1 }))]);
-    const owned = all.filter(b => b.owner === wallet).map(b => b.n)
-      .sort((a, b) => TIER_ORDER.indexOf(tierOf(b)) - TIER_ORDER.indexOf(tierOf(a)) || a - b);
-    return { wallet, owned, boost, eligible: owned.length > 0 || boost.level > 0 };
+    const h = await holdingsOf(wallet);
+    if (!h) return { wallet, chainError: true, owned: [], boost: { level: 0, tokens: 0, boost: 1 }, eligible: false };
+    return { wallet, ...h, eligible: h.owned.length > 0 || h.boost.level > 0 };
   }
   async function team({ token }) {
     const h = await holder(token);
     if (!h) return { error: "Connect your wallet first." };
+    if (h.chainError) return { error: "Couldn't read your wallet just now. Retry in a moment." };
     return { wallet: h.wallet, boost: h.boost, eligible: h.eligible, cards: h.owned.map(n => show(n, h.boost.boost)) };
   }
 
@@ -150,11 +207,12 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     tidy();
     const L = K.LEVELS.get(String(level || ""));
     if (!L) return { error: "That level is not open." };
-    const h = L.id === "tutorial" || L.id === "daily" ? null : await holder(token);
+    const h = L.id === "tutorial" ? null : await holder(token);
+    if (h && h.chainError && L.id === "quick") return { error: "Couldn't read your wallet just now. Retry in a moment." };
     // your own beings: the team you chose, if you hold them; topped up with borrowed spirits
-    const mine = h ? [...new Set((Array.isArray(wanted) ? wanted : []).map(Number))].filter(n => h.owned.includes(n)).slice(0, 3) : [];
-    if (h && !mine.length) mine.push(...h.owned.slice(0, 3));
-    const boost = h ? h.boost.boost : 1;
+    const mine = h && L.id !== "daily" ? [...new Set((Array.isArray(wanted) ? wanted : []).map(Number))].filter(n => h.owned.includes(n)).slice(0, 3) : [];
+    if (h && L.id !== "daily" && !mine.length) mine.push(...h.owned.slice(0, 3));
+    const boost = h && L.id !== "daily" ? h.boost.boost : 1;
     let champions, scale = 1, deck, rival = L.rival, scales = null, first = L.first, seed = crypto.randomInt(2 ** 32), day = null;
     if (L.id === "tutorial") { champions = L.you.champions; deck = L.you.deck; }
     else if (L.id === "daily") {
@@ -174,7 +232,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       champions = [...mine, ...fill]; scales = champions.map(n => (mine.includes(n) ? 1 : K.BORROWED_SCALE) * boost);
     }
     else {
-      if (h && h.boost.boost > 1) scale = K.BORROWED_SCALE * h.boost.boost;
+      if (h && h.boost && h.boost.boost > 1) scale = K.BORROWED_SCALE * h.boost.boost;
       const d = deals.get(String(dealId || ""));
       if (!d || d.level !== L.id) return { error: "That deal has expired. Deal again." };
       const p = Array.isArray(pick) ? [...new Set(pick.map(Number))] : [];
@@ -185,14 +243,23 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const S = E.newMatch({ seed, first,
       sides: [{ name: "You", champions, scale, scales, deck, life: L.id === "quick" || L.id === "daily" ? L.life : undefined }, { name: rival.name, champions: rival.champions, life: rival.life, scale: rival.scale || 1, deck: rival.deck }] });
     S.events.length = 0;
-    const id = newId(), m = { id, S, level: L.id, at: Date.now(), done: false, stats: { summons: 0, champions: 0, kills: 0, rituals: 0, damage: 0 },
-      wallet: h ? h.wallet : walletOf(token), eligible: h ? h.eligible : false, day };
-    if (L.id === "daily" && m.wallet) { const hh = await holder(token); m.eligible = !!(hh && hh.eligible); }
+    const now = new Date();
+    const id = newId(), m = { id, S, level: L.id, born: Date.now(), done: false, stats: { summons: 0, champions: 0, kills: 0, rituals: 0, damage: 0 },
+      wallet: h ? h.wallet : null, day: day || dayKey(now), week: weekKey(now),
+      // what this wallet held when the match began; scoring re-reads the chain at the finish
+      q: h && !h.chainError && h.eligible ? { owned: h.owned.slice(), dmtLevel: h.boost.level } : null,
+      startLife: S.players[0].life, rivalLife: S.players[1].life };
+    // at most two open Quick matches per wallet: starting a third forfeits the oldest
+    if (m.wallet && L.id === "quick") {
+      const open = [...matches.values()].filter(o => o.wallet === m.wallet && o.level === "quick" && !o.done).sort((a, b) => a.born - b.born);
+      while (open.length >= MAX_OPEN_QUICK) { const o = open.shift(); o.S.winner = 1; o.S.phase = "over"; o.resigned = true; o.done = true; o.result = { won: false, stars: 0, turns: o.S.turn, life: o.S.players[0].life, level: o.level, xp: 0, stats: o.stats, unscored: "replaced" }; }
+    }
     matches.set(id, m);
     const v0 = E.view(S, 0);
     const defs = { you: v0.you.champions.map(c => c.card), rival: v0.rival.champions.map(c => c.card) };
     const frames = advance(m);
-    return { match: id, level: L.id, name: L.name, boss: !!L.boss, rival: rival.name, tutorial: L.id === "tutorial", boost: h ? h.boost : null, own: mine, defs, shared: C.SHARED, view: lite(v0), frames, result: m.result || null };
+    if (m.scoring) await m.scoring;
+    return { scores: !!m.q, match: id, level: L.id, name: L.name, boss: !!L.boss, rival: rival.name, tutorial: L.id === "tutorial", boost: h ? h.boost : null, own: mine, defs, shared: C.SHARED, view: lite(v0), frames, result: m.result || null };
   }
 
   /* what you did, for the daily quests */
@@ -236,7 +303,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     // no experience for leaving, or for a loss in a handful of turns (no farming)
     const xp = m.resigned || (!won && S.turn < 8) ? 0 : K.xp(won, st, L);
     m.result = { won, stars: st, turns: S.turn, life: S.players[0].life, level: m.level, xp, stats: m.stats };
-    score(m);
+    m.scoring = score(m).catch(e => { log("card battler: scoring failed: " + e.message); m.result.unscored = "error"; });
     results.push({ ...m.result, at: Date.now(), wallet: m.wallet || null }); if (results.length > 2000) results.shift();
     log(`card battler: ${m.level} ${won ? "won" : "lost"} in ${S.turn} turns (${m.result.stars} stars)`);
   }
@@ -260,17 +327,16 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     }
     return null;
   }
-  function act({ match, move }) {
+  async function act({ match, move }) {
     const m = matches.get(String(match || ""));
     if (!m) return { error: "That match has ended. Start a new one." };
-    m.at = Date.now();
     const S = m.S;
     if (S.phase === "over") return { error: "The match is over.", result: m.result };
     const a = clean(move);
     if (!a) return { error: "That move is not allowed." };
     if (a.type === "resign") {
       S.winner = 1; S.phase = "over"; S.events.push({ t: "over", winner: 1 }); m.resigned = true;
-      finish(m);
+      finish(m); await m.scoring;
       return { frames: [{ who: 0, move: "resign", ev: S.events.splice(0), view: lite(E.view(S, 0), S) }], result: m.result };
     }
     const frames = [];
@@ -279,6 +345,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     S.onAct = null;
     if (err) { S.events.length = 0; return { error: err, view: lite(E.view(S, 0), S) }; }
     frames.push(...advance(m));
+    if (m.scoring) await m.scoring;
     return { frames, result: m.result || null };
   }
 
@@ -287,6 +354,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const m = matches.get(String(match || ""));
     if (!m) return { error: "That match has ended. Start a new one." };
     const S = m.S;
+    if (S.phase !== "over") m.hinted = true;      // a match you were helped with doesn't score
     if (S.phase === "block" && S.active === 1) return { move: { type: "block", blocks: AI.suggestBlocks(S, 0) } };
     if (S.phase !== "main" || S.active !== 0) return { move: null };
     const copy = structuredClone({ ...S, onAct: null });
@@ -310,7 +378,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       levels: r.levels.map(l => ({ id: l.id, name: l.name, boss: !!l.boss, rival: l.rival.name, life: l.rival.life, face: l.rival.champions[0] })) })),
   });
 
-  return { deal, start, act, view, map, hint, team, board, stats: () => ({ matches: matches.size, results: results.slice(-200) }) };
+  return { deal, start, act, view, map, hint, team, board, audit, stats: () => ({ matches: matches.size, results: results.slice(-200) }) };
 }
 
 module.exports = { create };

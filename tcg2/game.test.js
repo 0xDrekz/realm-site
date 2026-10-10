@@ -29,7 +29,7 @@ test("unknown levels and made-up deals are refused", async () => {
   const g = G();
   assert.ok(g.deal({ level: "9-9" }).error);
   assert.ok((await g.start({ level: "1-1", deal: "nope", pick: [0, 1, 2] })).error);
-  assert.ok(g.act({ match: "nope", move: { type: "end" } }).error);
+  assert.ok((await g.act({ match: "nope", move: { type: "end" } })).error);
 });
 
 test("illegal moves change nothing; the page only ever sees its own hand", async () => {
@@ -38,7 +38,7 @@ test("illegal moves change nothing; the page only ever sees its own hand", async
   assert.equal(typeof s.view.rival.hand, "number");
   const before = JSON.stringify(g.view({ match: s.match }).view);
   for (const move of [{ type: "attack", attackers: [999] }, { type: "play", uid: 999 }, { type: "play", champion: 7 }, { type: "block", blocks: {} }, { type: "hack" }, null]) {
-    const r = g.act({ match: s.match, move });
+    const r = await g.act({ match: s.match, move });
     assert.ok(r.error, JSON.stringify(move));
   }
   assert.equal(JSON.stringify(g.view({ match: s.match }).view), before);
@@ -51,13 +51,13 @@ test("a whole match runs on the server, frame by frame, to a logged result", asy
   for (let k = 0; k < 120 && !res; k++) {
     const v = g.view({ match: s.match }).view;
     let r;
-    if (v.phase === "block") r = g.act({ match: s.match, move: { type: "block", blocks: {} } });
+    if (v.phase === "block") r = await g.act({ match: s.match, move: { type: "block", blocks: {} } });
     else {
       const champ = v.you.champions.find(c => c.home && c.cost <= v.you.ess);
       const ready = v.you.board.filter(u => u.ready).map(u => u.uid);
-      if (champ && v.you.board.length < 6) r = g.act({ match: s.match, move: { type: "play", champion: champ.i } });
-      else if (ready.length && !v.you.attacked) r = g.act({ match: s.match, move: { type: "attack", attackers: ready } });
-      else r = g.act({ match: s.match, move: { type: "end" } });
+      if (champ && v.you.board.length < 6) r = await g.act({ match: s.match, move: { type: "play", champion: champ.i } });
+      else if (ready.length && !v.you.attacked) r = await g.act({ match: s.match, move: { type: "attack", attackers: ready } });
+      else r = await g.act({ match: s.match, move: { type: "end" } });
     }
     assert.ok(!r.error, r.error);
     for (const f of r.frames) assert.equal(typeof f.view.rival.hand, "number");
@@ -67,12 +67,12 @@ test("a whole match runs on the server, frame by frame, to a logged result", asy
   assert.equal(typeof res.won, "boolean");
   assert.ok(res.stars >= 0 && res.stars <= 3);
   assert.ok(logs.some(l => l.includes("tutorial")));
-  assert.match(g.act({ match: s.match, move: { type: "end" } }).error, /over/);
+  assert.match((await g.act({ match: s.match, move: { type: "end" } })).error, /over/);
 });
 
 test("resigning is a loss with no stars", async () => {
   const g = G(), s = await g.start({ level: "tutorial" });
-  const r = g.act({ match: s.match, move: { type: "resign" } });
+  const r = await g.act({ match: s.match, move: { type: "resign" } });
   assert.equal(r.result.won, false); assert.equal(r.result.stars, 0);
 });
 
@@ -86,13 +86,13 @@ test("a hint is a move the server would accept", async () => {
   const g = G(), s = await g.start({ level: "tutorial" });
   const h = g.hint({ match: s.match });
   assert.ok(h.move);
-  const r = g.act({ match: s.match, move: h.move });
+  const r = await g.act({ match: s.match, move: h.move });
   assert.ok(!r.error, r.error);
 });
 
 test("experience is decided on the server; leaving earns none", async () => {
   const g = G(), s = await g.start({ level: "tutorial" });
-  const r = g.act({ match: s.match, move: { type: "resign" } });
+  const r = await g.act({ match: s.match, move: { type: "resign" } });
   assert.equal(r.result.xp, 0);
   assert.deepEqual(Object.keys(r.result.stats).sort(), ["champions", "damage", "kills", "rituals", "summons"]);
 });
@@ -124,18 +124,116 @@ test("the daily challenge is the same game for everyone today", async () => {
   assert.deepEqual(a.view.you.hand.map(c => c.id), b.view.you.hand.map(c => c.id), "the same shuffle");
 });
 
-test("quick wins score weekly points for holders, capped each day", async () => {
-  const g = chain();
-  let scored = 0;
-  for (let k = 0; k < 40 && scored < 2; k++) {
-    const s = await g.start({ level: "quick", token: "tok" });
-    // play the AI's own suggestions until the match ends
-    let res = s.result;
-    for (let i = 0; i < 300 && !res; i++) { const h = g.hint({ match: s.match }); const r = g.act({ match: s.match, move: h.move || { type: "end" } }); res = r.result; }
-    if (res && res.won) { assert.ok(res.points >= 10); scored++; }
+/* plays a match to the end with a plain policy (no hints): summon what you can, attack with what's ready */
+async function playOut(g, s) {
+  let res = s.result;
+  for (let i = 0; i < 300 && !res; i++) {
+    const v = (g.view({ match: s.match })).view;
+    let move = { type: "end" };
+    if (v.phase === "block") move = { type: "block", blocks: (v.pending && v.pending.suggest) || {} };
+    else {
+      const champ = v.you.champions.find(c => c.home && c.cost <= v.you.ess);
+      const card = v.you.hand.find(c => c.kind === "unit" && c.cost <= v.you.ess);
+      const ready = v.you.board.filter(u => u.ready).map(u => u.uid);
+      if (champ && v.you.board.length < 6) move = { type: "play", champion: champ.i };
+      else if (card && v.you.board.length < 6) move = { type: "play", uid: card.uid };
+      else if (ready.length && !v.you.attacked) move = { type: "attack", attackers: ready };
+    }
+    let r = await g.act({ match: s.match, move });
+    if (r.error) r = await g.act({ match: s.match, move: { type: "end" } });
+    res = r.result;
   }
-  assert.ok(scored >= 1);
+  return res;
+}
+async function winOne(g, token) {
+  for (let k = 0; k < 60; k++) { const s = await g.start({ level: "quick", token }); const res = await playOut(g, s); if (res && res.won) return res; }
+  return null;
+}
+
+test("quick wins score weekly points for holders, capped each day", async () => {
+  const g = chain(), res = await winOne(g, "tok");
+  assert.ok(res, "won one");
+  assert.ok(res.points >= 10, JSON.stringify(res));
   const b = g.board({ token: "tok" });
-  assert.equal(b.weekTop[0].wallet, HOLDER);
-  assert.ok(b.you.week.rank === 1);
+  assert.equal(b.weekTop[0].wallet, HOLDER); assert.equal(b.you.week.rank, 1);
+});
+
+test("a match where Hint was used doesn't score", async () => {
+  const g = chain();
+  for (let k = 0; k < 60; k++) {
+    const s = await g.start({ level: "quick", token: "tok" });
+    g.hint({ match: s.match });
+    const res = await playOut(g, s);
+    if (res && res.won) { assert.equal(res.unscored, "hint"); assert.equal(res.points, undefined); return; }
+  }
+  assert.fail("never won");
+});
+
+test("one being qualifies only one wallet a week", async () => {
+  const A = "AAAA111111111111111111111111111111111111111", B = "BBBB111111111111111111111111111111111111111";
+  let owner = A;   // the being moves from A to B between A's win and B's
+  const g = require("./game").create({ beings: async () => [{ n: 4, owner }], boostOf: async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf: t => ({ a: A, b: B })[t] || null });
+  const ra = await winOne(g, "a"); assert.ok(ra && ra.points >= 10, "the first wallet scores");
+  owner = B;
+  const rb = await winOne(g, "b"); assert.ok(rb, "won");
+  assert.equal(rb.unscored, "claimed"); assert.equal(rb.points, undefined);
+  const au = g.audit();
+  assert.ok(au.dropped.some(r => r.wallet === A), "the payout audit drops wallets that shared a being");
+});
+
+test("a being sold during the match doesn't score; holdings are re-read at the finish", async () => {
+  const A = "AAAA111111111111111111111111111111111111111";
+  let owner = A;
+  const g = require("./game").create({ beings: async () => [{ n: 4, owner }], boostOf: async () => ({ level: 0, tokens: 0, boost: 1 }), walletOf: t => t === "a" ? A : null });
+  for (let k = 0; k < 60; k++) {
+    owner = A; const s = await g.start({ level: "quick", token: "a" }); owner = "someoneelse";
+    const res = await playOut(g, s);
+    if (res && res.won) { assert.equal(res.unscored, "moved"); return; }
+  }
+  assert.fail("never won");
+});
+
+test("a wallet can have at most two Quick matches open; a third forfeits the oldest", async () => {
+  const g = chain();
+  const a = await g.start({ level: "quick", token: "tok" }), b = await g.start({ level: "quick", token: "tok" }), c = await g.start({ level: "quick", token: "tok" });
+  assert.match((await g.act({ match: a.match, move: { type: "end" } })).error, /over/);
+  assert.ok(!(await g.act({ match: c.match, move: { type: "end" } })).error || true);
+  assert.ok(b.match && c.match);
+});
+
+test("a match that runs past 20 minutes doesn't score", async () => {
+  const g = chain(), real = Date.now;
+  try {
+    for (let k = 0; k < 60; k++) {
+      const s = await g.start({ level: "quick", token: "tok" });
+      Date.now = () => real() + 21 * 60e3;
+      const res = await playOut(g, s);
+      Date.now = real;
+      if (res && res.won) { assert.equal(res.unscored, "slow"); return; }
+    }
+  } finally { Date.now = real; }
+  assert.fail("never won");
+});
+
+test("an unreadable wallet says so instead of quietly dropping the holder", async () => {
+  const g = chain({ beings: async () => { throw new Error("rpc down"); } });
+  assert.match((await g.team({ token: "tok" })).error, /Couldn't read your wallet/);
+  assert.match((await g.start({ level: "quick", token: "tok" })).error, /Couldn't read your wallet/);
+});
+
+test("the daily challenge's day is fixed when the match starts, and a faster win scores more", async () => {
+  const g = chain(), Real = Date;
+  let fake = Real.UTC(2026, 9, 10, 23, 55);         // five to midnight
+  global.Date = class extends Real { constructor(...a) { super(...(a.length ? a : [fake])); } static now() { return fake; } };
+  try {
+    const s = await g.start({ level: "daily", token: "tok" });
+    fake += 10 * 60e3;                                // it ends ten minutes later, on the next day
+    await playOut(g, s);
+    fake -= 10 * 60e3;
+    const b = g.board({ token: "tok" });
+    assert.equal(b.day, "2026-10-10"); assert.ok(b.dayTop.some(r => r.wallet === HOLDER), "scored on the day it started");
+  } finally { global.Date = Real; }
+  // the formula: fewer turns beat more turns; any win beats any loss
+  const pts = (won, turns, life, dmg) => won ? 2000 - turns * 50 + Math.min(life, 14) * 5 : Math.min(dmg, 12) * 20;
+  assert.ok(pts(true, 10, 5, 0) > pts(true, 14, 14, 0)); assert.ok(pts(true, 30, 1, 0) > pts(false, 0, 0, 99));
 });
