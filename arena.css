@@ -139,7 +139,7 @@ svg{fill:currentColor}
 
 /* ---------- battle ---------- */
 .ar-battlefield{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;max-width:620px;margin:0 auto;padding-top:env(safe-area-inset-top);user-select:none;-webkit-user-select:none;touch-action:none;background:var(--void)}
-.ar-hud{position:relative;z-index:2;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;padding:6px 8px;background:var(--ink);border-bottom:1px solid var(--line)}
+.ar-hud{position:relative;z-index:2;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;padding:4px 8px;background:var(--ink);border-bottom:1px solid var(--line)}
 .ar-plate{display:flex;flex-direction:column;gap:4px;min-width:0;padding:4px 9px}
 .ar-plate b{font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ar-plate.foe{border-left:3px solid var(--foe)}
@@ -152,24 +152,24 @@ svg{fill:currentColor}
 .ar-plate.you .ar-crowns svg.on{color:var(--you)}
 .ar-crowns svg.on{animation:arCrownPop .4s steps(4)}
 @keyframes arCrownPop{from{transform:scale(2.2)}}
-.ar-clock{min-width:80px;padding:4px 10px 3px;text-align:center;line-height:1;background:#000;border:1px solid var(--line-lit);box-shadow:3px 3px 0 #000}
-.ar-clock b{display:block;font-family:var(--num);font-weight:700;font-size:1.4rem;font-variant-numeric:tabular-nums}
-.ar-clock i{display:inline-block;margin-top:3px;font-style:normal;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.ar-clock{min-width:72px;padding:3px 8px 2px;text-align:center;line-height:1;background:#000;border:1px solid var(--line-lit);box-shadow:3px 3px 0 #000}
+.ar-clock b{display:block;font-family:var(--num);font-weight:700;font-size:1.2rem;font-variant-numeric:tabular-nums}
+.ar-clock i{display:inline-block;margin-top:2px;font-style:normal;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
 .ar-clock.rising{border-color:var(--dmt)}.ar-clock.rising i{color:#e9a8ff}
 .ar-clock.peak,.ar-clock.overtime{border-color:#ffe58a;background:#140c00}.ar-clock.peak i,.ar-clock.overtime i{color:#ffe58a}
 .ar-clock.hurry b{color:#ff8a9a;animation:arBlink .5s steps(2) infinite}
 @keyframes arBlink{50%{opacity:.45}}
-.ar-stage{position:relative;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--void)}
+.ar-stage{position:relative;min-height:0;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;background:var(--void)}
 .ar-layers{position:relative;will-change:transform}
 .ar-stage canvas{display:block;touch-action:none}
 .ar-layers canvas[data-canvas]{position:absolute;inset:0}
-.ar-banner{position:absolute;left:0;right:0;top:42%;text-align:center;pointer-events:none;font-weight:700;font-size:clamp(2rem,11vw,2.8rem);line-height:1;letter-spacing:.06em;
-  color:var(--gold);text-shadow:3px 3px 0 var(--gold-d),6px 6px 0 #000;opacity:0}
-.ar-banner.foe{color:#ff8a9a;text-shadow:3px 3px 0 var(--foe-d),6px 6px 0 #000}
-.ar-banner small{display:block;margin-top:8px;font-size:.8rem;letter-spacing:.22em;text-transform:uppercase;color:var(--bone);text-shadow:2px 2px 0 #000}
-.ar-banner.go{animation:arBanner 1.7s steps(20) both}
-@keyframes arBanner{0%{opacity:0;transform:scale(1.8)}12%{opacity:1;transform:scale(1)}75%{opacity:1}100%{opacity:0;transform:translateY(-16px)}}
-.ar-dock{position:relative;z-index:2;padding:12px 10px calc(10px + env(safe-area-inset-bottom));background:var(--ink);border-top:1px solid var(--line-lit);display:flex;flex-direction:column;gap:10px}
+.ar-banner{position:absolute;left:50%;top:22px;transform:translateX(-50%);padding:6px 16px 5px;white-space:nowrap;text-align:center;pointer-events:none;font-weight:700;font-size:1.15rem;line-height:1.1;letter-spacing:.08em;
+  color:var(--gold);background:rgba(3,1,10,.85);border:1px solid var(--line-lit);box-shadow:3px 3px 0 #000;opacity:0}
+.ar-banner.foe{color:#ff8a9a;border-color:var(--foe)}
+.ar-banner small{display:block;margin-top:2px;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.ar-banner.go{animation:arBanner 1.3s steps(13) both}
+@keyframes arBanner{0%{opacity:0;transform:translate(-50%,-8px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}
+.ar-dock{position:relative;z-index:2;padding:10px 8px calc(8px + env(safe-area-inset-bottom));background:var(--ink);border-top:1px solid var(--line-lit);display:flex;flex-direction:column;gap:8px}
 .ar-hand{display:flex;align-items:flex-end;gap:9px;max-width:460px;width:100%;margin:0 auto}
 .ar-next{display:flex;flex-direction:column;align-items:center;gap:5px;padding-bottom:2px}
 .ar-next i{font-style:normal;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
@@ -182,10 +182,10 @@ svg{fill:currentColor}
 .ar-dmt-bar i{position:absolute;left:0;top:0;bottom:0;width:50%;background:var(--dmt);box-shadow:inset 0 3px 0 #ecbfff,inset 0 -3px 0 #8a2cdf}
 .ar-dmt-ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),#000 calc(10% - 2px) 10%)}
 .ar-quit{position:absolute;top:8px;left:8px;z-index:5;width:30px;height:30px;border:1px solid var(--line);background:rgba(3,1,10,.75);color:var(--dim);font-size:1.1rem;line-height:1}
-.ar-tip{position:absolute;left:12px;right:12px;bottom:12px;z-index:6;max-width:440px;margin:0 auto;padding:10px 14px;background:var(--ink);border:1px solid var(--line-lit);box-shadow:4px 4px 0 #000;
-  font-size:.86rem;line-height:1.45;text-align:center;pointer-events:none;animation:arTip .25s steps(4) both}
+.ar-tip{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--ink);border-bottom:1px solid var(--line-lit);
+  font-size:.8rem;line-height:1.3;text-align:center;pointer-events:none;animation:arTip .2s steps(3) both}
 .ar-tip b{color:var(--gold)}
-@keyframes arTip{from{opacity:0;transform:translateY(8px)}}
+@keyframes arTip{from{opacity:0}}
 
 /* ---------- end ---------- */
 .ar-end{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;overflow:hidden;background:rgba(3,1,10,.9)}

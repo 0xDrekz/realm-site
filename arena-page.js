@@ -127,7 +127,7 @@
       fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, river: 0, crowns: [0, 0], towerShake: new Map() };
     $("[data-rname]").textContent = d.rival;
     show("battle"); layout(); paintHand(true); paintHud(); paintCrowns();
-    banner("Battle!", "Break their towers");
+    banner("Battle!");
     sfx("phase"); buzz(20);
     G.last = performance.now();
     requestAnimationFrame(frame);
@@ -146,10 +146,12 @@
 
   /* ---------- layout ---------- */
   // headroom above the rival's Throne, so its crystal and health bar sit clear of the top bar
-  const TOP = 1.7;
+  const TOP = 1.4, CROP = 1.6;
+  const stageEl = $("[data-stage]");
   function layout() {
     const st = $("[data-stage]").getBoundingClientRect();
-    ts = Math.max(8, Math.min(st.width / A.W, st.height / (A.H + TOP)));
+    // fill the width; on a short screen, the strip behind your own Throne may fall below the cards
+    ts = Math.max(8, Math.min(st.width / A.W, st.height / (A.H + TOP - CROP)));
     dpr = Math.min(lowRes ? 1.2 : 2, window.devicePixelRatio || 1);
     for (const c of [canvas, bg]) { c.style.width = (ts * A.W) + "px"; c.style.height = (ts * (A.H + TOP)) + "px"; c.width = Math.round(ts * A.W * dpr); c.height = Math.round(ts * (A.H + TOP) * dpr); }
     sprites.clear(); towerBodies.clear();
@@ -349,7 +351,7 @@
         case "play": sfx("place"); if (e.side === 0) buzz(10); break;
         case "hit": {
           burst(e.x, e.y, e.tower ? 3 : 2, e.tower ? "#ffd65c" : "#ffffff", 2);
-          if (e.n >= 40) G.nums.push({ x: e.x + (Math.random() - .5) * .5, y: e.y - .3, n: e.n, life: .8, t: 0, tower: e.tower });
+          // no floating numbers: the fight stays readable; health bars tell the story
           if (e.tower) G.towerShake.set(e.id, .18);
           sfx("hit"); break;
         }
@@ -366,7 +368,7 @@
         case "roots": burst(e.x, e.y, 6, "#6dff8a", 1); break;
         case "orbit": G.fx.push({ k: "ring", x: e.x, y: e.y, r: 2.1, life: .35, t: 0, col: "#c9b8ff" }); break;
         case "reveal": G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1.6, life: .4, t: 0, col: "#e8e0ff", fill: true }); sfx("whoosh"); break;
-        case "immune": { const now = G.S.time, last = G.immune.get(e.id) || -9; if (now - last > .9) { G.immune.set(e.id, now); G.nums.push({ x: e.x, y: e.y - .5, txt: "IMMUNE", life: .8, t: 0 }); } break; }
+        case "immune": { const now = G.S.time, last = G.immune.get(e.id) || -9; if (now - last > 2.5) { G.immune.set(e.id, now); G.nums.push({ x: e.x, y: e.y - .5, txt: "IMMUNE", life: .8, t: 0 }); } break; }
         case "death":
           if (e.tower) {
             G.shake = 1.1; G.flash = .55; burst(e.x, e.y, 80, e.side ? "#ff7a90" : "#7fd8ff", 7); burst(e.x, e.y, 40, "#fff1c2", 5);
@@ -458,7 +460,7 @@
   }
   try { document.fonts.load('700 20px "Pixelify Sans"').then(() => { FONT = '"Pixelify Sans", system-ui'; }); } catch { /* old browser */ }
   /* units look bigger than the space they take, so a phone can read them */
-  const vis = r => Math.max(.9, r * 1.9);
+  const vis = r => Math.max(1.05, r * 2.25);
 
   /* ---------- drawing a frame ---------- */
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -754,7 +756,7 @@
   /* ---------- placing: drag a card, or tap it then tap the field ---------- */
   function toArena(clientX, clientY) {
     const r = canvas.getBoundingClientRect();
-    const y = (clientY - r.top) / ts - TOP; return { x: (clientX - r.left) / ts, y, inside: clientX >= r.left && clientX <= r.right && y >= 0 && clientY <= r.bottom };
+    const y = (clientY - r.top) / ts - TOP; return { x: (clientX - r.left) / ts, y, inside: clientX >= r.left && clientX <= r.right && y >= 0 && clientY <= Math.min(r.bottom, stageEl.getBoundingClientRect().bottom) };
   }
   function tryPlace(slot, x, y) {
     const S = G.S, P = S.sides[0], def = P.deck[P.hand[slot]];
@@ -810,7 +812,7 @@
   function tips(S) {
     if (G.tips.done) return;
     const t = S.time, P = S.sides[0];
-    if (!G.tips.placed && t > 1.5 && !G.tipShown) { G.tipShown = 1; const el = $("[data-tip]"); el.innerHTML = "<b>Drag a card</b> from your hand onto your half of the arena."; el.hidden = false; clearTimeout(tipT); }
+    if (!G.tips.placed && t > 1.5 && !G.tipShown) { G.tipShown = 1; const el = $("[data-tip]"); el.innerHTML = "<span><b>Drag a card</b> from your hand onto your half of the arena.</span>"; el.hidden = false; clearTimeout(tipT); }
     if (G.tips.placed && G.tipShown === 1) { G.tipShown = 2; $("[data-tip]").hidden = true; flashTip("Nice. DMT refills over time: spend it, but keep some to defend."); }
     if (P.dmt >= 9.9 && t > 8 && !G.tips.full) { G.tips.full = 1; flashTip("Your DMT is full: you're wasting it. Play a card!"); }
     if (t > 40 && G.tips.placed) { G.tips.done = 1; store.set("tips", G.tips); }
