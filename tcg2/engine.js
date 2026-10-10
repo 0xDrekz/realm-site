@@ -45,7 +45,7 @@ function shuffle(S, a) { for (let i = a.length - 1; i > 0; i--) { const j = Math
 
 /* ---------- making a match ----------
    champions: up to 3 being numbers per side. boost: the $DMT boost (1..1.15).
-   scale: below 1 for borrowed spirits. life: a starting life other than 20
+   scale: below 1 for borrowed spirits (scales: one per champion, boost included). life: a starting life other than 20
    (campaign rivals). deck: a fixed deck order, top first (the tutorial).
    first: who goes first, when it must not be random (the tutorial). */
 function scaled(def, k) { return k === 1 ? def : { ...def, power: Math.max(1, Math.round(def.power * k)), health: Math.max(1, Math.round(def.health * k)) }; }
@@ -58,7 +58,7 @@ function newMatch({ seed, sides, first }) {
       i, name: sd.name || (i ? "Rival" : "You"), life: Math.round((sd.life || START_LIFE) * (sd.boost || 1)), maxEss: 0, ess: 0,
       startLife: Math.round((sd.life || START_LIFE) * (sd.boost || 1)),
       deck: sd.deck ? sd.deck.slice() : shuffle(S, C.SHARED_DECK.slice()), hand: [], fatigue: 0, drawNext: 0, attacked: false,
-      champions: (sd.champions || []).slice(0, 3).map(n => ({ def: scaled(C.cardOf(n), k), tax: 0, home: true })),
+      champions: (sd.champions || []).slice(0, 3).map((n, j) => ({ def: scaled(C.cardOf(n), sd.scales ? sd.scales[j] : k), tax: 0, home: true })),
       board: [], ai: !!sd.ai,
     });
   }

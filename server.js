@@ -381,7 +381,8 @@ function duelAllowed(ip) {                 // ten new runs a minute per caller i
 }
 
 /* the card battler (tcg2/game.js): matches live here; the page only sends moves */
-const TCG = require("./tcg2/game").create({ log: m => console.log(m) });
+const TCG = require("./tcg2/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w),
+  walletOf: duelWalletOf, dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 const tcgHits = new Map();
 function tcgAllowed(ip, kind) {            // twenty new matches and 300 moves a minute per caller
   const k = ip + kind, now = Date.now(), w = (tcgHits.get(k) || []).filter(t => now - t < 60_000); w.push(now); tcgHits.set(k, w);
@@ -563,6 +564,7 @@ const server = http.createServer((req, res) => {
     const send = (code, obj) => res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(obj));
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
     if (urlPath === "/api/tcg/map") return send(200, TCG.map());
+    if (urlPath === "/api/tcg/board") return send(200, TCG.board({ token: new URL(req.url, "http://x").searchParams.get("token") }));
     if (req.method !== "POST") return send(405, { error: "POST" });
     let body = "";
     req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
@@ -570,10 +572,11 @@ const server = http.createServer((req, res) => {
       let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
       const kind = urlPath === "/api/tcg/act" || urlPath === "/api/tcg/view" || urlPath === "/api/tcg/hint" ? "move" : "match";
       if (!tcgAllowed(ip, kind)) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
-      const fn = { "/api/tcg/deal": TCG.deal, "/api/tcg/start": TCG.start, "/api/tcg/act": TCG.act, "/api/tcg/view": TCG.view, "/api/tcg/hint": TCG.hint }[urlPath];
+      const fn = { "/api/tcg/deal": TCG.deal, "/api/tcg/start": TCG.start, "/api/tcg/act": TCG.act, "/api/tcg/view": TCG.view, "/api/tcg/hint": TCG.hint, "/api/tcg/team": TCG.team }[urlPath];
       if (!fn) return send(404, { error: "Not found." });
-      let d; try { d = fn(j); } catch (e) { console.error("tcg", e); return send(500, { error: "Something went wrong. Start a new match." }); }
-      send(d.error ? 400 : 200, d);
+      Promise.resolve().then(() => fn(j))
+        .then(d => send(d.error ? 400 : 200, d))
+        .catch(e => { console.error("tcg", e); send(500, { error: "Something went wrong. Start a new match." }); });
     });
     return;
   }

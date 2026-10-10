@@ -17,7 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="tcg-card.css?v=1">
-<link rel="stylesheet" href="tcg.css?v=3">
+<link rel="stylesheet" href="tcg.css?v=4">
 </head>
 <body class="tg">
 
@@ -48,6 +48,32 @@
     <span class="tg-play-sub" data-play-sub>Quick match · about 3 minutes</span>
   </button>
 
+  <!-- your wallet: your own beings, your boost, the board -->
+  <section class="tg-wallet" data-wallet>
+    <div data-w-out>
+      <div class="tg-sec-head"><h3>Play your own beings</h3></div>
+      <p class="tg-lede">Connect your wallet and your REALM beings become your champions, boosted by the $DMT you hold. Holders climb the weekly board for $DMT prizes.</p>
+      <div class="tg-w-btns">
+        <button class="tg-go" type="button" data-w-connect>Connect wallet</button>
+        <a class="tg-go" data-w-phantom hidden>Open in Phantom</a>
+        <a class="tm-btn ghost tg-w-mm" data-w-mm hidden>Open in MetaMask</a>
+      </div>
+      <p class="tg-fine">You sign a short message to prove the wallet is yours. It is not a transaction: it costs nothing and moves nothing.</p>
+      <p class="tg-bad" data-w-err hidden></p>
+    </div>
+    <div data-w-in hidden>
+      <div class="tg-sec-head"><h3>Your team</h3><button type="button" class="tg-link" data-w-off>Disconnect</button></div>
+      <p class="tg-w-who" data-w-who></p>
+      <div class="tg-team" data-team></div>
+      <button class="tm-btn ghost" type="button" data-team-edit>Change team</button>
+    </div>
+  </section>
+
+  <button class="tg-daily" type="button" data-level="daily">
+    <span class="tg-daily-l"><b>Daily challenge</b><i>The same game for everyone today. Best score wins the day.</i></span>
+    <span class="tg-daily-r" data-daily-best>Play</span>
+  </button>
+
   <section class="tg-quests" data-quests-wrap>
     <div class="tg-sec-head"><h3>Today's quests</h3><span data-quest-reset></span></div>
     <ol class="tg-qlist" data-quests></ol>
@@ -61,7 +87,13 @@
 
   <div class="tg-sec-head"><h3>Campaign</h3></div>
   <div class="tg-realms" data-realms></div>
-  <p class="tg-fine">Progress is kept on this device for now. Wallet sign-in, your own beings, the weekly run and the boards are coming next. Until then, this week's board and its $DMT prizes stay in <a href="/duels-classic">Duels Classic</a>.</p>
+  <p class="tg-fine">Your level, quests and card backs are kept on this device. Board points are kept on our server, by wallet. The old game lives on as <a href="/duels-classic">Duels Classic</a>.</p>
+  <section class="tg-boards">
+    <div class="tg-sec-head"><h3>Leaderboard</h3><span class="tg-tabs"><button type="button" data-btab="week" aria-pressed="true">This week</button><button type="button" data-btab="day" aria-pressed="false">Today's challenge</button></span></div>
+    <ol class="tg-board" data-board></ol>
+    <p class="tg-fine" data-board-note></p>
+  </section>
+
   <section class="tg-backs-wrap">
     <div class="tg-sec-head"><h3>Card backs</h3><span>Unlock more as you level up</span></div>
     <div class="tg-backs" data-backs></div>
@@ -165,7 +197,18 @@
   </div>
 </section>
 
+  <div class="tm-rules tg-tpwrap" data-teampick hidden>
+    <div class="tm-peek-bg" data-teampick-close></div>
+    <div class="tm-rules-body tg-tp">
+      <h2>Choose your team</h2>
+      <p class="tg-fine">Up to three of your beings. Rarer beings are stronger, and your $DMT boost makes all of them hit harder.</p>
+      <div class="tg-tp-grid" data-tp-grid></div>
+      <button class="tg-go" type="button" data-tp-save>Save team</button>
+    </div>
+  </div>
+
+
 <script src="tcg-card.js?v=1"></script>
-<script src="tcg-page.js?v=3"></script>
+<script src="tcg-page.js?v=4"></script>
 </body>
 </html>

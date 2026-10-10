@@ -111,6 +111,105 @@
     me.back = b.dataset.bk; store.set("me", me); sfx("tap"); paintMe();
   });
   $("[data-play]").addEventListener("click", () => { sfx("tap"); buzz(10); begin(progress.tutorial ? "quick" : "tutorial"); });
+  /* ---------- your wallet: sign in, your beings, your team ----------
+     The wallet signs a one-time message (not a transaction); the server
+     checks it and gives this device a session for a day. */
+  const STD = [];
+  try {
+    window.addEventListener("wallet-standard:register-wallet", e => { try { e.detail({ register: (...w) => { STD.push(...w); return () => {}; } }); } catch { /* not a wallet */ } });
+    window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: { register: (...w) => { STD.push(...w); return () => {}; } } }));
+  } catch { /* old browser */ }
+  const stdWallet = () => STD.find(w => w.features && w.features["standard:connect"] && w.features["solana:signMessage"] && /phantom/i.test(w.name))
+    || STD.find(w => w.features && w.features["standard:connect"] && w.features["solana:signMessage"]);
+  const injected = () => (window.phantom && window.phantom.solana) || (window.solana && window.solana.signMessage ? window.solana : null) || window.solflare || window.backpack || null;
+  const api = async (url, body) => { const r = await fetch(url, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}); const d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || "The realm did not answer."); return d; };
+  async function connectAndSign() {
+    const w = stdWallet(), inj = !w && injected();
+    if (!w && !inj) throw new Error("No Solana wallet found in this browser.");
+    let address, account;
+    if (w) { const r = await w.features["standard:connect"].connect(); account = r.accounts.find(a => a.chains ? a.chains.some(c => /solana/.test(c)) : true) || r.accounts[0]; address = account.address; }
+    else { const r = await inj.connect(); address = (r && r.publicKey ? r.publicKey : inj.publicKey).toString(); }
+    const { nonce, message } = await api("/api/duel/nonce", { wallet: address });
+    const bytes = new TextEncoder().encode(message);
+    let sig;
+    if (w) { const out = await w.features["solana:signMessage"].signMessage({ account, message: bytes }); sig = (Array.isArray(out) ? out[0] : out).signature; }
+    else { const out = await inj.signMessage(bytes, "utf8"); sig = out.signature || out; }
+    return api("/api/duel/signin", { nonce, signature: btoa(String.fromCharCode(...new Uint8Array(sig))) });
+  }
+  let SESS = store.get("session", null);          // { wallet, token, at }
+  if (SESS && Date.now() - SESS.at > 23 * 3600e3) SESS = null;
+  let HOLD = null;                                 // { boost, eligible, cards }
+  const shortW = w => w.slice(0, 4) + "…" + w.slice(-4);
+  const myTeam = () => { const t = store.get("team-" + (SESS && SESS.wallet), null); const own = HOLD ? HOLD.cards.map(c => c.n) : []; const ok = (t || []).filter(n => own.includes(n)); return ok.length ? ok : own.slice(0, 3); };
+  async function loadHolder() {
+    HOLD = null;
+    if (!SESS) return paintWallet();
+    try { HOLD = await api("/api/tcg/team", { token: SESS.token }); }
+    catch (e) { if (/connect/i.test(e.message)) { SESS = null; store.set("session", null); } }
+    paintWallet();
+  }
+  function paintWallet() {
+    $("[data-w-out]").hidden = !!SESS; $("[data-w-in]").hidden = !SESS;
+    if (!SESS) return;
+    const b = HOLD && HOLD.boost, lv = b ? b.level : 0;
+    $("[data-w-who]").innerHTML = `Connected <b>${esc(shortW(SESS.wallet))}</b>` + (HOLD ? (lv ? ` · $DMT boost <b class="tg-boost">+${lv * 3}%</b>` : " · hold 50K $DMT for a +3% boost") : " · reading your beings…")
+      + (HOLD && !HOLD.eligible ? `<br><span class="tg-fine">Hold a REALM being or 50K $DMT to reach the board.</span>` : "");
+    const team = HOLD ? myTeam() : [], cards = HOLD ? HOLD.cards : [];
+    $("[data-team]").innerHTML = HOLD && !cards.length
+      ? `<p class="tg-fine">No beings in this wallet yet, so you play borrowed spirits. <a href="/mint">Mint a being</a> and it plays for you here.</p>`
+      : [0, 1, 2].map(i => { const c = cards.find(x => x.n === team[i]); return c ? `<button type="button" class="tg-slot" data-team-edit><img src="/thumbs/${c.n}.webp" alt="" width="64" height="64"><b>${esc(c.name)}</b><i style="color:${TIER_COL[c.tier]}">${c.tier}</i></button>` : `<button type="button" class="tg-slot empty" data-team-edit><span>+</span><i>Borrowed</i></button>`; }).join("");
+    $("[data-team-edit].tm-btn").hidden = !(HOLD && cards.length > 1);
+  }
+  $("[data-w-connect]").addEventListener("click", async () => {
+    const b = $("[data-w-connect]"), er = $("[data-w-err]"); er.hidden = true; b.disabled = true; b.textContent = "Check your wallet…";
+    try { const s = await connectAndSign(); SESS = { wallet: s.wallet, token: s.token, at: Date.now() }; store.set("session", SESS); sfx("win"); await loadHolder(); paintLeaders(); }
+    catch (e) { const m = (e && e.message) || ""; er.textContent = /reject|cancel|denied|declin/i.test(m) ? "Cancelled in the wallet." : m || "The wallet did not connect. Try again."; er.hidden = false; }
+    b.disabled = false; b.textContent = "Connect wallet";
+  });
+  $("[data-w-off]").addEventListener("click", () => { SESS = null; HOLD = null; store.set("session", null); paintWallet(); paintLeaders(); });
+  // a phone with no wallet in the browser: open this page inside the wallet app
+  setTimeout(() => {
+    if (stdWallet() || injected() || SESS) return;
+    $("[data-w-connect]").hidden = true;
+    const ph = $("[data-w-phantom]"); ph.hidden = false; ph.href = "https://phantom.app/ul/browse/" + encodeURIComponent(location.href) + "?ref=" + encodeURIComponent(location.origin);
+    const mm = $("[data-w-mm]"); mm.hidden = false; mm.href = "https://metamask.app.link/dapp/" + location.host + location.pathname;
+  }, 1200);
+  // the team picker
+  let picking = [];
+  document.addEventListener("click", e => {
+    if (!e.target.closest("[data-team-edit]") || !HOLD || !HOLD.cards.length) return;
+    picking = myTeam().slice(); sfx("tap"); paintPicker(); $("[data-teampick]").hidden = false;
+  });
+  function paintPicker() {
+    $("[data-tp-grid]").innerHTML = HOLD.cards.map(c => `<button type="button" data-tp="${c.n}" aria-pressed="${picking.includes(c.n)}">${RC.html(c)}</button>`).join("");
+    $("[data-tp-save]").textContent = `Save team (${picking.length}/3)`;
+  }
+  $("[data-tp-grid]").addEventListener("click", e => {
+    const b = e.target.closest("[data-tp]"); if (!b) return;
+    const n = Number(b.dataset.tp);
+    if (picking.includes(n)) picking = picking.filter(x => x !== n); else if (picking.length < 3) picking.push(n);
+    sfx("tap"); buzz(6); paintPicker();
+  });
+  $("[data-tp-save]").addEventListener("click", () => { store.set("team-" + SESS.wallet, picking); $("[data-teampick]").hidden = true; paintWallet(); sfx("star"); });
+  $$("[data-teampick-close]").forEach(b => b.addEventListener("click", () => { $("[data-teampick]").hidden = true; }));
+
+  /* ---------- the boards ---------- */
+  let BTAB = "week", BOARD = null;
+  async function paintLeaders(refetch = true) {
+    if (refetch) { try { BOARD = await api("/api/tcg/board" + (SESS ? "?token=" + encodeURIComponent(SESS.token) : "")); } catch { BOARD = null; } }
+    const list = BOARD ? (BTAB === "week" ? BOARD.weekTop : BOARD.dayTop) : [], you = BOARD && BOARD.you && BOARD.you[BTAB];
+    $("[data-board]").innerHTML = list.length
+      ? list.slice(0, 10).map((r, i) => `<li class="${SESS && r.wallet === SESS.wallet ? "me" : ""}"><span>${i + 1}</span><a href="/wallet?a=${esc(r.wallet)}">${esc(r.short)}</a><b>${r.points.toLocaleString()}</b></li>`).join("")
+        + (you && you.rank > 10 ? `<li class="me"><span>${you.rank}</span><a>You</a><b>${you.points.toLocaleString()}</b></li>` : "")
+      : `<li class="empty">${BTAB === "week" ? "Nobody on the board yet this week. Win a quick match to be first." : "Nobody has played today's challenge yet."}</li>`;
+    $("[data-board-note]").textContent = BTAB === "week"
+      ? "Points for every quick-match win (more for winning with life to spare), up to 25 wins a day. Resets Monday 00:00 UTC. Top players win $DMT from the team's prize fund, announced in the Telegram. Holders only: connect a wallet with a being or 50K $DMT."
+      : "Everyone plays the same game today. Your best score counts: a win, plus life left, minus turns taken.";
+    const db = $("[data-daily-best]"), best = BOARD && BOARD.you && BOARD.you.day;
+    db.textContent = best ? `Best ${best.points.toLocaleString()} · #${best.rank}` : "Play";
+  }
+  $$("[data-btab]").forEach(b => b.addEventListener("click", () => { BTAB = b.dataset.btab; $$("[data-btab]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); paintLeaders(false); }));
+
   $("[data-fast]").checked = SPEED < 1;
   $("[data-fast]").addEventListener("change", e => { SPEED = e.target.checked ? .6 : 1; store.set("fast", e.target.checked); });
 
@@ -190,7 +289,7 @@
   }
   async function hub() {
     screen("hub");
-    paintMe();
+    paintMe(); paintWallet(); paintLeaders(); if (SESS && !HOLD) loadHolder();
     if (!MAP) { try { MAP = await (await fetch("/api/tcg/map")).json(); } catch { $("[data-realms]").innerHTML = '<p class="tg-bad">The map could not be read. Pull to refresh.</p>'; return; } }
     $(".tg-tut").classList.toggle("done", !!progress.tutorial);
     $("[data-tut-note]").textContent = progress.tutorial ? "Done. Play it again any time." : "Start here: learn to play in a few minutes";
@@ -218,7 +317,9 @@
      ============================================================ */
   let draft = null;
   async function begin(level) {
-    if (level === "tutorial" || level === "quick") return startMatch({ level });
+    const who = SESS ? { token: SESS.token, team: HOLD ? myTeam() : [] } : {};
+    if (level === "tutorial" || level === "daily") return startMatch({ level, ...(level === "daily" ? who : {}) });
+    if (level === "quick" || (HOLD && HOLD.cards.length)) return startMatch({ level, ...who });
     screen("draft");
     const meta = MAP && MAP.realms.flatMap(r => r.levels).find(l => l.id === level);
     $("[data-draft-title]").textContent = meta ? `${level} · ${meta.name}` : level;
@@ -249,7 +350,7 @@
   });
   $("[data-start]").addEventListener("click", () => {
     if (!draft || draft.picked.size !== 3) return;
-    startMatch({ level: draft.level, deal: draft.deal, pick: [...draft.picked] });
+    startMatch({ level: draft.level, deal: draft.deal, pick: [...draft.picked], ...(SESS ? { token: SESS.token } : {}) });
   });
 
   /* ============================================================
@@ -263,7 +364,7 @@
     $("[data-start]").disabled = true;
     const d = await post("start", body);
     if (d.error) {
-      if (body.level === "tutorial") { alert(d.error); return; }
+      if (["tutorial", "quick", "daily"].includes(body.level) || !$("[data-screen=draft]").offsetParent) { alert(d.error); return; }
       $("[data-draft-err]").textContent = d.error; $("[data-draft-err]").hidden = false; $("[data-start]").disabled = false; return;
     }
     M = { id: d.match, level: d.level, name: d.name, rival: d.rival, boss: d.boss, tutorial: d.tutorial, defs: d.defs,
@@ -271,7 +372,8 @@
     tiles.forEach(t => t.clear()); handEls.clear();
     $$("[data-board]").forEach(b => { b.innerHTML = ""; }); $("[data-hand]").innerHTML = "";
     $("[data-over]").hidden = true; hidePeek(); coach(null);
-    $("[data-level-name]").textContent = M.tutorial ? "Tutorial" : M.level === "quick" ? "Quick match" : M.level + " · " + M.name;
+    $("[data-level-name]").textContent = (M.tutorial ? "Tutorial" : M.level === "quick" ? "Quick match" : M.level === "daily" ? "Daily challenge" : M.level + " · " + M.name)
+      + (d.boost && d.boost.level ? ` · +${d.boost.level * 3}%` : "");
     $('[data-name="1"]').textContent = M.rival;
     screen("match");
     render(M.view, { deal: true });
@@ -757,10 +859,12 @@
     if (won && !M.tutorial && !quick) progress.stars[M.level] = Math.max(progress.stars[M.level] || 0, res.stars);
     store.set("progress", progress);
     const g = gain(res);
+    if (g && res.points) g.lines.splice(1, 0, [M.level === "daily" ? `Challenge score ${res.points.toLocaleString()}${res.best ? " · your best today" : ""}` : `+${res.points} board points`, 0]);
+    if (g && res.capped) g.lines.push(["Board points done for today (25 wins)", 0]);
     o.classList.toggle("lost", !won);
-    $("[data-over-sub]").textContent = M.tutorial ? "Tutorial" : quick ? "Quick match" : `${M.level} · ${M.name}`;
+    $("[data-over-sub]").textContent = M.tutorial ? "Tutorial" : quick ? "Quick match" : M.level === "daily" ? "Daily challenge" : `${M.level} · ${M.name}`;
     $("[data-over-title]").textContent = won ? (M.boss ? "Boss down!" : "Victory") : "Defeat";
-    const campaign = !M.tutorial && !quick;
+    const campaign = !M.tutorial && !quick && M.level !== "daily";
     $("[data-stars]").innerHTML = campaign ? [0, 1, 2].map(() => '<svg viewBox="0 0 24 24"><path d="M12 2l3 6.9 7.5.6-5.7 4.9 1.8 7.3L12 17.8 5.4 21.7l1.8-7.3L1.5 9.5 9 8.9z"/></svg>').join("") : "";
     $("[data-over-note]").textContent = won
       ? (M.tutorial ? "You know the basics. Now the real thing." : quick ? `Won in ${res.turns} turns.` : `Won in ${res.turns} turns with ${res.life} life left.`)
@@ -769,7 +873,7 @@
     const rw = $("[data-rewards]"), lu = $("[data-lvlup]");
     rw.innerHTML = ""; lu.hidden = true;
     if (g) {
-      rw.innerHTML = g.lines.map(([t, v]) => `<div class="tm-rw"><span>${esc(t)}</span><b>+${v} XP</b></div>`).join("") +
+      rw.innerHTML = g.lines.map(([t, v]) => `<div class="tm-rw${v ? "" : " pts"}"><span>${esc(t)}</span>${v ? `<b>+${v} XP</b>` : ""}</div>`).join("") +
         `<div class="tm-rwbar"><b data-rwlvl>Level ${g.before.level}</b><span class="tg-xpbar"><i data-rwfill style="width:${(100 * g.before.xp / need(g.before.level)).toFixed(1)}%"></i></span></div>`;
       $$(".tm-rw", rw).forEach((r, i) => { r.style.animationDelay = (300 + i * 260) + "ms"; setTimeout(() => sfx("star"), 300 + i * 260); });
       const t0 = 400 + g.lines.length * 260;
@@ -791,9 +895,10 @@
     }
     const order = levelOrder(), next = M.tutorial ? null : quick ? null : order[order.indexOf(M.level) + 1];
     const nb = $("[data-next]"); nb.hidden = !(won && next); nb.onclick = () => { o.hidden = true; begin(next); };
-    const ag = $("[data-again]"); ag.hidden = !(quick || M.tutorial); ag.textContent = M.tutorial ? (won ? "Play a quick match" : "Try again") : "Play again";
-    ag.onclick = () => { o.hidden = true; begin(M.tutorial && !won ? "tutorial" : "quick"); };
-    const rt = $("[data-retry]"); rt.hidden = quick || M.tutorial; rt.onclick = () => { o.hidden = true; begin(M.level); };
+    const ag = $("[data-again]"); ag.hidden = !(quick || M.tutorial || M.level === "daily"); ag.textContent = M.tutorial ? (won ? "Play a quick match" : "Try again") : "Play again";
+    if (M.level === "daily") ag.textContent = "Try today's challenge again";
+    ag.onclick = () => { o.hidden = true; begin(M.level === "daily" ? "daily" : M.tutorial && !won ? "tutorial" : "quick"); };
+    const rt = $("[data-retry]"); rt.hidden = quick || M.tutorial || M.level === "daily"; rt.onclick = () => { o.hidden = true; begin(M.level); };
     o.hidden = false;
     sfx(won ? "win" : "lose"); buzz(won ? [30, 60, 30, 60, 80] : [80]);
     if (won && campaign) $$("[data-stars] svg").forEach((s, i) => { if (i < res.stars) setTimeout(() => { s.classList.add("on"); sfx("star"); buzz(12); }, 450 + i * 320); });

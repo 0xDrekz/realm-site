@@ -29,6 +29,22 @@ const QUICK = {
   rivals: ["Spore Drifter", "Moth Caller", "Root Wanderer", "Star Scribe", "Lantern Eye", "Dust Walker", "Tide Singer", "Hollow Knight", "Ember Twin", "Veil Weaver"],
 };
 
+/* The daily challenge: the same game for everyone each day. The day picks
+   your three spirits, the rival's three and the shuffle; best score counts. */
+const DAILY = { id: "daily", name: "Daily Challenge", realm: 0, life: 14, rivalLife: 14, rivalScale: 0.9 };
+const DAILY_POOL = ["Common", "Uncommon", "Uncommon", "Rare", "Rare", "Epic"];
+function dailyOf(day, byTier) {
+  let h = 2166136261;
+  for (const ch of "realm-daily-" + day) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  const next = () => { h = (Math.imul(h, 1103515245) + 12345) >>> 0; return h / 4294967296; };
+  const pick = (taken) => { for (;;) { const t = DAILY_POOL[Math.floor(next() * DAILY_POOL.length)], l = byTier[t], n = l[Math.floor(next() * l.length)]; if (!taken.includes(n)) return n; } };
+  const you = [], rival = [];
+  while (you.length < 3) you.push(pick(you));
+  while (rival.length < 3) rival.push(pick([...you, ...rival]));
+  const names = ["The Gatekeeper", "The Lantern", "The Weaver", "The Tide", "The Hollow", "The Ember", "The Veil"];
+  return { you, rival, seed: h >>> 0, first: next() < 0.5 ? 0 : 1, rivalName: names[Math.floor(next() * names.length)] };
+}
+
 const REALMS = [
   { id: 1, name: "The Spore Fields", tier: "Common", blurb: "Where every being starts: a field of small, strange mushrooms that do not like visitors.",
     levels: [
@@ -45,11 +61,11 @@ const REALMS = [
 const POOL = { 1: { Common: 60, Uncommon: 30, Rare: 10 } };
 const BORROWED_SCALE = 0.9;
 
-const LEVELS = new Map([[TUTORIAL.id, TUTORIAL], [QUICK.id, QUICK], ...REALMS.flatMap(r => r.levels.map(l => [l.id, { ...l, realm: r.id }]))]);
+const LEVELS = new Map([[TUTORIAL.id, TUTORIAL], [QUICK.id, QUICK], [DAILY.id, DAILY], ...REALMS.flatMap(r => r.levels.map(l => [l.id, { ...l, realm: r.id }]))]);
 
 /* stars: win; win with half your life or more; win quickly */
 function stars(S, me, level) {
-  if (S.winner !== me || !level || level.id === "quick" || level.id === "tutorial") return S.winner === me ? 1 : 0;
+  if (S.winner !== me || !level || !level.levels && ["quick", "tutorial", "daily"].includes(level.id)) return S.winner === me ? 1 : 0;
   const P = S.players[me];
   let n = 1;
   if (P.life * 2 >= P.startLife) n++;
@@ -61,9 +77,10 @@ function stars(S, me, level) {
 function xp(won, starsWon, level) {
   if (level.id === "tutorial") return won ? 150 : 50;
   let n = won ? 100 : 35;
-  if (won && level.id !== "quick") n += starsWon * 20;
+  if (won && !["quick", "daily"].includes(level.id)) n += starsWon * 20;
+  if (level.id === "daily") n += won ? 50 : 0;
   if (won && level.boss) n += 100;
   return n;
 }
 
-module.exports = { TUTORIAL, QUICK, REALMS, LEVELS, POOL, BORROWED_SCALE, stars, xp };
+module.exports = { TUTORIAL, QUICK, DAILY, dailyOf, REALMS, LEVELS, POOL, BORROWED_SCALE, stars, xp };
