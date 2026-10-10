@@ -231,3 +231,13 @@ test("the arena refuses a dead session with a 401 instead of a guest match", asy
   const r = await G.start({ token: "dead" }); assert.equal(r.status, 401); assert.match(r.error, /sign in again/i);
   assert.ok((await G.start({})).match);
 });
+
+test("the arena says when it can't read a wallet, and one caller can't evict another", async () => {
+  const bad = require("./game").create({ walletOf: () => "W", beings: async () => { throw new Error("rpc down"); } });
+  assert.match((await bad.start({ token: "t" })).error, /Couldn't read your wallet/);
+  const G = require("./game").create();
+  const mine = await G.start({ ip: "1.1.1.1" });
+  for (let k = 0; k < 20; k++) await G.start({ ip: "6.6.6.6" });
+  const r = G.finish({ match: mine.match, inputs: [] });
+  assert.ok(!/ended/.test(r.error || ""), "my match is still there: " + r.error);
+});

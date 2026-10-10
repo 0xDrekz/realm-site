@@ -19,7 +19,14 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   const BT = C.byTier();
   const tierOf = n => BT.__of ? BT.__of[n] : (BT.__of = Object.fromEntries(Object.entries(BT).flatMap(([t, l]) => l.map(n => [n, t]))))[n];
   const pick = (list, not) => { for (;;) { const n = list[crypto.randomInt(list.length)]; if (!not.includes(n)) return n; } };
-  function tidy() { const now = Date.now(); for (const [k, m] of matches) if (now - m.at > TTL) matches.delete(k); while (matches.size > 5000) matches.delete(matches.keys().next().value); }
+  function tidy() { const now = Date.now(); for (const [k, m] of matches) if (now - m.at > TTL) matches.delete(k); }
+  /* each caller (wallet, or address when signed out) keeps at most three open matches; their own oldest makes way.
+     A full server turns new callers away rather than throwing out other people's matches. */
+  function room(owner) {
+    const mine = [...matches.entries()].filter(([, m]) => m.owner === owner).sort((a, b) => a[1].at - b[1].at);
+    while (mine.length >= 3) matches.delete(mine.shift()[0]);
+    return matches.size < 5000;
+  }
 
   /* the draw: every card is a random being from all 1,111, with spells and epics mixed in.
      A played card is gone for good and the next one comes in, so no two matches are alike.
@@ -42,13 +49,16 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   }
   const build = specs => specs.map(c => c.s ? { ...C.SPELLS[c.s] } : C.fighter(c.n, c.b));
 
-  async function start({ token } = {}) {
+  async function start({ token, ip } = {}) {
     tidy();
     const wallet = walletOf(token);
     if (token && !wallet) return { error: "Your sign-in has expired. Sign in again.", status: 401 };
     let mine = [], boost = { level: 0, boost: 1 };
     if (wallet) {
-      const [all, b] = await Promise.all([beings().catch(() => []), boostOf(wallet).catch(() => boost)]);
+      // a chain read that fails is said out loud, never turned into "you hold nothing"
+      let all, b;
+      try { [all, b] = await Promise.all([beings(), boostOf(wallet)]); }
+      catch { return { error: "Couldn't read your wallet just now. Retry in a moment.", status: 503 }; }
       boost = b;
       mine = all.filter(x => x.owner === wallet).map(x => x.n);
     }
@@ -64,7 +74,9 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const wildOf = ns => ns.map(([a, b]) => [C.fighter(a, 0.9), C.fighter(b, 0.9)]);
     const wild = wildOf(wildNs);
     // kept small: the cards are rebuilt from these when the match comes back
-    matches.set(id, { id, seed, specs, wildNs, wallet, at: Date.now(), done: false, rival: RIVALS[crypto.randomInt(RIVALS.length)] });
+    const owner = wallet ? "w:" + wallet : "ip:" + String(ip || "?");
+    if (!room(owner)) return { error: "The realm is very busy. Try again in a minute.", status: 503 };
+    matches.set(id, { id, seed, specs, wildNs, wallet, owner, at: Date.now(), done: false, rival: RIVALS[crypto.randomInt(RIVALS.length)] });
     return { match: id, seed, sides, wild, rival: matches.get(id).rival, own: mine.length, boost: boost.level ? boost : null };
   }
 

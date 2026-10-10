@@ -579,7 +579,7 @@ function route(req, res) {
     readJson(req, send, 40000, j => {
       if (!tcgAllowed(ip, "arena")) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
       const fn = urlPath.endsWith("start") ? ARENA.start : ARENA.finish;
-      Promise.resolve().then(() => fn(j)).then(d => send(d.status || (d.error ? 400 : 200), d))
+      Promise.resolve().then(() => fn({ ...j, ip })).then(d => send(d.status || (d.error ? 400 : 200), d))
         .catch(e => { console.error("arena", e); send(500, { error: "Something went wrong. Start a new match." }); });
     });
     return;
@@ -597,7 +597,7 @@ function route(req, res) {
       if (!tcgAllowed(ip, kind)) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
       const fn = { "/api/tcg/deal": TCG.deal, "/api/tcg/start": TCG.start, "/api/tcg/act": TCG.act, "/api/tcg/view": TCG.view, "/api/tcg/hint": TCG.hint, "/api/tcg/team": TCG.team }[urlPath];
       if (!fn) return send(404, { error: "Not found." });
-      Promise.resolve().then(() => fn(j))
+      Promise.resolve().then(() => fn({ ...j, ip }))
         .then(d => send(d.status || (d.error ? 400 : 200), d))
         .catch(e => { console.error("tcg", e); send(500, { error: "Something went wrong. Start a new match." }); });
     });

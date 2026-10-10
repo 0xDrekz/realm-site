@@ -14,6 +14,9 @@ const E = require("./engine"), AI = require("./ai"), C = require("./cards"), K =
 const MATCH_TTL = 2 * 3600e3, DEAL_TTL = 30 * 60e3, MAX_MATCHES = 5000;
 // a match only scores if it ends within 20 minutes of starting (the clock is never refreshed by moves)
 const SCORE_MAX_AGE = 20 * 60e3, MAX_OPEN_QUICK = 2;
+// each caller (a wallet, or an address when signed out) keeps at most this many open matches and deals;
+// a full server turns new callers away instead of throwing out other people's matches
+const PER_OWNER = 8;
 const newId = () => crypto.randomBytes(16).toString("hex");
 
 /* deps (all optional, so tests run without the chain):
@@ -30,9 +33,15 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const now = Date.now();
     for (const [k, m] of matches) if (now - m.born > MATCH_TTL) matches.delete(k);
     for (const [k, d] of deals) if (now - d.at > DEAL_TTL) deals.delete(k);
-    while (matches.size > MAX_MATCHES) matches.delete(matches.keys().next().value);
-    while (deals.size > MAX_MATCHES) deals.delete(deals.keys().next().value);
   }
+  /* room for one more of this caller's matches (or deals): their own oldest makes way, never anyone else's */
+  function room(map, owner) {
+    const mine = [...map.entries()].filter(([, v]) => v.owner === owner).sort((a, b) => (a[1].born || a[1].at) - (b[1].born || b[1].at));
+    while (mine.length >= PER_OWNER) map.delete(mine.shift()[0]);
+    return map.size < MAX_MATCHES;
+  }
+  const BUSY = { error: "The realm is very busy. Try again in a minute.", status: 503 };
+  const ownerOf = (wallet, ip) => wallet ? "w:" + wallet : "ip:" + String(ip || "?");
 
   /* a card as the page shows it, at the strength it will play */
   const show = (n, scale = 1) => {
@@ -183,18 +192,19 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   }
 
   /* ---------- the deal: five borrowed spirits, keep three ---------- */
-  function deal({ level }) {
+  function deal({ level, ip }) {
     tidy();
+    if (!room(deals, ownerOf(null, ip))) return BUSY;
     const L = K.LEVELS.get(String(level || ""));
     if (!L || L.id === "tutorial" || L.id === "quick") return { error: "That level is not open." };
     const ns = draw(K.POOL[L.realm], 5);
     const id = newId();
-    deals.set(id, { ns, level: L.id, at: Date.now() });
+    deals.set(id, { ns, level: L.id, at: Date.now(), owner: ownerOf(null, ip) });
     return { deal: id, level: L.id, cards: ns.map(n => show(n, K.BORROWED_SCALE)) };
   }
 
   /* ---------- a match ---------- */
-  async function start({ level, deal: dealId, pick, token, team: wanted }) {
+  async function start({ level, deal: dealId, pick, token, team: wanted, ip }) {
     tidy();
     const L = K.LEVELS.get(String(level || ""));
     if (!L) return { error: "That level is not open." };
@@ -247,6 +257,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       const open = [...matches.values()].filter(o => o.wallet === m.wallet && o.level === "quick" && !o.done).sort((a, b) => a.born - b.born);
       while (open.length >= MAX_OPEN_QUICK) { const o = open.shift(); o.S.winner = 1; o.S.phase = "over"; o.resigned = true; o.done = true; o.result = { won: false, stars: 0, turns: o.S.turn, life: o.S.players[0].life, level: o.level, xp: 0, stats: o.stats, unscored: "replaced" }; }
     }
+    m.owner = ownerOf(m.wallet, ip);
+    if (!room(matches, m.owner)) return BUSY;
     matches.set(id, m);
     const v0 = E.view(S, 0);
     const defs = { you: v0.you.champions.map(c => c.card), rival: v0.rival.champions.map(c => c.card) };
@@ -350,11 +362,13 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (S.phase !== "over") m.hinted = true;      // a match you were helped with doesn't score
     if (S.phase === "block" && S.active === 1) return { move: { type: "block", blocks: AI.suggestBlocks(S, 0) } };
     if (S.phase !== "main" || S.active !== 0) return { move: null };
-    const copy = structuredClone({ ...S, onAct: null });
-    const play = AI.bestPlay(copy, 0);
-    if (play) return { move: play };
-    const go = AI.chooseAttackers(copy, 0);
-    return { move: go.length ? { type: "attack", attackers: go } : { type: "end" } };
+    // every suggestion is tried on a copy of the match first: a hint is always a move the server accepts
+    const legal = mv => { const c = structuredClone({ ...S, onAct: null }); return !E.act(c, 0, mv); };
+    const play = AI.bestPlay(structuredClone({ ...S, onAct: null }), 0);
+    if (play && legal(play)) return { move: play };
+    const go = AI.chooseAttackers(structuredClone({ ...S, onAct: null }), 0);
+    const atk = go.length ? { type: "attack", attackers: go } : null;
+    return { move: atk && legal(atk) ? atk : { type: "end" } };
   }
 
   function view({ match }) {

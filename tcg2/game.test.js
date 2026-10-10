@@ -244,3 +244,18 @@ test("an expired or unknown token is a 401 'sign in again', never a quiet guest 
   assert.equal((await g.team({ token: "dead" })).status, 401);
   assert.ok((await g.start({ level: "quick" })).match, "no token at all is a guest, as before");
 });
+
+test("one caller filling the server can't push out anyone else's match", async () => {
+  const g = G();
+  const mine = await g.start({ level: "tutorial", ip: "1.1.1.1" });
+  for (let k = 0; k < 30; k++) await g.start({ level: "tutorial", ip: "6.6.6.6" });
+  assert.ok(!(await g.act({ match: mine.match, move: { type: "end" } })).error, "still there");
+});
+
+test("hints are always legal (a few hundred matches)", async () => {
+  const g = G();
+  for (let k = 0; k < 120; k++) {
+    const s = await g.start({ level: "quick" }); let res = s.result;
+    for (let i = 0; i < 300 && !res; i++) { const h = g.hint({ match: s.match }); const r = await g.act({ match: s.match, move: h.move || { type: "end" } }); assert.ok(!r.error, JSON.stringify(h.move) + " " + r.error); res = r.result; }
+  }
+});

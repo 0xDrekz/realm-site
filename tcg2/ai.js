@@ -31,13 +31,15 @@ function judge(S, P, ref) {
     return { v, target: null };
   }
   const e = E.attuned(P, def) && def.attuned ? def.attuned : def.effect;
+  const ok = t => E.validTarget(S, P, e, t);           // only ever aim at what the rules allow (veiled units, for one)
   switch (e.k) {
     case "dmg":
       if (e.to === "anyTarget") {
-        if (Op.life <= e.n) return { v: 100, target: { face: Op.i } };
-        const kill = Op.board.filter(u => E.lifeOf(S, u) <= e.n).sort((a, b) => value(S, b) - value(S, a))[0];
+        const face = ok({ face: Op.i });
+        if (face && Op.life <= e.n) return { v: 100, target: { face: Op.i } };
+        const kill = Op.board.filter(u => E.lifeOf(S, u) <= e.n && ok({ uid: u.uid })).sort((a, b) => value(S, b) - value(S, a))[0];
         if (kill) return { v: value(S, kill) + 0.5, target: { uid: kill.uid } };
-        return Op.life <= 8 ? { v: e.n * 0.7, target: { face: Op.i } } : null;
+        return face && Op.life <= 8 ? { v: e.n * 0.7, target: { face: Op.i } } : null;
       }
       if (e.to === "enemyUnits") { const v = Op.board.filter(u => E.lifeOf(S, u) <= e.n).reduce((a, u) => a + value(S, u), 0); return v >= 3 ? { v, target: null } : null; }
       return null;
@@ -47,8 +49,8 @@ function judge(S, P, ref) {
     }
     case "healFace": return P.life <= 12 ? { v: e.n * 0.7, target: null } : null;
     case "draw": return P.hand.length <= 4 ? { v: e.n * 1.6, target: null } : null;
-    case "buffUnit": { const t = P.board.slice().sort((a, b) => value(S, b) - value(S, a))[0]; return t ? { v: (e.power + e.health) * 0.9, target: { uid: t.uid } } : null; }
-    case "freezeDraw": { const t = Op.board.filter(u => !u.frozen).sort((a, b) => E.powerOf(S, b) - E.powerOf(S, a))[0]; return t ? { v: 1.5 + E.powerOf(S, t) * 0.4, target: { uid: t.uid } } : { v: 0.8, target: null }; }
+    case "buffUnit": { const t = P.board.filter(u => ok({ uid: u.uid })).sort((a, b) => value(S, b) - value(S, a))[0]; return t ? { v: (e.power + e.health) * 0.9, target: { uid: t.uid } } : null; }
+    case "freezeDraw": { const t = Op.board.filter(u => !u.frozen && ok({ uid: u.uid })).sort((a, b) => E.powerOf(S, b) - E.powerOf(S, a))[0]; return t ? { v: 1.5 + E.powerOf(S, t) * 0.4, target: { uid: t.uid } } : { v: 0.8, target: null }; }
   }
   return null;
 }
