@@ -403,8 +403,35 @@ function rpcAllowed(ip) {
   return recent.length <= 240;
 }
 
+/* Every JSON POST comes through here. The body must parse to a plain object (null, arrays,
+   strings and numbers are refused with 400), and the handler runs inside try/catch, so a
+   bad request can never throw out of an event callback and take the whole server down. */
+function readJson(req, send, limit, handler, { allowArray = false } = {}) {
+  let body = "", dead = false;
+  req.on("data", c => { if (dead) return; body += c; if (body.length > limit) { dead = true; send(413, { error: "Too large." }); req.destroy(); } });
+  req.on("end", () => {
+    if (dead) return;
+    let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
+    const ok = j && typeof j === "object" && (allowArray ? true : !Array.isArray(j));
+    if (!ok) return send(400, { error: "Bad request." });
+    try {
+      const r = handler(j);
+      if (r && typeof r.then === "function") r.catch(e => { console.error("handler", req.url, e); send(500, { error: "Something went wrong." }); });
+    } catch (e) { console.error("handler", req.url, e); send(500, { error: "Something went wrong." }); }
+  });
+  req.on("error", () => { dead = true; });
+}
+/* a reply that is safe to call twice: the second call is ignored */
+function replier(res) {
+  return (code, obj) => { if (res.headersSent || res.writableEnded) return; res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(obj)); };
+}
+
 let CODEX = null;
 const server = http.createServer((req, res) => {
+  try { route(req, res); }
+  catch (e) { console.error("route", req.url, e); if (!res.headersSent) res.writeHead(500).end(); }
+});
+function route(req, res) {
   // strip query string, decode, and block path traversal
   let urlPath;
   try {
@@ -440,10 +467,9 @@ const server = http.createServer((req, res) => {
     const ALLOW = new Set(["getAccountInfo", "getMultipleAccounts", "getLatestBlockhash", "sendTransaction",
       "getSignatureStatuses", "getBalance", "getMinimumBalanceForRentExemption", "simulateTransaction", "getSlot", "getBlockHeight",
       "isBlockhashValid", "getEpochInfo"]);
-    let body = "";
-    req.on("data", c => { body += c; if (body.length > 200_000) req.destroy(); });
-    req.on("end", () => {
-      let j; try { j = JSON.parse(body); } catch { return res.writeHead(400).end(); }
+    const sendR = replier(res);
+    readJson(req, sendR, 200_000, j => {
+      const body = JSON.stringify(j);
       const calls = Array.isArray(j) ? j : [j];
       if (!calls.length || calls.length > 20 || calls.some(c => !c || !ALLOW.has(c.method))) return res.writeHead(403).end();
       const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
@@ -463,7 +489,7 @@ const server = http.createServer((req, res) => {
         out.end(body);
       };
       go(target, target !== PUBLIC);
-    });
+    }, { allowArray: true });
     return;
   }
 
@@ -563,13 +589,10 @@ const server = http.createServer((req, res) => {
 
   /* ---- REALM Arena: the page plays, the server replays and decides ---- */
   if (urlPath === "/api/arena/start" || urlPath === "/api/arena/finish") {
-    const send = (code, obj) => res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(obj));
+    const send = replier(res);
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
     if (req.method !== "POST") return send(405, { error: "POST" });
-    let body = "";
-    req.on("data", c => { body += c; if (body.length > 40000) req.destroy(); });
-    req.on("end", () => {
-      let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
+    readJson(req, send, 40000, j => {
       if (!tcgAllowed(ip, "arena")) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
       const fn = urlPath.endsWith("start") ? ARENA.start : ARENA.finish;
       Promise.resolve().then(() => fn(j)).then(d => send(d.error ? 400 : 200, d))
@@ -580,15 +603,12 @@ const server = http.createServer((req, res) => {
 
   /* ---- the card battler: every move checked, every result decided here ---- */
   if (urlPath.startsWith("/api/tcg/")) {
-    const send = (code, obj) => res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(obj));
+    const send = replier(res);
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
     if (urlPath === "/api/tcg/map") return send(200, TCG.map());
     if (urlPath === "/api/tcg/board") return send(200, TCG.board({ token: new URL(req.url, "http://x").searchParams.get("token") }));
     if (req.method !== "POST") return send(405, { error: "POST" });
-    let body = "";
-    req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
-    req.on("end", () => {
-      let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
+    readJson(req, send, 4000, j => {
       const kind = urlPath === "/api/tcg/act" || urlPath === "/api/tcg/view" || urlPath === "/api/tcg/hint" ? "move" : "match";
       if (!tcgAllowed(ip, kind)) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
       const fn = { "/api/tcg/deal": TCG.deal, "/api/tcg/start": TCG.start, "/api/tcg/act": TCG.act, "/api/tcg/view": TCG.view, "/api/tcg/hint": TCG.hint, "/api/tcg/team": TCG.team }[urlPath];
@@ -602,7 +622,7 @@ const server = http.createServer((req, res) => {
 
   /* ---- REALM Duels (duels.js): every result decided here ---- */
   if (urlPath.startsWith("/api/duel/")) {
-    const send = (code, obj) => res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(JSON.stringify(obj));
+    const send = replier(res);
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
     const q = new URL(req.url, "http://x").searchParams;
     if (urlPath === "/api/duel/board") return send(200, { week: DUELS.week(), top: DUELS.top() });
@@ -616,10 +636,7 @@ const server = http.createServer((req, res) => {
       return;
     }
     if (req.method !== "POST") return send(405, { error: "POST" });
-    let body = "";
-    req.on("data", c => { body += c; if (body.length > 4000) req.destroy(); });
-    req.on("end", () => {
-      let j; try { j = JSON.parse(body || "{}"); } catch { return send(400, { error: "Bad request." }); }
+    readJson(req, send, 4000, j => {
       if (urlPath === "/api/duel/nonce") {
         if (!duelAllowed(ip)) return send(429, { error: "Too many tries. Wait a minute." });
         if (!ADDRESS.test(j.wallet || "")) return send(400, { error: "That is not a Solana address." });
@@ -743,7 +760,11 @@ const server = http.createServer((req, res) => {
         : "public, max-age=3600"
     }).end(data);
   });
-});
+}
+
+/* a last line of defence: log anything that slips through and keep serving (the mint page lives here too) */
+process.on("uncaughtException", e => console.error("uncaught", e));
+process.on("unhandledRejection", e => console.error("unhandled rejection", e));
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`REALM is live on port ${PORT}`);
