@@ -31,7 +31,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     for (let i = 0; i < DRAW; i++) {
       const r = crypto.randomInt(100);
       if (r < 11) out.push({ s: C.SMALL[crypto.randomInt(C.SMALL.length)] });
-      else if (r < 16) out.push({ s: C.EPIC[crypto.randomInt(C.EPIC.length)] });
+      else if (r < 18) out.push({ s: C.EPIC[crypto.randomInt(C.EPIC.length)] });
       else if (own.length && crypto.randomInt(100) < 30) out.push({ n: own[crypto.randomInt(own.length)], b: ownBoost });
       else out.push({ n: 1 + crypto.randomInt(1111), b: otherBoost });
     }

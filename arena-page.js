@@ -73,6 +73,10 @@
     nova: '<circle cx="50" cy="50" r="14" fill="#ffd1ff"/><path d="M50 10v24M50 66v24M10 50h24M66 50h24M22 22l16 16M62 62l16 16M78 22 62 38M38 62 22 78" stroke="#ff7ae6" stroke-width="6" stroke-linecap="round"/>',
     halo: '<ellipse cx="50" cy="50" rx="32" ry="12" fill="none" stroke="#9dffcf" stroke-width="7"/>',
     dust: '<path d="M62 18a32 32 0 1 0 20 50 26 26 0 1 1-20-50z" fill="#cfefff"/>',
+    fireball: '<circle cx="50" cy="56" r="26" fill="#ff7a2a"/><circle cx="50" cy="56" r="16" fill="#ffd27a"/><path d="M30 44C30 20 50 22 46 6c18 12 26 24 24 42M62 40c4-12 14-16 12-30 10 12 10 24 2 34" fill="#ff9a3c"/><circle cx="50" cy="58" r="7" fill="#fff6d8"/>',
+    quake: '<path d="M8 70h84" stroke="#9a8060" stroke-width="6"/><path d="M50 70 42 52l12-8-8-14 10-10-6-14M50 70l8 14-10 8" stroke="#ffd27a" stroke-width="5" fill="none" stroke-linejoin="round"/><circle cx="22" cy="58" r="6" fill="#6a5a48"/><circle cx="78" cy="54" r="8" fill="#6a5a48"/><circle cx="70" cy="40" r="4" fill="#6a5a48"/>',
+    storm: '<ellipse cx="50" cy="30" rx="34" ry="16" fill="#3a2a5a"/><ellipse cx="34" cy="26" rx="18" ry="12" fill="#4a3a6a"/><ellipse cx="64" cy="24" rx="20" ry="13" fill="#4a3a6a"/><path d="M48 42 38 64h10l-6 26 20-32H50l8-16z" fill="#fff6a0"/><path d="M24 48l-4 10M78 46l-4 12M30 62l-3 8" stroke="#9fc8ff" stroke-width="3"/>',
+    cosmic: '<path d="M44 0h12l8 100H36z" fill="#e8f6ff" opacity=".85"/><path d="M40 0h4l-6 100h-4zM56 0h4l6 100h-4z" fill="#ff7ae6"/><path d="M36 0h4l-8 100h-4zM60 0h4l8 100h-4z" fill="#7fe8ff" opacity=".8"/><ellipse cx="50" cy="88" rx="30" ry="8" fill="#fff1c2" opacity=".7"/>',
     meteor: '<path d="M88 10 46 46" stroke="#ffb347" stroke-width="10" stroke-linecap="round" opacity=".6"/><path d="M80 14 40 50" stroke="#fff2c0" stroke-width="4" stroke-linecap="round"/><circle cx="36" cy="60" r="22" fill="#ff7a2a"/><circle cx="36" cy="60" r="15" fill="#4a2a1a"/><circle cx="30" cy="54" r="4" fill="#7a4a2a"/><circle cx="42" cy="66" r="3" fill="#2a1a10"/>',
     hole: '<circle cx="50" cy="50" r="40" fill="#1a0630"/><path d="M50 14a36 36 0 0 1 30 56M86 50a36 36 0 0 1-56 30M50 86a36 36 0 0 1-30-56M14 50a36 36 0 0 1 56-30" stroke="#c48bff" stroke-width="5" fill="none"/><ellipse cx="50" cy="50" rx="20" ry="8" fill="none" stroke="#ffcf7a" stroke-width="4"/><circle cx="50" cy="50" r="11" fill="#000"/>',
     mother: '<path d="M30 58 18 92h64L70 58z" fill="#7fffd0" opacity=".35"/><ellipse cx="50" cy="52" rx="42" ry="12" fill="#8a8ea8"/><ellipse cx="50" cy="48" rx="42" ry="9" fill="#c8ccdc"/><path d="M30 46a20 18 0 0 1 40 0z" fill="#7fe8ff"/><circle cx="22" cy="54" r="3" fill="#ffe58a"/><circle cx="38" cy="58" r="3" fill="#ff7ae6"/><circle cx="62" cy="58" r="3" fill="#7fffd0"/><circle cx="78" cy="54" r="3" fill="#ffe58a"/>',
@@ -136,7 +140,7 @@
     for (const c of d.wild || []) img(c.n);
     await faceOff(d);
     G = { match: d.match, seed: d.seed, sides: d.sides, wild: d.wild, S: A.createMatch({ seed: d.seed, sides: d.sides, wild: d.wild }), inputs: [], acc: 0, last: 0, prev: new Map(),
-      fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, overlays: [], seen: new Set(), river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
+      fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, overlays: [], storms: [], rays: [], seen: new Set(), river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
     $("[data-rname]").textContent = d.rival;
     show("battle"); layout(); paintHand(true); paintHud(); paintCrowns();
     banner("Battle!");
@@ -421,17 +425,34 @@
           if (e.kind === "bloom") { for (let i = 0; i < 60; i++) G.parts.push({ x: Math.random() * A.W, y: Math.random() * A.H, vx: 0, vy: -.8 - Math.random(), life: 1.2 + Math.random(), t: 0, col: Math.random() < .5 ? "#ff7ae6" : "#c56bff", s: .07 }); G.flash = .25; }
           break;
         }
-        case "swing": G.swing.set(e.id, { t: G.river, to: e.to }); break;
+        case "swing": {
+          G.swing.set(e.id, { t: G.river, to: e.to });
+          // a slash: a bright crescent across the target, in the attacker's colour
+          const a = G.S.ents.find(q => q.id === e.id), tg = G.S.ents.find(q => q.id === e.to);
+          if (a && tg) G.fx.push({ k: "slash", x: tg.x, y: tg.y + bodyY(tg), ang: Math.atan2(tg.y - a.y, tg.x - a.x), life: .22, t: 0, col: TEAM[a.side].main, big: a.def && a.def.cost >= 5 });
+          break;
+        }
         case "play": {
           sfx("place"); if (e.side === 0) buzz(10);
           const def = G.S.sides[e.side].deck.find(c => c.id === e.card);
           if (def && def.epic) { banner(def.name, e.side ? "The rival unleashes" : "Unleashed", e.side === 1); sfx("epic"); G.shake = Math.max(G.shake, .6); buzz([30, 40, 60]); }
           break;
         }
+        case "quake0": G.fx.push({ k: "quakewarn", x: e.x, y: e.y, r: e.r, life: .35, t: 0 }); sfx("drone"); break;
+        case "quakepulse": {
+          const n = e.n; G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r * (1 + n * .15), life: .55, t: 0, col: "#ffd27a" }, { k: "ring", x: e.x, y: e.y, r: e.r * .8, life: .35, t: 0, col: "#e8c08a", fill: true });
+          G.scorch.push({ x: e.x + (Math.random() - .5), y: e.y + (Math.random() - .5) * .6, r: e.r * (.7 + n * .15), t: 0, life: 6, crack: true });
+          G.fx.push({ k: "fissure", x: e.x, y: e.y, r: e.r * (.8 + n * .2), life: 1.4, t: 0, seed: Math.random() * 1000 });
+          for (let i = 0; i < 5 + n * 2; i++) { const a = Math.random() * TAU; G.fx.push({ k: "rock", x: e.x + Math.cos(a) * e.r * .5, y: e.y + Math.sin(a) * e.r * .3, vx: Math.cos(a) * (1 + Math.random() * 2), vz: 4 + Math.random() * 4, s: .14 + Math.random() * .14, life: .9, t: 0 }); }
+          for (let i = 0; i < 14 + n * 6 && G.parts.length < 420; i++) { const a = Math.random() * TAU, d = Math.random() * e.r; G.parts.push({ x: e.x + Math.cos(a) * d, y: e.y + Math.sin(a) * d * .6, vx: (Math.random() - .5) * 1.2, vy: -2 - Math.random() * 2.5, life: .6 + Math.random() * .3, t: 0, col: Math.random() < .5 ? "rgba(120,100,80,.85)" : "rgba(80,66,52,.85)", s: .1 + Math.random() * .08, smoke: true }); }
+          G.shake = Math.max(G.shake, .5 + n * .25); sfx("blast"); buzz([40, 20, 40]); break;
+        }
+        case "storm": G.storms.push({ x: e.x, y: e.y, r: e.r, dur: e.dur, t: 0 }); sfx("thunder"); break;
+        case "cosmic": G.rays.push({ x0: e.x0, x1: e.x1, y: e.y, charge: e.charge, dur: e.dur, t: 0, side: e.side }); sfx("drone"); break;
         case "hole": G.holes.push({ x: e.x, y: e.y, r: e.r, dur: e.dur, t: 0 }); sfx("drone"); break;
         case "ship": G.ships.push({ x: e.x, y: e.y, r: e.r, arrive: e.arrive, dur: e.dur, t: 0, side: e.side }); sfx("hum"); break;
         case "hit": {
-          burst(e.x, e.y + (e.tower ? -1.6 : -.9), e.tower ? 3 : 2, e.tower ? "#ffd65c" : "#ffffff", 2);
+          impact(e);
           // no floating numbers: the fight stays readable; health bars tell the story
           if (e.tower) G.towerShake.set(e.id, .18); else G.jolt.set(e.id, G.river);
           sfx("hit"); break;
@@ -442,7 +463,8 @@
         case "gas": burst(e.x, e.y, 10, "#9dff7a", 1.5); sfx("gas"); break;
         case "chain": G.fx.push({ k: "chain", pts: e.pts, life: .28, t: 0, seed: Math.random() * 1000 }); sfx("zap"); break;
         case "beam": G.beams.set(e.id, { to: e.to, ramp: e.ramp, until: G.S.time + .6 }); break;
-        case "bolt": G.fx.push({ k: "bolt", x: e.x, y: e.y, life: .3, t: 0, seed: Math.random() * 1000 }); G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1.4, life: .35, t: 0, col: "#fff6a0", fill: true }); sfx("zap"); break;
+        case "bolt": if (e.storm) { const st = G.storms[G.storms.length - 1]; G.fx.push({ k: "bolt", x: e.x, y: e.y, fromY: st ? st.y - 6.5 : e.y - 8, life: .32, t: 0, seed: Math.random() * 1000, big: true }); G.flash = Math.max(G.flash, .12); burst(e.x, e.y, 10, "#fff6a0", 3); sfx("zap"); break; }
+          G.fx.push({ k: "bolt", x: e.x, y: e.y, life: .3, t: 0, seed: Math.random() * 1000 }); G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1.4, life: .35, t: 0, col: "#fff6a0", fill: true }); sfx("zap"); break;
         case "bolts":
           for (const q of e.pts) { G.fx.push({ k: "bolt", x: q.x, y: q.y, life: .5, t: 0, seed: Math.random() * 1000, big: true }); burst(q.x, q.y, 12, "#fff6a0", 3); }
           G.fx.push({ k: "pillar", x: e.x, y: e.y, life: .7, t: 0 }); G.flash = .45; G.shake = Math.max(G.shake, .9); sfx("thunder"); buzz([40, 30, 60]);
@@ -468,6 +490,18 @@
       }
     }
   }
+  /* every hit lands with a flash sized to its damage, coloured by the power behind it */
+  function impact(e) {
+    const y = e.y + (e.tower ? -1.6 : e.air ? -1.8 : -.9) / SY, n = e.n || 0, heavy = n >= 150;
+    G.fx.push({ k: "ring", x: e.x, y, r: .35 + Math.min(1.1, n / 260), life: .18, t: 0, col: e.tower ? "#ffd65c" : "#ffffff", fill: true });
+    const C = { fire: "#ff8a3c", frost: "#bfeaff", acid: "#8dff5a", drain: "#ff4a6a", gas: "#8dff5a", burst: "#ffb05c", chain: "#cfe0ff", beam: "#7fffd0", descend: "#fff1c2", quake: "#e8c08a", cloak: "#e8e0ff" }[e.s];
+    burst(e.x, y, heavy ? 8 : 3, C || (e.tower ? "#ffd65c" : "#ffffff"), heavy ? 3 : 2);
+    if (e.s === "fire") for (let i = 0; i < 5; i++) G.parts.push({ x: e.x + (Math.random() - .5) * .5, y, vx: (Math.random() - .5) * .5, vy: -1 - Math.random(), life: .45, t: 0, col: i % 2 ? "#ffd24a" : "#ff6a2a", s: .08 });
+    if (e.s === "frost") for (let i = 0; i < 6; i++) { const a = Math.random() * TAU; G.parts.push({ x: e.x, y, vx: Math.cos(a) * 2.2, vy: Math.sin(a) * 2.2, life: .35, t: 0, col: "#e8f8ff", s: .06 }); }
+    if (e.s === "acid") for (let i = 0; i < 6; i++) G.parts.push({ x: e.x, y, vx: (Math.random() - .5) * 2, vy: -1.5 + Math.random(), life: .5, t: 0, col: "#a6ff4a", s: .07 });
+    if (e.s === "drain") G.fx.push({ k: "ring", x: e.x, y, r: .8, life: .3, t: 0, col: "#ff4a6a" });
+    if (heavy) { G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1 + n / 300, life: .3, t: 0, col: C || "#ffffff" }); G.shake = Math.max(G.shake, Math.min(.35, n / 900)); }
+  }
   function mist(x, y) {
     for (let i = 0; i < 9 && G.parts.length < 420; i++) { const a = Math.random() * TAU, v = .3 + Math.random() * .9; G.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - .2, life: .6 + Math.random() * .4, t: 0, col: i % 3 ? "rgba(140,255,110,.55)" : "rgba(220,255,200,.7)", s: .1 + Math.random() * .08, smoke: true }); }
   }
@@ -483,6 +517,12 @@
       G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + .6, life: .5, t: 0, col: "#ffb347", fill: true });
       burst(e.x, e.y, 22, "#ffb347", 3.2); burst(e.x, e.y, 10, "#4a3428", 2.4); G.scorch.push({ x: e.x, y: e.y, r: 1.3, t: 0, life: 7 });
       G.shake = Math.max(G.shake, .55); sfx("blast"); buzz(20); return;
+    }
+    if (e.fx === "fireball") {
+      G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + .6, life: .5, t: 0, col: "#ff9a3c", fill: true });
+      burst(e.x, e.y, 34, "#ffb347", 4.5); burst(e.x, e.y, 16, "#ff5a2a", 3); G.scorch.push({ x: e.x, y: e.y, r: 1.6, t: 0, life: 7 });
+      for (let i = 0; i < 24; i++) { const a = Math.random() * TAU, d = Math.random() * e.r; G.parts.push({ x: e.x + Math.cos(a) * d, y: e.y + Math.sin(a) * d * .6, vx: 0, vy: -.8 - Math.random(), life: .8 + Math.random() * .8, t: 0, col: Math.random() < .5 ? "#ff9a3c" : "#ffd24a", s: .09 }); }
+      G.shake = Math.max(G.shake, .6); G.flash = Math.max(G.flash, .15); sfx("blast"); buzz(25); return;
     }
     if (e.fx === "bomb") {
       G.fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + .5, life: .45, t: 0, col: "#ff9a3c", fill: true });
@@ -676,7 +716,9 @@
     for (const e of ents) if (e.kind === "unit" && e.air) drawUnit(e, alpha);
     drawBeams(S, alpha);
     for (const s of S.shots) drawShot(s, alpha);
+    drawStorms(dt);
     drawFx(dt);
+    drawRays(dt);
     drawShips(dt);
     drawOverlays();
     drawGhost();
@@ -858,6 +900,46 @@
     }
     ctx.globalAlpha = 1; G.scorch = G.scorch.filter(sc => sc.t < sc.life);
   }
+  /* a lightning storm: a dark cloud churns over the area; the bolts come from it */
+  function drawStorms(dt) {
+    for (const st of G.storms) {
+      st.t += dt; const k = st.t / st.dur, a = Math.min(1, st.t * 3, (st.dur - st.t) * 2), t = G.river, cy = st.y - 6.5;
+      ctx.fillStyle = `rgba(6,4,20,${.25 * a})`; ctx.beginPath(); ctx.ellipse(st.x, st.y, st.r * 1.3, st.r * .7, 0, 0, TAU); ctx.fill();
+      for (let i = 0; i < 9; i++) { const ox = Math.sin(i * 2.3 + t * .6) * st.r * .9, oy = Math.cos(i * 1.7 + t * .5) * .6; ctx.globalAlpha = .85 * a; ctx.fillStyle = i % 2 ? "#2a2046" : "#3a2c5e"; ctx.beginPath(); ctx.ellipse(st.x + ox, cy + oy, 1.4 + (i % 3) * .4, .8, 0, 0, TAU); ctx.fill(); }
+      if (Math.random() < .25) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = .5 * a; stamp("#b8a8ff", st.x + (Math.random() - .5) * st.r * 1.6, cy, 1.4); ctx.globalCompositeOperation = "source-over"; }
+      ctx.globalAlpha = .45 * a; ctx.strokeStyle = "#9fb8ff"; ctx.lineWidth = .03;
+      for (let i = 0; i < 14; i++) { const rx = st.x + ((i * 1.37 + t * 3) % (st.r * 2.4)) - st.r * 1.2, ry = cy + 1 + ((i * .71 + t * 9) % 5.5); ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - .15, ry + .5); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+    }
+    G.storms = G.storms.filter(st => st.t < st.dur);
+  }
+  /* a cosmic ray: a mark, a gathering star, then a beam from the sky sweeping its line */
+  function drawRays(dt) {
+    for (const ry of G.rays) {
+      ry.t += dt; const t = G.river;
+      if (ry.t < ry.charge) {
+        const k = ry.t / ry.charge;
+        ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = .4 + .5 * k; ctx.strokeStyle = "#e8f6ff"; ctx.lineWidth = .05; ctx.setLineDash([.3, .2]);
+        ctx.beginPath(); ctx.moveTo(ry.x0, ry.y); ctx.lineTo(ry.x1, ry.y); ctx.stroke(); ctx.setLineDash([]);
+        stamp("#ffffff", ry.x0, ry.y - 9, .4 + k * 1.4); stamp("#ff7ae6", ry.x0, ry.y - 9, .8 + k * 2);
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; continue;
+      }
+      const k = Math.min(1, (ry.t - ry.charge) / ry.dur), bx = lerp(ry.x0, ry.x1, k), fade = k >= 1 ? Math.max(0, 1 - (ry.t - ry.charge - ry.dur) * 4) : 1, top = ry.y - 22;
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = fade;
+      for (const [off, col, w] of [[-.35, "#7fe8ff", .5], [.35, "#ff7ae6", .5], [0, "#ffffff", .7]]) {
+        const g = ctx.createLinearGradient(0, top, 0, ry.y); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(.6, col); g.addColorStop(1, col);
+        ctx.fillStyle = g; ctx.fillRect(bx + off - w / 2 - Math.sin(t * 40) * .05, top, w, ry.y - top);
+      }
+      stamp("#fff1c2", bx, ry.y, 1.8); stamp("#ffffff", bx, ry.y, .9); stamp("#ff7ae6", bx, ry.y, 2.4 * (.8 + Math.sin(t * 30) * .2));
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+      if (k < 1) {
+        if (Math.random() < .6) G.scorch.push({ x: bx, y: ry.y + (Math.random() - .5) * .5, r: 1, t: 0, life: 6 });
+        for (let i = 0; i < 3; i++) G.parts.push({ x: bx, y: ry.y, vx: (Math.random() - .5) * 4, vy: -1 - Math.random() * 3, life: .5, t: 0, col: ["#ffffff", "#7fe8ff", "#ff7ae6", "#fff1c2"][i % 4], s: .07 });
+        G.shake = Math.max(G.shake, .35); G.flash = Math.max(G.flash, .06);
+      }
+    }
+    G.rays = G.rays.filter(ry => ry.t < ry.charge + ry.dur + .3);
+  }
   /* a black hole: the arena dims, light spirals in, and an event horizon glows */
   function drawHoles(dt) {
     for (const h of G.holes) {
@@ -967,14 +1049,22 @@
     }
     if (from.look === "eye") { ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(ang); ctx.drawImage(streak(T.main), -.8, -.1, .9, .2); ctx.restore(); stamp(T.main, q.x, q.y, .42); stamp("#ffffff", q.x, q.y, .16); return; }
     const col = { gas: "#8dff5a", frost: "#bfeaff", fire: "#ff9a3c", acid: "#a6ff4a", drain: "#ff4a6a", burst: "#ffb05c", cloak: "#e8e0ff", roots: "#6dff8a", caster: "#e9a8ff", support: "#9dffcf" }[s.kind] || T.main;
-    const len = s.kind === "caster" ? .7 : .55;
+    const len = s.kind === "caster" ? 1.0 : .8;
     ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(ang); ctx.drawImage(streak(col.length === 7 ? col : "#ffffff"), -len, -.07, len + .05, .14); ctx.restore();
-    const r = s.kind === "gas" ? .3 : s.kind === "caster" || s.kind === "burst" ? .24 : .15;
-    stamp(col, q.x, q.y, r * 2.2);
+    const r = s.kind === "gas" ? .34 : s.kind === "caster" || s.kind === "burst" ? .3 : .2;
+    ctx.globalCompositeOperation = "lighter"; stamp(col, q.x, q.y, r * 2.8); stamp("#ffffff", q.x, q.y, r); ctx.globalCompositeOperation = "source-over";
   }
   function drawFlies(dt) {
     for (const f of G.flies) {
       f.t += dt; const k = Math.min(1, f.t / f.dur), T = TEAM[f.side];
+      if (f.fx === "fireball") {
+        const d = Math.hypot(f.x1 - f.x0, f.y1 - f.y0), hgt = 1 + d * .18, at = q => ({ x: lerp(f.x0, f.x1, q), y: lerp(f.y0, f.y1, q) - Math.sin(Math.PI * q) * hgt });
+        const h = at(k);
+        for (let i = 10; i >= 1; i--) { const q = at(Math.max(0, k - i * .025)); ctx.globalAlpha = (1 - i / 11) * .8; stamp(i < 4 ? "#ffd27a" : i < 7 ? "#ff8a3c" : "#c8361a", q.x, q.y, .8 * (1 - i / 12)); }
+        ctx.globalAlpha = 1; stamp("#ff8a3c", h.x, h.y, 1.1); stamp("#fff2c0", h.x, h.y, .45);
+        if (Math.random() < .8) G.parts.push({ x: h.x, y: h.y, vx: (Math.random() - .5) * .8, vy: -.4, life: .5, t: 0, col: Math.random() < .5 ? "#ffb347" : "rgba(90,70,60,.6)", s: .09, smoke: Math.random() < .4 });
+        continue;
+      }
       if (f.fx === "meteor") {
         // each meteor shows its mark, then streaks down from the sky in its last moments
         const left = f.dur - f.t, kk = Math.max(0, 1 - left / .45);
@@ -1069,12 +1159,44 @@
         ctx.globalAlpha = 1;
       }
       if (f.k === "bolt") {
-        ctx.globalAlpha = Math.max(0, 1 - k); ctx.strokeStyle = "#fffbe0"; ctx.lineWidth = f.big ? .22 : .14;
-        ctx.save(); ctx.strokeStyle = "rgba(255,229,138,.35)"; ctx.lineWidth = f.big ? .6 : .4; ctx.beginPath(); ctx.moveTo(f.x + 1.5, f.y - 8); ctx.lineTo(f.x, f.y); ctx.stroke(); ctx.restore();
-        ctx.beginPath(); let x = f.x + 1.5, y = f.y - 8; ctx.moveTo(x, y);
-        let sd = f.seed; for (let i = 0; i < 7; i++) { sd = (sd * 9301 + 49297) % 233280; x = f.x + (1.5 - i * .22) + (sd / 233280 - .5) * 1.2; y = f.y - 8 + (i + 1) * (8 / 7); ctx.lineTo(x, y); }
-        ctx.stroke(); ctx.globalAlpha = 1;
+        // a forked bolt with a glow; from the storm cloud when there is one
+        const top = f.fromY != null ? f.fromY : f.y - 8, hgt = f.y - top;
+        ctx.globalAlpha = Math.max(0, 1 - k);
+        const path = (seed, jit) => { ctx.beginPath(); let x = f.x + 1.2, y = top; ctx.moveTo(x, y); let sd = seed; for (let i = 0; i < 8; i++) { sd = (sd * 9301 + 49297) % 233280; x = f.x + (1.2 - i * .17) + (sd / 233280 - .5) * jit; y = top + (i + 1) * (hgt / 8); ctx.lineTo(x, y); } };
+        ctx.strokeStyle = "rgba(170,140,255,.35)"; ctx.lineWidth = f.big ? .9 : .55; path(f.seed, 1.2); ctx.stroke();
+        ctx.strokeStyle = "#fffbe0"; ctx.lineWidth = f.big ? .2 : .13; path(f.seed, 1.2); ctx.stroke();
+        ctx.strokeStyle = "#cfe0ff"; ctx.lineWidth = .06; path(f.seed + 77, 2.2); ctx.stroke();
+        stamp("#fff6c8", f.x, f.y, f.big ? 1.2 : .8);
+        ctx.globalAlpha = 1;
       }
+      if (f.k === "slash") {
+        // a crescent of light carved across the target
+        ctx.globalAlpha = Math.max(0, 1 - k); ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang + Math.PI / 2);
+        const r = f.big ? .95 : .7, sweep = -1.2 + k * 2.4;
+        ctx.strokeStyle = f.col; ctx.lineWidth = f.big ? .28 : .2; ctx.beginPath(); ctx.arc(0, 0, r, sweep - .9, sweep + .3); ctx.stroke();
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = f.big ? .1 : .07; ctx.beginPath(); ctx.arc(0, 0, r, sweep - .6, sweep + .25); ctx.stroke();
+        ctx.restore(); stamp(f.col, f.x, f.y, .5 * (1 - k)); ctx.globalAlpha = 1;
+      }
+      if (f.k === "fissure") {
+        // the ground splits: jagged cracks run out from the centre, molten light inside
+        const grow = Math.min(1, k * 4), fade = Math.max(0, 1 - k); let sd = f.seed;
+        for (let i = 0; i < 7; i++) {
+          let a = i * TAU / 7 + (f.seed % 1), x = f.x, y = f.y; const pts = [[x, y]];
+          for (let j = 0; j < 5; j++) { sd = (sd * 9301 + 49297) % 233280; a += (sd / 233280 - .5) * .9; const step = f.r * grow / 5; x += Math.cos(a) * step; y += Math.sin(a) * step * .55; pts.push([x, y]); }
+          ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = fade * .9; ctx.strokeStyle = "#140a06"; ctx.lineWidth = .2; ctx.beginPath(); pts.forEach(([px, py], q) => q ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke();
+          ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = fade; ctx.strokeStyle = "#ff8a2a"; ctx.lineWidth = .08; ctx.stroke(); ctx.strokeStyle = "#ffe08a"; ctx.lineWidth = .03; ctx.stroke();
+        }
+        stamp("#ff8a2a", f.x, f.y, f.r * .7 * fade); ctx.globalAlpha = 1;
+      }
+      if (f.k === "rock") {
+        // a chunk of the floor, thrown up and falling back
+        const h = Math.max(0, f.vz * f.t - 9 * f.t * f.t), x = f.x + f.vx * f.t;
+        ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = Math.max(0, 1 - k * .6);
+        ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(x, f.y, f.s, f.s * .4, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = "#4a3e5e"; ctx.save(); ctx.translate(x, f.y - h); ctx.rotate(f.t * 8); ctx.fillRect(-f.s / 2, -f.s / 2, f.s, f.s); ctx.fillStyle = "#6a5a80"; ctx.fillRect(-f.s / 2, -f.s / 2, f.s, f.s * .35); ctx.restore();
+        ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 1;
+      }
+      if (f.k === "quakewarn") { ctx.globalAlpha = Math.max(0, 1 - k) * .7; stamp("#ffd27a", f.x, f.y, f.r * 1.2); ctx.globalAlpha = 1; }
     }
     G.fx = G.fx.filter(f => f.t < f.life);
     ctx.globalCompositeOperation = "source-over";

@@ -62,7 +62,7 @@
      sides: [{ deck: [8 card defs], ai: false }, { deck, ai: true, level: 0..2 }]
      A card def is plain data made on the server (arena/cards.js). */
   function createMatch({ seed, sides, wild }) {
-    const S = { wild: Array.isArray(wild) && wild.length ? wild : null, surge: 0, seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], flights: [], holes: [], ships: [], events: [], crowns: [0, 0], sides: [], log: [] };
+    const S = { wild: Array.isArray(wild) && wild.length ? wild : null, surge: 0, seed: seed >>> 0, tick: 0, time: 0, over: false, winner: null, id: 0, ents: [], shots: [], zones: [], flights: [], holes: [], ships: [], quakes: [], storms: [], rays: [], events: [], crowns: [0, 0], sides: [], log: [] };
     for (let i = 0; i < 2; i++) {
       const sd = sides[i] || {};
       // a draw: the server dealt a random stream of cards, in order; a played card is gone for good.
@@ -175,6 +175,23 @@
       S.events.push({ t: "hole", side, x, y, r: def.radius, dur: 2 });
       return;
     }
+    if (def.id === "quake") {
+      S.quakes.push({ side, x, y, r: def.radius, dmg: def.amount, next: S.tick + 6, left: 3 });
+      S.events.push({ t: "quake0", side, x, y, r: def.radius });
+      return;
+    }
+    if (def.id === "storm") {
+      S.storms.push({ side, x, y, r: def.radius, dmg: def.amount, next: S.tick + 12, until: S.tick + 12 + 3 * TICK });
+      S.events.push({ t: "storm", side, x, y, r: def.radius, dur: 0.6 + 3 });
+      return;
+    }
+    if (def.id === "cosmic") {
+      // it charges for half a second, then sweeps nine tiles across, through the point you chose
+      const start = S.tick + 10, dur = TICK;
+      S.rays.push({ side, x0: clamp(x - 4.5, 0.5, W - 0.5), x1: clamp(x + 4.5, 0.5, W - 0.5), y, w: def.radius, dps: def.amount, start, until: start + dur });
+      S.events.push({ t: "cosmic", side, x0: clamp(x - 4.5, 0.5, W - 0.5), x1: clamp(x + 4.5, 0.5, W - 0.5), y, charge: 0.5, dur: 1 });
+      return;
+    }
     if (def.id === "mother") {
       const start = S.tick + Math.round(0.8 * TICK);
       S.ships.push({ side, x, y, r: def.radius, dps: def.amount, start, until: start + 3 * TICK });
@@ -204,7 +221,7 @@
     n = Math.round(n);
     if (e.shield > 0) { const s = Math.min(e.shield, n); e.shield -= s; n -= s; }
     e.hp -= n;
-    S.events.push({ t: "hit", id: e.id, n, x: e.x, y: e.y, tower: e.kind === "tower" });
+    S.events.push({ t: "hit", id: e.id, n, x: e.x, y: e.y, tower: e.kind === "tower", s: (src && src.style) || null, air: !!e.air });
     const st = src && src.style;
     if (!st || e.kind !== "unit") { if (st === "drain") src.hp = Math.min(src.max, src.hp + n * 0.35); return; }
     if (st === "drain") src.hp = Math.min(src.max, src.hp + n * 0.35);
@@ -399,7 +416,10 @@
     if (S.wild && S.tick % (30 * TICK) === 25 * TICK) surge(S);
     // spells in flight land
     if (S.flights.length) {
-      for (const f of S.flights) if (f.land <= S.tick) blast(S, f.side, f.x, f.y, f.def.radius, f.def.amount, f.def.id);
+      for (const f of S.flights) if (f.land <= S.tick) {
+        blast(S, f.side, f.x, f.y, f.def.radius, f.def.amount, f.def.id);
+        if (f.def.id === "fireball") for (const e of S.ents) if (e.side !== f.side && e.kind === "unit" && e.hp > 0 && !e.ethereal && dist(e, f) <= f.def.radius + e.r) e.burn = { dps: 45, until: S.time + 3 };
+      }
       S.flights = S.flights.filter(f => f.land > S.tick);
     }
     // black holes drag enemies in, then implode
@@ -416,6 +436,34 @@
         if (S.tick >= h.until) blast(S, h.side, h.x, h.y, h.r * 0.75, h.dmg, "hole");
       }
       S.holes = S.holes.filter(h => S.tick < h.until);
+    }
+    // earthquakes: three shockwaves, a third of a second apart
+    if (S.quakes.length) {
+      for (const q of S.quakes) if (S.tick >= q.next && q.left > 0) {
+        q.left--; q.next = S.tick + 7;
+        S.events.push({ t: "quakepulse", side: q.side, x: q.x, y: q.y, r: q.r, n: 3 - q.left });
+        for (const e of S.ents) if (e.side !== q.side && e.hp > 0 && !e.air && dist(e, q) <= q.r + e.r) { hurt(S, e, e.kind === "tower" ? q.dmg * 0.35 : q.dmg, null); if (e.kind === "unit" && !e.ethereal) { e.slowUntil = Math.max(e.slowUntil, S.time + 0.45); e.frozen = true; } }
+      }
+      S.quakes = S.quakes.filter(q => q.left > 0);
+    }
+    // lightning storms: a bolt on an enemy below the cloud every few ticks
+    if (S.storms.length) {
+      for (const st of S.storms) if (S.tick >= st.next && S.tick < st.until) {
+        st.next = S.tick + 5;
+        const under = S.ents.filter(e => e.side !== st.side && e.hp > 0 && dist(e, st) <= st.r + e.r);
+        const units = under.filter(e => e.kind === "unit"), pool = units.length ? units : under;
+        if (pool.length) { const e = pool[Math.floor(rng(S) * pool.length)]; S.events.push({ t: "bolt", side: st.side, x: e.x, y: e.y, storm: true }); hurt(S, e, e.kind === "tower" ? st.dmg * 0.35 : st.dmg, null); }
+        else S.events.push({ t: "bolt", side: st.side, x: st.x + (rng(S) - 0.5) * st.r * 1.6, y: st.y + (rng(S) - 0.5) * st.r, storm: true });
+      }
+      S.storms = S.storms.filter(st => S.tick < st.until);
+    }
+    // cosmic rays sweep their line
+    if (S.rays.length) {
+      for (const ry of S.rays) if (S.tick >= ry.start && S.tick < ry.until) {
+        const k = (S.tick - ry.start) / (ry.until - ry.start), bx = ry.x0 + (ry.x1 - ry.x0) * k;
+        for (const e of S.ents) if (e.side !== ry.side && e.hp > 0 && Math.abs(e.x - bx) <= ry.w + e.r && Math.abs(e.y - ry.y) <= 1.6 + e.r) hurt(S, e, (e.kind === "tower" ? ry.dps * 0.35 : ry.dps) * DT, null);
+      }
+      S.rays = S.rays.filter(ry => S.tick < ry.until);
     }
     // the Mothership's beam burns all under it
     if (S.ships.length) {

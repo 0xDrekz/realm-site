@@ -127,9 +127,13 @@ const SPELLS = {
   // the epic ones: dear, slow to land, and ruinous
   meteor: { id: "meteor", kind: "spell", name: "Meteor Shower",    cost: 5, effect: "damage", radius: 3.0, amount: 185, count: 6, epic: true, text: "Six burning meteors rain down across a wide area." },
   hole:   { id: "hole",   kind: "spell", name: "Black Hole",       cost: 6, effect: "damage", radius: 3.2, amount: 620, epic: true, text: "Drags every enemy near it into a vortex for two seconds, then implodes." },
+  fireball: { id: "fireball", kind: "spell", name: "Fireball",     cost: 3, effect: "damage", radius: 1.8, amount: 290, text: "A ball of fire that bursts on landing and sets everything burning." },
+  quake:  { id: "quake",  kind: "spell", name: "Earthquake",       cost: 5, effect: "damage", radius: 3.0, amount: 170, epic: true, text: "The ground splits: three shockwaves that hurt and stun everything standing in the area." },
+  storm:  { id: "storm",  kind: "spell", name: "Lightning Storm",  cost: 5, effect: "damage", radius: 3.5, amount: 120, epic: true, text: "A storm cloud gathers and rains lightning on enemies below for three seconds." },
+  cosmic: { id: "cosmic", kind: "spell", name: "Cosmic Ray",       cost: 6, effect: "damage", radius: 0.9, amount: 1500, epic: true, text: "A beam from deep space sweeps across the battlefield, burning everything in its path." },
   mother: { id: "mother", kind: "spell", name: "Mothership",       cost: 7, effect: "damage", radius: 2.3, amount: 300, epic: true, text: "A colossal ship descends and burns the ground under it with a death beam for three seconds." },
 };
-const SMALL = ["strike", "nova"], EPIC = ["meteor", "hole", "mother"];
+const SMALL = ["strike", "nova", "fireball"], EPIC = ["meteor", "hole", "mother", "quake", "storm", "cosmic"];
 
 /* a deck: six beings and two spells */
 function deck(beings, boost = 1, spells = ["strike", "nova"]) {
