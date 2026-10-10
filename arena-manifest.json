@@ -1,0 +1,11 @@
+{
+  "name": "REALM Arena",
+  "short_name": "Arena",
+  "start_url": "/arena",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#03010a",
+  "theme_color": "#03010a",
+  "icons": [{ "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }]
+}

@@ -102,8 +102,10 @@
     $("[data-army-title]").textContent = s ? "Your beings" : "Borrowed spirits";
     $("[data-army-note]").textContent = s ? "Signed in: your own beings turn up more often, with your $DMT boost" : "Sign in at Duels and your own beings turn up more often";
   }
-  $("[data-battle]").addEventListener("click", () => { sfx("tick"); battle(); });
-  $("[data-again]").addEventListener("click", () => { $("[data-end]").hidden = true; battle(); });
+  // on phones that allow it (Android), the battle goes truly full screen: no browser bars
+  function fullscreen() { try { const d = document.documentElement; if (document.fullscreenEnabled && !document.fullscreenElement && matchMedia("(pointer: coarse)").matches) d.requestFullscreen({ navigationUI: "hide" }).catch(() => {}); } catch { /* not supported */ } }
+  $("[data-battle]").addEventListener("click", () => { sfx("tick"); fullscreen(); battle(); });
+  $("[data-again]").addEventListener("click", () => { $("[data-end]").hidden = true; fullscreen(); battle(); });
   $("[data-lobby]").addEventListener("click", () => { $("[data-end]").hidden = true; show("lobby"); paintLobby(); });
   $("[data-how]").addEventListener("click", () => { $("[data-howsheet]").hidden = false; sfx("tick"); });
   $$("[data-howclose]").forEach(b => b.addEventListener("click", () => { $("[data-howsheet]").hidden = true; }));
@@ -158,18 +160,25 @@
 
   /* ---------- layout ---------- */
   // headroom above the rival's Throne, so its crystal and health bar sit clear of the top bar
-  const TOP = 1.9, CROP = 1.6;
-  let OX = 0, OY = TOP, VW = 18, VH = 34;
+  const TOP = 1.9, CROP = 2.2;
+  let OX = 0, OY = TOP, VW = 18, VH = 34, SY = 1;
+  /* sprites, towers and words stand upright even when the ground tilts away */
+  function upright(x, y, fn) { if (SY === 1) return fn(); ctx.save(); ctx.translate(x, y); ctx.scale(1, 1 / SY); ctx.translate(-x, -y); fn(); ctx.restore(); }
   const stageEl = $("[data-stage]");
   function layout() {
     const st = $("[data-stage]").getBoundingClientRect();
     // the canvas fills the whole stage; the arena is as big as fits (its outer rim may be trimmed),
     // centred, with open sky painted around it. The top bar floats over the headroom.
-    const hud = $(".ar-hud").getBoundingClientRect().height - 8, HEAD = 1.45;   // room for the rival's tree under the bar
-    ts = Math.max(8, Math.min(st.width / (A.W - .7), (st.height - hud) / (A.H + HEAD - CROP)));
+    // the arena always fills the width. On a short screen the ground tilts away a little (a gentle
+    // perspective, up to a fifth), the rival's tree may tuck under the top bar and the ground behind
+    // your own tree under the cards; only on very short screens does the arena shrink.
+    const hud = $(".ar-hud").getBoundingClientRect().height - 8, HEAD = .9, NEED = A.H + HEAD - CROP;
+    ts = st.width / (A.W - .7);
+    SY = Math.min(1, (st.height - hud) / (ts * NEED));
+    if (SY < .72) { SY = .72; ts = Math.max(8, (st.height - hud) / (NEED * SY)); }
     dpr = Math.min(lowRes ? 1.2 : 2, window.devicePixelRatio || 1);
-    VW = st.width / ts; VH = st.height / ts;
-    OX = (VW - A.W) / 2; OY = hud / ts + HEAD + Math.max(0, (VH - hud / ts - (A.H + HEAD - CROP)) / 2);
+    VW = st.width / ts; VH = st.height / (ts * SY);
+    OX = (VW - A.W) / 2; OY = hud / (ts * SY) + HEAD + Math.max(0, (VH - hud / (ts * SY) - NEED) / 2);
     for (const c of [canvas, bg]) { c.style.width = st.width + "px"; c.style.height = st.height + "px"; c.width = Math.round(st.width * dpr); c.height = Math.round(st.height * dpr); }
     sprites.clear(); towerArt.clear();
     // the arena itself is drawn once, on its own layer underneath
@@ -185,7 +194,7 @@
   const STONE = [{ h: 222, s: 30, l: 19 }, { h: 335, s: 26, l: 17 }];
   function drawStatic() {
     const c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height;
-    const g = c.getContext("2d"); g.scale(dpr * ts, dpr * ts); g.translate(OX, OY);
+    const g = c.getContext("2d"); g.scale(dpr * ts, dpr * ts * SY); g.translate(OX, OY);
     const W = A.W, H = A.H, R = A.RIVER;
     let sd = 11; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
     // the deep: a nebula under everything
@@ -380,8 +389,8 @@
       const tw = S.ents.find(e => e.id === sh.from), tg = S.ents.find(e => e.id === sh.to);
       if (!tw || !tg) { G.shotFrom.set(sh.id, null); continue; }
       const d0 = Math.max(.5, Math.hypot(tg.x - sh.x, tg.y - sh.y));
-      if (tw.tower === "throne") G.shotFrom.set(sh.id, { ox: 0, oy: .4 - 1.05, d0, look: "eye" });
-      else { G.crewFire.set(tw.id, G.river); G.shotFrom.set(sh.id, { ox: 0, oy: .4 - 3.25, d0, look: "plasma" }); }
+      if (tw.tower === "throne") G.shotFrom.set(sh.id, { ox: 0, oy: .4 - 1.05 / SY, d0, look: "eye" });
+      else { G.crewFire.set(tw.id, G.river); G.shotFrom.set(sh.id, { ox: 0, oy: .4 - 3.25 / SY, d0, look: "plasma" }); }
     }
     // spent plasma bursts into a puff of green mist where it struck
     const live = new Set(S.shots.map(q => q.id));
@@ -630,7 +639,7 @@
   try { document.fonts.load('700 20px "Space Grotesk"').then(() => { NUMFONT = '"Space Grotesk", system-ui'; }); } catch { /* old browser */ }
   /* text is drawn in real pixels: a font scaled down to a fraction of a pixel draws badly */
   function txt(str, x, y, size, fill, stroke) {
-    const k = ts * dpr; ctx.save(); ctx.translate(x, y); ctx.scale(1 / k, 1 / k);
+    const k = ts * dpr; ctx.save(); ctx.translate(x, y); ctx.scale(1 / k, 1 / (k * SY));
     ctx.font = `700 ${Math.max(8, Math.round(size * k))}px ${typeof str === "number" || /^-?\d+$/.test(str) ? NUMFONT : FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
     if (stroke) { ctx.lineWidth = stroke * k; ctx.strokeStyle = "#0a0514"; ctx.strokeText(str, 0, 0); }
     ctx.fillStyle = fill; ctx.fillText(str, 0, 0); ctx.restore();
@@ -650,7 +659,7 @@
     G.shake = Math.max(0, G.shake - dt * 2.2);
     const sh = REDUCED ? 0 : G.shake * ts * .35;
     layers.style.transform = sh > .2 ? `translate(${((Math.random() - .5) * sh).toFixed(1)}px,${((Math.random() - .5) * sh).toFixed(1)}px)` : "";
-    ctx.scale(dpr * ts, dpr * ts); ctx.translate(OX, OY);
+    ctx.scale(dpr * ts, dpr * ts * SY); ctx.translate(OX, OY);
     drawRiver(S);
     drawZone();
     // rubble where towers stood
@@ -709,7 +718,8 @@
     ctx.strokeStyle = "rgba(255,90,120,.6)"; ctx.setLineDash([.3, .2]); ctx.lineWidth = .06;
     ctx.beginPath(); ctx.moveTo(0, R + 1); ctx.lineTo(A.W, R + 1); ctx.stroke(); ctx.setLineDash([]);
   }
-  function drawTower(e, alpha, dt) {
+  const drawTower = (e, alpha, dt) => upright(e.x, e.y + .4, () => drawTowerUp(e, alpha, dt));
+  function drawTowerUp(e, alpha, dt) {
     const T = TEAM[e.side], throne = e.tower === "throne", t = G.river, P = PAL[e.side];
     let sx = 0; const shk = G.towerShake.get(e.id) || 0;
     if (shk > 0) { sx = (Math.random() - .5) * .18; G.towerShake.set(e.id, shk - dt); }
@@ -755,7 +765,8 @@
     for (let k = 0; k < 6; k++) { const a = k * 1.1, d = s * (.25 + (k % 3) * .2); ctx.beginPath(); ctx.arc(r.x + Math.cos(a) * d, r.y + Math.sin(a) * d * .5, s * .22, 0, Math.PI * 2); ctx.fill(); }
     if (Math.random() < .05) G.parts.push({ x: r.x + (Math.random() - .5), y: r.y, vx: 0, vy: -.6, life: 1.2, t: 0, col: "rgba(160,150,180,.5)", s: .18, smoke: true });
   }
-  function drawUnit(e, alpha) {
+  const drawUnit = (e, alpha) => { const p = pos(e.id, e.x, e.y, alpha); upright(p.x, p.y, () => drawUnitUp(e, alpha)); };
+  function drawUnitUp(e, alpha) {
     const p = pos(e.id, e.x, e.y, alpha), T = TEAM[e.side], t = G.river, st = e.style;
     const wake0 = st === "descend" || st === "prime" ? 1.3 : 1;
     const born = Math.min(1, wake0 - Math.max(0, e.wake));
@@ -898,7 +909,7 @@
         if (Math.random() < .08) G.scorch.push({ x: s.x + (Math.random() - .5) * r, y: s.y + (Math.random() - .5) * r * .4, r: .9, t: 0, life: 5 });
         if (Math.random() < .25) G.shake = Math.max(G.shake, .25);
       }
-      const a = shipArt(); sc *= 1.3; ctx.save(); ctx.translate(s.x, sy); ctx.scale(sc, sc); ctx.drawImage(a.c, -a.ax, -a.ay, a.w, a.h); ctx.restore();
+      const a = shipArt(); sc *= 1.3; ctx.save(); ctx.translate(s.x, sy); ctx.scale(sc, sc / SY); ctx.drawImage(a.c, -a.ax, -a.ay, a.w, a.h); ctx.restore();
       for (let i = 0; i < 7; i++) { const lx = s.x + (i - 3) * .62 * sc, ly = sy + .2 * sc + Math.abs(i - 3) * -.04; const on = Math.floor(t * 8 + i) % 3 === 0; stamp(on ? "#ffe58a" : ["#ff7ae6", "#7fffd0", "#7fe8ff"][i % 3], lx, ly, on ? .32 : .2); }
       stamp("#7fe8ff", s.x, sy - .3 * sc, .7 * sc);
     }
@@ -933,7 +944,7 @@
     }
   }
   /* shots leave from the body that fired them (a cap, an eye, a chest) and strike the body they hit */
-  const bodyY = e => !e ? 0 : e.kind === "tower" ? (e.tower === "throne" ? -1.2 : -1.8) : e.air ? -1.8 : -.95;
+  const bodyY = e => (!e ? 0 : e.kind === "tower" ? (e.tower === "throne" ? -1.2 : -1.8) : e.air ? -1.8 : -.95) / SY;
   function drawShot(s, alpha) {
     const T = TEAM[s.side], p = pos("s" + s.id, s.x, s.y, alpha);
     let from = G.shotFrom.get(s.id);
@@ -1145,7 +1156,6 @@
     $("[data-phase]").textContent = { calm: "Calm", rising: "Rising ×1.5", peak: "Peak ×2", overtime: "Sudden death" }[G.phase];
     if (S.crowns.join() !== G.crowns.join()) { G.crowns = S.crowns.slice(); paintCrowns(); }
     paintHand(false);
-    tips(S);
   }
   const crown = on => `<svg viewBox="0 0 16 12" class="${on ? "on" : ""}"><use href="#i-crown"/></svg>`;
   function paintCrowns() { for (const side of [0, 1]) $(`[data-crowns="${side}"]`).innerHTML = [0, 1, 2].map(i => crown(i < G.S.crowns[side])).join(""); }
@@ -1153,14 +1163,14 @@
   /* ---------- placing: drag a card, or tap it then tap the field ---------- */
   function toArena(clientX, clientY) {
     const r = canvas.getBoundingClientRect();
-    const x = (clientX - r.left) / ts - OX, y = (clientY - r.top) / ts - OY;
+    const x = (clientX - r.left) / ts - OX, y = (clientY - r.top) / (ts * SY) - OY;
     return { x, y, inside: x >= 0 && x <= A.W && y >= 0 && y <= A.H && clientY <= r.bottom };
   }
   function tryPlace(slot, x, y) {
     const S = G.S, P = S.sides[0], def = P.deck[P.hand[slot]];
     x = Math.round(x * 100) / 100; y = Math.round(y * 100) / 100;
-    if (P.dmt < def.cost) { sfx("no"); flashTip("Not enough DMT yet: wait for the bar."); return false; }
-    if (!A.canPlaceAt(S, 0, def, x, y)) { sfx("no"); flashTip(def.kind === "spell" ? "Not there." : "Place units on your half of the arena."); return false; }
+    if (P.dmt < def.cost) { sfx("no"); nudge(slot); return false; }
+    if (!A.canPlaceAt(S, 0, def, x, y)) { sfx("no"); nudge(slot); return false; }
     const t = S.tick, err = A.place(S, 0, slot, x, y);
     if (err) { sfx("no"); return false; }
     // what placing set off (a summoning, a spell taking flight) shows now; the next step clears the list
@@ -1191,7 +1201,6 @@
     if (d.moved) { const p = toArena(e.clientX, e.clientY - 40); if (p.inside) tryPlace(d.slot, p.x, p.y); G.aim = null; }
     else {
       G.sel = G.sel === d.slot ? null : d.slot; sfx("tick");
-      if (G.sel != null) { const def = d.def; flashTip(def.kind === "spell" ? `${def.name}: ${def.text}` : `${def.name} · ${def.power.label}: ${def.power.text}`, 3200); }
     }
     paintHand(false);
   });
@@ -1208,15 +1217,8 @@
 
   /* ---------- tips for a first battle ---------- */
   let tipT = null;
-  function flashTip(t, ms = 1800) { const el = $("[data-tip]"); el.textContent = t; el.hidden = false; clearTimeout(tipT); tipT = setTimeout(() => { el.hidden = true; }, ms); }
-  function tips(S) {
-    if (G.tips.done) return;
-    const t = S.time, P = S.sides[0];
-    if (!G.tips.placed && t > 1.5 && !G.tipShown) { G.tipShown = 1; const el = $("[data-tip]"); el.innerHTML = "<span><b>Drag a card</b> from your hand onto your half of the arena.</span>"; el.hidden = false; clearTimeout(tipT); }
-    if (G.tips.placed && G.tipShown === 1) { G.tipShown = 2; $("[data-tip]").hidden = true; flashTip("Nice. DMT refills over time: spend it, but keep some to defend."); }
-    if (P.dmt >= 9.9 && t > 8 && !G.tips.full) { G.tips.full = 1; flashTip("Your DMT is full: you're wasting it. Play a card!"); }
-    if (t > 40 && G.tips.placed) { G.tips.done = 1; store.set("tips", G.tips); }
-  }
+  /* no words over the battle: a card that can't go yet just shakes */
+  function nudge(slot) { const el = $(`[data-slot="${slot}"] .ar-card`); if (!el) return; el.classList.remove("nope"); void el.offsetWidth; el.classList.add("nope"); buzz(15); }
 
   /* ---------- the end ---------- */
   async function endBattle() {

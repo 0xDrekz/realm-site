@@ -115,6 +115,8 @@ svg{fill:currentColor}
 @keyframes arReady{50%{transform:translateY(-6px)}}
 .ar-card.sel{transform:translateY(-12px);box-shadow:0 0 0 2px #fff,4px 4px 0 2px #000}
 .ar-card.dragging{opacity:.35}
+.ar-card.nope{animation:arNope .3s steps(6)}
+@keyframes arNope{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .ar-card.back{background:linear-gradient(135deg,#3a1a5a,#e3ba5c 50%,#3a1a5a)}
 .ar-card.back .ar-card-in{display:grid;place-items:center;background:repeating-conic-gradient(from 45deg,#1a0a2e 0 25%,#120822 0 50%) 0 0/12px 12px}
 .ar-card.back .ar-card-in b{font-size:2rem;color:var(--gold);text-shadow:3px 3px 0 #000}
