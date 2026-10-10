@@ -247,7 +247,7 @@
     $("[data-over-note]").textContent = d.wallet
       ? (d.best ? "Your best this week: stage " + d.best.stage + ", score " + d.best.score + "." : "")
       : "Borrowed spirits stay off the board. Hold a being to climb it.";
-    const text = "I cleared " + d.stage + " stage" + (d.stage === 1 ? "" : "s") + " in REALM Duels with a score of " + d.score + ". How deep can your beings go?\n\ndmt-realm.dev/duels";
+    const text = "I cleared " + d.stage + " stage" + (d.stage === 1 ? "" : "s") + " in REALM Duels Classic with a score of " + d.score + ". How deep can your beings go?\n\ndmt-realm.dev/duels-classic";
     $("[data-share]").href = "https://x.com/intent/post?text=" + encodeURIComponent(text);
     window.scrollTo({ top: 0 });
     shareCard(d, title, text);
@@ -284,7 +284,7 @@
       g.fillText("Stage " + d.stage + "   ·   Score " + d.score, W / 2, 545);
       g.fillStyle = "#b9aedb"; g.font = "500 26px 'Space Grotesk', sans-serif";
       g.fillText((d.wallet ? short(d.wallet) + "  ·  " : "") + (d.boostPct ? "$DMT boost +" + d.boostPct + "%  ·  " : "") + "How deep can your beings go?", W / 2, 590);
-      g.fillStyle = "#e3ba5c"; g.font = "700 30px 'Space Grotesk', sans-serif"; g.fillText("dmt-realm.dev/duels", W / 2, 638);
+      g.fillStyle = "#e3ba5c"; g.font = "700 30px 'Space Grotesk', sans-serif"; g.fillText("dmt-realm.dev/duels-classic", W / 2, 638);
       const url = cv.toDataURL("image/png");
       $("[data-pic-img]").src = url;
       const dl = $("[data-pic-save]"); dl.href = url; dl.download = "realm-duels-stage-" + d.stage + ".png";

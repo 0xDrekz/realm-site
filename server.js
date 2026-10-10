@@ -420,9 +420,11 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/owner") urlPath = "/owner.html";
   if (urlPath === "/wallet") urlPath = "/wallet.html";
   if (urlPath === "/payout") urlPath = "/payout.html";
-  if (urlPath === "/duels") urlPath = "/duels.html";
+  // REALM Duels is the card battler now; the first Duels lives on at /duels-classic
+  if (urlPath === "/duels") urlPath = "/duels-beta.html";
+  if (urlPath === "/duels-classic") urlPath = "/duels.html";
   if (urlPath === "/codex") urlPath = "/codex.html";
-  if (urlPath === "/duels-beta") urlPath = "/duels-beta.html";
+  if (urlPath === "/duels-beta") { res.writeHead(301, { Location: "/duels" }).end(); return; }
   // the saved snapshot is served through /api/snapshot only, after its hash is checked
   if (urlPath.startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
 
