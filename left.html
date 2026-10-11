@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03010a">
+<title>REALM — What's left</title>
+<meta name="description" content="Live: how many REALM beings of every tier are still unminted, and which Gods, Entities and the Prime Source have been found.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<meta property="og:title" content="REALM — What's left">
+<meta property="og:description" content="Live: every tier still out there, and which of the 31 rarest beings have been found.">
+<meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Pixelify Sans";src:url("fonts/pixelify-sans.woff2") format("woff2");font-weight:400 700;font-display:swap}
+@font-face{font-family:"Space Grotesk";src:url("fonts/space-grotesk.woff2") format("woff2");font-weight:300 700;font-display:swap}
+:root{--void:#03010a;--ink:#07040f;--ink2:#0d0819;--line:rgba(227,186,92,.26);--gold:#e3ba5c;--gold2:#fff1c2;--bone:#f4efe4;--dim:#9d8fc4;--faint:#6d6192;--px:"Pixelify Sans",system-ui,sans-serif;--num:"Space Grotesk",system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--void);color:var(--bone);font-family:var(--px);-webkit-font-smoothing:antialiased}
+body{background:radial-gradient(ellipse 70% 40% at 50% 0%,rgba(197,107,255,.16),transparent 70%),var(--void)}
+a{color:inherit}
+.num{font-family:var(--num);font-weight:700}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px calc(32px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;gap:10px;padding:16px 0}
+.top a.brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;letter-spacing:.2em;margin-right:auto}
+.top a.brand img{width:30px;height:30px}
+.top .back{font-size:.8rem;color:var(--dim);text-decoration:none}
+.eyebrow{margin:18px 0 0;font-size:.74rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gold)}
+h1{margin:6px 0 0;font-size:clamp(2.2rem,8vw,3.4rem);line-height:1;color:var(--gold);text-shadow:4px 4px 0 #7a5414,8px 8px 0 #000}
+.lede{margin:16px 0 0;color:var(--dim);line-height:1.5;max-width:620px}
+.lede b{color:var(--bone)}
+.big{margin:26px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.big div{padding:14px;background:var(--ink);border:1px solid var(--line)}
+.big span{display:block;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)}
+.big b{display:block;margin-top:6px;font-family:var(--num);font-size:clamp(1.5rem,6vw,2.2rem)}
+.big .hot b{color:var(--gold2)}
+.prog{margin:12px 0 0;height:14px;background:#000;border:1px solid var(--gold);position:relative}
+.prog i{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(90deg,var(--gold) 0 10px,#a87a22 10px 12px)}
+h2{margin:34px 0 10px;font-size:.82rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold)}
+.tiers{display:flex;flex-direction:column;gap:6px}
+.tier{display:grid;grid-template-columns:110px 1fr 120px;align-items:center;gap:12px;padding:10px 12px;background:var(--ink);border:1px solid var(--line);border-left:4px solid var(--tc)}
+.tier b{font-size:.95rem}
+.tier .w{display:block;font-size:.68rem;color:var(--faint);letter-spacing:.06em}
+.bar{height:12px;background:#1a1328;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--tc)}
+.tier .ct{text-align:right;font-family:var(--num);font-weight:700;font-size:1.05rem}
+.tier .ct small{display:block;font-family:var(--px);font-weight:400;font-size:.66rem;color:var(--faint)}
+.tier.gone{opacity:.5}
+.rare{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.rb{position:relative;background:#000;border:2px solid var(--tc);box-shadow:3px 3px 0 #000;text-decoration:none}
+.rb img{display:block;width:100%;aspect-ratio:1;object-fit:cover}
+.rb span{display:block;padding:5px 6px;font-size:.66rem;line-height:1.2;background:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb em{position:absolute;top:6px;left:6px;padding:2px 6px;font-style:normal;font-size:.6rem;letter-spacing:.12em;background:var(--gold);color:#140a02;box-shadow:2px 2px 0 #000}
+.rb.found img{filter:grayscale(1) brightness(.35)}
+.rb.found em{background:#3a3448;color:var(--bone)}
+.rb.source{grid-column:span 2;grid-row:span 2}
+.rb.source span{font-size:.8rem}
+.note{margin:18px 0 0;font-size:.78rem;color:var(--faint);line-height:1.5}
+.cta{display:block;margin:26px 0 0;padding:15px;text-align:center;text-decoration:none;font-weight:700;font-size:1.2rem;letter-spacing:.2em;color:#140a02;background:var(--gold);box-shadow:inset 0 3px 0 #fff1c2,inset 0 -4px 0 #a87a22,0 0 0 2px #000,0 6px 0 2px #000}
+.err{color:#ff8a9a}
+@media(max-width:520px){.tier{grid-template-columns:86px 1fr 92px}.big{grid-template-columns:1fr 1fr}.big .wide{grid-column:span 2}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="brand" href="/"><img src="logo-bar.png" alt="">REALM</a><a class="back" href="/holders">Holders</a></header>
+  <p class="eyebrow">Live from the chain</p>
+  <h1>What's left</h1>
+  <p class="lede">Every mint is a random being from all <b>1,111</b>. This is what's still out there, tier by tier, and which of the <b>31 rarest</b> have already been found.</p>
+
+  <div class="big">
+    <div><span>Minted</span><b data-minted>…</b></div>
+    <div><span>Still out there</span><b data-left>…</b></div>
+    <div class="hot wide"><span>Rarest still unminted</span><b data-rareleft>…</b></div>
+  </div>
+  <div class="prog"><i data-prog style="width:0"></i></div>
+
+  <h2>Every tier</h2>
+  <div class="tiers" data-tiers></div>
+
+  <h2>The 31 rarest</h2>
+  <div class="rare" data-rare></div>
+  <p class="note">Gold "Out there" means nobody has minted it yet. Greyed out means someone already has. You can't choose which being you get: every mint is random. Updated every minute.</p>
+
+  <a class="cta" href="/mint">Mint a being</a>
+  <p class="note" data-at></p>
+</div>
+<script>
+(() => {
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = n => n.toLocaleString("en-GB");
+  const COL = { Entity: "#a5f3fc", God: "#fde68a", Source: "#fff7d6" };
+  async function load() {
+    try {
+      const r = await fetch("/api/left"); const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || "The realm didn't answer.");
+      $("[data-minted]").textContent = fmt(d.minted);
+      $("[data-left]").textContent = fmt(d.left);
+      const rl = d.rare.filter(b => !b.minted).length;
+      $("[data-rareleft]").textContent = rl + " of 31";
+      $("[data-prog]").style.width = (100 * d.minted / d.total).toFixed(2) + "%";
+      $("[data-tiers]").innerHTML = d.tiers.map(t => `<div class="tier${t.left ? "" : " gone"}" style="--tc:${t.color}"><div><b>${esc(t.name)}</b><span class="w">weight <span class="num">${t.weight}</span></span></div>
+<div class="bar" title="${t.left} of ${t.total} left"><i style="width:${(100 * t.left / t.total).toFixed(1)}%"></i></div>
+<div class="ct">${fmt(t.left)} / ${fmt(t.total)}<small>still out there</small></div></div>`).join("");
+      // the Source first and big, then the Gods, then the Entities
+      const order = { Source: 0, God: 1, Entity: 2 };
+      const rare = d.rare.slice().sort((a, b) => order[a.tier] - order[b.tier] || a.n - b.n);
+      $("[data-rare]").innerHTML = rare.map(b => `<div class="rb${b.minted ? " found" : ""}${b.tier === "Source" ? " source" : ""}" style="--tc:${COL[b.tier]}"><img src="/thumbs/${b.n}.webp" alt="" loading="lazy"><em>${b.minted ? "Found" : "Out there"}</em><span>${esc(b.name)} · ${b.tier}</span></div>`).join("");
+      $("[data-at]").textContent = "Read from the chain at " + new Date(d.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + ".";
+    } catch (e) { $("[data-at]").innerHTML = `<span class="err">${esc(e.message)}</span> Retrying…`; }
+  }
+  load(); setInterval(load, 60000);
+})();
+</script>
+</body>
+</html>

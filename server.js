@@ -432,6 +432,7 @@ function route(req, res) {
   if (urlPath === "/") urlPath = "/index.html";
 
   if (urlPath === "/holders") urlPath = "/holders.html";
+  if (urlPath === "/left" || urlPath === "/tracker") urlPath = "/left.html";
   if (urlPath === "/map") urlPath = "/map.html";
   if (urlPath === "/mint") urlPath = "/mint.html";
   if (urlPath === "/owner") urlPath = "/owner.html";
@@ -506,6 +507,25 @@ function route(req, res) {
       .finally(() => { boardBusy = null; });
     boardBusy.then(d => send(200, d))
              .catch(() => board ? send(200, board) : send(502, { error: "Could not read the chain just now." }));
+    return;
+  }
+
+  /* what's left: every tier's count still unminted, and which of the rarest beings have been found */
+  if (urlPath === "/api/left") {
+    const send = replier(res);
+    if (!COLLECTION_ADDR()) return send(503, { ready: false });
+    chainBeings().then(all => {
+      if (!MAPDATA) MAPDATA = JSON.parse(fs.readFileSync(path.join(ROOT, "map-data.json"))).beings;
+      const minted = new Set(all.map(b => b.n));
+      const D = require("./bot").readData(ROOT);
+      const tiers = D.TIERS.map(t => {
+        const got = all.filter(b => b.tier === t.name).length;
+        return { name: t.name, weight: t.weight, total: t.count, minted: got, left: t.count - got, color: t.color };
+      });
+      const rare = [];
+      MAPDATA.forEach(([tier, being], i) => { if (tier === "God" || tier === "Entity" || tier === "Source") rare.push({ n: i + 1, tier, name: being || tier + " #" + (i + 1), minted: minted.has(i + 1) }); });
+      send(200, { at: Date.now(), total: D.TOTAL_BEINGS, minted: minted.size, left: D.TOTAL_BEINGS - minted.size, tiers, rare });
+    }).catch(() => send(502, { error: "Could not read the chain just now." }));
     return;
   }
 
