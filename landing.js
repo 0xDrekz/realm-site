@@ -135,7 +135,8 @@
     const REAL = { x: "X", telegram: "Telegram", marketplace: "Market" };
     Object.entries(REAL).forEach(([key, label]) => {
       const url = (CONFIG.links && CONFIG.links[key]) || "";
-      if (!url || /^https:\/\/(x\.com|t\.me)\/?$/.test(url)) return;
+      // an item-page template ({mint}) is not a page of its own
+      if (!url || url.includes("{mint}") || /^https:\/\/(x\.com|t\.me)\/?$/.test(url)) return;
       const a = document.createElement("a");
       a.href = url; a.target = "_blank"; a.rel = "noopener";
       a.textContent = label;
@@ -148,7 +149,7 @@
   Object.entries(CONFIG.links).forEach(([key, url]) => {
     const el = $(`[data-link="${key}"]`);
     if (!el) return;
-    if (url) { el.href = url; el.target = "_blank"; el.rel = "noopener"; }
+    if (url && !url.includes("{mint}")) { el.href = url; el.target = "_blank"; el.rel = "noopener"; }
     else el.remove();
   });
 

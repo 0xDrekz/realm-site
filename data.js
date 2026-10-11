@@ -38,12 +38,11 @@ const CONFIG = {
     x: "https://x.com/dmt_realm",
     telegram: "https://t.me/DMT_REALM",
     /* Where "view this being" goes, everywhere (mint page, wallet pages, the
-       Telegram bot). Empty: the owner's wallet page on this site, which shows
-       the art. Once the collection is listed, put the item page here with
-       {mint} where the asset address goes, e.g.
-         "https://magiceden.io/item-details/{mint}"
-         "https://www.tensor.trade/item/{mint}"                          */
-    marketplace: ""
+       Telegram bot), with {mint} where the asset address goes. Tensor reads
+       the beings already, so each one opens on its Tensor item page, where it
+       can be listed, bought or offered on. Empty: the owner's wallet page on
+       this site. Magic Eden would be "https://magiceden.io/item-details/{mint}". */
+    marketplace: "https://www.tensor.trade/item/{mint}"
   },
 
   /* The collection's on-chain address, once it exists. Public by nature —
