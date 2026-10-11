@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-title" content="REALM Arena">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="arena.css?v=12">
+<link rel="stylesheet" href="arena.css?v=13">
 </head>
 <body>
 
@@ -39,7 +39,7 @@
   <div class="ar-sky" aria-hidden="true"><i class="ar-sky-ring"></i><i class="ar-sky-ring b"></i><span class="ar-motes"></span></div>
   <header class="ar-top">
     <a class="ar-brand" href="/"><img src="logo-bar.png" width="32" height="32" alt="">REALM</a>
-    <span class="ar-record" data-record title="Your Arena wins on this device"><svg><use href="#i-trophy"/></svg><b data-wins>0</b><i>wins</i></span>
+    <span class="ar-record" data-record title="Your rank"><span class="ar-badge t0" data-top-badge></span><b data-top-tier>Bronze</b></span>
     <button class="ar-icon" type="button" data-mute aria-label="Sound"><svg><use href="#i-sound"/></svg></button>
   </header>
 
@@ -51,18 +51,37 @@
     <p class="ar-sub">All 1,111 beings in play · 3-minute battles</p>
   </div>
 
-  <button class="ar-battle" type="button" data-battle><span data-battle-label>Battle</span><i data-battle-sub>vs the realm's guardians</i></button>
-  <p class="ar-note" data-lobby-note>Every match is checked by our server, so wins are real.</p>
+  <button class="ar-battle" type="button" data-battle><span data-battle-label>Play</span><i data-battle-sub>3-minute battles · free</i></button>
+  <p class="ar-note" data-lobby-note>Every battle is checked by our server, so wins are real.</p>
+
+  <div class="ar-rank" data-rank></div>
+  <div class="ar-quests" data-quests></div>
+
+  <div class="ar-wallet" data-wallet>
+    <div data-w-out>
+      <p class="ar-fine">Hold a REALM being? <b>Connect</b> and your own beings are in every battle, framed in gold, stronger with your $DMT. It's a signature, not a transaction.</p>
+      <button type="button" class="ar-ghost" data-w-connect>Connect wallet</button>
+      <a class="ar-ghost" data-w-phantom hidden>Open in Phantom</a>
+      <p class="ar-err" data-w-err hidden></p>
+    </div>
+    <div data-w-in hidden>
+      <p class="ar-fine" data-w-who></p>
+      <div class="ar-mine" data-w-mine></div>
+      <button type="button" class="ar-link" data-w-off>Disconnect</button>
+    </div>
+  </div>
+
+  <div class="ar-board" data-board></div>
 
   <div class="ar-tiles">
-    <a class="ar-tile" data-army href="/duels"><b data-army-title>Borrowed spirits</b><i data-army-note>Sign in at Duels and your own beings turn up more often</i></a>
     <button class="ar-tile" type="button" data-how><b>How to play</b><i>Four things to know</i></button>
+    <a class="ar-tile" href="/codex"><b>Codex</b><i>Every being's card</i></a>
   </div>
 
   <div class="ar-sec"><h2>Every being kills its own way</h2></div>
   <div class="ar-powers" data-powers></div>
 
-  <p class="ar-foot"><a href="/duels">Duels</a> · <a href="/codex">Codex</a> · <a href="/">REALM</a></p>
+  <p class="ar-foot"><a href="/codex">Codex</a> · <a href="/">REALM</a></p>
 </section>
 
 <!-- how to play -->
@@ -72,7 +91,7 @@
     <h2>How to play</h2>
     <ol class="ar-how">
       <li><span class="ar-how-n">1</span><p><b>DMT</b> fills your bar over time. Every card costs DMT.</p></li>
-      <li><span class="ar-how-n">2</span><p><b>Drag a card</b> onto your half to summon it. Every card is a <b>random being</b> from all 1,111: once played it's gone, and a new one comes in.</p></li>
+      <li><span class="ar-how-n">2</span><p><b>Drag a card</b> onto your glowing half to summon it. It walks and fights on its own. Every card is a <b>random being</b> from all 1,111: once played it's gone, and a new one comes in. <b>Hold</b> a card to read it.</p></li>
       <li><span class="ar-how-n">3</span><p><b>Break towers.</b> Each one is a crown. The big Throne wins it instantly.</p></li>
       <li><span class="ar-how-n">4</span><p>Every minute DMT comes <b>faster</b> and new units hit <b>harder</b>.</p></li>
     </ol>
@@ -90,6 +109,7 @@
 <!-- the battle -->
 <section class="ar-battlefield" data-screen="battle" hidden>
   <div class="ar-hud">
+    <button class="ar-quit" type="button" data-quit aria-label="Leave">&times;</button>
     <div class="ar-plate foe"><b data-rname>Rival</b><span class="ar-crowns" data-crowns="1"></span></div>
     <div class="ar-clock" data-clockbox><b data-clock>3:00</b><i data-phase>Calm</i></div>
     <div class="ar-plate you"><b>You</b><span class="ar-crowns" data-crowns="0"></span></div>
@@ -98,7 +118,10 @@
   <div class="ar-stage" data-stage>
     <div class="ar-layers" data-layers><canvas data-bg></canvas><canvas data-canvas></canvas></div>
     <div class="ar-banner" data-banner></div>
-    <button class="ar-quit" type="button" data-quit aria-label="Leave">&times;</button>
+    <div class="ar-coach" data-coach hidden><span class="ar-coach-say" data-coach-say></span></div>
+    <div class="ar-finger" data-finger hidden></div>
+    <div class="ar-mine-pop" data-minepop hidden></div>
+    <div class="ar-cardinfo" data-cardinfo hidden></div>
   </div>
   <div class="ar-dock">
     <div class="ar-hand">
@@ -118,15 +141,19 @@
   <div class="ar-end-body">
     <h2 data-end-title>Victory</h2>
     <div class="ar-end-crowns" data-end-crowns></div>
+    <p class="ar-three" data-three hidden>3 crowns!</p>
     <div class="ar-score"><span class="you">You <b data-score-you>0</b></span><i>–</i><span class="foe"><b data-score-foe>0</b> <em data-score-rival>Rival</em></span></div>
     <div class="ar-stats" data-end-stats></div>
+    <div class="ar-end-rank" data-end-rank></div>
+    <div class="ar-end-xp" data-end-xp></div>
+    <div class="ar-end-lines" data-end-lines></div>
     <p class="ar-seal" data-end-note></p>
     <button class="ar-battle small" type="button" data-again><span>Battle again</span></button>
     <button class="ar-ghost" type="button" data-lobby>Back to the lobby</button>
   </div>
 </section>
 
-<script src="arena/engine.js?v=10"></script>
-<script src="arena-page.js?v=17"></script>
+<script src="arena/engine.js?v=11"></script>
+<script src="arena-page.js?v=18"></script>
 </body>
 </html>

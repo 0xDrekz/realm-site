@@ -99,17 +99,18 @@ svg{fill:currentColor}
 .ar-card-in{position:absolute;inset:2px;overflow:hidden;background:#000}
 .ar-card img,.ar-card .ar-sig{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .ar-card-in::after{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(180deg,transparent,rgba(3,1,10,.92) 55%)}
-.ar-card-cost{position:absolute;top:-7px;left:-6px;z-index:3;width:22px;height:26px;display:grid;place-items:center;filter:drop-shadow(2px 2px 0 #000)}
+.ar-card-cost{position:absolute;top:-9px;left:-8px;z-index:3;width:30px;height:36px;display:grid;place-items:center;filter:drop-shadow(2px 2px 0 #000)}
 .ar-card-cost svg{position:absolute;inset:0;width:100%;height:100%;color:var(--dmt)}
-.ar-card-cost b{position:relative;top:3px;font-family:var(--num);font-weight:700;font-size:.82rem;color:#fff;text-shadow:1px 1px 0 var(--dmt-d)}
-.ar-card-name{position:absolute;left:4px;right:3px;bottom:15px;z-index:2;font-size:.66rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:1px 1px 0 #000}
-.ar-card-role{position:absolute;left:4px;right:3px;bottom:3px;z-index:2;font-size:.66rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tc);text-shadow:1px 1px 0 #000}
+.ar-card-cost b{position:relative;top:4px;font-family:var(--num);font-weight:700;font-size:1.15rem;color:#fff;text-shadow:1px 1px 0 var(--dmt-d),-1px -1px 0 var(--dmt-d)}
+.ar-card-name{position:absolute;left:3px;right:3px;bottom:15px;z-index:2;font-size:.7rem;font-weight:700;white-space:nowrap;text-align:center;text-shadow:1px 1px 0 #000,-1px 0 0 #000}
+.ar-card-role{position:absolute;left:3px;right:3px;bottom:3px;z-index:2;font-size:.6rem;white-space:nowrap;overflow:hidden;text-align:center;color:var(--tc);text-shadow:1px 1px 0 #000}
 .ar-card.spell{--tc:#e3ba5c}
 .ar-card.mini{width:40px}
 .ar-card.mini .ar-card-name,.ar-card.mini .ar-card-role{display:none}
 .ar-card.mini .ar-card-cost{width:16px;height:19px;top:-6px;left:-5px}
 .ar-card.mini .ar-card-cost b{top:2px;font-size:.62rem}
-.ar-card.poor .ar-card-in{filter:grayscale(.85) brightness(.5)}
+.ar-card.poor .ar-card-in{filter:grayscale(1) brightness(.45)}
+.ar-card.poor .ar-card-cost svg{color:#5a5468}
 .ar-card.poor{background:#4a4458}
 .ar-card.ready{animation:arReady .3s steps(3)}
 @keyframes arReady{50%{transform:translateY(-6px)}}
@@ -127,7 +128,11 @@ svg{fill:currentColor}
 .ar-card.epic.poor{animation:none;box-shadow:0 0 0 1px #000,3px 3px 0 1px #000}
 .ar-card.epic .ar-card-role{color:#ffd1ff}
 @keyframes arEpic{50%{box-shadow:0 0 0 1px #000,3px 3px 0 1px #000,0 0 22px rgba(255,200,120,.75)}}
-.ar-card-fill{position:absolute;left:2px;right:2px;bottom:2px;z-index:1;background:repeating-linear-gradient(0deg,rgba(197,107,255,.45) 0 2px,rgba(197,107,255,.2) 2px 4px);border-top:2px solid var(--dmt);pointer-events:none}
+.ar-card-fill{position:absolute;left:2px;right:2px;bottom:2px;z-index:1;height:0;background:repeating-linear-gradient(0deg,rgba(197,107,255,.42) 0 2px,rgba(197,107,255,.22) 2px 4px);border-top:2px solid #e9b8ff;pointer-events:none}
+.ar-card:not(.poor) .ar-card-fill{display:none}
+/* your own being: a gold frame and a ribbon */
+.ar-card.own{background:linear-gradient(135deg,#fff1c2,#e3ba5c 40%,#a87a22 60%,#fff1c2);box-shadow:0 0 0 1px #000,3px 3px 0 1px #000,0 0 14px rgba(227,186,92,.7)}
+.ar-card.own::before{content:"YOURS";position:absolute;top:4px;right:-4px;z-index:4;padding:1px 4px;font-size:.52rem;font-weight:700;letter-spacing:.1em;color:#140a02;background:var(--gold);box-shadow:2px 2px 0 #000}
 
 /* ---------- the face-off ---------- */
 .ar-vs{position:fixed;inset:0;z-index:25;display:grid;grid-template-rows:1fr auto 1fr;overflow:hidden;background:var(--void)}
@@ -151,10 +156,10 @@ svg{fill:currentColor}
 
 /* ---------- battle ---------- */
 .ar-battlefield{position:fixed;inset:0;display:grid;grid-template-rows:1fr auto;max-width:620px;margin:0 auto;user-select:none;-webkit-user-select:none;touch-action:none;background:var(--void)}
-.ar-hud{position:absolute;left:0;right:0;top:0;z-index:3;display:grid;grid-template-columns:minmax(0,auto) 1fr minmax(0,auto) auto;align-items:center;gap:6px;padding:calc(6px + env(safe-area-inset-top)) 8px 6px;pointer-events:none}
+.ar-hud{position:absolute;left:0;right:0;top:0;z-index:3;display:grid;grid-template-columns:auto minmax(0,auto) 1fr minmax(0,auto) auto;align-items:center;gap:6px;padding:calc(6px + env(safe-area-inset-top)) 8px 6px;pointer-events:none}
 .ar-hud>*{pointer-events:auto}
 .ar-plate{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:34vw;padding:5px 9px;background:rgba(7,4,15,.82);box-shadow:3px 3px 0 rgba(0,0,0,.6)}
-.ar-plate.foe{grid-column:1;grid-row:1}.ar-plate.you{grid-column:3;grid-row:1}.ar-clock{grid-column:4;grid-row:1}
+.ar-quit{grid-column:1;grid-row:1}.ar-plate.foe{grid-column:2;grid-row:1}.ar-plate.you{grid-column:4;grid-row:1}.ar-clock{grid-column:5;grid-row:1}
 .ar-plate b{font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ar-plate.foe{border-left:3px solid var(--foe)}
 .ar-plate.foe b{color:#ffc2cc}
@@ -195,7 +200,7 @@ svg{fill:currentColor}
 .ar-dmt-bar{position:relative;flex:1;height:15px;background:#000;border:1px solid var(--dmt);box-shadow:3px 3px 0 #000}
 .ar-dmt-bar i{position:absolute;left:0;top:0;bottom:0;width:50%;background:var(--dmt);box-shadow:inset 0 3px 0 #ecbfff,inset 0 -3px 0 #8a2cdf}
 .ar-dmt-ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),#000 calc(10% - 2px) 10%)}
-.ar-quit{position:absolute;top:calc(56px + env(safe-area-inset-top));left:8px;z-index:5;width:30px;height:30px;border:1px solid var(--line);background:rgba(3,1,10,.75);color:var(--dim);font-size:1.1rem;line-height:1}
+.ar-quit{width:32px;height:38px;border:1px solid var(--line);background:rgba(7,4,15,.82);color:var(--dim);font-size:1.3rem;line-height:1;box-shadow:3px 3px 0 rgba(0,0,0,.6)}
 .ar-tip{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--ink);border-bottom:1px solid var(--line-lit);
   font-size:.8rem;line-height:1.3;text-align:center;pointer-events:none;animation:arTip .2s steps(3) both}
 .ar-tip b{color:var(--gold)}
@@ -227,3 +232,92 @@ svg{fill:currentColor}
 .ar-ghost{width:100%;padding:12px;border:1px solid var(--line);background:#000;font-weight:700;font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:var(--bone)}
 .ar-ghost:active{border-color:var(--line-lit)}
 @media (prefers-reduced-motion:reduce){.ar-sky-ring,.ar-rays,.ar-motes,.ar-fan .f2,.ar-battle::after{animation:none}}
+
+/* ---------- lobby: rank, quests, board, wallet ---------- */
+.ar-record{gap:8px}
+.ar-badge{--t:#c98b4a;display:inline-block;width:22px;height:25px;flex:none;background:var(--t);clip-path:polygon(50% 0,100% 22%,100% 70%,50% 100%,0 70%,0 22%);box-shadow:inset 0 0 0 3px rgba(0,0,0,.25)}
+.ar-badge.big{width:46px;height:52px}
+.ar-badge.t1{--t:#c7d0dc}.ar-badge.t2{--t:#e3ba5c}.ar-badge.t3{--t:#5ce0d0}.ar-badge.t4{--t:#7fb4ff}.ar-badge.t5{--t:#ff5cc8}
+.ar-rank{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--ink);border:1px solid var(--line)}
+.ar-rinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.ar-rinfo>b{font-size:1rem;letter-spacing:.08em}
+.ar-stars{display:flex;gap:4px}
+.ar-stars i{width:14px;height:14px;background:#2a2238;clip-path:polygon(50% 0,62% 36%,100% 38%,70% 60%,80% 100%,50% 76%,20% 100%,30% 60%,0 38%,38% 36%)}
+.ar-stars i.on{background:var(--gold)}
+.ar-stars i.pop{animation:arStar .5s steps(4)}
+@keyframes arStar{0%{transform:scale(2.4);filter:brightness(2)}}
+.ar-lvl{display:flex;align-items:center;gap:8px;font-size:.7rem;color:var(--faint);letter-spacing:.1em;text-transform:uppercase}
+.ar-bar{flex:1;height:8px;background:#1a1328;border:1px solid #000;position:relative;overflow:hidden}
+.ar-bar i{position:absolute;left:0;top:0;bottom:0;background:#5cc8ff;transition:width .9s steps(12)}
+.ar-streak{display:flex;flex-direction:column;align-items:center;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.ar-streak b{font-family:var(--num);font-size:1.3rem;color:#ff9a3c;line-height:1}
+.ar-quests,.ar-board{display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:var(--ink);border:1px solid var(--line)}
+.ar-quests h3,.ar-board h3{margin:0 0 2px;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);display:flex;justify-content:space-between;gap:8px}
+.ar-quests h3 span,.ar-board h3 span{color:var(--faint);letter-spacing:.1em}
+.ar-q{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;font-size:.82rem}
+.ar-q .ar-bar{grid-column:1/-1;height:6px}
+.ar-q .ar-bar i{background:#43e0a8}
+.ar-q em{font-style:normal;font-family:var(--num);font-size:.75rem;color:var(--gold)}
+.ar-q.done{color:var(--faint)}.ar-q.done em{color:#43e0a8}
+.ar-bonus{margin:0;font-size:.74rem;color:#ff9a3c;text-align:center}
+.ar-row{display:flex;align-items:center;gap:8px;font-size:.8rem;padding:3px 0}
+.ar-row .n{width:22px;font-family:var(--num);color:var(--faint)}
+.ar-row .w{flex:1;font-family:var(--num)}
+.ar-row .p{font-family:var(--num);font-weight:700;color:var(--gold)}
+.ar-row.you{color:#c4ecff}
+.ar-fine{margin:0 0 10px;color:var(--dim);font-size:.8rem;line-height:1.45}
+.ar-fine b{color:var(--gold)}
+.ar-err{margin:6px 0 0;color:#ff8a9a;font-size:.8rem;text-align:center}
+.ar-link{background:none;border:0;padding:0;color:var(--dim);text-decoration:underline;font-size:.8rem;cursor:pointer}
+.ar-wallet{padding:12px;border:1px dashed var(--line)}
+.ar-wallet .ar-ghost{display:block;text-align:center;text-decoration:none}
+.ar-mine{display:flex;gap:6px;overflow-x:auto;margin:0 0 10px;scrollbar-width:none}
+.ar-mine img{width:52px;height:52px;flex:none;object-fit:cover;border:2px solid var(--gold);box-shadow:2px 2px 0 #000}
+
+/* ---------- the guided first battle ---------- */
+.ar-coach{position:absolute;left:50%;top:38%;z-index:8;transform:translateX(-50%);max-width:86%;pointer-events:none}
+.ar-coach-say{display:block;padding:10px 16px;background:var(--gold2);color:#140a02;font-weight:700;font-size:1.05rem;line-height:1.3;text-align:center;box-shadow:4px 4px 0 #000;animation:arPop .25s steps(4) both}
+@keyframes arPop{from{transform:scale(.7);opacity:0}}
+.ar-finger{position:fixed;left:0;top:0;z-index:40;width:54px;height:54px;margin:-6px 0 0 -18px;pointer-events:none;
+  background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 2.5a1.5 1.5 0 0 1 3 0V11l1-.2V8.5a1.5 1.5 0 0 1 3 0v3l.6-.1a1.4 1.4 0 0 1 2.4 1v3.8c0 3.6-2.8 6.3-6.3 6.3h-1.6c-1.8 0-3.4-.9-4.4-2.4L3.4 14a1.5 1.5 0 0 1 2.4-1.8L9 15.4z' fill='%23fff' stroke='%23000' stroke-width='1.2'/%3E%3C/svg%3E");
+  filter:drop-shadow(3px 3px 0 rgba(0,0,0,.6))}
+.ar-finger.tap{animation:arTap .9s steps(6) infinite}
+@keyframes arTap{50%{transform:translateY(8px) scale(.92)}}
+.ar-ring{position:fixed;z-index:39;width:70px;height:70px;margin:-35px 0 0 -35px;border:3px solid var(--gold2);border-radius:50%;pointer-events:none;animation:arRing 1s steps(8) infinite}
+@keyframes arRing{from{transform:scale(.4);opacity:1}to{transform:scale(1.3);opacity:0}}
+
+/* ---------- your being takes the field ---------- */
+.ar-mine-pop{position:absolute;left:50%;top:calc(64px + env(safe-area-inset-top));z-index:7;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 14px 8px 8px;
+  background:linear-gradient(135deg,#2a1a04,#140a02);border:2px solid var(--gold);box-shadow:0 0 24px rgba(227,186,92,.6),4px 4px 0 #000;pointer-events:none;white-space:nowrap}
+.ar-mine-pop img{width:64px;height:64px;object-fit:cover;border:2px solid var(--gold2)}
+.ar-mine-pop small{display:block;font-size:.66rem;letter-spacing:.18em;color:var(--gold)}
+.ar-mine-pop b{display:block;font-size:1.1rem;color:var(--gold2)}
+.ar-mine-pop.go{animation:arMine 2.2s steps(22) both}
+@keyframes arMine{0%{opacity:0;transform:translateX(-50%) scale(1.6)}10%{opacity:1;transform:translateX(-50%) scale(1)}85%{opacity:1}100%{opacity:0}}
+
+/* ---------- holding a card: what it is ---------- */
+.ar-cardinfo{position:absolute;left:8px;right:8px;bottom:8px;z-index:9;display:flex;gap:12px;padding:10px;background:rgba(7,4,15,.96);border:1px solid var(--line-lit);box-shadow:4px 4px 0 #000;pointer-events:none;animation:arPop .15s steps(3) both}
+.ar-cardinfo img,.ar-cardinfo svg{width:96px;height:96px;flex:none;object-fit:cover;border:2px solid var(--tc,#e3ba5c)}
+.ar-cardinfo b{display:block;font-size:1.05rem}
+.ar-cardinfo i{display:block;font-style:normal;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--tc,#e3ba5c);margin:2px 0 6px}
+.ar-cardinfo p{margin:0;font-size:.8rem;line-height:1.4;color:var(--dim)}
+.ar-cardinfo .st{margin-top:6px;font-family:var(--num);font-size:.78rem;color:var(--bone)}
+
+/* ---------- a tower falls: the crown flies home ---------- */
+.ar-crownfly{position:fixed;z-index:45;width:120px;height:90px;margin:-45px 0 0 -60px;pointer-events:none;color:var(--gold);filter:drop-shadow(4px 4px 0 #000) drop-shadow(0 0 18px rgba(255,241,194,.8));transition:transform .55s cubic-bezier(.5,0,.75,0),opacity .55s}
+.ar-crownfly.foe{color:#ff8a9a}
+
+/* ---------- the end: what you earned ---------- */
+.ar-three{margin:-4px 0 0;font-weight:700;font-size:1.4rem;letter-spacing:.2em;color:var(--gold2);text-shadow:3px 3px 0 #000;animation:arSlam .5s 1.6s steps(5) both}
+.ar-end-crowns svg.on:nth-child(1){animation-delay:.5s}
+.ar-end-rank{display:flex;flex-direction:column;align-items:center;gap:6px}
+.ar-end-rank .ar-stars i{width:24px;height:24px}
+.ar-end-rank b{font-size:1rem;letter-spacing:.12em}
+.ar-end-rank .up{color:var(--gold);font-size:1.2rem;animation:arPop .4s steps(4)}
+.ar-end-xp{display:flex;align-items:center;gap:10px;font-size:.75rem;color:var(--dim)}
+.ar-end-xp .ar-bar{height:12px}
+.ar-end-lines{display:flex;flex-direction:column;gap:4px;font-size:.82rem}
+.ar-end-lines p{margin:0;display:flex;justify-content:space-between;gap:8px;padding:6px 10px;background:var(--ink);border:1px solid var(--line);text-align:left;animation:arDeal .3s steps(4) both}
+.ar-end-lines p em{font-style:normal;font-family:var(--num);color:var(--gold);white-space:nowrap}
+.ar-end-lines p.q{border-color:#43e0a8}
+.ar-end-lines p.gold{border-color:var(--gold);color:var(--gold2)}

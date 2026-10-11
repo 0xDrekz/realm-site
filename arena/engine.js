@@ -58,6 +58,37 @@
   ];
   const TOWER_STATS = { gate: { hp: 1000, dmg: 70, hit: 0.8, range: 7, r: 1.1 }, throne: { hp: 1800, dmg: 90, hit: 1.0, range: 7.5, r: 1.5 } };
 
+  /* ---------- a fair hand ----------
+     From a drawn stream of cards: never two of the same card in hand, never two spells that cost 6 or more,
+     and an opening hand with at least two units that cost 2 to 4. Worked out here, in the engine, so the
+     page and the server's replay pick exactly the same cards. */
+  const key = def => def.kind === "spell" ? "s:" + def.id : "b:" + (def.n || def.id);
+  const huge = def => def.kind === "spell" && def.cost >= 6;
+  function fits(P, ci, others) {
+    const d = P.deck[ci];
+    for (const o of others) { const od = P.deck[o]; if (key(od) === key(d)) return false; if (huge(d) && huge(od)) return false; }
+    return true;
+  }
+  function openingHand(P, order) {
+    const cheap = ci => { const d = P.deck[ci]; return d.kind === "unit" && d.cost >= 2 && d.cost <= 4; };
+    const hand = [], rest = order.slice();
+    for (let pass = 0; pass < 2; pass++) {
+      for (let k = 0; k < rest.length && hand.length < 4; k++) {
+        const ci = rest[k];
+        if ((pass === 0 ? cheap(ci) && hand.filter(cheap).length < 2 : true) && fits(P, ci, hand)) { hand.push(ci); rest.splice(k, 1); k--; }
+        if (pass === 0 && hand.length >= 2) break;
+      }
+    }
+    while (hand.length < 4 && rest.length) hand.push(rest.shift());   // a stream too small to be fair: take what there is
+    return { hand, queue: rest };
+  }
+  /* the next card for a slot: the first in the queue that keeps the hand fair */
+  function nextFor(P, slot) {
+    const others = P.hand.filter((_, k) => k !== slot);
+    const k = P.queue.findIndex(ci => fits(P, ci, others));
+    return P.queue.splice(k < 0 ? 0 : k, 1)[0];
+  }
+
   /* ---------- making a match ----------
      sides: [{ deck: [8 card defs], ai: false }, { deck, ai: true, level: 0..2 }]
      A card def is plain data made on the server (arena/cards.js). */
@@ -69,10 +100,14 @@
       // otherwise a classic deck, shuffled, where played cards cycle to the back.
       const order = sd.deck.map((_, k) => k);
       if (!sd.draw) for (let k = order.length - 1; k > 0; k--) { const j = Math.floor(rng(S) * (k + 1)); [order[k], order[j]] = [order[j], order[k]]; }
-      S.sides.push({ i, draw: !!sd.draw, deck: sd.deck, hand: order.slice(0, 4), queue: order.slice(4), dmt: 5, ai: sd.ai ? { level: sd.level || 1, next: 1 + rng(S) * 1.5 } : null, gatesDown: [false, false] });
+      const P = { i, draw: !!sd.draw, deck: sd.deck, hand: order.slice(0, 4), queue: order.slice(4), dmt: 5, ai: sd.ai ? { level: sd.level == null ? 1 : sd.level, next: 1 + rng(S) * 1.5 } : null, gatesDown: [false, false] };
+      if (P.draw) Object.assign(P, openingHand(P, order));
+      S.sides.push(P);
+      // towerScale: the first, guided match gives the rival smaller towers
+      const tsc = sd.towerScale > 0 && sd.towerScale <= 1 ? sd.towerScale : 1;
       for (const t of TOWERS) {
-        const st = TOWER_STATS[t.kind], y = i === 0 ? t.y : H - t.y;
-        S.ents.push({ id: ++S.id, side: i, kind: "tower", tower: t.kind, lane: t.lane, x: t.x, y, r: st.r, hp: st.hp, max: st.hp, dmg: st.dmg, hit: st.hit, range: st.range, cd: 0, air: false, targetsAir: true });
+        const st = TOWER_STATS[t.kind], y = i === 0 ? t.y : H - t.y, hp = Math.round(st.hp * tsc);
+        S.ents.push({ id: ++S.id, side: i, kind: "tower", tower: t.kind, lane: t.lane, x: t.x, y, r: st.r, hp, max: hp, dmg: st.dmg, hit: st.hit, range: st.range, cd: 0, air: false, targetsAir: true });
       }
     }
     return S;
@@ -100,7 +135,7 @@
     P.dmt -= def.cost;
     // a drawn card is spent; only when the stream runs dry do spent cards come round again
     if (!P.draw || P.queue.length <= 1) P.queue.push(ci);
-    P.hand[slot] = P.queue.shift();
+    P.hand[slot] = P.draw ? nextFor(P, slot) : P.queue.shift();
     S.events.push({ t: "play", side, card: def.id, x, y });
     if (def.kind === "spell") cast(S, side, def, x, y);
     else deploy(S, side, def, x, y, phaseOf(S.time).power);
@@ -331,6 +366,13 @@
     const threats = S.ents.filter(e => e.kind === "unit" && e.side !== me && e.hp > 0 && homeY(e.y) && !e.ethereal && !e.cloaked);
     const mine = S.ents.filter(e => e.kind === "unit" && e.side === me && e.hp > 0);
     const lvl = P.ai.level;
+    // level 0, the guided first match: an apprentice who sends a small unit now and then, and never casts
+    if (lvl === 0) {
+      if (S.time < 20 || P.dmt < 9) return null;
+      const cheap = affordable.filter(h => h.def.kind === "unit" && h.def.cost <= 3);
+      if (!cheap.length) return null;
+      return place(S, side, cheap[0].slot, 4 + rng(S) * 10, side === 0 ? 27 : 5);
+    }
     if (threats.length) {
       const air = threats.some(t => t.air), weight = threats.reduce((a, t) => a + t.def.cost, 0);
       const cx = threats.reduce((a, t) => a + t.x, 0) / threats.length, cy = threats.reduce((a, t) => a + t.y, 0) / threats.length;
@@ -407,7 +449,7 @@
     if (S.time === 60 || S.time === 120 || S.time === MATCH_S) S.events.push({ t: "phase", name: ph.name });
     for (const P of S.sides) {
       P.dmt = Math.min(MAX_DMT, P.dmt + DMT_PER_S * ph.rate * DT);
-      if (P.ai) { P.ai.next -= DT; if (P.ai.next <= 0) { aiThink(S, P.i); P.ai.next = (P.ai.level >= 2 ? 0.5 : 0.8) + rng(S) * 0.6; } }
+      if (P.ai) { P.ai.next -= DT; if (P.ai.next <= 0) { aiThink(S, P.i); P.ai.next = (P.ai.level >= 2 ? 0.5 : P.ai.level < 1 ? 1.4 - P.ai.level * 0.6 : 0.8) + rng(S) * 0.6; } }
     }
     // the Source lifts the allies around it
     for (const u of S.ents) u.aura = 0;

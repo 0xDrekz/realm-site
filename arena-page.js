@@ -99,24 +99,117 @@
   ];
   $("[data-powers]").innerHTML = POWERS.map(([n, t, d, c]) => `<div class="ar-pow" style="--pc:${c}"><img src="/thumbs/${n}.webp" alt="" loading="lazy"><span><b>${t}</b><i>${d}</i></span></div>`).join("");
   const record = () => store.get("record", { w: 0, l: 0, d: 0 });
-  function paintLobby() {
-    $("[data-wins]").textContent = record().w;
-    const s = session(), tile = $("[data-army]");
-    tile.classList.toggle("own", !!s);
-    $("[data-army-title]").textContent = s ? "Your beings" : "Borrowed spirits";
-    $("[data-army-note]").textContent = s ? "Signed in: your own beings turn up more often, with your $DMT boost" : "Sign in at Duels and your own beings turn up more often";
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const api = async (url, body, token) => {
+    const r = await fetch(url, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { headers: token ? { Authorization: "Bearer " + token } : {} });
+    let d = {}; try { d = await r.json(); } catch { /* not json */ }
+    if (!r.ok || d.error) { const e = new Error(d.error || "The realm didn't answer. Check your connection."); e.status = r.status; e.data = d; throw e; }
+    return d;
+  };
+
+  /* ---------- you: rank, level, quests (kept on the server, moved only by battles it checked) ---------- */
+  let PROF = null, pid = store.get("pid", null), HOLD = null;
+  const starsHtml = (n, max, pop = -1) => `<span class="ar-stars">${Array.from({ length: max }, (_, i) => `<i class="${i < n ? "on" : ""}${i === pop ? " pop" : ""}"></i>`).join("")}</span>`;
+  const badge = (p, big) => `<span class="ar-badge t${p.tierIndex}${big ? " big" : ""}"></span>`;
+  async function loadProfile() {
+    const s = session();
+    try {
+      const d = await api("/api/arena/me", s ? { token: s.token } : { pid });
+      if (d.pid) { pid = d.pid; store.set("pid", pid); }
+      PROF = d.profile;
+    } catch (e) { if (e.status === 401) { signOut(); return loadProfile(); } }
+    paintLobby();
   }
+  async function loadBoard() {
+    try { const s = session(); BOARD = await api("/api/arena/board", null, s && s.token); } catch { BOARD = null; }
+    paintBoard();
+  }
+  let BOARD = null;
+  function paintBoard() {
+    const el = $("[data-board]"); if (!el) return;
+    const rows = BOARD ? BOARD.top.slice(0, 10) : [];
+    el.innerHTML = `<h3>This week's best <span>holders · wins score</span></h3>`
+      + (rows.length ? rows.map((r, i) => `<div class="ar-row${r.you ? " you" : ""}"><span class="n">${i + 1}</span><span class="w">${esc(r.short)}${r.you ? " · you" : ""}</span><span class="p">${r.points}</span></div>`).join("")
+        : `<p class="ar-fine" style="margin:0">No wins on the board yet this week. Signed-in holders score with every win.</p>`)
+      + (BOARD && BOARD.you && BOARD.you.rank > 10 ? `<div class="ar-row you"><span class="n">${BOARD.you.rank}</span><span class="w">you</span><span class="p">${BOARD.you.points}</span></div>` : "");
+  }
+  function paintLobby() {
+    const p = PROF;
+    if (p) {
+      $("[data-top-badge]").className = "ar-badge t" + p.tierIndex; $("[data-top-tier]").textContent = p.tier;
+      $("[data-rank]").innerHTML = `${badge(p, true)}<span class="ar-rinfo"><b>${p.tier}</b>${p.tier === "Mythic" ? "<span class='ar-fine' style='margin:0'>The top of the realm</span>" : starsHtml(p.stars, p.maxStars)}
+<span class="ar-lvl">Lv ${p.level}<span class="ar-bar"><i style="width:${Math.round(100 * p.xp / p.next)}%"></i></span></span></span>${p.streak ? `<span class="ar-streak"><b>${p.streak}</b>streak</span>` : ""}`;
+      const n = new Date(), m = new Date(n); m.setUTCHours(24, 0, 0, 0);
+      $("[data-quests]").innerHTML = `<h3>Daily quests <span>new in ${Math.ceil((m - n) / 3600e3)}h</span></h3>` + p.quests.map(q => `<div class="ar-q${q.done ? " done" : ""}"><span>${esc(q.text)}</span><em>${q.done ? "Done" : "+" + q.xp + " xp"}</em><span class="ar-bar"><i style="width:${Math.round(100 * q.at / q.n)}%"></i></span></div>`).join("")
+        + (p.firstWinReady ? `<p class="ar-bonus">First win today: +40 xp bonus</p>` : "");
+    }
+    const s = session();
+    $("[data-w-out]").hidden = !!s; $("[data-w-in]").hidden = !s;
+    if (s) {
+      const n = HOLD ? HOLD.owned.length : null, lv = HOLD && HOLD.boost ? HOLD.boost.level : 0;
+      $("[data-w-who]").innerHTML = `Connected <b>${esc(s.wallet.slice(0, 4) + "…" + s.wallet.slice(-4))}</b>` + (n == null ? " · reading your beings…" : n ? ` · <b>${n}</b> being${n === 1 ? "" : "s"}, in every battle${lv ? " · $DMT boost on" : ""}` : " · no beings in this wallet yet: <a href='/mint'>mint one</a> and it fights for you here");
+      $("[data-w-mine]").innerHTML = HOLD ? HOLD.owned.slice(0, 12).map(n => `<img src="/thumbs/${n}.webp" alt="" loading="lazy">`).join("") : "";
+    }
+    const first = !store.get("guided", false) && (!PROF || PROF.games === 0);
+    $("[data-battle-label]").textContent = "Play";
+    $("[data-battle-sub]").textContent = first ? "your first battle · 1 minute" : "3-minute battles · free";
+  }
+
+  /* ---------- wallet sign-in: a signature, not a transaction ---------- */
+  const STD = [];
+  try {
+    window.addEventListener("wallet-standard:register-wallet", e => { try { e.detail({ register: (...w) => { STD.push(...w); return () => {}; } }); } catch { /* not a wallet */ } });
+    window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: { register: (...w) => { STD.push(...w); return () => {}; } } }));
+  } catch { /* old browser */ }
+  const stdWallet = () => STD.find(w => w.features && w.features["standard:connect"] && w.features["solana:signMessage"] && /phantom/i.test(w.name))
+    || STD.find(w => w.features && w.features["standard:connect"] && w.features["solana:signMessage"]);
+  const injected = () => (window.phantom && window.phantom.solana) || (window.solana && window.solana.signMessage ? window.solana : null) || window.solflare || window.backpack || null;
+  async function connectAndSign() {
+    const w = stdWallet(), inj = !w && injected();
+    if (!w && !inj) throw new Error("No Solana wallet found in this browser.");
+    let address, account;
+    if (w) { const r = await w.features["standard:connect"].connect(); account = r.accounts.find(a => a.chains ? a.chains.some(c => /solana/.test(c)) : true) || r.accounts[0]; address = account.address; }
+    else { const r = await inj.connect(); address = (r && r.publicKey ? r.publicKey : inj.publicKey).toString(); }
+    const { nonce, message } = await api("/api/duel/nonce", { wallet: address });
+    const bytes = new TextEncoder().encode(message);
+    let sig;
+    if (w) { const out = await w.features["solana:signMessage"].signMessage({ account, message: bytes }); sig = (Array.isArray(out) ? out[0] : out).signature; }
+    else { const out = await inj.signMessage(bytes, "utf8"); sig = out.signature || out; }
+    return api("/api/duel/signin", { nonce, signature: btoa(String.fromCharCode(...new Uint8Array(sig))) });
+  }
+  function signOut() { try { localStorage.removeItem("realm-tcg-session"); } catch { /* fine */ } HOLD = null; }
+  async function loadHolder() {
+    const s = session(); HOLD = null; if (!s) return paintLobby();
+    try { const d = await api("/api/tcg/team", { token: s.token }); HOLD = { owned: d.cards.map(c => c.n), boost: d.boost }; }
+    catch (e) { if (e.status === 401) signOut(); else HOLD = { owned: [], boost: null }; }
+    paintLobby();
+  }
+  $("[data-w-connect]").addEventListener("click", async () => {
+    const b = $("[data-w-connect]"), er = $("[data-w-err]"); er.hidden = true; b.disabled = true; b.textContent = "Check your wallet…";
+    try { const r = await connectAndSign(); localStorage.setItem("realm-tcg-session", JSON.stringify({ wallet: r.wallet, token: r.token, at: Date.now() })); sfx("win"); loadHolder(); loadProfile(); loadBoard(); }
+    catch (e) { const m = (e && e.message) || ""; er.textContent = /reject|cancel|denied|declin/i.test(m) ? "Cancelled in the wallet." : m || "The wallet didn't connect. Try again."; er.hidden = false; }
+    b.disabled = false; b.textContent = "Connect wallet";
+  });
+  $("[data-w-off]").addEventListener("click", () => {
+    const s = session(); if (s) fetch("/api/duel/signout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: s.token }) }).catch(() => {});
+    signOut(); paintLobby(); loadProfile(); loadBoard();
+  });
+  setTimeout(() => {
+    if (stdWallet() || injected() || session()) return;
+    $("[data-w-connect]").hidden = true;
+    const ph = $("[data-w-phantom]"); ph.hidden = false; ph.href = "https://phantom.app/ul/browse/" + encodeURIComponent(location.href) + "?ref=" + encodeURIComponent(location.origin);
+  }, 1200);
   // on phones that allow it (Android), the battle goes truly full screen: no browser bars
   function fullscreen() { try { const d = document.documentElement; if (document.fullscreenEnabled && !document.fullscreenElement && matchMedia("(pointer: coarse)").matches) d.requestFullscreen({ navigationUI: "hide" }).catch(() => {}); } catch { /* not supported */ } }
   $("[data-battle]").addEventListener("click", () => { sfx("tick"); fullscreen(); battle(); });
   $("[data-again]").addEventListener("click", () => { $("[data-end]").hidden = true; fullscreen(); battle(); });
-  $("[data-lobby]").addEventListener("click", () => { $("[data-end]").hidden = true; show("lobby"); paintLobby(); });
+  $("[data-lobby]").addEventListener("click", () => { $("[data-end]").hidden = true; show("lobby"); paintLobby(); loadBoard(); });
   $("[data-how]").addEventListener("click", () => { $("[data-howsheet]").hidden = false; sfx("tick"); });
   $$("[data-howclose]").forEach(b => b.addEventListener("click", () => { $("[data-howsheet]").hidden = true; }));
   $("[data-quit]").addEventListener("click", () => { if (G && !G.S.over && confirm("Leave this battle? It counts as a loss.")) { G.quit = true; G.S.over = true; G.S.winner = 1; endBattle(); } });
   function show(name) { $$("[data-screen]").forEach(s => { s.hidden = s.dataset.screen !== name; }); }
   const session = () => { try { const s = JSON.parse(localStorage.getItem("realm-tcg-session") || "null"); return s && Date.now() - s.at < 23 * 3600e3 ? s : null; } catch { return null; } };
-  paintLobby();
+  paintLobby(); loadProfile(); loadBoard(); if (session()) loadHolder();
 
   /* ============================================================
      THE BATTLE
@@ -130,25 +223,26 @@
     const btn = $("[data-battle]"); btn.disabled = true;
     $("[data-battle-label]").textContent = "Finding…"; $("[data-battle-sub]").textContent = "summoning a guardian";
     const s = session();
+    const guided = !store.get("guided", false) && (!PROF || PROF.games === 0);
     let d;
-    try { d = await (await fetch("/api/arena/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(s ? { token: s.token } : {}) })).json(); }
+    try { d = await (await fetch("/api/arena/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(s ? { token: s.token } : { pid }), tutorial: guided }) })).json(); }
     catch { d = { error: "The realm did not answer. Try again." }; }
-    btn.disabled = false; $("[data-battle-label]").textContent = "Battle"; $("[data-battle-sub]").textContent = "vs the realm's guardians";
+    btn.disabled = false; paintLobby();
     if (d.error) {
       // a dead session is said out loud, never turned quietly into a guest match
-      if (/sign in again/i.test(d.error)) { try { localStorage.removeItem("realm-tcg-session"); } catch { /* fine */ } paintLobby(); $("[data-lobby-note]").innerHTML = 'Your sign-in has expired. <a href="/duels">Sign in again</a>, or tap Battle to play with borrowed spirits.'; }
+      if (/sign in again/i.test(d.error)) { try { localStorage.removeItem("realm-tcg-session"); } catch { /* fine */ } paintLobby(); $("[data-lobby-note]").textContent = "Your sign-in has expired. Connect your wallet again below, or tap Play to battle with borrowed spirits."; }
       else $("[data-lobby-note]").textContent = d.error;
       show("lobby"); return;
     }
     // pictures load as the cards come up, not all at once
     for (const side of d.sides) for (const c of side.deck.slice(0, 8)) img(c.n);
     for (const c of d.wild || []) img(c.n);
-    await faceOff(d);
-    G = { match: d.match, seed: d.seed, sides: d.sides, wild: d.wild, S: A.createMatch({ seed: d.seed, sides: d.sides, wild: d.wild }), inputs: [], acc: 0, last: 0, prev: new Map(),
+    if (!d.tutorial) await faceOff(d);
+    G = { tutorial: d.tutorial ? { step: 0, at: 0, idle: 0 } : null, paused: !!d.tutorial, lastPlace: 0, hitAt: new Map(), match: d.match, seed: d.seed, sides: d.sides, wild: d.wild, S: A.createMatch({ seed: d.seed, sides: d.sides, wild: d.wild }), inputs: [], acc: 0, last: 0, prev: new Map(),
       fx: [], parts: [], nums: [], beams: new Map(), immune: new Map(), shake: 0, flash: 0, sel: null, drag: null, aim: null, phase: "calm", tips: store.get("tips", {}), over: false, overlays: [], storms: [], rays: [], seen: new Set(), river: 0, crowns: [0, 0], towerShake: new Map(), crewFire: new Map(), crewTurn: new Map(), shotFrom: new Map(), flies: [], holes: [], ships: [], scorch: [], gait: new Map(), swing: new Map(), jolt: new Map() };
     $("[data-rname]").textContent = d.rival;
     show("battle"); layout(); paintHand(true); paintHud(); paintCrowns();
-    banner("Battle!");
+    if (d.tutorial) setTimeout(() => guide(0), 400); else banner("Battle!");
     sfx("phase"); buzz(20);
     G.last = performance.now();
     requestAnimationFrame(frame);
@@ -342,7 +436,7 @@
 
   /* ---------- a unit's token, drawn once per card and side ---------- */
   function sprite(def, side, r) {
-    const key = def.id + ":" + side + ":" + Math.round(r * ts * dpr);
+    const key = def.id + ":" + side + ":" + Math.round(r * ts * dpr) + (def.own ? ":own" : "");
     if (sprites.has(key)) return sprites.get(key);
     const px = Math.ceil(r * 2 * ts * dpr * 1.5), c = document.createElement("canvas"); c.width = c.height = px;
     const g = c.getContext("2d"), m = px / 2, rad = r * ts * dpr, T = TEAM[side];
@@ -351,7 +445,7 @@
     g.fillStyle = hg; g.beginPath(); g.arc(m, m, rad * 1.45, 0, Math.PI * 2); g.fill();
     // a metal rim: dark edge, the team's colour lit from above, then a thin rarity band
     g.fillStyle = "#07030e"; g.beginPath(); g.arc(m, m, rad * 1.04, 0, Math.PI * 2); g.fill();
-    const rg = g.createLinearGradient(0, m - rad, 0, m + rad); rg.addColorStop(0, "#ffffff"); rg.addColorStop(.25, T.main); rg.addColorStop(1, T.deep);
+    const rg = g.createLinearGradient(0, m - rad, 0, m + rad); rg.addColorStop(0, "#ffffff"); rg.addColorStop(.25, def.own ? "#ffd65c" : T.main); rg.addColorStop(1, def.own ? "#a87a22" : T.deep);
     g.fillStyle = rg; g.beginPath(); g.arc(m, m, rad, 0, Math.PI * 2); g.fill();
     g.fillStyle = "#07030e"; g.beginPath(); g.arc(m, m, rad * .87, 0, Math.PI * 2); g.fill();
     g.fillStyle = TIER_COL[def.tier] || "#c9a24e"; g.beginPath(); g.arc(m, m, rad * .84, 0, Math.PI * 2); g.fill();
@@ -376,7 +470,8 @@
     const dt = Math.min(.25, (now - G.last) / 1000); G.last = now;
     // a phone that can't keep up gets fewer pixels, so the battle stays smooth
     if (!lowRes && G.S.time > 3) { frames++; if (dt > 1 / 40) slowFrames++; if (frames >= 120) { if (slowFrames > 40) { lowRes = true; store.set("lowres", true); layout(); } frames = slowFrames = 0; } }
-    if (!G.S.over) {
+    if (G.tutorial) guideTick(now);
+    if (!G.S.over && !G.paused) {
       G.acc += dt;
       while (G.acc >= A.DT && !G.S.over) {
         for (const e of G.S.ents) G.prev.set(e.id, { x: e.x, y: e.y });
@@ -458,8 +553,19 @@
         case "ship": G.ships.push({ x: e.x, y: e.y, r: e.r, arrive: e.arrive, dur: e.dur, t: 0, side: e.side }); sfx("hum"); break;
         case "hit": {
           impact(e);
-          // no floating numbers: the fight stays readable; health bars tell the story
-          if (e.tower) G.towerShake.set(e.id, .18); else G.jolt.set(e.id, G.river);
+          if (e.tower) {
+            G.towerShake.set(e.id, .18);
+            // the screen jolts when a tower is struck; your phone too, now and then
+            G.shake = Math.max(G.shake, e.n >= 120 ? .45 : .22);
+            const tw = G.S.ents.find(q => q.id === e.id);
+            if (performance.now() - (G.towerBuzz || 0) > 350) { G.towerBuzz = performance.now(); buzz(tw && tw.side === 0 ? 25 : 12); }
+          } else G.jolt.set(e.id, G.river);
+          // a floating number, gathered per target so a flurry of small hits reads as one
+          if (e.n >= 1) {
+            const now = G.S.time, last = G.hitAt.get(e.id);
+            if (last && now - last.t < .3 && last.num.t < last.num.life * .5) { last.num.n += e.n; last.num.big = last.num.n >= 150; }
+            else { const num = { x: e.x + (Math.random() - .5) * .5, y: e.y + (e.tower ? -2.6 : e.air ? -2.6 : -1.9), n: e.n, tower: e.tower, life: .75, t: 0 }; G.nums.push(num); G.hitAt.set(e.id, { t: now, num }); }
+          }
           sfx("hit"); break;
         }
         case "blast": blastFx(e); break;
@@ -483,8 +589,8 @@
             G.shake = 1.1; G.flash = .55; burst(e.x, e.y, 80, e.side ? "#ff7a90" : "#7fd8ff", 7); burst(e.x, e.y, 40, "#fff1c2", 5);
             G.fx.push({ k: "ring", x: e.x, y: e.y, r: 6, life: .9, t: 0, col: "#fff1c2" });
             G.rubble = G.rubble || []; G.rubble.push({ x: e.x, y: e.y, big: e.tower === "throne", side: e.side });
-            sfx("tower"); buzz(e.side === 0 ? [80, 40, 80] : [40]);
-            banner(e.side === 1 ? "Tower down!" : "Tower lost", e.tower === "throne" ? "The Throne falls" : "", e.side === 0);
+            sfx("tower"); buzz(e.side === 0 ? [80, 40, 80] : [60, 30, 120]);
+            crownFly(e);
           } else { burst(e.x, e.y - .9, 18, e.side ? "#ff9aac" : "#9fe0ff", 3); G.fx.push({ k: "ring", x: e.x, y: e.y, r: 1.1, life: .35, t: 0, col: e.side ? "#ff9aac" : "#9fe0ff" }, { k: "soul", x: e.x, y: e.y - .9, life: .9, t: 0, col: e.side ? "#ffb3c0" : "#b8e6ff" }); sfx("die"); }
           break;
         case "phase": {
@@ -693,7 +799,7 @@
   }
   try { document.fonts.load('700 20px "Pixelify Sans"').then(() => { FONT = '"Pixelify Sans", system-ui'; }); } catch { /* old browser */ }
   /* units look bigger than the space they take, so a phone can read them */
-  const vis = r => Math.max(1.05, r * 2.25);
+  const vis = r => Math.max(1.55, r * 3.35);
 
   /* ---------- drawing a frame ---------- */
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -743,11 +849,18 @@
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
   }
   function drawZone() {
-    const card = G.drag ? G.drag.def : G.sel != null ? G.S.sides[0].deck[G.S.sides[0].hand[G.sel]] : null;
-    if (!card || card.kind === "spell") return;
-    // where you can't place: a red veil
-    const S = G.S, R = A.RIVER;
-    ctx.fillStyle = "rgba(255,40,80,.16)";
+    const card = G.drag ? (G.drag.moved ? G.drag.def : null) : G.sel != null ? G.S.sides[0].deck[G.S.sides[0].hand[G.sel]] : null;
+    if (!card) return;
+    const S = G.S, R = A.RIVER, pulse = .5 + Math.sin(G.river * 6) * .5;
+    if (card.kind === "spell") { ctx.strokeStyle = `rgba(255,230,140,${.25 + pulse * .25})`; ctx.lineWidth = .12; ctx.strokeRect(.6, .6, A.W - 1.2, A.H - 1.2); return; }
+    // where you can place: your half glows
+    const down0 = S.sides[1].gatesDown, glowFill = `rgba(92,200,255,${.1 + pulse * .1})`;
+    ctx.fillStyle = glowFill; ctx.fillRect(.5, R + .5, A.W - 1, A.H - R - 1);
+    for (let lane = 0; lane < 2; lane++) if (down0[lane]) ctx.fillRect(lane ? A.W / 2 : .5, 10, A.W / 2 - .5, R + .5 - 10);
+    ctx.strokeStyle = `rgba(150,225,255,${.5 + pulse * .4})`; ctx.lineWidth = .1; ctx.setLineDash([.5, .3]); ctx.lineDashOffset = -G.river * 2;
+    ctx.beginPath(); ctx.moveTo(.5, R + .5); ctx.lineTo(A.W - .5, R + .5); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    // where you can't: a red veil
+    ctx.fillStyle = "rgba(255,40,80,.12)";
     const down = S.sides[1].gatesDown;
     if (!down[0] && !down[1]) ctx.fillRect(0, 0, A.W, R + .5);
     else {
@@ -756,8 +869,6 @@
         ctx.fillRect(x0, 0, A.W / 2, down[lane] ? 10 : R + .5);
       }
     }
-    ctx.strokeStyle = "rgba(255,90,120,.6)"; ctx.setLineDash([.3, .2]); ctx.lineWidth = .06;
-    ctx.beginPath(); ctx.moveTo(0, R + .5); ctx.lineTo(A.W, R + .5); ctx.stroke(); ctx.setLineDash([]);
   }
   const drawTower = (e, alpha, dt) => upright(e.x, e.y + .4, () => drawTowerUp(e, alpha, dt));
   function drawTowerUp(e, alpha, dt) {
@@ -1218,8 +1329,9 @@
     for (const n of G.nums) {
       n.t += dt; const k = n.t / n.life; if (k >= 1) continue;
       ctx.globalAlpha = 1 - k;
-      const label = n.txt || "-" + n.n;
-      txt(label, n.x, n.y - k * .9, n.txt ? .5 : n.tower ? .7 : .6, n.txt ? "#d9c8ff" : n.tower ? "#ffe58a" : "#fff", .12);
+      const label = n.txt || String(Math.round(n.n));
+      const pop = k < .15 ? 1 + (1 - k / .15) * .5 : 1;
+      txt(label, n.x, n.y - k * 1.1, (n.txt ? .5 : n.tower ? .8 : n.big ? .8 : .62) * pop, n.txt ? "#d9c8ff" : n.tower ? "#ffe58a" : n.big ? "#ffb35c" : "#fff", .14);
     }
     ctx.globalAlpha = 1;
     G.nums = G.nums.filter(n => n.t < n.life);
@@ -1240,11 +1352,50 @@
   }
 
   /* ---------- the hand and the bar ---------- */
+  /* a name that fits on a card whole, never clipped: hold the card for the full one */
+  function shortName(name) {
+    if (name.length <= 10) return name;
+    const words = name.split(/\s+/); let out = "";
+    for (const w of words) { if ((out + " " + w).trim().length > 10) break; out = (out + " " + w).trim(); }
+    return out || name.slice(0, 9) + "…";
+  }
+  const picOf = def => def.n ? `<img src="/thumbs/${def.n}.webp" alt="" draggable="false">` : `<svg class="ar-sig" viewBox="0 0 100 100" style="background:radial-gradient(circle at 50% 45%,#4a1a7a,#0b0616 70%)">${SPELL_ICON[def.id] || ""}</svg>`;
   function cardHtml(def, mini, extra = "") {
     const spell = def.kind === "spell", tc = spell ? "#e3ba5c" : TIER_COL[def.tier];
-    const pic = def.n ? `<img src="/thumbs/${def.n}.webp" alt="" draggable="false">` : `<svg class="ar-sig" viewBox="0 0 100 100" style="background:radial-gradient(circle at 50% 45%,#4a1a7a,#0b0616 70%)">${SPELL_ICON[def.id] || ""}</svg>`;
-    return `<div class="ar-card${mini ? " mini" : ""}${spell ? " spell" : ""}${def.epic ? " epic" : ""}" style="--tc:${tc};${extra}"><span class="ar-card-in">${pic}</span><span class="ar-card-cost"><svg viewBox="0 0 10 12"><use href="#i-drop"/></svg><b>${def.cost}</b></span>
-      <span class="ar-card-name">${def.name}</span><span class="ar-card-role">${def.epic ? "Epic spell" : spell ? "Spell" : def.power ? def.power.label : def.roleLabel}</span><span class="ar-card-fill"></span></div>`;
+    return `<div class="ar-card${mini ? " mini" : ""}${spell ? " spell" : ""}${def.epic ? " epic" : ""}${def.own ? " own" : ""}" style="--tc:${tc};${extra}"><span class="ar-card-in">${picOf(def)}</span><span class="ar-card-cost"><svg viewBox="0 0 10 12"><use href="#i-drop"/></svg><b>${def.cost}</b></span>
+      <span class="ar-card-name">${esc(shortName(def.name))}</span><span class="ar-card-role">${def.epic ? "Epic spell" : spell ? "Spell" : def.power ? def.power.label : def.roleLabel}</span><span class="ar-card-fill"></span></div>`;
+  }
+  /* holding a card: everything about it, in a panel over the field */
+  function showInfo(def) {
+    const el = $("[data-cardinfo]"), spell = def.kind === "spell", tc = spell ? "#e3ba5c" : TIER_COL[def.tier];
+    el.style.setProperty("--tc", tc);
+    el.innerHTML = `${picOf(def)}<div><b>${esc(def.name)}</b><i>${def.own ? "Yours · " : ""}${spell ? (def.epic ? "Epic spell" : "Spell") : def.tier + " · " + def.roleLabel} · ${def.cost} DMT</i>
+<p>${esc(spell ? def.text : def.power ? def.power.label + ": " + def.power.text : "")}</p>${spell ? "" : `<div class="st">Health ${def.hp} · Hit ${def.dmg}${def.air ? " · Flies" : ""}${def.targetsAir ? " · Hits flyers" : ""}${def.buildings ? " · Goes for towers" : ""}</div>`}</div>`;
+    el.hidden = false;
+  }
+  const hideInfo = () => { $("[data-cardinfo]").hidden = true; };
+  /* your own being takes the field: its name and picture, big */
+  function minePop(def) {
+    const el = $("[data-minepop]");
+    el.innerHTML = `<img src="/thumbs/${def.n}.webp" alt=""><span><small>YOUR #${def.n} · ${esc(def.tier.toUpperCase())}</small><b>${esc(def.name)}</b></span>`;
+    el.hidden = false; el.classList.remove("go"); void el.offsetWidth; el.classList.add("go");
+    clearTimeout(minePop.t); minePop.t = setTimeout(() => { el.hidden = true; }, 2300);
+    sfx("spawnBig"); buzz([20, 30, 40]);
+  }
+  /* a tower falls: a big crown rises from it and flies to the score */
+  function crownFly(e) {
+    const p = toScreen(e.x, e.y - 2), c = document.createElement("div"), mineLost = e.side === 0;
+    c.className = "ar-crownfly" + (mineLost ? " foe" : "");
+    c.innerHTML = `<svg viewBox="0 0 16 12" width="120" height="90"><use href="#i-crown"/></svg>`;
+    c.style.left = p.x + "px"; c.style.top = p.y + "px"; c.style.transform = "scale(.2)"; c.style.opacity = "0";
+    document.body.appendChild(c);
+    requestAnimationFrame(() => { c.style.transition = "transform .35s steps(5), opacity .2s"; c.style.transform = "scale(1.4)"; c.style.opacity = "1"; });
+    setTimeout(() => {
+      const target = $(`[data-crowns="${mineLost ? 1 : 0}"]`).getBoundingClientRect();
+      c.style.transition = ""; c.style.transform = `translate(${target.left + target.width / 2 - p.x}px,${target.top + target.height / 2 - p.y}px) scale(.15)`; c.style.opacity = ".2";
+    }, 900);
+    setTimeout(() => c.remove(), 1500);
+    banner(mineLost ? "Tower lost" : e.tower === "throne" ? "Their tree falls!" : "Tower down!", mineLost ? "" : "+1 crown", mineLost);
   }
   let handSig = "";
   function paintHand(force) {
@@ -1272,7 +1423,8 @@
       card.classList.toggle("poor", poor);
       card.classList.toggle("sel", G.sel === slot);
       card.classList.toggle("dragging", !!(G.drag && G.drag.slot === slot));
-      const f = card.querySelector(".ar-card-fill"); f.style.height = (P.dmt >= def.cost ? 0 : 100 * (1 - P.dmt / def.cost)) + "%";
+      // the card fills up from the bottom as DMT charges, and lights up when it's ready
+      const f = card.querySelector(".ar-card-fill"); f.style.height = (P.dmt >= def.cost ? 0 : Math.max(0, Math.min(100, 100 * P.dmt / def.cost))).toFixed(1) + "%";
     });
   }
   let lastDmt = -1;
@@ -1309,27 +1461,33 @@
     events(S.events.splice(0));
     G.inputs.push({ t, slot, x, y });
     G.sel = null; G.tips.placed = true; store.set("tips", G.tips);
+    G.lastPlace = performance.now(); guidePlaced();
+    if (def.own) minePop(def);
     paintHand(true);
     return true;
   }
   $("[data-hand]").addEventListener("pointerdown", e => {
     const el = e.target.closest("[data-slot]"); if (!el || !G || G.S.over) return;
     const slot = Number(el.dataset.slot), def = G.S.sides[0].deck[G.S.sides[0].hand[slot]];
-    G.drag = { slot, def, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
+    G.drag = { slot, def, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId, held: false };
+    clearTimeout(G.holdT); G.holdT = setTimeout(() => { if (G && G.drag && !G.drag.moved) { G.drag.held = true; showInfo(def); buzz(8); } }, 420);
     try { el.setPointerCapture(e.pointerId); } catch { /* fine */ }
     au();
   });
   window.addEventListener("pointermove", e => {
     if (!G || !G.drag || e.pointerId !== G.drag.id) return;
     const d = G.drag;
-    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > 10) { d.moved = true; G.sel = null; paintHand(false); }
+    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > 10) { d.moved = true; G.sel = null; clearTimeout(G.holdT); hideInfo(); paintHand(false); }
     if (!d.moved) return;
     const p = toArena(e.clientX, e.clientY - 40);   // lifted a little above the finger, so you can see it
     G.aim = p.inside || p.y < A.H ? { def: d.def, x: p.x, y: p.y, ok: p.inside && A.canPlaceAt(G.S, 0, d.def, p.x, p.y) && G.S.sides[0].dmt >= d.def.cost } : null;
   });
+  $("[data-hand]").addEventListener("contextmenu", e => e.preventDefault());
+  window.addEventListener("pointercancel", () => { if (G && G.drag) { G.drag = null; clearTimeout(G.holdT); hideInfo(); G.aim = null; } });
   window.addEventListener("pointerup", e => {
     if (!G || !G.drag || e.pointerId !== G.drag.id) return;
-    const d = G.drag; G.drag = null;
+    const d = G.drag; G.drag = null; clearTimeout(G.holdT);
+    if (d.held) { hideInfo(); paintHand(false); return; }
     if (d.moved) { const p = toArena(e.clientX, e.clientY - 40); if (p.inside) tryPlace(d.slot, p.x, p.y); G.aim = null; }
     else {
       G.sel = G.sel === d.slot ? null : d.slot; sfx("tick");
@@ -1352,36 +1510,126 @@
   /* no words over the battle: a card that can't go yet just shakes */
   function nudge(slot) { const el = $(`[data-slot="${slot}"] .ar-card`); if (!el) return; el.classList.remove("nope"); void el.offsetWidth; el.classList.add("nope"); buzz(15); }
 
+  /* ---------- the guided first battle: a finger, three steps ---------- */
+  const toScreen = (x, y) => { const r = canvas.getBoundingClientRect(); return { x: r.left + (x + OX) * ts, y: r.top + (y + OY) * ts * SY }; };
+  function coach(text) { const c = $("[data-coach]"); if (!text) { c.hidden = true; return; } $("[data-coach-say]").textContent = text; c.hidden = false; const say = $("[data-coach-say]"); say.style.animation = "none"; void say.offsetWidth; say.style.animation = ""; }
+  let fingerAnim = null, ring = null;
+  function finger(mode, from, to) {
+    const f = $("[data-finger]");
+    if (ring) { ring.remove(); ring = null; }
+    if (!mode) { f.hidden = true; fingerAnim = null; return; }
+    f.hidden = false; f.classList.toggle("tap", mode === "tap");
+    fingerAnim = { mode, from, to, t0: performance.now() };
+    if (mode === "tap") { ring = document.createElement("div"); ring.className = "ar-ring"; ring.style.left = to.x + "px"; ring.style.top = to.y + "px"; document.body.appendChild(ring); }
+  }
+  function moveFinger(now) {
+    const f = $("[data-finger]"), a = fingerAnim; if (!a) return;
+    // placed by left/top, so the tapping animation (a transform) can't move it off its mark
+    if (a.mode === "tap") { f.style.left = a.to.x + "px"; f.style.top = a.to.y + "px"; f.style.transform = ""; return; }
+    // press on the card, drag up to the spot, lift, start again
+    const T = 1700, k = ((now - a.t0) % T) / T, e = k < .2 ? 0 : k > .8 ? 1 : (k - .2) / .6, ee = e * e * (3 - 2 * e);
+    const x = a.from.x + (a.to.x - a.from.x) * ee, y = a.from.y + (a.to.y - a.from.y) * ee;
+    f.style.left = x + "px"; f.style.top = y + "px"; f.style.transform = `scale(${k < .12 || k > .9 ? 1.1 : .95})`;
+    f.style.opacity = k > .92 ? String((1 - k) / .08) : "1";
+  }
+  function slotPoint(slot) { const el = $(`[data-slot="${slot}"]`); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+  function readySlot() { const P = G.S.sides[0]; return P.hand.findIndex(ci => P.deck[ci].kind === "unit" && P.deck[ci].cost <= P.dmt); }
+  function guide(step) {
+    const T = G.tutorial; if (!T) return;
+    T.step = step; T.at = performance.now();
+    if (step === 0) {
+      const slot = Math.max(0, readySlot()), from = slotPoint(slot);
+      coach("Drag this card here"); if (from) finger("drag", from, toScreen(9, 22.5));
+    } else if (step === 1) { coach("It walks and fights on its own"); finger(null); }
+    else if (step === 2) { coach("Break their tree to win!"); finger("tap", null, toScreen(9, A.H - 29 - 1.2)); }
+    else { coach(null); finger(null); }
+  }
+  function guideTick(now) {
+    const T = G.tutorial; if (!T || G.S.over) { if (T) { coach(null); finger(null); } return; }
+    moveFinger(now);
+    if (T.step === 1 && now - T.at > 3200) guide(2);
+    else if (T.step === 2 && now - T.at > 3800) guide(3);
+    else if (T.step >= 3) {
+      // gone quiet with a card ready: point again
+      const idle = (now - G.lastPlace) / 1000, slot = readySlot();
+      if (T.step === 3 && idle > 6 && slot >= 0) { T.step = 4; coach("Drag another card"); const from = slotPoint(slot); if (from) finger("drag", from, toScreen(4 + Math.random() * 10, 22.5)); }
+    }
+  }
+  function guidePlaced() {
+    const T = G.tutorial; if (!T) return;
+    G.lastPlace = performance.now();
+    if (T.step === 0) { G.paused = false; G.last = performance.now(); guide(1); }
+    else if (T.step === 4) { T.step = 3; coach(null); finger(null); }
+  }
+
   /* ---------- the end ---------- */
   async function endBattle() {
-    G.over = true; G.aim = null; G.drag = null;
-    const S = G.S, won = S.winner === 0, draw = S.winner == null && !G.quit;
+    G.over = true; G.aim = null; G.drag = null; hideInfo(); coach(null); finger(null);
+    const S = G.S, won = S.winner === 0, draw = S.winner == null && !G.quit, three = won && S.crowns[0] === 3;
     setTimeout(() => { G.done = true; }, 2500);
     sfx(won ? "win" : draw ? "phase" : "lose"); buzz(won ? [40, 60, 40, 60, 120] : [120]);
     const rec = record(); rec[won ? "w" : draw ? "d" : "l"]++; store.set("record", rec);
+    if (G.tutorial) store.set("guided", true);
     const end = $("[data-end]");
     end.classList.toggle("lost", !won && !draw);
-    $("[data-end-title]").textContent = won ? "Victory!" : draw ? "Draw" : "Defeat";
-    $("[data-end-crowns]").innerHTML = [0, 1, 2].map(i => crown(i < S.crowns[0]).replace("<svg ", `<svg style="animation-delay:${.6 + i * .3}s" `)).join("");
+    $("[data-end-title]").textContent = G.tutorial && won ? "First win!" : won ? "Victory!" : draw ? "Draw" : "Defeat";
+    $("[data-end-crowns]").innerHTML = [0, 1, 2].map(i => crown(i < S.crowns[0]).replace("<svg ", `<svg style="animation-delay:${.6 + i * .35}s" `)).join("");
+    $("[data-three]").hidden = !three;
     $("[data-score-you]").textContent = S.crowns[0]; $("[data-score-foe]").textContent = S.crowns[1]; $("[data-score-rival]").textContent = $("[data-rname]").textContent;
     const mins = Math.floor(S.time / 60) + ":" + String(Math.floor(S.time % 60)).padStart(2, "0");
     const stats = $("[data-end-stats]");
-    stats.innerHTML = `<span>Time<b>${mins}</b></span><span>Cards played<b>${G.inputs.length}</b></span><span>Arena wins<b>${rec.w}</b></span>`;
+    stats.innerHTML = `<span>Time<b>${mins}</b></span><span>Cards played<b>${G.inputs.length}</b></span>`;
+    $("[data-end-rank]").innerHTML = ""; $("[data-end-xp]").innerHTML = ""; $("[data-end-lines]").innerHTML = "";
     const note = $("[data-end-note]");
     note.textContent = G.quit ? "You left the battle." : "Checking the result with the realm…";
-    setTimeout(() => { end.hidden = false; if (won) setTimeout(() => sfx("phase"), 600); }, 1400);
+    $("[data-again] span").textContent = G.tutorial ? "Next battle" : "Battle again";
+    setTimeout(() => { end.hidden = false; if (won) setTimeout(() => { sfx("phase"); if (three) { sfx("epic"); buzz([60, 40, 60, 40, 160]); } }, 600); }, 1400);
     if (G.quit) return;
-    try {
-      const r = await (await fetch("/api/arena/finish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ match: G.match, inputs: G.inputs }) })).json();
-      if (r.error) note.textContent = "The realm could not confirm this one: " + r.error;
-      else {
-        note.innerHTML = `<svg><use href="#i-check"/></svg>Confirmed by the realm`;
-        if (r.result.xp) stats.insertAdjacentHTML("afterbegin", `<span class="xp">XP<b>+${r.result.xp}</b></span>`);
-      }
-    } catch { note.textContent = "The result could not be sent. Check your connection."; }
+    // the realm may be updating: keep trying for a couple of minutes before giving up
+    const body = JSON.stringify({ match: G.match, inputs: G.inputs });
+    let r = null;
+    for (let tries = 0, wait = 2000; tries < 9; tries++, wait = Math.min(20000, wait * 1.7)) {
+      try {
+        const res = await fetch("/api/arena/finish", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+        if (res.status >= 500 || res.status === 429) throw new Error("busy");
+        r = await res.json(); break;
+      } catch { note.textContent = "The realm is updating. Holding on to your result…"; await new Promise(ok => setTimeout(ok, wait)); }
+    }
+    if (!r) { note.textContent = "The result could not be sent. Check your connection."; return; }
+    if (r.error) { note.textContent = r.gone ? "The realm updated during your battle, so this one couldn't be counted. Sorry! The next one will." : "The realm could not confirm this one: " + r.error; return; }
+    note.innerHTML = `<svg><use href="#i-check"/></svg>Confirmed by the realm`;
+    showProgress(r.result);
+  }
+  /* what the battle earned: stars, xp, quests, the weekly board */
+  function showProgress(res) {
+    const pr = res.progress;
+    const lines = [];
+    if (res.board && res.board.points) lines.push(`<p class="gold"><span>Weekly board</span><em>+${res.board.points} pts</em></p>`);
+    if (res.unscored === "guest" && res.won) lines.push(`<p><span>Hold a REALM being to score on the weekly board</span><em></em></p>`);
+    if (pr) {
+      const a = pr.after, b = pr.before;
+      const row = (p, pop) => `${badge(p, true)}<b>${p.tier}</b>${p.tier === "Mythic" ? "" : starsHtml(p.stars, p.maxStars, pop)}`;
+      const rk = $("[data-end-rank]"); rk.innerHTML = row(b);
+      setTimeout(() => {
+        if (pr.rankUp) { rk.innerHTML = row(a) + `<span class="up">Up to ${a.tier}!</span>`; sfx("epic"); buzz([30, 40, 30]); }
+        else if (pr.starsMoved > 0) { rk.innerHTML = row(a, a.stars - 1); sfx("tick"); }
+        else if (pr.starsMoved < 0) rk.innerHTML = row(a);
+        else if (res.tutorial) rk.insertAdjacentHTML("beforeend", `<span class="ar-fine" style="margin:0">Win battles to earn stars and climb to Mythic.</span>`);
+      }, 1900);
+      const pct = p => Math.round(100 * p.xp / p.next);
+      $("[data-end-xp]").innerHTML = `<span>Lv <b data-lv>${b.level}</b></span><span class="ar-bar"><i style="width:${pct(b)}%"></i></span><span>+${pr.xp} xp</span>`;
+      setTimeout(() => {
+        const bar = $("[data-end-xp] .ar-bar i"); if (!bar) return;
+        if (pr.levelUps) { bar.style.width = "100%"; setTimeout(() => { bar.style.transition = "none"; bar.style.width = "0%"; void bar.offsetWidth; bar.style.transition = ""; bar.style.width = pct(a) + "%"; $("[data-lv]").textContent = a.level; sfx("win"); }, 950); }
+        else bar.style.width = pct(a) + "%";
+      }, 2200);
+      lines.push(...pr.bonus.map(x => `<p><span>${esc(x.what)}</span><em>+${x.xp} xp</em></p>`), ...pr.completed.map(q => `<p class="q"><span>Quest done: ${esc(q.text)}</span><em>+${q.xp} xp</em></p>`));
+      PROF = a; paintLobby();
+    }
+    $("[data-end-lines]").innerHTML = lines.map((l, i) => l.replace("<p", `<p style="animation-delay:${2.4 + i * .25}s"`)).join("");
   }
 
   // for testing only: ?debug lets a test reach the match
-  if (/[?&]debug\b/.test(location.search)) { window.__arena = () => G; window.__arenaPlace = (slot, x, y) => { const ok = tryPlace(slot, x, y); paintHand(true); return ok; }; }
+  if (/[?&]debug\b/.test(location.search)) { window.__arenaRepaint = () => paintHand(true); window.__arena = () => G; window.__arenaPlace = (slot, x, y) => { const ok = tryPlace(slot, x, y); paintHand(true); return ok; }; }
 
 })();

@@ -93,18 +93,18 @@ test("the server replays a finished match and decides it; a match can't be count
     if (S.tick % 40 === 0) { const P = S.sides[0]; const slot = P.hand.findIndex(ci => P.deck[ci].cost <= P.dmt); if (slot >= 0) { const d = P.deck[P.hand[slot]]; const x = 14.5, y = d.kind === "spell" ? 6.5 : 23; if (!A.place(S, 0, slot, x, y)) inputs.push({ t: S.tick, slot, x, y }); } }
     A.step(S);
   }
-  const early = G.finish({ match: s.match, inputs });
+  const early = await G.finish({ match: s.match, inputs });
   assert.match(early.error, /faster than it could be played/, "an instant hand-in is refused");
   const s2 = await G.start({});
   const S2 = A.createMatch({ seed: s2.seed, sides: s2.sides, wild: s2.wild });
   while (!S2.over) A.step(S2);
   // pretend the match took as long as it really lasts
   const realNow = Date.now; Date.now = () => realNow() + S2.time * 1000;
-  const r = G.finish({ match: s2.match, inputs: [] });
+  const r = await G.finish({ match: s2.match, inputs: [] });
   Date.now = realNow;
   assert.equal(r.result.won, S2.winner === 0);
   assert.deepEqual(r.result.crowns, S2.crowns);
-  assert.match(G.finish({ match: s2.match, inputs: [] }).error, /already/);
+  assert.match((await G.finish({ match: s2.match, inputs: [] })).error, /already/);
 });
 
 const blank = () => { const S = A.createMatch({ seed: 11, sides: [{ deck: deckA() }, { deck: deckB() }] }); S.ents = S.ents.filter(e => e.kind === "tower"); return S; };
@@ -238,6 +238,131 @@ test("the arena says when it can't read a wallet, and one caller can't evict ano
   const G = require("./game").create();
   const mine = await G.start({ ip: "1.1.1.1" });
   for (let k = 0; k < 20; k++) await G.start({ ip: "6.6.6.6" });
-  const r = G.finish({ match: mine.match, inputs: [] });
+  const r = await G.finish({ match: mine.match, inputs: [] });
   assert.ok(!/ended/.test(r.error || ""), "my match is still there: " + r.error);
+});
+
+/* ---------- a fair hand ---------- */
+const handOk = P => {
+  const keys = P.hand.map(ci => { const d = P.deck[ci]; return d.kind === "spell" ? "s" + d.id : "b" + (d.n || d.id); });
+  const huge = P.hand.filter(ci => P.deck[ci].kind === "spell" && P.deck[ci].cost >= 6).length;
+  return new Set(keys).size === keys.length && huge <= 1;
+};
+test("the hand is always fair: two cheap units to open, never two of a card, at most one 6+ spell", async () => {
+  const G = require("./game").create();
+  for (let g = 0; g < 25; g++) {
+    const s = await G.start({ ip: "f" + g });
+    const S = A.createMatch({ seed: s.seed, sides: s.sides, wild: s.wild }), P = S.sides[0];
+    const cheap = P.hand.filter(ci => P.deck[ci].kind === "unit" && P.deck[ci].cost >= 2 && P.deck[ci].cost <= 4).length;
+    assert.ok(cheap >= 2, "opening hand has two cheap units");
+    assert.ok(handOk(P), "opening hand fair");
+    // play through, always checking the hand
+    for (let k = 0; k < 4000 && !S.over; k++) {
+      if (k % 23 === 0) { P.dmt = 10; const slot = k % 4, d = P.deck[P.hand[slot]]; A.place(S, 0, slot, 9, d.kind === "spell" ? 6 : 24); assert.ok(handOk(P), "hand fair after a play"); }
+      A.step(S);
+    }
+  }
+});
+
+test("a holder's own beings are always in the deck: one in the opening hand, then often", async () => {
+  const mine = [176, 823, 41];
+  const G = require("./game").create({ walletOf: () => "W", beings: async () => mine.map(n => ({ n, owner: "W" })), boostOf: async () => ({ level: 1, boost: 1.05 }) });
+  for (let g = 0; g < 10; g++) {
+    const s = await G.start({ token: "t" });
+    const S = A.createMatch({ seed: s.seed, sides: s.sides, wild: s.wild }), P = S.sides[0];
+    assert.ok(P.hand.some(ci => P.deck[ci].own), "one of yours in the opening hand");
+    const own = s.sides[0].deck.filter(c => c.own);
+    assert.ok(own.length >= 12, "about a third of the draw is yours: " + own.length);
+    assert.ok(own.every(c => mine.includes(c.n)));
+  }
+});
+
+/* ---------- the guided first match ---------- */
+test("the first, guided match is an easy win; only a first battle gets one", async () => {
+  const G = require("./game").create();
+  const pid = "ab".repeat(16);
+  let wins = 0;
+  for (let g = 0; g < 12; g++) {
+    const s = await G.start({ tutorial: true, pid: g === 0 ? pid : "cd".repeat(15) + String(g).padStart(2, "0") });
+    assert.ok(s.tutorial);
+    const S = A.createMatch({ seed: s.seed, sides: s.sides, wild: s.wild }), inputs = [];
+    // a newcomer: plays a card whenever one is affordable, straight up the middle
+    while (!S.over) {
+      const P = S.sides[0];
+      if (S.tick % 30 === 0) { const slot = P.hand.findIndex(ci => P.deck[ci].cost <= P.dmt); if (slot >= 0) { const d = P.deck[P.hand[slot]]; const x = 9, y = d.kind === "spell" ? 4 : 22; if (!A.place(S, 0, slot, x, y)) inputs.push({ t: S.tick, slot, x, y }); } }
+      A.step(S);
+    }
+    if (S.winner === 0) wins++;
+    if (g === 0) {
+      const realNow = Date.now; Date.now = () => realNow() + S.time * 1000;
+      const r = await G.finish({ match: s.match, inputs });
+      Date.now = realNow;
+      assert.ok(r.result.won); assert.ok(r.result.tutorial);
+      assert.equal(r.result.progress.starsMoved, 0, "no stars for the guided match");
+      assert.ok(r.result.progress.xp > 0);
+    }
+  }
+  assert.equal(wins, 12, "the guided match is won every time");
+  const again = await G.start({ tutorial: true, pid });
+  assert.ok(!again.tutorial, "a second guided match is refused once you've played");
+});
+
+/* ---------- live matches survive a restart ---------- */
+test("a live match survives a restart: the new server counts it", async () => {
+  const dir = require("fs").mkdtempSync(require("path").join(require("os").tmpdir(), "arena-"));
+  const G1 = require("./game").create({ dir });
+  const s = await G1.start({ ip: "r" });
+  G1.flush();
+  const G2 = require("./game").create({ dir });
+  assert.equal(G2.live(), 1);
+  const S = A.createMatch({ seed: s.seed, sides: s.sides, wild: s.wild });
+  while (!S.over) A.step(S);
+  const realNow = Date.now; Date.now = () => realNow() + S.time * 1000;
+  const r = await G2.finish({ match: s.match, inputs: [] });
+  Date.now = realNow;
+  assert.ok(r.result, r.error);
+  assert.deepEqual(r.result.crowns, S.crowns);
+});
+
+test("a damaged file of live matches doesn't stop the server", () => {
+  const dir = require("fs").mkdtempSync(require("path").join(require("os").tmpdir(), "arena-"));
+  require("fs").writeFileSync(require("path").join(dir, "arena-live.json"), "{nope");
+  const G = require("./game").create({ dir });
+  assert.equal(G.live(), 0);
+});
+
+/* ---------- the weekly board and progress ---------- */
+async function winFor(G, opts) {
+  const s = await G.start(opts);
+  const S = A.createMatch({ seed: s.seed, sides: s.sides, wild: s.wild }), inputs = [];
+  while (!S.over) {
+    const P = S.sides[0];
+    if (S.tick % 20 === 0) { const slot = P.hand.findIndex(ci => P.deck[ci].kind === "unit" && P.deck[ci].cost <= P.dmt); if (slot >= 0) { if (!A.place(S, 0, slot, 9, 17)) inputs.push({ t: S.tick, slot, x: 9, y: 17 }); } }
+    A.step(S);
+  }
+  const realNow = Date.now; Date.now = () => realNow() + 400 * 1000;
+  const r = await G.finish({ match: s.match, inputs });
+  Date.now = realNow;
+  return r;
+}
+test("wins by signed-in holders score on the weekly board; guests and borrowed beings don't", async () => {
+  const owners = { A: [5], B: [] };
+  const G = require("./game").create({ walletOf: t => t, beings: async () => Object.entries(owners).flatMap(([w, ns]) => ns.map(n => ({ n, owner: w }))), boostOf: async () => ({ level: 0, boost: 1 }) });
+  let scored = 0, tries = 0;
+  while (!scored && tries++ < 12) { const r = await winFor(G, { token: "A" }); if (r.result && r.result.won) { assert.ok(r.result.board.points >= 10); scored++; } }
+  assert.ok(scored, "a holder's win scored");
+  const b = G.board({ token: "A" });
+  assert.equal(b.you.rank, 1); assert.equal(b.top[0].you, true);
+  for (let k = 0; k < 3; k++) { const r = await winFor(G, { token: "B" }); if (r.result && r.result.won) assert.equal(r.result.unscored, "guest"); }
+  assert.equal(G.board({}).top.length, 1);
+});
+
+test("progress: a guest's battles move their level, quests and stars", async () => {
+  const G = require("./game").create();
+  const { pid, profile } = G.me({});
+  assert.equal(profile.games, 0); assert.equal(profile.quests.length, 3);
+  const r = await winFor(G, { pid });
+  assert.ok(r.result.progress);
+  assert.equal(G.me({ pid }).profile.games, 1);
+  if (r.result.won) assert.equal(r.result.progress.starsMoved, 1);
 });

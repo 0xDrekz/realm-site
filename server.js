@@ -370,7 +370,8 @@ const duelAllowed = limiter(5000, 10);     // ten new runs a minute per caller i
 /* the card battler (tcg2/game.js): matches live here; the page only sends moves */
 const TCG = require("./tcg2/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w),
   walletOf: duelWalletOf, dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
-const ARENA = require("./arena/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf });
+const ARENA = require("./arena/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
+  dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 /* REALM Cards (rc/game.js): the card game against the computer; every move checked here */
 const RC = require("./rc/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
@@ -436,13 +437,11 @@ function route(req, res) {
   if (urlPath === "/owner") urlPath = "/owner.html";
   if (urlPath === "/wallet") urlPath = "/wallet.html";
   if (urlPath === "/payout") urlPath = "/payout.html";
-  // REALM Duels is REALM Cards now; the card battler before it lives on at /battler, the first Duels at /duels-classic
-  if (urlPath === "/duels") urlPath = "/rc.html";
-  if (urlPath === "/battler") urlPath = "/duels-beta.html";
-  if (urlPath === "/duels-classic") urlPath = "/duels.html";
-  if (urlPath === "/arena") urlPath = "/arena.html";
+  // one game: /duels is the Arena. The card games are kept in the code but put away for now
+  if (urlPath === "/duels" || urlPath === "/arena") urlPath = "/arena.html";
+  if (urlPath === "/battler" || urlPath === "/duels-classic" || urlPath === "/cards") { res.writeHead(302, { Location: "/duels" }).end(); return; }
   if (urlPath === "/codex") urlPath = "/codex.html";
-  if (urlPath === "/duels-beta") { res.writeHead(301, { Location: "/duels" }).end(); return; }
+  if (urlPath === "/duels-beta" || urlPath === "/duels-beta.html" || urlPath === "/rc.html" || urlPath === "/duels.html") { res.writeHead(302, { Location: "/duels" }).end(); return; }
   // the saved snapshot is served through /api/snapshot only, after its hash is checked. Checked on the
   // normalised path (so //snapshot-data/, /./snapshot-data/ and the like are caught) and again on disk below.
   if (path.posix.normalize(urlPath.replace(/\\/g, "/")).replace(/^\/+/, "/").toLowerCase().startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
@@ -577,13 +576,15 @@ function route(req, res) {
   }
 
   /* ---- REALM Arena: the page plays, the server replays and decides ---- */
-  if (urlPath === "/api/arena/start" || urlPath === "/api/arena/finish") {
+  if (urlPath.startsWith("/api/arena/")) {
     const send = replier(res);
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
+    if (urlPath === "/api/arena/board") return send(200, ARENA.board({ token: bearer(req) }));
+    const fn = { "/api/arena/start": ARENA.start, "/api/arena/finish": ARENA.finish, "/api/arena/me": ARENA.me }[urlPath];
+    if (!fn) return send(404, { error: "Not found." });
     if (req.method !== "POST") return send(405, { error: "POST" });
     readJson(req, send, 40000, j => {
-      if (!tcgAllowed(ip, "arena")) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
-      const fn = urlPath.endsWith("start") ? ARENA.start : ARENA.finish;
+      if (!tcgAllowed(ip, urlPath === "/api/arena/me" ? "move" : "arena")) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
       Promise.resolve().then(() => fn({ ...j, ip })).then(d => send(d.status || (d.error ? 400 : 200), d))
         .catch(e => { console.error("arena", e); send(500, { error: "Something went wrong. Start a new match." }); });
     });
@@ -781,7 +782,7 @@ function route(req, res) {
 /* a last line of defence: log anything that slips through and keep serving (the mint page lives here too) */
 process.on("uncaughtException", e => console.error("uncaught", e));
 /* on a redeploy Railway sends SIGTERM: save what's in memory, then go */
-for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush(), () => RC.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush(), () => RC.flush(), () => ARENA.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
 process.on("unhandledRejection", e => console.error("unhandled rejection", e));
 
 server.listen(PORT, "0.0.0.0", () => {

@@ -28,17 +28,18 @@ const QUESTS = [
   { id: "flyers",  text: "Summon 5 beings with Flying",      stat: "flyers",   n: 5,  xp: 50 },
   { id: "fast",    text: "Win a game in 14 turns or fewer",  stat: "fastWins", n: 1,  xp: 70 },
 ];
-const QUEST = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
-function questsFor(key, day) {
+function questsFor(key, day, list = QUESTS) {
   const h = crypto.createHash("sha256").update(key + "|" + day).digest();
-  const pool = QUESTS.slice(), out = [];
+  const pool = list.slice(), out = [];
   for (let i = 0; out.length < 3; i++) out.push(pool.splice(h[i] % pool.length, 1)[0].id);
   return out;
 }
 
-function create({ dir = null, log = () => {} } = {}) {
-  const jf = dir ? require("../jsonfile").create(path.join(dir, "rc-profiles.json"), { log: m => log("rc profiles: " + m), fallback: {} }) : null;
+/* file: where the profiles are kept; quests: the daily quest list (each game has its own) */
+function create({ dir = null, log = () => {}, file = "rc-profiles.json", quests = QUESTS, levels = LEVEL_AT } = {}) {
+  const QUEST = Object.fromEntries(quests.map(q => [q.id, q]));
+  const jf = dir ? require("../jsonfile").create(path.join(dir, file), { log: m => log(file + ": " + m), fallback: {} }) : null;
   let all = jf ? jf.load() || {} : {};
   const save = () => {
     if (!jf) return;
@@ -53,17 +54,18 @@ function create({ dir = null, log = () => {} } = {}) {
     let p = all[key];
     if (!p) p = all[key] = fresh();
     const today = dayKey();
-    if (p.day !== today) { p.day = today; p.dayStats = {}; p.quests = questsFor(key, today); p.done = []; }
+    if (p.day !== today) { p.day = today; p.dayStats = {}; p.quests = questsFor(key, today, quests); p.done = []; }
+    p.quests = p.quests.filter(id => QUEST[id]);
     return p;
   }
   const isGuest = id => typeof id === "string" && /^[0-9a-f]{32}$/.test(id);
   const newGuest = () => crypto.randomBytes(16).toString("hex");
-  const levelOf = p => LEVEL_AT[Math.min(p.tier, TIERS.length - 1)];
+  const levelOf = p => levels[Math.min(p.tier, TIERS.length - 1)];
 
   /* what the page shows */
   function view(key) {
     // looking never creates a profile: only a finished match does
-    const p = key && all[key] ? get(key) : { ...fresh(), day: dayKey(), quests: questsFor(String(key), dayKey()) };
+    const p = key && all[key] ? get(key) : { ...fresh(), day: dayKey(), quests: questsFor(String(key), dayKey(), quests) };
     return { level: p.level, xp: p.xp, next: xpForLevel(p.level), tier: TIERS[p.tier], tierIndex: p.tier, stars: p.stars, maxStars: STARS, streak: p.streak, best: p.best,
       wins: p.wins, games: p.games, firstWinReady: p.firstWin !== p.day,
       quests: p.quests.map(id => ({ id, text: QUEST[id].text, n: QUEST[id].n, at: Math.min(QUEST[id].n, p.dayStats[QUEST[id].stat] || 0), xp: QUEST[id].xp, done: p.done.includes(id) })) };
@@ -92,8 +94,8 @@ function create({ dir = null, log = () => {} } = {}) {
     }
     // the day's quests
     const st = p.dayStats, add = (k, n) => { if (n > 0) st[k] = (st[k] || 0) + n; };
-    add("games", 1); if (won) add("wins", 1); if (won && r.turns <= 14) add("fastWins", 1);
-    for (const k of ["beings", "spells", "face", "kills", "big", "flyers"]) add(k, Math.max(0, Math.floor((r.stats || {})[k] || 0)));
+    add("games", 1); if (won) add("wins", 1); if (won && r.turns != null && r.turns <= 14) add("fastWins", 1);
+    for (const [k, v] of Object.entries(r.stats || {})) if (!["games", "wins"].includes(k)) add(k, Math.max(0, Math.floor(Number(v) || 0)));
     const completed = [];
     for (const id of p.quests) { const q = QUEST[id]; if (!p.done.includes(id) && (st[q.stat] || 0) >= q.n) { p.done.push(id); xp += q.xp; completed.push({ id, text: q.text, xp: q.xp }); } }
     // xp and levels
