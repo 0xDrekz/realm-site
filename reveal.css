@@ -1,0 +1,89 @@
+/* ============================================================
+   The mint reveal: a psychedelic package shakes, bursts open in a cloud
+   of coloured smoke, and the card lifts out and turns to show the being.
+   ============================================================ */
+.rv{position:fixed;inset:0;z-index:100;display:grid;place-items:center;overflow:hidden;background:#03010a;
+  font-family:'Pixelify Sans',system-ui,sans-serif;color:#f4efe4;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;animation:rvIn .35s ease-out both}
+@keyframes rvIn{from{opacity:0}}
+.rv.out{animation:rvOut .3s ease-in both}
+@keyframes rvOut{to{opacity:0}}
+
+/* the trip in the background: two slow counter-turning swirls, shifting colour */
+.rv-sky{position:absolute;inset:-50%;background:
+  repeating-conic-gradient(from 0deg,rgba(197,107,255,.22) 0 7deg,rgba(255,90,200,.10) 7deg 14deg,rgba(80,230,255,.16) 14deg 21deg,transparent 21deg 30deg);
+  animation:rvSpin 26s linear infinite,rvHue 9s linear infinite;-webkit-mask:radial-gradient(circle,#000 0,#000 25%,transparent 62%);mask:radial-gradient(circle,#000 0,#000 25%,transparent 62%)}
+.rv-sky.b{inset:-40%;animation:rvSpin 18s linear infinite reverse,rvHue 7s linear infinite reverse;opacity:.6;
+  background:repeating-radial-gradient(circle,rgba(255,220,120,.12) 0 14px,transparent 14px 40px)}
+.rv-glow{position:absolute;width:120vmin;height:120vmin;border-radius:50%;background:radial-gradient(circle,rgba(197,107,255,.35),rgba(255,80,190,.12) 35%,transparent 65%);animation:rvHue 6s linear infinite}
+@keyframes rvSpin{to{transform:rotate(360deg)}}
+@keyframes rvHue{to{filter:hue-rotate(360deg)}}
+.rv canvas{position:absolute;inset:0;z-index:1;width:100%;height:100%;pointer-events:none}
+.rv-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.rv-flash.go{animation:rvFlash .7s ease-out}
+@keyframes rvFlash{0%{opacity:.5}100%{opacity:0}}
+
+/* the stage: box behind, card in the middle, box front over it */
+.rv-stage{position:relative;z-index:2;width:min(72vw,300px);height:min(118vw,500px);perspective:1100px}
+.rv-box{position:absolute;left:4%;right:4%;bottom:0;height:46%}
+.rv-boxin{position:absolute;inset:0;transform-origin:50% 100%}
+.rv-boxin.drop{animation:rvDrop .7s cubic-bezier(.3,1.4,.5,1) both}
+@keyframes rvDrop{from{transform:translateY(-120vh) rotate(-8deg)}}
+.rv-boxin.shake{animation:rvShake .5s linear infinite}
+.rv-boxin.shake2{animation:rvShake .22s linear infinite}
+@keyframes rvShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-3deg) translateX(-3px)}75%{transform:rotate(3deg) translateX(3px)}}
+.rv-front,.rv-back{position:absolute;left:0;right:0;bottom:0;height:78%;border:4px solid #fff1c2;box-shadow:0 0 0 3px #000,inset 0 0 30px rgba(0,0,0,.5);overflow:hidden}
+.rv-back{z-index:1;background:#1a0a2e;height:84%}
+.rv-front{z-index:5;background:conic-gradient(from 0deg,#ff5ad2,#c56bff,#5cf0ff,#7dff9a,#ffe35c,#ff8a3c,#ff5ad2);animation:rvHue 3s linear infinite}
+.rv-front::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(0,0,0,.28) 0 10px,transparent 10px 20px),repeating-radial-gradient(circle at 50% 40%,transparent 0 12px,rgba(255,255,255,.18) 12px 15px)}
+.rv-front::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:18%;margin-left:-9%;background:linear-gradient(90deg,#a87a22,#fff1c2,#a87a22);box-shadow:0 0 0 2px #000}
+.rv-seal{position:absolute;left:50%;top:50%;z-index:6;width:62px;height:62px;margin:-31px;display:grid;place-items:center;background:#140a02;border:3px solid #fff1c2;box-shadow:0 0 0 3px #000,0 0 24px rgba(255,241,194,.8);border-radius:50%}
+.rv-seal img{width:42px;height:42px}
+.rv-lid{position:absolute;z-index:7;left:-5%;right:-5%;top:6%;height:22%;border:4px solid #fff1c2;box-shadow:0 0 0 3px #000;
+  background:conic-gradient(from 90deg,#5cf0ff,#c56bff,#ff5ad2,#ffe35c,#7dff9a,#5cf0ff);animation:rvHue 3s linear infinite;transform-origin:10% 100%}
+.rv-lid::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:17%;margin-left:-8.5%;background:linear-gradient(90deg,#a87a22,#fff1c2,#a87a22);box-shadow:0 0 0 2px #000}
+.rv-lid.fly{animation:rvLid .9s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes rvLid{to{transform:translate(-55vw,-75vh) rotate(-260deg);opacity:0}}
+/* light leaking through the seams while it shakes */
+.rv-leak{position:absolute;z-index:8;left:0;right:0;top:27%;height:6px;background:#fff;box-shadow:0 0 18px 6px #fff1c2,0 0 40px 14px rgba(197,107,255,.8);opacity:0;transition:opacity .4s}
+.rv-leak.on{opacity:1;animation:rvLeak .18s steps(2) infinite}
+@keyframes rvLeak{50%{opacity:.6}}
+.rv-beam{position:absolute;z-index:2;left:10%;right:10%;bottom:30%;height:0;background:linear-gradient(0deg,rgba(255,241,194,.85),rgba(197,107,255,.35) 60%,transparent);filter:blur(6px);transition:height .8s ease-out}
+.rv-beam.on{height:140%}
+
+/* the card */
+.rv-card{position:absolute;z-index:3;left:12%;right:12%;bottom:8%;aspect-ratio:3/4.2;transform-style:preserve-3d;transform:translateY(0) scale(.62);opacity:0}
+.rv-card.rise{opacity:1;transition:transform 1.25s cubic-bezier(.17,.84,.3,1),opacity .2s;transform:translateY(-62%) scale(1.06)}
+.rv-card.up{z-index:9}
+.rv-card.flip{transition:transform .95s cubic-bezier(.4,0,.2,1);transform:translateY(-62%) scale(1.06) rotateY(180deg)}
+.rv-card.done{animation:rvFloat 3s ease-in-out infinite}
+@keyframes rvFloat{0%,100%{transform:translateY(-62%) scale(1.06) rotateY(180deg)}50%{transform:translateY(-65%) scale(1.06) rotateY(180deg)}}
+.rv-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border:4px solid var(--tc,#fff1c2);box-shadow:0 0 0 3px #000,0 0 50px var(--tg,rgba(255,241,194,.5));overflow:hidden;background:#07040f}
+.rv-cb{background:conic-gradient(from 45deg,#2a0f4a,#140a26,#2a0f4a,#140a26,#2a0f4a);display:grid;place-items:center}
+.rv-cb::before{content:"";position:absolute;inset:10px;border:2px solid rgba(227,186,92,.6);background:repeating-conic-gradient(rgba(227,186,92,.14) 0 6deg,transparent 6deg 18deg)}
+.rv-cb img{position:relative;width:46%;filter:drop-shadow(0 0 16px rgba(197,107,255,.9))}
+.rv-cf{transform:rotateY(180deg);display:flex;flex-direction:column}
+.rv-art{position:relative;flex:1;background:#000}
+.rv-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:auto}
+.rv-art::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.35) 48%,transparent 60%);background-size:260% 100%;animation:rvSheen 2.8s ease-in-out infinite}
+@keyframes rvSheen{from{background-position:130% 0}to{background-position:-130% 0}}
+.rv-info{padding:10px 12px 12px;background:linear-gradient(180deg,#140a26,#07040f);border-top:3px solid var(--tc,#fff1c2)}
+.rv-info b{display:block;font-size:clamp(1rem,4.6vw,1.3rem);line-height:1.15}
+.rv-info i{display:flex;justify-content:space-between;margin-top:4px;font-style:normal;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--tc,#fff1c2)}
+.rv-info i span{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;letter-spacing:.02em;color:#cfc4ee}
+
+/* the words */
+.rv-tier{position:absolute;left:0;right:0;top:calc(44px + env(safe-area-inset-top));z-index:12;text-align:center;font-weight:700;font-size:clamp(2rem,10vw,3.2rem);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--tc,#fff1c2);text-shadow:0 0 30px var(--tg,rgba(255,241,194,.6)),4px 4px 0 #000;opacity:0;pointer-events:none}
+.rv-tier small{display:block;font-size:.34em;letter-spacing:.3em;color:#f4efe4}
+.rv-tier.go{animation:rvSlam .55s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes rvSlam{from{opacity:0;transform:scale(2.4)}to{opacity:1;transform:scale(1)}}
+.rv-hint{position:absolute;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));z-index:12;text-align:center;font-size:1rem;letter-spacing:.24em;text-transform:uppercase;color:#fff1c2;text-shadow:2px 2px 0 #000;animation:rvBlink 1s steps(2) infinite}
+@keyframes rvBlink{50%{opacity:.35}}
+.rv-acts{position:absolute;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:12;display:flex;gap:10px;max-width:420px;margin:0 auto;opacity:0;transform:translateY(20px);transition:opacity .4s,transform .4s;pointer-events:none}
+.rv-acts.on{opacity:1;transform:none;pointer-events:auto}
+.rv-acts button,.rv-acts a{flex:1;padding:14px 8px;font:inherit;font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:.9rem;text-align:center;text-decoration:none;cursor:pointer;border:0}
+.rv-go{color:#1a1206;background:linear-gradient(180deg,#f2d27e,#e3ba5c);box-shadow:0 0 0 2px #000,0 4px 0 2px #000}
+.rv-ghost{color:#f4efe4;background:rgba(7,4,15,.85);box-shadow:inset 0 0 0 1px rgba(227,186,92,.5)}
+.rv-count{position:absolute;top:calc(14px + env(safe-area-inset-top));left:0;right:0;z-index:12;text-align:center;font-size:.8rem;letter-spacing:.24em;text-transform:uppercase;color:#cfc4ee}
+.rv-skip{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:13;padding:8px 12px;font:inherit;font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:#cfc4ee;background:rgba(7,4,15,.7);border:1px solid rgba(227,186,92,.4);cursor:pointer}
+@media (prefers-reduced-motion:reduce){.rv-sky,.rv-glow,.rv-front,.rv-lid{animation:none}.rv-boxin.shake,.rv-boxin.shake2{animation:none}}

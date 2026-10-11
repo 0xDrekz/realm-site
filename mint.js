@@ -100,6 +100,8 @@
       });
       $("[data-got]").hidden = false;
       const okN = out.filter(r => r.ok).length;
+      // the reveal: a package, smoke, and the card turning round (only what's on screen; the mint is already done)
+      if (okN && window.RealmReveal) { try { await window.RealmReveal.play(out.filter(r => r.ok)); } catch (e) { /* the grid still shows them */ } }
       state(okN ? "<b>" + okN + " being" + (okN > 1 ? "s" : "") + " crossed.</b>" : "Nothing crossed.");
     } catch (e) {
       const m = (e && e.message) || "";
