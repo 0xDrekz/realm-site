@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05020c">
+<title>League Table · BREAKTHROUGH</title>
+<meta name="description" content="The live BREAKTHROUGH league table: the highest Daily Trip score this week wins the prize. Free to enter.">
+<meta property="og:title" content="BREAKTHROUGH League Table">
+<meta property="og:description" content="Live standings. Highest Daily Trip score this week wins. Free to enter.">
+<meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Pixelify Sans";src:url("fonts/pixelify-sans.woff2") format("woff2");font-weight:400 700;font-display:swap}
+@font-face{font-family:"Space Grotesk";src:url("fonts/space-grotesk.woff2") format("woff2");font-weight:300 700;font-display:swap}
+:root{--void:#05020c;--ink:#0d0819;--line:rgba(227,186,92,.28);--gold:#e3ba5c;--gold2:#fff1c2;--bone:#f4efe4;--dim:#a597cf;--faint:#6d6192;--cy:#5cf0ff;--mg:#ff4fc3;
+  --px:"Pixelify Sans",system-ui,sans-serif;--num:"Space Grotesk",system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--void);color:var(--bone);font-family:var(--px);-webkit-font-smoothing:antialiased}
+body{background:radial-gradient(ellipse 80% 45% at 50% 0%,rgba(92,240,255,.16),transparent 70%),radial-gradient(ellipse 70% 40% at 50% 100%,rgba(197,107,255,.14),transparent 70%),var(--void);min-height:100vh}
+a{color:inherit}
+.num{font-family:var(--num);font-weight:700}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px calc(32px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 0 6px}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;letter-spacing:.22em;margin-right:auto}
+.brand img{width:30px;height:30px}
+.top .back{font-size:.82rem;color:var(--dim);text-decoration:none}
+.hero{margin-top:16px;text-align:center}
+.kick{margin:0;font-size:.74rem;letter-spacing:.32em;color:var(--cy)}
+h1{margin:6px 0 0;font-size:clamp(2.3rem,10vw,3.6rem);line-height:.95;color:var(--gold);text-shadow:0 0 26px rgba(255,200,90,.4),4px 4px 0 #7a5414,8px 8px 0 #000}
+.prize{display:inline-flex;align-items:baseline;gap:10px;margin-top:16px;padding:12px 22px;border:2px solid var(--cy);background:linear-gradient(135deg,#06303c,#14072a 60%,#3c0830);box-shadow:0 0 30px -6px rgba(92,240,255,.8)}
+.prize b{font-family:var(--num);font-size:2.4rem;color:var(--gold2)}
+.prize span{font-size:1rem;letter-spacing:.14em;color:var(--cy)}
+.when{margin:12px 0 0;font-family:var(--num);color:var(--dim);font-size:.95rem}
+.clock{display:flex;justify-content:center;gap:8px;margin-top:12px}
+.clock div{min-width:66px;padding:8px 6px;background:var(--ink);border:1px solid var(--line)}
+.clock b{display:block;font-family:var(--num);font-size:1.6rem;color:var(--gold2)}
+.clock span{font-size:.6rem;letter-spacing:.24em;color:var(--faint)}
+.tabs{display:flex;gap:8px;margin:26px 0 10px}
+.tabs button{flex:1;padding:10px;font:inherit;letter-spacing:.1em;color:var(--bone);background:rgba(13,8,25,.8);border:1px solid var(--line);cursor:pointer}
+.tabs button.on{background:var(--gold);color:#140a02;border-color:var(--gold)}
+table{width:100%;border-collapse:separate;border-spacing:0 5px}
+th{font-size:.62rem;letter-spacing:.22em;color:var(--faint);text-align:left;padding:0 10px;font-weight:400}
+th.r,td.r{text-align:right}
+td{padding:11px 10px;background:rgba(13,8,25,.86);font-family:var(--num);font-size:.95rem}
+td:first-child{width:48px;font-weight:700;color:var(--faint);border-left:3px solid transparent}
+td.w{font-weight:600;word-break:break-all}
+td.l{color:var(--dim);font-size:.82rem;white-space:nowrap}
+td.s{font-weight:700;color:var(--gold2);font-size:1.05rem;white-space:nowrap}
+tr.p1 td{background:linear-gradient(90deg,rgba(253,230,138,.22),rgba(13,8,25,.86) 70%)}
+tr.p1 td:first-child{border-left-color:#fde68a;color:#fde68a}
+tr.p2 td:first-child{border-left-color:#d1d5db;color:#d1d5db}
+tr.p3 td:first-child{border-left-color:#d97706;color:#f59e0b}
+tr.you td{outline:2px solid var(--cy);outline-offset:-2px}
+.medal{display:inline-block;margin-left:6px;padding:1px 6px;font-family:var(--px);font-size:.62rem;letter-spacing:.12em;background:#fde68a;color:#140a02;vertical-align:middle}
+.empty{padding:22px;text-align:center;font-family:var(--num);color:var(--dim);background:rgba(13,8,25,.8);border:1px dashed var(--line)}
+.you-line{margin:10px 0 0;text-align:center;font-family:var(--num);color:var(--cy)}
+.rules{margin:22px 0 0;padding:14px 16px;font-family:var(--num);font-size:.86rem;line-height:1.5;color:var(--dim);background:rgba(13,8,25,.8);border-left:3px solid var(--cy)}
+.rules b{color:var(--gold2)}
+.cta{display:block;margin:22px 0 0;padding:16px;text-align:center;text-decoration:none;font-weight:700;font-size:1.2rem;letter-spacing:.18em;color:#140a02;background:linear-gradient(180deg,#f2d27e,#e3ba5c);box-shadow:inset 0 3px 0 #fff1c2,inset 0 -4px 0 #a87a22,0 0 0 2px #000,0 6px 0 2px #000}
+.at{margin:12px 0 0;text-align:center;font-family:var(--num);font-size:.75rem;color:var(--faint)}
+.err{color:#ff8a9a}
+@media(max-width:480px){td{padding:10px 7px;font-size:.88rem}td:first-child{width:38px}.clock div{min-width:58px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="brand" href="/"><img src="logo-bar.png" alt="">REALM</a><a class="back" href="/breakthrough">Play BREAKTHROUGH</a></header>
+
+  <div class="hero">
+    <p class="kick" data-kick>BREAKTHROUGH · LEAGUE TABLE</p>
+    <h1 data-title>Daily Trip Week</h1>
+    <div class="prize" data-prizebox hidden><b data-prize>1 SOL</b><span>TO THE WINNER</span></div>
+    <p class="when" data-when></p>
+    <div class="clock" data-clock hidden>
+      <div><b data-d>0</b><span>DAYS</span></div><div><b data-h>0</b><span>HRS</span></div><div><b data-m>0</b><span>MIN</span></div><div><b data-s>0</b><span>SEC</span></div>
+    </div>
+  </div>
+
+  <div class="tabs"><button class="on" data-tab="comp">This week</button><button data-tab="today">Today's Daily Trip</button></div>
+  <div data-table><div class="empty">Loading the table…</div></div>
+  <p class="you-line" data-you hidden></p>
+
+  <div class="rules" data-rules></div>
+  <a class="cta" href="/breakthrough">Play the Daily Trip</a>
+  <p class="at" data-at></p>
+</div>
+<script>
+(() => {
+  "use strict";
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = n => Math.round(n).toLocaleString("en-GB");
+  const day = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  const session = () => { try { const s = JSON.parse(localStorage.getItem("realm-tcg-session") || "null"); return s && Date.now() - s.at < 23 * 3600e3 ? s : null; } catch { return null; } };
+  let D = null, tab = "comp";
+
+  function rows(list, compMode) {
+    if (!list.length) return `<div class="empty">${compMode ? "No entries yet. Connect a wallet in the game and play the Daily Trip to take first place." : "Nobody has played today's Daily Trip yet."}</div>`;
+    return `<table><thead><tr><th>#</th><th>${compMode ? "Wallet" : "Player"}</th><th class="r">Layers</th><th class="r">Score</th></tr></thead><tbody>`
+      + list.map((r, i) => `<tr class="${i < 3 ? "p" + (i + 1) : ""}${r.you ? " you" : ""}"><td>${i + 1}</td><td class="w">${esc(r.wallet || r.name)}${compMode && i === 0 && D.comp.over ? '<span class="medal">WINNER</span>' : ""}${r.you ? ' <span class="medal" style="background:#5cf0ff">YOU</span>' : ""}</td><td class="r l">${r.cleared}</td><td class="r s">${fmt(r.total)}</td></tr>`).join("")
+      + "</tbody></table>";
+  }
+  function paint() {
+    if (!D) return;
+    const c = D.comp;
+    $$("[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+    if (c) {
+      $("[data-title]").textContent = c.title;
+      $("[data-prizebox]").hidden = false; $("[data-prize]").textContent = c.prize;
+      $("[data-when]").textContent = c.over ? `Finished ${day(c.end)} · ${c.players} wallet${c.players === 1 ? "" : "s"} entered` : `${day(c.start)} to ${day(c.end)}, ends 23:59 UTC · ${c.players} wallet${c.players === 1 ? "" : "s"} entered`;
+      $("[data-rules]").innerHTML = `<b>How it works.</b> ${esc(c.rules || "")}${c.over ? " The winner's full address is shown so anyone can check the prize was paid." : ""}`;
+    } else {
+      $("[data-title]").textContent = "Daily Trip";
+      $("[data-when]").textContent = "No competition running right now. Today's best runs are below.";
+      $("[data-rules]").innerHTML = "<b>Daily Trip:</b> the same deck and the same luck for everyone, all day. Your best run counts.";
+      tab = "today"; $("[data-tab=comp]").hidden = true;
+    }
+    if (tab === "comp" && c) {
+      $("[data-table]").innerHTML = rows(c.top, true);
+      const y = $("[data-you]");
+      y.hidden = !c.you || c.you.rank <= c.top.length;
+      if (c.you) y.textContent = `You're #${c.you.rank} with ${fmt(c.you.total)}`;
+    } else { $("[data-table]").innerHTML = rows(D.today, false); $("[data-you]").hidden = true; }
+    $("[data-at]").textContent = "Live · updated " + new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+  function tick() {
+    const c = D && D.comp, el = $("[data-clock]");
+    if (!c || c.over || !c.live) { el.hidden = true; return; }
+    const ms = Math.max(0, c.endsAt - Date.now()); el.hidden = false;
+    $("[data-d]").textContent = Math.floor(ms / 864e5); $("[data-h]").textContent = Math.floor(ms / 36e5) % 24;
+    $("[data-m]").textContent = Math.floor(ms / 6e4) % 60; $("[data-s]").textContent = Math.floor(ms / 1e3) % 60;
+  }
+  async function load() {
+    try {
+      const s = session();
+      const r = await fetch("/api/bt/league", { headers: s ? { Authorization: "Bearer " + s.token } : {} });
+      D = await r.json(); paint(); tick();
+    } catch { $("[data-at]").innerHTML = '<span class="err">Couldn\'t reach the realm. Retrying…</span>'; }
+  }
+  $$("[data-tab]").forEach(b => b.addEventListener("click", () => { tab = b.dataset.tab; paint(); }));
+  load(); setInterval(load, 30000); setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

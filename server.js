@@ -437,6 +437,7 @@ function route(req, res) {
   if (urlPath === "/holders") urlPath = "/holders.html";
   if (urlPath === "/left" || urlPath === "/tracker") urlPath = "/left.html";
   if (urlPath === "/breakthrough" || urlPath === "/bt") urlPath = "/bt.html";
+  if (urlPath === "/league") urlPath = "/league.html";
   if (urlPath === "/map") urlPath = "/map.html";
   if (urlPath === "/mint") urlPath = "/mint.html";
   if (urlPath === "/owner") urlPath = "/owner.html";
@@ -624,6 +625,7 @@ function route(req, res) {
       res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "public, max-age=600", "Vary": "Accept-Encoding", ...(gz ? { "Content-Encoding": "gzip" } : {}) });
       return res.end(gz ? c.gz : c.json);
     }
+    if (urlPath === "/api/bt/league") return send(200, BT.league({ token: bearer(req) }));
     if (urlPath === "/api/bt/board") { const pid = new URL(req.url, "http://x").searchParams.get("pid"); return send(200, BT.board({ token: bearer(req), pid })); }
     if (urlPath === "/api/bt/summons") { BT.summonable().then(d => send(200, d)).catch(() => send(503, { error: "Couldn't read the chain just now." })); return; }
     const fn = { "/api/bt/start": BT.start, "/api/bt/finish": BT.finish, "/api/bt/me": BT.me }[urlPath];

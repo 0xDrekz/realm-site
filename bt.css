@@ -61,7 +61,8 @@ section{position:relative;z-index:1}
 .bt-ghost{padding:12px 10px;background:rgba(13,8,25,.8);border:1px solid var(--line);color:var(--bone);letter-spacing:.1em;text-align:center;text-decoration:none;display:block}
 .bt-ghost.small{padding:9px 12px;font-size:.85rem;display:inline-block}
 .bt-ghost.wide,.bt-btn.wide{width:100%;margin-top:10px}
-.bt-link{background:none;border:0;color:var(--dim);text-decoration:underline;font-size:.82rem;margin-top:10px}
+.bt-league{margin-top:10px;border-color:var(--chips);color:var(--chips)}
+.bt-link{display:inline-block;background:none;border:0;color:var(--dim);text-decoration:underline;font-size:.82rem;margin-top:10px}
 .bt-wallet{margin-top:18px;padding:14px;background:rgba(13,8,25,.7);border:1px solid var(--line);text-align:center}
 .bt-wallet p{margin:0 0 10px;color:var(--dim);font-family:var(--num);font-size:.85rem;line-height:1.4}
 .bt-wallet p b{color:var(--gold2)}

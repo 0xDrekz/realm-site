@@ -71,3 +71,12 @@ test("the competition counts a signed-in wallet's best Daily Trip, and not guest
   assert.equal(rf.result.comp, undefined);   // Free Runs don't count
   const none = G.create({ comp: null }); assert.equal(none.board({}).comp, null);
 });
+
+test("the league table lists the whole competition and today's runs", async () => {
+  const day = new Date().toISOString().slice(0, 10);
+  const g = G.create({ beings: async () => [], walletOf: t => t === "tok" ? W : null, comp: { id: "L", title: "League", prize: "1 SOL", start: day, end: day } });
+  const a = await g.start({ mode: "daily", token: "tok" });
+  await later(() => g.finish({ run: a.run, moves: playThrough(a).moves }));
+  const L = g.league({ token: "tok" });
+  assert.equal(L.comp.top.length, 1); assert.ok(L.comp.top[0].you); assert.equal(L.today.length, 1); assert.equal(L.todayPlayers, 1);
+});

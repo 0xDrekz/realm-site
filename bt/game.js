@@ -143,14 +143,14 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     const rows = ranked(book), i = rows.findIndex(x => x.key === r.wallet);
     return { entered: true, best: better, rank: i + 1, of: rows.length };
   }
-  function compView(wallet) {
+  function compView(wallet, limit = 10) {
     if (!comp) return null;
     const rows = ranked(B.comps[comp.id] || {}), day = dayKey(), over = day > comp.end;
     const i = wallet ? rows.findIndex(x => x.key === wallet) : -1;
     return { title: comp.title, prize: comp.prize, start: comp.start, end: comp.end, rules: comp.rules,
       endsAt: Date.parse(comp.end + "T23:59:59Z"), live: inComp(day), over, players: rows.length,
       // the winner's full address is shown once it's over, so anyone can check the prize was paid
-      top: rows.slice(0, 10).map((x, k) => ({ name: short(x.key), wallet: over && k === 0 ? x.key : undefined, total: x.total, cleared: x.cleared, you: x.key === wallet })),
+      top: rows.slice(0, limit).map((x, k) => ({ name: short(x.key), wallet: over && k === 0 ? x.key : undefined, total: x.total, cleared: x.cleared, you: x.key === wallet })),
       you: i < 0 ? null : { rank: i + 1, total: rows[i].total } };
   }
   const ranked = book => Object.entries(book).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.total - a.total || a.at - b.at);
@@ -187,7 +187,13 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     return out;
   }
 
-  return { start, finish, board, summonable, me, cards, dailyDef, live: () => runs.size,
+  /* the league table page: the whole competition table, plus today's Daily Trip */
+  function league({ token } = {}) {
+    const wallet = walletOf(token), rows = ranked(B.days[dayKey()] || {});
+    return { comp: compView(wallet, 100), today: rows.slice(0, 20).map(x => ({ name: x.name, total: x.total, cleared: x.cleared })), todayPlayers: rows.length };
+  }
+
+  return { start, finish, board, league, summonable, me, cards, dailyDef, live: () => runs.size,
     flush: () => { liveFile && liveFile.flush(); boardFile && boardFile.flush(); } };
 }
 

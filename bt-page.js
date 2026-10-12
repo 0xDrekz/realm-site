@@ -467,7 +467,7 @@
       const info = `<div class="bt-compinfo"><b>${esc(v.title)}: ${esc(v.prize)} to the winner.</b> ${esc(v.rules || "")}</div>`;
       const rows = v.top.length ? `<div class="bt-rows">${v.top.map((r, i) => `<div class="${r.you ? "you" : ""}"><i>${i + 1}</i><span>${esc(r.wallet || r.name)}<small>${r.cleared} layer${r.cleared === 1 ? "" : "s"}</small></span><b>${fmt(r.total)}</b></div>`).join("")}</div>`
         : '<p class="bt-sub">No entries yet. Sign in with a wallet and play the Daily Trip to be first.</p>';
-      box.innerHTML = info + rows + (v.you && v.you.rank > 10 ? `<p class="bt-sub">You: #${v.you.rank} with ${fmt(v.you.total)}</p>` : "");
+      box.innerHTML = info + rows + (v.you && v.you.rank > 10 ? `<p class="bt-sub">You: #${v.you.rank} with ${fmt(v.you.total)}</p>` : "") + '<a class="bt-ghost wide bt-league" href="/league">Full league table ›</a>';
       return;
     }
     $$("[data-btab]").forEach(b => b.classList.toggle("on", b.dataset.btab === tab));
