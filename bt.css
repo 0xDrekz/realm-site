@@ -12,7 +12,7 @@
   --cw:76px;--ch:112px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:var(--void);color:var(--bone);font-family:var(--px);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+html,body{touch-action:manipulation;margin:0;height:100%;background:var(--void);color:var(--bone);font-family:var(--px);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 body{overflow-x:hidden}
 button{font:inherit;color:inherit;cursor:pointer}
 [hidden]{display:none!important}
@@ -67,6 +67,7 @@ section{position:relative;z-index:1}
 .bt-err{color:#ff8a9a!important}
 
 /* ---------- a card ---------- */
+.bt-card,.bt-card *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .bt-card{width:var(--cw);height:var(--ch);position:relative;background:#07040f;border:3px solid var(--tc,#9ca3af);
   box-shadow:0 0 0 2px #000,3px 4px 0 2px #000;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;
   transition:transform .18s cubic-bezier(.3,1.4,.5,1),box-shadow .18s}

@@ -232,15 +232,19 @@
     });
     paintPick();
   }
-  function bindCard(el, hi) {
-    let t = null, long = false;
-    const down = () => { long = false; t = setTimeout(() => { long = true; showCard(R.S.hand[hi]); }, 450); };
-    const up = e => { clearTimeout(t); if (long) { e.preventDefault(); return; } toggle(hi, el); };
-    el.addEventListener("pointerdown", down);
-    el.addEventListener("pointerup", up);
-    el.addEventListener("pointerleave", () => clearTimeout(t));
+  /* a tap selects; only a deliberate hold (a still finger for 0.7 s) opens the card's details */
+  const HOLD_MS = 700, SLOP = 10;
+  function press(el, onTap, onHold) {
+    let t = null, held = false, x0 = 0, y0 = 0, live = false;
+    const cancel = () => { clearTimeout(t); live = false; };
+    el.addEventListener("pointerdown", e => { held = false; live = true; x0 = e.clientX; y0 = e.clientY; clearTimeout(t); t = setTimeout(() => { if (live) { held = true; live = false; onHold(); } }, HOLD_MS); });
+    el.addEventListener("pointermove", e => { if (live && Math.hypot(e.clientX - x0, e.clientY - y0) > SLOP) cancel(); });
+    el.addEventListener("pointerup", e => { const tap = live && !held; cancel(); if (held) { e.preventDefault(); return; } if (tap) onTap(); });
+    el.addEventListener("pointercancel", cancel);
+    el.addEventListener("pointerleave", cancel);
     el.addEventListener("contextmenu", e => e.preventDefault());
   }
+  function bindCard(el, hi) { press(el, () => toggle(hi, el), () => showCard(R.S.hand[hi])); }
   function toggle(hi, el) {
     if (R.busy || R.S.phase !== "play") return;
     const i = R.sel.indexOf(hi);
@@ -355,10 +359,7 @@
     S.offer.forEach((n, i) => {
       const b = document.createElement("button"); b.appendChild(cardEl(n, { big: true }));
       const w = document.createElement("span"); w.className = "why"; w.textContent = card(n).name + " · " + why(n); b.appendChild(w);
-      let t = null, long = false;
-      b.addEventListener("pointerdown", () => { long = false; t = setTimeout(() => { long = true; showCard(n); }, 450); });
-      b.addEventListener("pointerup", () => { clearTimeout(t); if (!long) take(i); });
-      b.addEventListener("contextmenu", e => e.preventDefault());
+      press(b, () => take(i), () => showCard(n));
       box.appendChild(b);
     });
     $("[data-draft]").hidden = false;
@@ -464,11 +465,16 @@
   /* ---------- first game: a nudge ---------- */
   function coach() {
     const c = $("[data-coach]");
-    c.innerHTML = "Tap cards with the <b>same coloured gem</b> (their Aura), then <b>CAST</b>. More of one Aura = a bigger hand. Hold a card to read its powers.";
+    c.innerHTML = "Tap cards with the <b>same coloured gem</b> (their Aura), then <b>CAST</b>. More of one Aura = a bigger hand. Press and hold a card to read its powers.";
     c.hidden = false;
   }
   function coachDone() { if (!$("[data-coach]").hidden) { $("[data-coach]").hidden = true; store.set("coached", true); } }
 
+  // no pinch or double-tap zoom on the game (iPhone ignores user-scalable=no on its own)
+  document.addEventListener("gesturestart", e => e.preventDefault());
+  document.addEventListener("dblclick", e => e.preventDefault());
+  let lastTouch = 0;
+  document.addEventListener("touchend", e => { const now = Date.now(); if (now - lastTouch < 350 && e.target.closest(".bt-game, .bt-sheet")) e.preventDefault(); lastTouch = now; }, { passive: false });
   window.addEventListener("resize", () => { if (R && !$("[data-screen=game]").hidden) renderHand(false); });
   loadCards().then(paintLobby).catch(() => {});
   paintLobby(); loadMe(); loadBoard();
