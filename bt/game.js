@@ -24,16 +24,21 @@ const TTL = 3 * 3600e3, MAX_RUNS = 20000, PER_OWNER = 3, DECK = 20, OWN_IN_DECK 
    between two dates wins a prize from the team's own funds. Free to enter, always. */
 function loadComp() { try { return JSON.parse(require("fs").readFileSync(path.join(__dirname, "comp.json"), "utf8")); } catch { return null; } }
 
-function create({ log = () => {}, beings = async () => [], walletOf = () => null, dir = null, comp = loadComp() } = {}) {
+/* announce(html, links): posts to the Telegram group (bot.js postHtml). A new leader in the competition is
+   posted at most once every POST_GAP_MS (the latest leader goes out when the gap is up), and the final
+   result once, when the competition is over. */
+const POST_GAP_MS = 10 * 60e3;
+
+function create({ log = () => {}, beings = async () => [], walletOf = () => null, dir = null, comp = loadComp(), announce = null } = {}) {
   const jf = file => dir ? require("../jsonfile").create(path.join(dir, file), { log: m => log("breakthrough: " + m), fallback: {} }) : null;
   const liveFile = jf("bt-live.json"), boardFile = jf("bt-board.json");
   let saved = {}; try { saved = liveFile ? liveFile.load() || {} : {}; } catch (e) { log("breakthrough: live runs could not be read, starting fresh: " + e.message); }
   const runs = new Map(Object.entries(saved));
   const saveLive = () => { if (liveFile) liveFile.save(() => { tidy(); return Object.fromEntries(runs); }); };
   let B = {}; try { B = boardFile ? boardFile.load() || {} : {}; } catch (e) { log("breakthrough: board could not be read, starting fresh: " + e.message); }
-  B.days = B.days || {}; B.weeks = B.weeks || {}; B.summons = B.summons || {}; B.comps = B.comps || {};
+  B.days = B.days || {}; B.weeks = B.weeks || {}; B.summons = B.summons || {}; B.comps = B.comps || {}; B.posted = B.posted || {};
   const trim = (o, k) => Object.fromEntries(Object.keys(o).sort().slice(-k).map(x => [x, o[x]]));
-  const saveBoard = () => { if (boardFile) boardFile.save(() => (B = { days: trim(B.days, 10), weeks: trim(B.weeks, 6), summons: trim(B.summons, 10), comps: B.comps })); };
+  const saveBoard = () => { if (boardFile) boardFile.save(() => (B = { days: trim(B.days, 10), weeks: trim(B.weeks, 6), summons: trim(B.summons, 10), comps: B.comps, posted: B.posted })); };
   const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
   const weekKey = (d = new Date()) => { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); return m.toISOString().slice(0, 10); };
   function tidy() { const now = Date.now(); for (const [k, r] of runs) if (now - r.at > TTL) runs.delete(k); }
@@ -142,6 +147,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     saveBoard();
     if (isTeam(r.wallet)) return { entered: true, team: true, best: better };
     const rows = ranked(book).filter(x => !isTeam(x.key)), i = rows.findIndex(x => x.key === r.wallet);
+    if (i === 0 && better) leaderNews();
     return { entered: true, best: better, rank: i + 1, of: rows.length };
   }
   // the team's own wallets play like anyone, but can't win the prize: they're shown, unranked
@@ -158,6 +164,46 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
         return { name: short(x.key), rank: r, team, wallet: over && r === 1 ? x.key : undefined, total: x.total, cleared: x.cleared, you: x.key === wallet }; }),
       you: wallet && isTeam(wallet) ? { team: true } : i < 0 ? null : { rank: i + 1, total: rows[i].total } };
   }
+  /* ---------- Telegram: the league table, as it happens ---------- */
+  const fmtN = n => Math.round(n).toLocaleString("en-GB");
+  const esc = t => String(t).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const LINKS = [["Play BREAKTHROUGH", "https://dmt-realm.dev/breakthrough"], ["League table", "https://dmt-realm.dev/league"]];
+  function tableLines(rows) { return rows.slice(0, 3).map((x, k) => `${k + 1}. ${esc(short(x.key))}  <b>${fmtN(x.total)}</b>`).join("\n"); }
+  function leftText() {
+    const h = Math.max(0, Math.floor((Date.parse(comp.end + "T23:59:59Z") - Date.now()) / 3600e3));
+    return h >= 48 ? Math.floor(h / 24) + " days left" : h >= 1 ? h + " hours left" : "under an hour left";
+  }
+  let postTimer = null;
+  function leaderNews() {
+    if (!announce) return;
+    if (postTimer) return;                                   // one is already waiting: it will carry the latest leader
+    const wait = Math.max(0, (B.posted.leaderAt || 0) + POST_GAP_MS - Date.now());
+    postTimer = setTimeout(sendLeader, wait); if (postTimer.unref) postTimer.unref();
+  }
+  function sendLeader() {
+    postTimer = null;
+    if (!comp || !inComp(dayKey())) return;
+    const rows = ranked(B.comps[comp.id] || {}).filter(x => !isTeam(x.key));
+    if (!rows.length || (B.posted.leaderKey === rows[0].key && B.posted.leaderTotal === rows[0].total)) return;
+    B.posted.leaderAt = Date.now(); B.posted.leaderKey = rows[0].key; B.posted.leaderTotal = rows[0].total; saveBoard();
+    const top = rows[0];
+    Promise.resolve(announce(`🏆 <b>NEW TOP SCORE in BREAKTHROUGH</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n${tableLines(rows)}\n\n${esc(comp.prize)} to the highest Daily Trip score. ${leftText()}. Free to enter: connect a wallet, then play.`, LINKS))
+      .then(r => { if (r && r.ok === false) log("breakthrough: telegram post failed: " + r.problem); }).catch(() => {});
+  }
+  // once it's over, post the result (checked every few minutes, and once at start)
+  function finalNews() {
+    if (!announce || !comp || dayKey() <= comp.end || B.posted["final:" + comp.id]) return;
+    const rows = ranked(B.comps[comp.id] || {}).filter(x => !isTeam(x.key));
+    B.posted["final:" + comp.id] = Date.now(); saveBoard();
+    if (!rows.length) return;
+    const w = rows[0];
+    Promise.resolve(announce(`🏆 <b>${esc(comp.title)} is over</b>\n\nThe winner of ${esc(comp.prize)}: <b>${esc(short(w.key))}</b> with <b>${fmtN(w.total)}</b>.\n\n${tableLines(rows)}\n\nWinner's wallet: <code>${esc(w.key)}</code>`, LINKS)).catch(() => {});
+  }
+  if (announce) {
+    const t = setInterval(finalNews, 5 * 60e3); if (t.unref) t.unref();
+    const s = setTimeout(() => { finalNews(); if (comp && inComp(dayKey()) && !B.posted.leaderKey) leaderNews(); }, 5000); if (s.unref) s.unref();
+  }
+
   const ranked = book => Object.entries(book).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.total - a.total || a.at - b.at);
 
   function board({ token, pid } = {}) {
@@ -198,7 +244,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     return { comp: compView(wallet, 100), today: rows.slice(0, 20).map(x => ({ name: x.name, total: x.total, cleared: x.cleared })), todayPlayers: rows.length };
   }
 
-  return { start, finish, board, league, summonable, me, cards, dailyDef, live: () => runs.size,
+  return { start, finish, board, league, summonable, me, cards, dailyDef, live: () => runs.size, _news: { sendLeader, finalNews },
     flush: () => { liveFile && liveFile.flush(); boardFile && boardFile.flush(); } };
 }
 

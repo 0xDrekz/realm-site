@@ -403,4 +403,15 @@ async function notify(text) {
   try { await telegram(token, "sendMessage", { chat_id: chat, text, disable_web_page_preview: true }); } catch { /* the payout carries on regardless */ }
 }
 
-module.exports = { start, caption, readData, range, test, sample, announce, notify, envVar, _chain: { mintedCount, collectionAssets, pub } };
+/* a formatted post with buttons (the game's league table uses this). Quiet if the bot isn't set up. */
+async function postHtml(html, links = []) {
+  const token = envVar("TG_BOT_TOKEN"), chat = envVar("TG_CHAT_ID");
+  if (!token || !chat) return { ok: false, problem: "TG_BOT_TOKEN / TG_CHAT_ID not set" };
+  try {
+    const r = await telegram(token, "sendMessage", { chat_id: chat, text: html, parse_mode: "HTML", disable_web_page_preview: true,
+      reply_markup: links.length ? { inline_keyboard: [links.map(([text, url]) => ({ text, url }))] } : undefined });
+    return r.ok ? { ok: true } : { ok: false, problem: r.description || "Telegram said no." };
+  } catch (e) { return { ok: false, problem: e.message }; }
+}
+
+module.exports = { start, caption, readData, range, test, sample, announce, notify, postHtml, envVar, _chain: { mintedCount, collectionAssets, pub } };

@@ -93,3 +93,22 @@ test("team wallets play but can't win: unranked, and the next wallet is #1", asy
   const v = g.league({ token: "fan" }).comp;
   assert.equal(v.players, 1); assert.equal(v.top[0].team, true); assert.equal(v.top[0].rank, null); assert.equal(v.top[1].rank, 1); assert.ok(v.top[1].you);
 });
+
+test("a new competition leader is posted to Telegram, at most once every 10 minutes", async () => {
+  const day = new Date().toISOString().slice(0, 10), posts = [], W2 = "Fan2222222222222222222222222222222222222222";
+  const g = G.create({ beings: async () => [], walletOf: t => t === "a" ? W : t === "b" ? W2 : null, announce: html => { posts.push(html); return { ok: true } },
+    comp: { id: "TG", title: "T", prize: "1 SOL", start: day, end: day } });
+  const a = await g.start({ mode: "daily", token: "a" });
+  await later(() => g.finish({ run: a.run, moves: playThrough(a).moves }));
+  await new Promise(r => setTimeout(r, 30));
+  assert.equal(posts.length, 1); assert.match(posts[0], /NEW TOP SCORE/); assert.match(posts[0], /1 SOL/);
+  // a weaker score from someone else: no post
+  const b = await g.start({ mode: "daily", token: "b" });
+  await later(() => g.finish({ run: b.run, moves: [["c", [0]], ["c", [0]], ["c", [0]], ["c", [0]]] }));
+  await new Promise(r => setTimeout(r, 30));
+  assert.equal(posts.length, 1);
+  // the result goes out once, when it's over
+  const over = G.create({ beings: async () => [], announce: html => { posts.push(html); return { ok: true } }, comp: { id: "TG", title: "T", prize: "1 SOL", start: "2000-01-01", end: "2000-01-02" } });
+  over._news.finalNews(); over._news.finalNews();
+  assert.equal(posts.length, 1);   // nobody entered that one: nothing to announce, and only checked once
+});

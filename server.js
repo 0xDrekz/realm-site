@@ -374,6 +374,7 @@ const ARENA = require("./arena/game").create({ log: m => console.log(m), beings:
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 /* BREAKTHROUGH (bt/game.js): the trait card game; the page plays, the server replays every run */
 const BT = require("./bt/game").create({ log: m => console.log(m), beings: chainBeings, walletOf: duelWalletOf,
+  announce: (html, links) => require("./bot").postHtml(html, links),
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 /* REALM Cards (rc/game.js): the card game against the computer; every move checked here */
 const RC = require("./rc/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
