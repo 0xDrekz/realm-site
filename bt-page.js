@@ -478,6 +478,17 @@
   document.addEventListener("gesturechange", e => e.preventDefault());
   document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   document.addEventListener("touchstart", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  /* Some phone browsers (in-app ones especially) still zoom on a quick second tap. So a tap that comes
+     right after another has its default (the zoom) cancelled, and its click is then fired by hand, so
+     the button still works: no tap is ever lost. Cards listen to pointer events, which aren't affected. */
+  let lastEnd = 0;
+  document.addEventListener("touchend", e => {
+    const now = Date.now(), quick = now - lastEnd < 400; lastEnd = now;
+    if (!quick || e.touches.length || e.changedTouches.length !== 1) return;
+    e.preventDefault();
+    const t = e.target && e.target.closest ? e.target.closest("button, a, [data-cardsheet]") || e.target : e.target;
+    if (t && typeof t.click === "function") t.click();
+  }, { passive: false });
   const vp = document.querySelector('meta[name=viewport]'), VP = vp && vp.content;
   if (window.visualViewport && vp) visualViewport.addEventListener("resize", () => {
     if (visualViewport.scale > 1.01) { vp.content = VP.replace("maximum-scale=1", "maximum-scale=1.01"); setTimeout(() => { vp.content = VP; window.scrollTo(0, 0); }, 60); }
