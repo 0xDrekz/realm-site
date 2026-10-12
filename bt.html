@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#05020c">
+<title>BREAKTHROUGH · REALM</title>
+<meta name="description" content="BREAKTHROUGH: the REALM card game. Matching Auras make the hand, every being's traits fire, and the numbers explode. Climb eight layers to the Source. Free to play.">
+<meta property="og:title" content="BREAKTHROUGH · REALM">
+<meta property="og:description" content="Match Auras. Chain the traits. Break through eight layers to the Source. Free to play.">
+<meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="bt.css?v=1">
+</head>
+<body>
+<div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
+
+<!-- ============ the lobby ============ -->
+<section class="bt-lobby" data-screen="lobby">
+  <header class="bt-top">
+    <a class="bt-brand" href="/"><img src="logo-bar.png" alt="">REALM</a>
+    <button class="bt-icon" data-mute aria-label="Sound"><span data-mute-label>♪</span></button>
+  </header>
+  <div class="bt-title">
+    <p class="bt-kick">THE REALM CARD GAME</p>
+    <h1>BREAK<br>THROUGH</h1>
+    <p class="bt-lede">Match <b>Auras</b>. Chain the <b>traits</b>. Watch the numbers explode. Climb eight layers to <b>the Source</b>.</p>
+  </div>
+  <div class="bt-fan" data-fan aria-hidden="true"></div>
+
+  <div class="bt-modes">
+    <button class="bt-mode daily" data-play="daily">
+      <span class="bt-mode-k">DAILY TRIP</span>
+      <span class="bt-mode-t">Same deck for everyone today</span>
+      <span class="bt-mode-s" data-daily-note>Best run counts</span>
+    </button>
+    <button class="bt-mode free" data-play="free">
+      <span class="bt-mode-k">FREE RUN</span>
+      <span class="bt-mode-t" data-free-note>A fresh deck every time</span>
+      <span class="bt-mode-s" data-summon-note>Summon a holder's being</span>
+    </button>
+    <button class="bt-resume" data-resume hidden>Continue your run</button>
+  </div>
+
+  <div class="bt-row">
+    <button class="bt-ghost" data-how>How to play</button>
+    <button class="bt-ghost" data-board-open>Leaderboard</button>
+  </div>
+
+  <div class="bt-wallet">
+    <p data-w-who>Playing as a guest. Holders: your beings join your Free Run deck and score +50%.</p>
+    <button class="bt-ghost small" data-w-connect>Connect wallet</button>
+    <a class="bt-ghost small" data-w-phantom hidden>Open in Phantom</a>
+    <button class="bt-link" data-w-off hidden>Sign out</button>
+    <p class="bt-err" data-w-err hidden></p>
+    <p class="bt-fine">Signing in is a message signature, never a transaction. Free to play: no entry fee, nothing at stake.</p>
+  </div>
+</section>
+
+<!-- ============ the game ============ -->
+<section class="bt-game" data-screen="game" hidden>
+  <header class="bt-hud">
+    <button class="bt-icon" data-menu aria-label="Menu">≡</button>
+    <div class="bt-layer"><span data-layer-n>LAYER 1</span><b data-layer-name>The Threshold</b></div>
+    <button class="bt-icon" data-mute aria-label="Sound"><span data-mute-label>♪</span></button>
+  </header>
+  <div class="bt-goal">
+    <div class="bt-score"><b data-score>0</b><span>/ <i data-target>400</i></span></div>
+    <div class="bt-bar"><i data-bar></i></div>
+    <div class="bt-pips">
+      <span class="c">CASTS <i data-casts></i></span>
+      <span class="d">DISCARDS <i data-discards></i></span>
+      <span class="k">DECK <b data-deck>20</b></span>
+    </div>
+  </div>
+
+  <div class="bt-stage" data-stage>
+    <svg class="bt-hex" viewBox="-100 -100 200 200" aria-hidden="true">
+      <circle r="92" /><circle r="80" class="t" />
+      <g class="f"><circle r="26" cx="0" cy="0"/><circle r="26" cx="26" cy="0"/><circle r="26" cx="-26" cy="0"/><circle r="26" cx="13" cy="22.5"/><circle r="26" cx="-13" cy="22.5"/><circle r="26" cx="13" cy="-22.5"/><circle r="26" cx="-13" cy="-22.5"/></g>
+      <path class="h" d="M0-80L69.3 40H-69.3zM0 80L-69.3-40H69.3z"/>
+    </svg>
+    <div class="bt-handname" data-hname></div>
+    <div class="bt-played" data-played></div>
+    <div class="bt-calc" data-calc>
+      <div class="bt-chips"><b data-chips>0</b><span>CHIPS</span></div>
+      <i>×</i>
+      <div class="bt-mult"><b data-mult>0</b><span>MULT</span></div>
+    </div>
+    <div class="bt-flash" data-flash></div>
+    <div class="bt-coach" data-coach hidden></div>
+  </div>
+
+  <div class="bt-tools">
+    <button class="bt-sort" data-sort="aura">Sort: Aura</button>
+    <span class="bt-preview" data-preview>Pick up to 5</span>
+  </div>
+  <div class="bt-hand" data-hand></div>
+  <div class="bt-actions">
+    <button class="bt-btn discard" data-discard disabled>Discard</button>
+    <button class="bt-btn cast" data-cast disabled>Cast</button>
+  </div>
+</section>
+
+<!-- ============ the draft ============ -->
+<div class="bt-sheet bt-draft" data-draft hidden>
+  <div class="bt-panel">
+    <p class="bt-kick" data-draft-kick>LAYER CLEARED</p>
+    <h2 data-draft-title>BREAKTHROUGH!</h2>
+    <p class="bt-sub" data-draft-sub>Take one being into your deck</p>
+    <div class="bt-offer" data-offer></div>
+    <button class="bt-link" data-skip>Skip: keep my deck as it is</button>
+  </div>
+</div>
+
+<!-- ============ the end ============ -->
+<div class="bt-sheet" data-end hidden>
+  <div class="bt-panel">
+    <p class="bt-kick" data-end-kick>THE TRIP IS OVER</p>
+    <h2 data-end-title>Layer 4</h2>
+    <div class="bt-endscore"><b data-end-total>0</b><span>points</span></div>
+    <div class="bt-endrows" data-end-rows></div>
+    <p class="bt-sub" data-end-rank></p>
+    <a class="bt-btn cast wide" data-share target="_blank" rel="noopener">Share on X</a>
+    <div class="bt-row"><button class="bt-ghost" data-again>Play again</button><button class="bt-ghost" data-lobby>Menu</button></div>
+  </div>
+</div>
+
+<!-- ============ menu ============ -->
+<div class="bt-sheet" data-menusheet hidden>
+  <div class="bt-panel">
+    <h2>Paused</h2>
+    <button class="bt-btn cast wide" data-resume-game>Keep playing</button>
+    <button class="bt-ghost wide" data-how2>How to play</button>
+    <button class="bt-ghost wide" data-endrun>End run and count my score</button>
+  </div>
+</div>
+
+<!-- ============ summon ============ -->
+<div class="bt-sheet" data-summonsheet hidden>
+  <div class="bt-panel tall">
+    <h2>Summon a being</h2>
+    <p class="bt-sub">Bring one being a holder owns into your deck. Its owner gets the credit.</p>
+    <div class="bt-summons" data-summons><p class="bt-sub">Reading the realm…</p></div>
+    <div class="bt-row"><button class="bt-ghost" data-summon-skip>Play without one</button><button class="bt-ghost" data-summon-close>Back</button></div>
+  </div>
+</div>
+
+<!-- ============ card detail ============ -->
+<div class="bt-sheet" data-cardsheet hidden>
+  <div class="bt-panel" data-carddetail></div>
+</div>
+
+<!-- ============ board ============ -->
+<div class="bt-sheet" data-boardsheet hidden>
+  <div class="bt-panel tall">
+    <div class="bt-tabs"><button class="on" data-btab="daily">Daily Trip</button><button data-btab="free">Free Run (week)</button></div>
+    <div data-board><p class="bt-sub">Loading…</p></div>
+    <p class="bt-fine">Prizes, when there are any, come from the team's own funds and go to holders on the board. It's always free to play.</p>
+    <button class="bt-ghost wide" data-board-close>Close</button>
+  </div>
+</div>
+
+<!-- ============ how to play ============ -->
+<div class="bt-sheet" data-howsheet hidden>
+  <div class="bt-panel tall bt-how">
+    <h2>How to play</h2>
+    <ol>
+      <li><b>Pick up to 5 beings and Cast.</b> Matching <b>Auras</b> (the coloured gem on each card) make the hand.</li>
+      <li><b>Hit the target in 4 casts</b> to break through. Not happy with your hand? <b>Discard</b> up to 5 cards and draw new ones (3 times a layer).</li>
+      <li><b>Break through</b> and choose a new being for your deck. Eight layers to <b>the Source</b>, then keep going as deep as you dare.</li>
+    </ol>
+    <h3>The hands</h3>
+    <div class="bt-table" data-hands></div>
+    <h3>The traits fire left to right</h3>
+    <div class="bt-table" data-traits></div>
+    <p class="bt-fine">Order matters: put +mult cards <b>before</b> ×mult cards. Hold a card to read it.</p>
+    <button class="bt-btn cast wide" data-howclose>Got it</button>
+  </div>
+</div>
+
+<script src="bt/engine.js?v=1"></script>
+<script src="bt-page.js?v=1"></script>
+</body>
+</html>

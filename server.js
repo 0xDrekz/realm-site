@@ -372,6 +372,9 @@ const TCG = require("./tcg2/game").create({ log: m => console.log(m), beings: ch
   walletOf: duelWalletOf, dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 const ARENA = require("./arena/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
+/* BREAKTHROUGH (bt/game.js): the trait card game; the page plays, the server replays every run */
+const BT = require("./bt/game").create({ log: m => console.log(m), beings: chainBeings, walletOf: duelWalletOf,
+  dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 /* REALM Cards (rc/game.js): the card game against the computer; every move checked here */
 const RC = require("./rc/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
@@ -433,6 +436,7 @@ function route(req, res) {
 
   if (urlPath === "/holders") urlPath = "/holders.html";
   if (urlPath === "/left" || urlPath === "/tracker") urlPath = "/left.html";
+  if (urlPath === "/breakthrough" || urlPath === "/bt") urlPath = "/bt.html";
   if (urlPath === "/map") urlPath = "/map.html";
   if (urlPath === "/mint") urlPath = "/mint.html";
   if (urlPath === "/owner") urlPath = "/owner.html";
@@ -607,6 +611,28 @@ function route(req, res) {
       if (!tcgAllowed(ip, urlPath === "/api/arena/me" ? "move" : "arena")) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
       Promise.resolve().then(() => fn({ ...j, ip })).then(d => send(d.status || (d.error ? 400 : 200), d))
         .catch(e => { console.error("arena", e); send(500, { error: "Something went wrong. Start a new match." }); });
+    });
+    return;
+  }
+
+  /* ---- BREAKTHROUGH: the page plays, the server replays the moves and decides ---- */
+  if (urlPath.startsWith("/api/bt/")) {
+    const send = replier(res);
+    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
+    if (urlPath === "/api/bt/cards") {
+      const c = BT.cards(), gz = /\bgzip\b/.test(req.headers["accept-encoding"] || "");
+      res.writeHead(200, { "Content-Type": TYPES[".json"], "Cache-Control": "public, max-age=600", "Vary": "Accept-Encoding", ...(gz ? { "Content-Encoding": "gzip" } : {}) });
+      return res.end(gz ? c.gz : c.json);
+    }
+    if (urlPath === "/api/bt/board") { const pid = new URL(req.url, "http://x").searchParams.get("pid"); return send(200, BT.board({ token: bearer(req), pid })); }
+    if (urlPath === "/api/bt/summons") { BT.summonable().then(d => send(200, d)).catch(() => send(503, { error: "Couldn't read the chain just now." })); return; }
+    const fn = { "/api/bt/start": BT.start, "/api/bt/finish": BT.finish, "/api/bt/me": BT.me }[urlPath];
+    if (!fn) return send(404, { error: "Not found." });
+    if (req.method !== "POST") return send(405, { error: "POST" });
+    readJson(req, send, 40000, j => {
+      if (!tcgAllowed(ip, urlPath === "/api/bt/start" ? "bt" : "move")) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
+      Promise.resolve().then(() => fn({ ...j, ip })).then(d => send(d.status || (d.error ? 400 : 200), d))
+        .catch(e => { console.error("breakthrough", e); send(500, { error: "Something went wrong. Start a new run." }); });
     });
     return;
   }
@@ -802,7 +828,7 @@ function route(req, res) {
 /* a last line of defence: log anything that slips through and keep serving (the mint page lives here too) */
 process.on("uncaughtException", e => console.error("uncaught", e));
 /* on a redeploy Railway sends SIGTERM: save what's in memory, then go */
-for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush(), () => RC.flush(), () => ARENA.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush(), () => RC.flush(), () => ARENA.flush(), () => BT.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
 process.on("unhandledRejection", e => console.error("unhandled rejection", e));
 
 server.listen(PORT, "0.0.0.0", () => {
