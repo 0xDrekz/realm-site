@@ -56,10 +56,12 @@
     const d = box.querySelector(".bt-detail");
     d.appendChild(cardEl(n, { big: true }));
     const ul = document.createElement("ul"); ul.innerHTML = powers(n).map(([k, v]) => `<li><b>${esc(k)}</b><br>${esc(v)}</li>`).join(""); d.appendChild(ul);
-    $("[data-cardsheet]").hidden = false;
+    $("[data-cardsheet]").hidden = false; cardOpenAt = Date.now();
     box.querySelector("[data-cardclose]").onclick = () => { $("[data-cardsheet]").hidden = true; };
   }
-  $("[data-cardsheet]").addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.hidden = true; });
+  // a tap anywhere closes the card (but not the lift of the finger that opened it)
+  let cardOpenAt = 0;
+  $("[data-cardsheet]").addEventListener("click", e => { if (Date.now() - cardOpenAt > 450) e.currentTarget.hidden = true; });
 
   /* ---------- sound: little square-wave blips ---------- */
   let AC = null, muted = store.get("mute", false);
@@ -233,7 +235,7 @@
     paintPick();
   }
   /* a tap selects; only a deliberate hold (a still finger for 0.7 s) opens the card's details */
-  const HOLD_MS = 700, SLOP = 10;
+  const HOLD_MS = 800, SLOP = 10;
   function press(el, onTap, onHold) {
     let t = null, held = false, x0 = 0, y0 = 0, live = false;
     const cancel = () => { clearTimeout(t); live = false; };
@@ -470,11 +472,16 @@
   }
   function coachDone() { if (!$("[data-coach]").hidden) { $("[data-coach]").hidden = true; store.set("coached", true); } }
 
-  // no pinch or double-tap zoom on the game (iPhone ignores user-scalable=no on its own)
+  /* no zoom on the game. Double-tap zoom is off through touch-action (bt.css); pinches are stopped here.
+     And if the phone zooms anyway, it is put straight back to normal size. */
   document.addEventListener("gesturestart", e => e.preventDefault());
-  document.addEventListener("dblclick", e => e.preventDefault());
-  let lastTouch = 0;
-  document.addEventListener("touchend", e => { const now = Date.now(); if (now - lastTouch < 350 && e.target.closest(".bt-game, .bt-sheet")) e.preventDefault(); lastTouch = now; }, { passive: false });
+  document.addEventListener("gesturechange", e => e.preventDefault());
+  document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  document.addEventListener("touchstart", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  const vp = document.querySelector('meta[name=viewport]'), VP = vp && vp.content;
+  if (window.visualViewport && vp) visualViewport.addEventListener("resize", () => {
+    if (visualViewport.scale > 1.01) { vp.content = VP.replace("maximum-scale=1", "maximum-scale=1.01"); setTimeout(() => { vp.content = VP; window.scrollTo(0, 0); }, 60); }
+  });
   window.addEventListener("resize", () => { if (R && !$("[data-screen=game]").hidden) renderHand(false); });
   loadCards().then(paintLobby).catch(() => {});
   paintLobby(); loadMe(); loadBoard();
