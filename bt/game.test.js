@@ -102,11 +102,15 @@ test("a new competition leader is posted to Telegram, at most once every 10 minu
   await later(() => g.finish({ run: a.run, moves: playThrough(a).moves }));
   await new Promise(r => setTimeout(r, 30));
   assert.equal(posts.length, 1); assert.match(posts[0], /NEW TOP SCORE/); assert.match(posts[0], /1 SOL/);
-  // a weaker score from someone else: no post
+  // a weaker score from someone else: no leader post
   const b = await g.start({ mode: "daily", token: "b" });
   await later(() => g.finish({ run: b.run, moves: [["c", [0]], ["c", [0]], ["c", [0]], ["c", [0]]] }));
   await new Promise(r => setTimeout(r, 30));
   assert.equal(posts.length, 1);
+  // ...but every run goes out as a line, gathered into one message
+  g._news.sendScores();
+  assert.equal(posts.length, 2); assert.match(posts[1], /Latest BREAKTHROUGH runs/); assert.match(posts[1], /#1<\/b> in the 1 SOL comp/); assert.match(posts[1], /#2<\/b> in the 1 SOL comp/);
+  posts.splice(1);
   // the result goes out once, when it's over
   const over = G.create({ beings: async () => [], announce: html => { posts.push(html); return { ok: true } }, comp: { id: "TG", title: "T", prize: "1 SOL", start: "2000-01-01", end: "2000-01-02" } });
   over._news.finalNews(); over._news.finalNews();

@@ -121,6 +121,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     const res = { mode: r.mode, cleared: E.cleared(S), total: S.total, best: S.best, bestHand: S.bestHand, broke: S.broke || E.cleared(S) >= E.LAYERS, over: S.over };
     if (r.pkey && S.total > 0) res.board = record(r, res);
     if (r.mode === "daily" && S.total > 0) res.comp = enter(r, res);
+    if (S.total > 0) scoreNews(r, res);
     r.result = res; saveLive();
     log(`breakthrough: ${r.mode} ${res.cleared} layers, ${res.total} pts${r.wallet ? " (" + r.wallet.slice(0, 4) + ")" : ""}`);
     return { result: res };
@@ -173,6 +174,28 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     const h = Math.max(0, Math.floor((Date.parse(comp.end + "T23:59:59Z") - Date.now()) / 3600e3));
     return h >= 48 ? Math.floor(h / 24) + " days left" : h >= 1 ? h + " hours left" : "under an hour left";
   }
+  /* every finished run, as one line in the group. Gathered for a few seconds and sent together,
+     so a busy minute is one message, not twenty (Telegram allows about 20 posts a minute). */
+  const SCORE_GAP_MS = 6000, MAX_LINES = 12;
+  let pending = [], scoreTimer = null;
+  function scoreNews(r, res) {
+    if (!announce) return;
+    const where = r.mode === "daily" ? "Daily Trip" : "Free Run";
+    const extra = res.comp && res.comp.entered && !res.comp.team ? ` · <b>#${res.comp.rank}</b> in the ${esc(comp.prize)} comp`
+      : res.board && r.mode === "daily" ? ` · #${res.board.rank} today` : "";
+    pending.push(`${esc(r.name || "A player")} scored <b>${fmtN(res.total)}</b> on the ${where} (${res.cleared} layer${res.cleared === 1 ? "" : "s"})${extra}`);
+    if (pending.length > 200) pending = pending.slice(-200);
+    if (!scoreTimer) { scoreTimer = setTimeout(sendScores, SCORE_GAP_MS); if (scoreTimer.unref) scoreTimer.unref(); }
+  }
+  function sendScores() {
+    scoreTimer = null;
+    if (!pending.length) return;
+    const lines = pending.splice(0, MAX_LINES), more = pending.length;
+    const text = lines.length === 1 ? `🎴 ${lines[0]}` : `🎴 <b>Latest BREAKTHROUGH runs</b>\n\n${lines.join("\n")}`;
+    Promise.resolve(announce(text, LINKS)).then(r => { if (r && r.ok === false) log("breakthrough: telegram post failed: " + r.problem); }).catch(() => {});
+    if (more) { scoreTimer = setTimeout(sendScores, SCORE_GAP_MS); if (scoreTimer.unref) scoreTimer.unref(); }
+  }
+
   let postTimer = null;
   function leaderNews() {
     if (!announce) return;
@@ -244,7 +267,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     return { comp: compView(wallet, 100), today: rows.slice(0, 20).map(x => ({ name: x.name, total: x.total, cleared: x.cleared })), todayPlayers: rows.length };
   }
 
-  return { start, finish, board, league, summonable, me, cards, dailyDef, live: () => runs.size, _news: { sendLeader, finalNews },
+  return { start, finish, board, league, summonable, me, cards, dailyDef, live: () => runs.size, _news: { sendLeader, finalNews, sendScores },
     flush: () => { liveFile && liveFile.flush(); boardFile && boardFile.flush(); } };
 }
 
