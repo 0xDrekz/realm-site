@@ -107,7 +107,13 @@ section{position:relative;z-index:1}
 .bt-pips{display:flex;justify-content:space-between;margin-top:6px;font-size:.66rem;letter-spacing:.14em;color:var(--dim)}
 .bt-pips i{font-style:normal;letter-spacing:.1em}
 .bt-pips .c i{color:var(--chips)}.bt-pips .d i{color:var(--mult)}
+.bt-pips .k{background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;color:var(--dim);text-decoration:underline dotted;text-underline-offset:3px}
 .bt-pips .k b{font-family:var(--num);color:var(--bone)}
+.bt-card.fresh::after{content:"NEW";position:absolute;left:50%;top:-9px;transform:translateX(-50%);z-index:3;padding:1px 5px;font-size:.55rem;letter-spacing:.14em;background:var(--chips);color:#07040f;box-shadow:0 0 0 2px #000,0 0 12px var(--chips)}
+.bt-deckitem{display:flex;flex-direction:column;align-items:center;gap:4px}
+.bt-deckitem small{font-family:var(--num);font-size:.66rem;color:var(--dim)}
+.bt-deckitem.hand small{color:var(--chips)}
+.bt-deckitem.used{opacity:.4}
 
 .bt-stage{position:relative;flex:1;overflow:hidden;min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 .bt-hex{position:absolute;left:50%;top:50%;width:min(78vw,300px);height:min(78vw,300px);transform:translate(-50%,-50%);animation:btSpin 80s linear infinite;opacity:.5}

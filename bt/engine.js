@@ -152,8 +152,10 @@
   }
   const card = (S, n) => S.cards(n);
   function draw(S, upto) { while (S.hand.length < upto && S.draw.length) S.hand.push(S.draw.pop()); }
-  function startLayer(S) {
+  // the being you just took is always in your opening hand of the next layer
+  function startLayer(S, fresh) {
     S.draw = shuffle(S, S.deck.slice()); S.hand = []; S.used = [];
+    if (fresh) { S.draw.splice(S.draw.indexOf(fresh), 1); S.draw.push(fresh); }
     S.casts = CASTS; S.discards = DISCARDS; S.score = 0; S.phase = "play"; S.offer = null;
     draw(S, HAND_SIZE);
   }
@@ -223,9 +225,10 @@
     if (S.over) return { error: "The run is over." };
     if (S.phase !== "draft") return { error: "Nothing to choose." };
     if (!(Number.isInteger(choice) && choice >= -1 && choice < 3)) return { error: "Choose one of the three, or skip." };
-    if (choice >= 0) S.deck.push(S.offer[choice]);
+    const taken = choice >= 0 ? S.offer[choice] : 0;
+    if (taken) S.deck.push(taken);
     S.layer++; S.moves++;
-    startLayer(S);
+    startLayer(S, taken);
     return {};
   }
   function act(S, a) {

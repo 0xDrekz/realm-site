@@ -215,7 +215,7 @@
     const p = Math.min(1, S.score / target); $("[data-bar]").style.width = (p * 100).toFixed(1) + "%"; $(".bt-bar").classList.toggle("full", p >= 1);
     $("[data-casts]").textContent = "●".repeat(S.casts) + "○".repeat(Math.max(0, E.CASTS - S.casts));
     $("[data-discards]").textContent = "●".repeat(S.discards) + "○".repeat(Math.max(0, E.DISCARDS - S.discards));
-    $("[data-deck]").textContent = S.draw.length;
+    $("[data-deck]").textContent = S.draw.length + "/" + S.deck.length;
     $("[data-sort]").textContent = "Sort: " + (R.sort === "aura" ? "Aura" : "Power");
     renderHand(fresh);
   }
@@ -226,6 +226,7 @@
     const step = n > 1 ? Math.min(cw + 6, (W - cw) / (n - 1)) : 0, start = (W - (step * (n - 1) + cw)) / 2;
     order.forEach((hi, k) => {
       const el = cardEl(S.hand[hi], { own: R.own.includes(S.hand[hi]) });
+      if (R.fresh && S.hand[hi] === R.fresh) el.classList.add("fresh");
       el.style.left = (start + k * step) + "px"; el.style.zIndex = k + 1;
       if (R.sel.includes(hi)) el.classList.add("sel");
       if (fresh || newOnes.includes(S.hand[hi])) { el.classList.add("new"); el.style.animationDelay = (k * 0.04) + "s"; }
@@ -367,8 +368,10 @@
     $("[data-draft]").hidden = false;
   }
   function take(i) {
-    if (!R || R.S.phase !== "draft" || E.pick(R.S, i).error) return;
-    R.moves.push(["p", i]); saveRun(); sfx.tap();
+    if (!R || R.S.phase !== "draft") return;
+    const n = i >= 0 ? R.S.offer[i] : 0;
+    if (E.pick(R.S, i).error) return;
+    R.fresh = n; R.moves.push(["p", i]); saveRun(); sfx.tap();
     $("[data-draft]").hidden = true; paint(true); layerIntro();
   }
   $("[data-skip]").addEventListener("click", () => take(-1));
@@ -447,6 +450,25 @@
   $("[data-board-open]").addEventListener("click", async () => { $("[data-boardsheet]").hidden = false; paintBoard(); await loadBoard(); paintBoard(); });
   $$("[data-btab]").forEach(b => b.addEventListener("click", () => { tab = b.dataset.btab; paintBoard(); }));
   $("[data-board-close]").addEventListener("click", () => { $("[data-boardsheet]").hidden = true; });
+
+  /* your whole deck: what's still to draw, what's in your hand, what's been played this layer */
+  $("[data-deckbtn]").addEventListener("click", () => {
+    if (!R) return;
+    const S = R.S, box = $("[data-decklist]"); box.innerHTML = "";
+    const where = n => S.hand.includes(n) ? "hand" : S.used.includes(n) ? "used" : "draw";
+    const order = { hand: 0, draw: 1, used: 2 };
+    S.deck.slice().sort((a, b) => order[where(a)] - order[where(b)] || card(b).chips - card(a).chips).forEach(n => {
+      const w = where(n), d = document.createElement("div"); d.className = "bt-deckitem " + w;
+      const el = cardEl(n, { own: R.own.includes(n) }); if (n === R.fresh) el.classList.add("fresh");
+      d.appendChild(el);
+      const s = document.createElement("small"); s.textContent = w === "hand" ? "In hand" : w === "used" ? "Played" : "To draw"; d.appendChild(s);
+      press(d, () => {}, () => showCard(n));
+      box.appendChild(d);
+    });
+    $("[data-deck-sub]").textContent = `${S.deck.length} beings · ${S.draw.length} still to draw this layer. Every layer starts with your whole deck shuffled.`;
+    $("[data-decksheet]").hidden = false; sfx.tap();
+  });
+  $("[data-deck-close]").addEventListener("click", () => { $("[data-decksheet]").hidden = true; });
 
   function fillHow() {
     $("[data-hands]").innerHTML = Object.values(E.HANDS).sort((a, b) => a.rank - b.rank).map(h => {

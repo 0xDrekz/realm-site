@@ -101,3 +101,12 @@ test("the best order puts +mult before x mult", () => {
   assert.deepEqual(E.bestOrder(S, [i2, i1]), [i1, i2]);
   assert.equal(E.preview(S, [i1, i2]).score, 22 * 12);
 });
+
+test("the being you take is in your next opening hand", () => {
+  for (let seed = 1; seed <= 20; seed++) {
+    const S = E.createRun(sampleRun(seed));
+    S.score = E.targetOf(0); E.cast(S, [0]);
+    const n = S.offer[2]; E.pick(S, 2);
+    assert.ok(S.hand.includes(n), "seed " + seed);
+  }
+});

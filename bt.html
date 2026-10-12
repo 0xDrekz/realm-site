@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="bt.css?v=4">
+<link rel="stylesheet" href="bt.css?v=5">
 </head>
 <body>
 <div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
@@ -77,7 +77,7 @@
     <div class="bt-pips">
       <span class="c">CASTS <i data-casts></i></span>
       <span class="d">DISCARDS <i data-discards></i></span>
-      <span class="k">DECK <b data-deck>20</b></span>
+      <button class="k" data-deckbtn>DECK <b data-deck>20</b> ›</button>
     </div>
   </div>
 
@@ -153,6 +153,16 @@
   </div>
 </div>
 
+<!-- ============ your deck ============ -->
+<div class="bt-sheet" data-decksheet hidden>
+  <div class="bt-panel tall">
+    <h2>Your deck</h2>
+    <p class="bt-sub" data-deck-sub></p>
+    <div class="bt-summons" data-decklist></div>
+    <button class="bt-ghost wide" data-deck-close>Close</button>
+  </div>
+</div>
+
 <!-- ============ card detail ============ -->
 <div class="bt-sheet" data-cardsheet hidden>
   <div class="bt-panel" data-carddetail></div>
@@ -186,7 +196,7 @@
   </div>
 </div>
 
-<script src="bt/engine.js?v=1"></script>
-<script src="bt-page.js?v=4"></script>
+<script src="bt/engine.js?v=2"></script>
+<script src="bt-page.js?v=5"></script>
 </body>
 </html>
