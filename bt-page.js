@@ -194,7 +194,7 @@
       await loadCards();
       const d = await api("/api/bt/start", { ...auth(), mode, summon: summon || undefined });
       R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], moves: [], summoned: d.summoned };
-      R.S = E.createRun(defOf(R)); R.sel = []; R.sort = store.get("sort", "aura");
+      R.S = E.createRun(defOf(R)); R.sel = []; R.sort = store.get("sort", "aura"); $("[data-why]").hidden = true;
       saveRun(); show("game"); paint(true); layerIntro();
       if (!store.get("coached", false)) coach(0);
     } catch (e) {
@@ -292,6 +292,31 @@
   }
   const bump = el => { el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); };
   const multText = t => (t % 10 ? (t / 10).toFixed(1) : String(t / 10));
+
+  /* how the last cast scored: one line per step, only when asked for (it never interrupts play) */
+  function showWhy() {
+    if (!R || !R.last) return;
+    const { ev, ns } = R.last, who = i => i >= 0 && ns[i] ? card(ns[i]).name : null;
+    const line = (cls, name, what, s) => `<div class="${cls}"><span>${name ? `<b>${esc(name)}</b> ` : ""}<em>${esc(what)}</em></span><small>${fmt(s.chips)} × ${multText(s.mult)}</small></div>`;
+    const out = ev.steps.map(s => {
+      if (s.k === "hand") return line("", null, `${s.name}: starts at ${E.HANDS[s.id].chips} chips × ${E.HANDS[s.id].mult} mult`, s);
+      if (s.k === "geo") return line("m", null, `Sacred Geometry: +${s.add} mult`, s);
+      if (s.k === "chips") return line("c", who(s.i), `+${fmt(s.add)} chips${s.label ? " (" + s.label + ")" : ""}`, s);
+      if (s.k === "mult") return line("m", who(s.i), `+${s.add} mult (${s.label})`, s);
+      if (s.k === "x") return line("x", who(s.i), `×${s.x} mult (${s.label})`, s);
+      if (s.k === "again") return line("c", who(s.i), "scores again (Spores)", s);
+      if (s.k === "ufo") return line("", null, `Abducted: draw ${s.draws} extra`, s);
+      return "";
+    });
+    const skipped = ns.length - ev.scoring.length;
+    out.push(`<div class="tot"><span>${fmt(ev.chips)} chips × ${multText(ev.mult)} mult =</span><b>${fmt(ev.score)}</b></div>`);
+    if (skipped) out.push(`<p class="bt-sub" style="text-align:left;margin:6px 0 0">${skipped} card${skipped === 1 ? " wasn't" : "s weren't"} part of the ${esc(ev.name)}, so ${skipped === 1 ? "it" : "they"} didn't score.</p>`);
+    $("[data-steps]").innerHTML = out.join("");
+    $("[data-whysheet]").hidden = false; sfx.tap();
+  }
+  $("[data-why]").addEventListener("click", showWhy);
+  $("[data-why2]").addEventListener("click", showWhy);
+  $("[data-why-close]").addEventListener("click", () => { $("[data-whysheet]").hidden = true; });
   async function doCast() {
     const S = R.S; if (R.busy || !R.sel.length) return;
     R.busy = true; paintPick(); coachDone();
@@ -332,6 +357,7 @@
     const done = E.cast(S, order);
     if (done.error) { R.busy = false; tot.remove(); played.innerHTML = ""; R.sel = []; paint(false); return; }
     R.moves.push(["c", order]); R.sel = []; saveRun();
+    R.last = { ev, ns }; $("[data-why]").hidden = false;
     // the score counts up into the bar
     const t0 = performance.now(), dur = 650, target = E.targetOf(S.layer);
     await new Promise(res => { const tick = () => { const p = Math.min(1, (performance.now() - t0) / dur); const v = before + (S.score - before) * p; $("[data-score]").textContent = fmt(v); $("[data-bar]").style.width = Math.min(100, v / target * 100).toFixed(1) + "%"; p < 1 ? requestAnimationFrame(tick) : res(); }; tick(); });

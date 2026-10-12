@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="bt.css?v=7">
+<link rel="stylesheet" href="bt.css?v=8">
 </head>
 <body>
 <div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
@@ -107,6 +107,7 @@
 
   <div class="bt-tools">
     <button class="bt-sort" data-sort="aura">Sort: Aura</button>
+    <button class="bt-sort bt-why" data-why hidden>How it scored</button>
     <span class="bt-preview" data-preview>Pick up to 5</span>
   </div>
   <div class="bt-hand" data-hand></div>
@@ -124,6 +125,7 @@
     <p class="bt-sub" data-draft-sub>Take one being into your deck</p>
     <div class="bt-offer" data-offer></div>
     <button class="bt-link" data-skip>Skip: keep my deck as it is</button>
+    <button class="bt-link" data-why2>How did that cast score?</button>
   </div>
 </div>
 
@@ -171,6 +173,16 @@
   </div>
 </div>
 
+<!-- ============ how the last cast scored ============ -->
+<div class="bt-sheet" data-whysheet hidden>
+  <div class="bt-panel tall">
+    <h2 style="font-size:1.5rem">How it scored</h2>
+    <div class="bt-steps" data-steps></div>
+    <p class="bt-fine">Score = chips × mult. Your cards always fire in their best order: <b>+</b> mult before <b>×</b> mult.</p>
+    <button class="bt-btn cast wide" data-why-close>Back to the game</button>
+  </div>
+</div>
+
 <!-- ============ card detail ============ -->
 <div class="bt-sheet" data-cardsheet hidden>
   <div class="bt-panel" data-carddetail></div>
@@ -205,6 +217,6 @@
 </div>
 
 <script src="bt/engine.js?v=2"></script>
-<script src="bt-page.js?v=8"></script>
+<script src="bt-page.js?v=9"></script>
 </body>
 </html>
