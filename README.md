@@ -39,8 +39,14 @@ and Lore. Nothing navigates away.
 1. Push these files to the GitHub repository.
 2. Railway reads `package.json`, runs `npm start`, and the site is live.
 
-Nothing to configure — Railway sets `PORT` and `server.js` uses it.
+Railway sets `PORT` and `server.js` uses it.
 If a push doesn't appear, check **Source → auto deploy is enabled** in Railway.
+
+**One thing that must be set: somewhere to keep files.** Sign-ins, the game
+boards (BREAKTHROUGH, Duels), live matches and competition scores are saved
+as files in `SNAPSHOT_DIR`. A Railway container is rebuilt from scratch on
+every deploy, so without a volume every push wipes them. The service has a
+volume mounted at `/data` and the variable `SNAPSHOT_DIR=/data`; keep both.
 
 ---
 
