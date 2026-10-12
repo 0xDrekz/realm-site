@@ -98,15 +98,29 @@
     return d;
   };
   let PID = store.get("pid", null), ME = null, BOARD = null;
-  const auth = () => { const s = session(); return s ? { token: s.token } : { pid: PID }; };
+  /* inside Telegram (the Mini App): Telegram tells us who's playing, signed; the server checks it */
+  let TG = null;
+  const inTelegram = /tgWebAppData=/.test(location.hash + location.search);
+  const tgReady = !inTelegram ? Promise.resolve() : new Promise(ok => {
+    const sc = document.createElement("script"); sc.src = "https://telegram.org/js/telegram-web-app.js"; sc.onload = sc.onerror = () => ok(); document.head.appendChild(sc);
+  }).then(() => {
+    TG = window.Telegram && window.Telegram.WebApp; if (!TG) return;
+    try { TG.ready(); TG.expand(); TG.disableVerticalSwipes && TG.disableVerticalSwipes(); TG.setHeaderColor && TG.setHeaderColor("#05020c"); TG.setBackgroundColor && TG.setBackgroundColor("#05020c"); } catch { /* older Telegram */ }
+    document.documentElement.classList.add("in-tg");
+  });
+  const tgData = () => (TG && TG.initData) || undefined;
+  const auth = () => { const s = session(); return s ? { token: s.token } : { pid: PID, tg: tgData() }; };
   async function loadMe() {
+    await tgReady;
     try { ME = await api("/api/bt/me", auth()); if (ME.pid) { PID = ME.pid; store.set("pid", PID); } }
     catch (e) { if (e.status === 401) { signOut(); return loadMe(); } }
     paintLobby();
   }
   async function loadBoard() {
     const s = session();
-    try { BOARD = await api("/api/bt/board" + (PID ? "?pid=" + PID : ""), null, s && s.token); } catch { BOARD = null; }
+    await tgReady;
+    const q = [PID ? "pid=" + PID : "", !s && tgData() ? "tg=" + encodeURIComponent(tgData()) : ""].filter(Boolean).join("&");
+    try { BOARD = await api("/api/bt/board" + (q ? "?" + q : ""), null, s && s.token); } catch { BOARD = null; }
     paintLobby();
   }
   const STD = [];
@@ -144,6 +158,7 @@
   setTimeout(() => {
     if (stdWallet() || injected() || session()) return;
     $("[data-w-connect]").hidden = true;
+    if (inTelegram) { const ph = $("[data-w-phantom]"); ph.hidden = false; ph.textContent = "Open in browser to connect"; ph.href = "https://dmt-realm.dev/breakthrough"; ph.onclick = e => { if (TG && TG.openLink) { e.preventDefault(); TG.openLink(ph.href); } }; return; }
     const ph = $("[data-w-phantom]"); ph.hidden = false; ph.href = "https://phantom.app/ul/browse/" + encodeURIComponent(location.href) + "?ref=" + encodeURIComponent(location.origin);
   }, 1200);
 
@@ -161,6 +176,7 @@
     const own = ME && ME.own;
     $("[data-w-who]").innerHTML = s
       ? `Signed in as <b>${esc(s.wallet.slice(0, 4) + "…" + s.wallet.slice(-4))}</b>. ${own && own.length ? `<b>${own.length}</b> of your beings join every Free Run and score +50%.` : "No beings in this wallet yet: you'll play with borrowed ones."}${ME && ME.summonedToday ? ` Your beings were summoned <b>${ME.summonedToday}</b> times today.` : ""}`
+      : ME && ME.telegram ? `Playing as <b>${esc(ME.name)}</b> from Telegram: your scores show on the boards. To enter the SOL competition, open the game in your browser or Phantom and connect a wallet.`
       : "Playing as a guest. Holders: your beings join your Free Run deck and score +50%.";
     $("[data-free-note]").textContent = own && own.length ? `Your ${own.length} being${own.length === 1 ? "" : "s"} + a fresh deck` : "A fresh deck every time";
     const d = BOARD && BOARD.daily;
@@ -193,7 +209,7 @@
     try {
       await loadCards();
       const d = await api("/api/bt/start", { ...auth(), mode, summon: summon || undefined });
-      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], moves: [], summoned: d.summoned };
+      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], moves: [], summoned: d.summoned, bestCast: null };
       R.S = E.createRun(defOf(R)); R.sel = []; R.sort = store.get("sort", "aura"); $("[data-why]").hidden = true;
       saveRun(); show("game"); paint(true); layerIntro();
       if (!store.get("coached", false)) coach(0);
@@ -358,6 +374,7 @@
     if (done.error) { R.busy = false; tot.remove(); played.innerHTML = ""; R.sel = []; paint(false); return; }
     R.moves.push(["c", order]); R.sel = []; saveRun();
     R.last = { ev, ns }; $("[data-why]").hidden = false;
+    if (!R.bestCast || ev.score > R.bestCast.score) R.bestCast = { score: ev.score, name: ev.name, ns: ev.scoring.map(k => ns[k]) };
     // the score counts up into the bar
     const t0 = performance.now(), dur = 650, target = E.targetOf(S.layer);
     await new Promise(res => { const tick = () => { const p = Math.min(1, (performance.now() - t0) / dur); const v = before + (S.score - before) * p; $("[data-score]").textContent = fmt(v); $("[data-bar]").style.width = Math.min(100, v / target * 100).toFixed(1) + "%"; p < 1 ? requestAnimationFrame(tick) : res(); }; tick(); });
@@ -366,7 +383,7 @@
     R.busy = false;
     const fresh = S.hand.filter(n => !old.includes(n));
     paint(false); renderHand(false, fresh); if (fresh.length) sfx.deal();
-    if (S.phase === "draft") { await burst(S.layer === E.LAYERS - 1 ? "THE SOURCE!" : "BREAKTHROUGH!"); openDraft(); }
+    if (S.phase === "draft") { const me = R; await burst(S.layer === E.LAYERS - 1 ? "THE SOURCE!" : "BREAKTHROUGH!"); if (R === me && !R.finishing) openDraft(); }
     else if (S.over) finishRun();
   }
   function doDiscard() {
@@ -395,6 +412,7 @@
   /* ---------- the draft: one new being after each breakthrough ---------- */
   function why(n) { const c = card(n), p = powers(n).filter(([k]) => !["Aura", "Chips", "Colourway"].includes(k)); return p.length ? p[0][1] : c.chips + " chips"; }
   function openDraft() {
+    if (!R) return;
     const S = R.S;
     $("[data-draft-kick]").textContent = S.layer < E.LAYERS ? `LAYER ${S.layer + 1} CLEARED` : `LAYER ${S.layer + 1} CLEARED`;
     $("[data-draft-title]").textContent = S.layer === E.LAYERS - 1 ? "THE SOURCE!" : "BREAKTHROUGH!";
@@ -419,6 +437,8 @@
 
   /* ---------- the end: the server plays it all again and counts it ---------- */
   async function finishRun() {
+    if (!R || R.finishing) return;
+    R.finishing = true;
     const S = R.S, run = R;
     $("[data-draft]").hidden = true; $("[data-menusheet]").hidden = true;
     const cleared = E.cleared(S);
@@ -429,7 +449,7 @@
       + `<div><span>MODE</span><b>${run.mode === "daily" ? "Daily Trip" : "Free Run"}</b></div><div><span>DECK</span><b>${S.deck.length} beings</b></div>`;
     $("[data-end-rank]").textContent = "Counting your run…";
     const text = `I broke through ${cleared} layer${cleared === 1 ? "" : "s"} of the REALM with ${fmt(S.total)} points${run.mode === "daily" ? " on today's Daily Trip" : ""}. Beat that.\n\ndmt-realm.dev/breakthrough`;
-    $("[data-share]").href = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
+    SHARE = { text, total: S.total, cleared, mode: run.mode, best: run.bestCast || null, deck: S.deck.slice(), rank: null };
     $("[data-end]").hidden = false;
     S.over ? sfx.lose() : sfx.win();
     let tries = 0;
@@ -437,6 +457,7 @@
       try {
         const d = await api("/api/bt/finish", { run: run.id, moves: run.moves });
         const b = d.result && d.result.board, c = d.result && d.result.comp, cp = BOARD && BOARD.comp;
+        if (SHARE) SHARE.rank = c && c.entered && !c.team ? `#${c.rank} in the ${cp ? cp.prize : "SOL"} competition` : b && run.mode === "daily" ? `#${b.rank} on today's Daily Trip` : null;
         $("[data-end-rank]").textContent = b ? `${b.best ? "New best! " : ""}#${b.rank} of ${b.of} on the ${run.mode === "daily" ? "Daily Trip board" : "Free Run board this week"}.` : "Counted.";
         if (c) {
           const w = document.createElement("p"); w.className = "bt-win";
@@ -454,6 +475,71 @@
     }
     store.set("run", null); R = null; loadBoard();
   }
+  /* ---------- share card: a picture of the run, for X ---------- */
+  let SHARE = null;
+  const loadImg = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+  async function shareCard(d) {
+    const W = 1600, H = 900, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const g = cv.getContext("2d");
+    try { await Promise.all([document.fonts.load('700 80px "Pixelify Sans"'), document.fonts.load('700 80px "Space Grotesk"')]); } catch { /* system font */ }
+    const P = '"Pixelify Sans", sans-serif', N = '"Space Grotesk", sans-serif';
+    // the sky
+    let gr = g.createRadialGradient(W * .5, H * .45, 40, W * .5, H * .45, W * .8);
+    gr.addColorStop(0, "#3a1458"); gr.addColorStop(.55, "#14072a"); gr.addColorStop(1, "#05020c"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.save(); g.translate(W / 2, H * .45); g.fillStyle = "rgba(197,107,255,.09)";
+    for (let i = 0; i < 30; i++) { g.rotate(Math.PI * 2 / 30); g.beginPath(); g.moveTo(0, 0); g.lineTo(-70, -1300); g.lineTo(70, -1300); g.fill(); }
+    g.restore();
+    const text = (t, x, y, size, color, o = {}) => { g.save(); g.font = `700 ${size}px ${o.f || P}`; g.textAlign = o.a || "center"; g.textBaseline = "middle"; if (o.sp) g.letterSpacing = o.sp + "px";
+      const dd = o.d == null ? Math.max(3, size / 14) : o.d; if (dd) { g.fillStyle = "#000"; g.fillText(t, x + dd, y + dd); }
+      if (o.glow) { g.shadowColor = o.glow; g.shadowBlur = 40; } g.fillStyle = color; g.fillText(t, x, y); g.restore(); };
+    const logo = await loadImg("logo-bar.png");
+    if (logo) { g.imageSmoothingEnabled = false; g.drawImage(logo, 60, 48, 56, 56); }
+    text("REALM · BREAKTHROUGH", 132, 78, 30, "#f4efe4", { a: "left", sp: 6, d: 3 });
+    text(d.mode === "daily" ? "DAILY TRIP" : "FREE RUN", W - 60, 78, 30, "#5cf0ff", { a: "right", sp: 6, d: 3 });
+    // the score
+    text(d.cleared >= 8 ? "I REACHED THE SOURCE" : `I BROKE THROUGH ${d.cleared} LAYER${d.cleared === 1 ? "" : "S"}`, W / 2, 190, 44, "#5cf0ff", { f: N, sp: 6, glow: "rgba(92,240,255,.6)" });
+    let size = 200; g.font = `700 ${size}px ${N}`; while (g.measureText(fmt(d.total)).width > W - 160 && size > 80) { size -= 8; g.font = `700 ${size}px ${N}`; }
+    text(fmt(d.total), W / 2, 330, size, "#fff1c2", { f: N, d: 12, glow: "rgba(255,200,80,.7)" });
+    if (d.rank) text(d.rank.toUpperCase(), W / 2, 450, 34, "#e3ba5c", { f: N, sp: 3 });
+    // the best hand and the beings that scored it
+    const ns = (d.best && d.best.ns.length ? d.best.ns : d.deck.slice().sort((a, b) => card(b).chips - card(a).chips)).slice(0, 5);
+    const cs = 170, gap = 26, x0 = (W - (ns.length * cs + (ns.length - 1) * gap)) / 2, y0 = 520;
+    const imgs = await Promise.all(ns.map(n => loadImg(`/thumbs/${n}.webp`)));
+    ns.forEach((n, i) => {
+      const x = x0 + i * (cs + gap), c = card(n);
+      g.fillStyle = "#000"; g.fillRect(x + 10, y0 + 10, cs, cs);
+      g.fillStyle = TIER[c.tier]; g.fillRect(x - 5, y0 - 5, cs + 10, cs + 10);
+      if (imgs[i]) g.drawImage(imgs[i], x, y0, cs, cs); else { g.fillStyle = "#07040f"; g.fillRect(x, y0, cs, cs); }
+      g.beginPath(); g.arc(x + 22, y0 + 22, 16, 0, Math.PI * 2); g.fillStyle = AURA_C[c.aura] || "#fff"; g.fill(); g.lineWidth = 3; g.strokeStyle = "#000"; g.stroke();
+    });
+    if (d.best) text(`BEST HAND: ${d.best.name.toUpperCase()} · ${fmt(d.best.score)}`, W / 2, y0 + cs + 52, 30, "#f4efe4", { f: N, sp: 2 });
+    // the call
+    g.fillStyle = "#e3ba5c"; const bw = 760, bx = (W - bw) / 2, by = H - 92; g.fillRect(bx, by, bw, 62);
+    text("CAN YOU BEAT IT?  dmt-realm.dev/breakthrough", W / 2, by + 32, 28, "#140a02", { d: 0, sp: 1 });
+    return new Promise(ok => cv.toBlob(ok, "image/jpeg", 0.92));
+  }
+  async function share() {
+    if (!SHARE) return;
+    const btn = $("[data-share]"), label = btn.textContent; btn.textContent = "Making your card…"; btn.disabled = true;
+    try {
+      const blob = await shareCard(SHARE), file = new File([blob], "breakthrough.jpg", { type: "image/jpeg" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], text: SHARE.text }); }
+        catch (e) { if (e && e.name !== "AbortError") showCardSheet(blob); }
+      } else showCardSheet(blob);
+    } catch { window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(SHARE.text), "_blank", "noopener"); }
+    btn.textContent = label; btn.disabled = false;
+  }
+  // where the phone can't share a picture: show it to save, with the post ready on X
+  function showCardSheet(blob) {
+    const url = URL.createObjectURL(blob);
+    $("[data-cardimg]").src = url; $("[data-cardsave]").href = url;
+    $("[data-cardpost]").href = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(SHARE.text);
+    $("[data-sharesheet]").hidden = false;
+  }
+  $("[data-share]").addEventListener("click", share);
+  $("[data-share-close]").addEventListener("click", () => { $("[data-sharesheet]").hidden = true; });
+
   const clearWin = () => $$(".bt-win").forEach(e => e.remove());
   $("[data-again]").addEventListener("click", () => { clearWin(); const m = $("[data-again]").dataset.mode || "daily"; $("[data-end]").hidden = true; startRun(m); });
   $("[data-lobby]").addEventListener("click", () => { clearWin(); $("[data-end]").hidden = true; show("lobby"); paintLobby(); });

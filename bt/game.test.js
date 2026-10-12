@@ -116,3 +116,24 @@ test("a new competition leader is posted to Telegram, at most once every 10 minu
   over._news.finalNews(); over._news.finalNews();
   assert.equal(posts.length, 1);   // nobody entered that one: nothing to announce, and only checked once
 });
+
+test("a Telegram player is recognised only with initData Telegram signed", async () => {
+  const crypto = require("crypto"), BOT = "123456:TEST-token";
+  const sign = (fields, token) => {
+    const check = Object.entries(fields).map(([k, v]) => k + "=" + v).sort().join("\n");
+    const secret = crypto.createHmac("sha256", "WebAppData").update(token).digest();
+    return new URLSearchParams({ ...fields, hash: crypto.createHmac("sha256", secret).update(check).digest("hex") }).toString();
+  };
+  const fields = { auth_date: String(Math.floor(Date.now() / 1000)), query_id: "AAF", user: JSON.stringify({ id: 777, first_name: "Bone", username: "bonedogg" }) };
+  const good = sign(fields, BOT), forged = sign(fields, "999:other");
+  assert.deepEqual(G.tgUser(good, BOT), { id: 777, name: "@bonedogg" });
+  assert.equal(G.tgUser(forged, BOT), null);
+  assert.equal(G.tgUser(good.replace("bonedogg", "someoneelse"), BOT), null);
+  assert.equal(G.tgUser(sign({ ...fields, auth_date: "1000" }, BOT), BOT), null);   // too old
+  const g = G.create({ beings: async () => [], tgToken: () => BOT, comp: null });
+  const d = await g.start({ mode: "daily", tg: good });
+  assert.equal(d.name, "@bonedogg");
+  await later(() => g.finish({ run: d.run, moves: playThrough(d).moves }));
+  assert.equal(g.board({ tg: good }).daily.top[0].name, "@bonedogg"); assert.ok(g.board({ tg: good }).daily.top[0].you);
+  assert.match(g.topText(), /@bonedogg/);
+});

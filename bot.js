@@ -414,4 +414,53 @@ async function postHtml(html, links = []) {
   } catch (e) { return { ok: false, problem: e.message }; }
 }
 
-module.exports = { start, caption, readData, range, test, sample, announce, notify, postHtml, envVar, _chain: { mintedCount, collectionAssets, pub } };
+/* the bot listens too: /play, /top, /league and /help, in the group or in a private chat.
+   Long-polls Telegram (getUpdates). If the bot is already wired to a webhook somewhere else,
+   Telegram refuses (409) and this simply stays off rather than taking the webhook over. */
+function listen({ top, playUrl }) {
+  const token = envVar("TG_BOT_TOKEN");
+  if (!token) return;
+  const site = "https://dmt-realm.dev/breakthrough";
+  const play = () => playUrl() || site;
+  // the commands show in Telegram's "/" menu; the menu button opens the game in private chats
+  telegram(token, "setMyCommands", { commands: [
+    { command: "play", description: "Play BREAKTHROUGH" }, { command: "top", description: "Top scores and the competition" },
+    { command: "league", description: "The live league table" }, { command: "help", description: "How to play" }] }).catch(() => {});
+  telegram(token, "setChatMenuButton", { menu_button: { type: "web_app", text: "Play", web_app: { url: site } } }).catch(() => {});
+  let offset = 0, me = "";
+  telegram(token, "getMe", {}).then(r => { me = (r.result && r.result.username || "").toLowerCase(); }).catch(() => {});
+  const lastReply = new Map();
+  const reply = (msg, text, links, webApp) => {
+    const chat = msg.chat.id, now = Date.now();
+    if (now - (lastReply.get(chat) || 0) < 3000) return;          // a burst of commands gets one answer
+    lastReply.set(chat, now);
+    const buttons = links.map(([t, url]) => webApp && msg.chat.type === "private" && url === site ? { text: t, web_app: { url } } : { text: t, url });
+    return telegram(token, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true,
+      reply_to_message_id: msg.message_id, allow_sending_without_reply: true, reply_markup: { inline_keyboard: [buttons] } }).catch(() => {});
+  };
+  async function loop() {
+    for (;;) {
+      let r;
+      try { r = await telegram(token, "getUpdates", { offset, timeout: 15, allowed_updates: ["message"] }); }
+      catch { await wait(5000); continue; }
+      if (!r.ok) {
+        // 409: a webhook is set (leave it alone and stay off), or the old server is still polling during a deploy (wait)
+        if (r.error_code === 409 && /webhook/i.test(r.description || "")) { console.log("telegram commands: off (the bot uses a webhook elsewhere)"); return; }
+        await wait(10000); continue;
+      }
+      for (const u of r.result) {
+        offset = u.update_id + 1;
+        const m = u.message, t = m && typeof m.text === "string" ? m.text.trim() : "";
+        if (!t.startsWith("/")) continue;
+        const [cmd, at] = t.slice(1).split(/\s/)[0].toLowerCase().split("@");
+        if (at && me && at !== me) continue;                       // a command for another bot
+        if (cmd === "play" || cmd === "start") reply(m, "🎴 <b>BREAKTHROUGH</b>, the REALM card game.\nMatch the Auras, chain the traits, break through eight layers to the Source. Free to play.", [["Play now", play()], ["League table", "https://dmt-realm.dev/league"]], true);
+        else if (cmd === "top" || cmd === "league" || cmd === "scores") reply(m, top(), [["Play", play()], ["Full league table", "https://dmt-realm.dev/league"]], true);
+        else if (cmd === "help") reply(m, "How to play BREAKTHROUGH:\n1. Pick up to 5 beings with the same coloured gem (Aura) and Cast.\n2. Every being's traits fire: chips × mult.\n3. Hit the target in 4 casts to break through, take a new being, climb to the Source.\n\nConnect a wallet before you play the Daily Trip to enter the competition.", [["Play now", play()]], true);
+      }
+    }
+  }
+  loop();
+}
+
+module.exports = { start, caption, readData, range, test, sample, announce, notify, postHtml, listen, envVar, _chain: { mintedCount, collectionAssets, pub } };

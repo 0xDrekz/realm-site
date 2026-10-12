@@ -375,6 +375,7 @@ const ARENA = require("./arena/game").create({ log: m => console.log(m), beings:
 /* BREAKTHROUGH (bt/game.js): the trait card game; the page plays, the server replays every run */
 const BT = require("./bt/game").create({ log: m => console.log(m), beings: chainBeings, walletOf: duelWalletOf,
   announce: (html, links) => require("./bot").postHtml(html, links),
+  tgToken: () => require("./bot").envVar("TG_BOT_TOKEN"), playUrl: () => require("./bot").envVar("TG_APP_URL"),
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 /* REALM Cards (rc/game.js): the card game against the computer; every move checked here */
 const RC = require("./rc/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
@@ -627,7 +628,7 @@ function route(req, res) {
       return res.end(gz ? c.gz : c.json);
     }
     if (urlPath === "/api/bt/league") return send(200, BT.league({ token: bearer(req) }));
-    if (urlPath === "/api/bt/board") { const pid = new URL(req.url, "http://x").searchParams.get("pid"); return send(200, BT.board({ token: bearer(req), pid })); }
+    if (urlPath === "/api/bt/board") { const q = new URL(req.url, "http://x").searchParams; return send(200, BT.board({ token: bearer(req), pid: q.get("pid"), tg: q.get("tg") || undefined })); }
     if (urlPath === "/api/bt/summons") { BT.summonable().then(d => send(200, d)).catch(() => send(503, { error: "Couldn't read the chain just now." })); return; }
     const fn = { "/api/bt/start": BT.start, "/api/bt/finish": BT.finish, "/api/bt/me": BT.me }[urlPath];
     if (!fn) return send(404, { error: "Not found." });
@@ -838,6 +839,8 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`REALM is live on port ${PORT}`);
   // posts every new mint to Telegram; sleeps unless its variables are set
   require("./bot").start({ root: ROOT, rpc, holdings, env: ENV });
+  // and answers /play, /top, /league in Telegram (BREAKTHROUGH)
+  require("./bot").listen({ top: () => BT.topText(), playUrl: () => require("./bot").envVar("TG_APP_URL") });
   PAYOUT.start();
   BONUS.start();
 });

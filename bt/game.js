@@ -29,7 +29,27 @@ function loadComp() { try { return JSON.parse(require("fs").readFileSync(path.jo
    result once, when the competition is over. */
 const POST_GAP_MS = 10 * 60e3;
 
-function create({ log = () => {}, beings = async () => [], walletOf = () => null, dir = null, comp = loadComp(), announce = null } = {}) {
+/* A player inside the Telegram Mini App: Telegram signs who they are (initData) with the bot's token.
+   Checked here, never trusted from the page. https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app */
+function tgUser(initData, botToken) {
+  if (typeof initData !== "string" || !initData || initData.length > 4096 || !botToken) return null;
+  try {
+    const q = new URLSearchParams(initData), hash = q.get("hash");
+    if (!hash || !/^[a-f0-9]{64}$/.test(hash)) return null;
+    q.delete("hash");
+    const check = [...q.entries()].map(([k, v]) => k + "=" + v).sort().join("\n");
+    const secret = crypto.createHmac("sha256", "WebAppData").update(botToken).digest();
+    const want = crypto.createHmac("sha256", secret).update(check).digest();
+    if (!crypto.timingSafeEqual(want, Buffer.from(hash, "hex"))) return null;
+    if (Date.now() / 1000 - Number(q.get("auth_date") || 0) > 7 * 86400) return null;     // older than a week: sign in again
+    const u = JSON.parse(q.get("user") || "null");
+    if (!u || !Number.isInteger(u.id)) return null;
+    const name = u.username ? "@" + String(u.username).slice(0, 32) : String(u.first_name || "Player").slice(0, 32);
+    return { id: u.id, name };
+  } catch { return null; }
+}
+
+function create({ log = () => {}, beings = async () => [], walletOf = () => null, dir = null, comp = loadComp(), announce = null, tgToken = () => "", playUrl = () => "" } = {}) {
   const jf = file => dir ? require("../jsonfile").create(path.join(dir, file), { log: m => log("breakthrough: " + m), fallback: {} }) : null;
   const liveFile = jf("bt-live.json"), boardFile = jf("bt-board.json");
   let saved = {}; try { saved = liveFile ? liveFile.load() || {} : {}; } catch (e) { log("breakthrough: live runs could not be read, starting fresh: " + e.message); }
@@ -49,7 +69,13 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
   }
   const isGuest = pid => typeof pid === "string" && /^[a-f0-9]{24}$/.test(pid);
   const short = w => w.slice(0, 4) + "…" + w.slice(-4);
-  const who = (wallet, pid) => wallet ? { key: "w:" + wallet, name: short(wallet) } : isGuest(pid) ? { key: "g:" + pid, name: "Wanderer " + pid.slice(0, 4).toUpperCase() } : null;
+  // who's playing: a signed-in wallet, else a Telegram player (checked), else a guest on this device
+  const who = (wallet, pid, tg) => {
+    if (wallet) return { key: "w:" + wallet, name: short(wallet) };
+    const t = tg ? tgUser(tg, tgToken()) : null;
+    if (t) return { key: "t:" + t.id, name: t.name };
+    return isGuest(pid) ? { key: "g:" + pid, name: "Wanderer " + pid.slice(0, 4).toUpperCase() } : null;
+  };
 
   /* the daily deck: the same 20 beings for everyone, from the day alone */
   function dailyDef(day) {
@@ -68,11 +94,11 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
 
   async function ownedBy(wallet) { const all = await beings(); return all.filter(b => b.owner === wallet).map(b => b.n); }
 
-  async function start({ token, pid, mode, summon, ip } = {}) {
+  async function start({ token, pid, tg, mode, summon, ip } = {}) {
     tidy();
     const wallet = walletOf(token);
     if (token && !wallet) return { error: "Your sign-in has expired. Sign in again.", status: 401 };
-    const me = who(wallet, pid);
+    const me = who(wallet, pid, tg);
     const owner = wallet ? "w:" + wallet : "ip:" + String(ip || "?");
     if (!room(owner)) return { error: "The realm is very busy. Try again in a minute.", status: 503 };
     const day = dayKey();
@@ -168,7 +194,8 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
   /* ---------- Telegram: the league table, as it happens ---------- */
   const fmtN = n => Math.round(n).toLocaleString("en-GB");
   const esc = t => String(t).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-  const LINKS = [["Play BREAKTHROUGH", "https://dmt-realm.dev/breakthrough"], ["League table", "https://dmt-realm.dev/league"]];
+  // the Play button opens the Telegram Mini App when one is set up (TG_APP_URL), else the website
+  const LINKS_OF = () => [["Play BREAKTHROUGH", playUrl() || "https://dmt-realm.dev/breakthrough"], ["League table", "https://dmt-realm.dev/league"]];
   function tableLines(rows) { return rows.slice(0, 3).map((x, k) => `${k + 1}. ${esc(short(x.key))}  <b>${fmtN(x.total)}</b>`).join("\n"); }
   function leftText() {
     const h = Math.max(0, Math.floor((Date.parse(comp.end + "T23:59:59Z") - Date.now()) / 3600e3));
@@ -192,7 +219,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     if (!pending.length) return;
     const lines = pending.splice(0, MAX_LINES), more = pending.length;
     const text = lines.length === 1 ? `🎴 ${lines[0]}` : `🎴 <b>Latest BREAKTHROUGH runs</b>\n\n${lines.join("\n")}`;
-    Promise.resolve(announce(text, LINKS)).then(r => { if (r && r.ok === false) log("breakthrough: telegram post failed: " + r.problem); }).catch(() => {});
+    Promise.resolve(announce(text, LINKS_OF())).then(r => { if (r && r.ok === false) log("breakthrough: telegram post failed: " + r.problem); }).catch(() => {});
     if (more) { scoreTimer = setTimeout(sendScores, SCORE_GAP_MS); if (scoreTimer.unref) scoreTimer.unref(); }
   }
 
@@ -210,7 +237,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     if (!rows.length || (B.posted.leaderKey === rows[0].key && B.posted.leaderTotal === rows[0].total)) return;
     B.posted.leaderAt = Date.now(); B.posted.leaderKey = rows[0].key; B.posted.leaderTotal = rows[0].total; saveBoard();
     const top = rows[0];
-    Promise.resolve(announce(`🏆 <b>NEW TOP SCORE in BREAKTHROUGH</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n${tableLines(rows)}\n\n${esc(comp.prize)} to the highest Daily Trip score. ${leftText()}. Free to enter: connect a wallet, then play.`, LINKS))
+    Promise.resolve(announce(`🏆 <b>NEW TOP SCORE in BREAKTHROUGH</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n${tableLines(rows)}\n\n${esc(comp.prize)} to the highest Daily Trip score. ${leftText()}. Free to enter: connect a wallet, then play.`, LINKS_OF()))
       .then(r => { if (r && r.ok === false) log("breakthrough: telegram post failed: " + r.problem); }).catch(() => {});
   }
   // once it's over, post the result (checked every few minutes, and once at start)
@@ -220,7 +247,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     B.posted["final:" + comp.id] = Date.now(); saveBoard();
     if (!rows.length) return;
     const w = rows[0];
-    Promise.resolve(announce(`🏆 <b>${esc(comp.title)} is over</b>\n\nThe winner of ${esc(comp.prize)}: <b>${esc(short(w.key))}</b> with <b>${fmtN(w.total)}</b>.\n\n${tableLines(rows)}\n\nWinner's wallet: <code>${esc(w.key)}</code>`, LINKS)).catch(() => {});
+    Promise.resolve(announce(`🏆 <b>${esc(comp.title)} is over</b>\n\nThe winner of ${esc(comp.prize)}: <b>${esc(short(w.key))}</b> with <b>${fmtN(w.total)}</b>.\n\n${tableLines(rows)}\n\nWinner's wallet: <code>${esc(w.key)}</code>`, LINKS_OF())).catch(() => {});
   }
   if (announce) {
     const t = setInterval(finalNews, 5 * 60e3); if (t.unref) t.unref();
@@ -229,8 +256,8 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
 
   const ranked = book => Object.entries(book).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.total - a.total || a.at - b.at);
 
-  function board({ token, pid } = {}) {
-    const wallet = walletOf(token), me = who(wallet, pid), day = dayKey(), wk = weekKey();
+  function board({ token, pid, tg } = {}) {
+    const wallet = walletOf(token), me = who(wallet, pid, tg), day = dayKey(), wk = weekKey();
     const view = book => {
       const rows = ranked(book || {});
       const i = me ? rows.findIndex(x => x.key === me.key) : -1;
@@ -248,11 +275,11 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     return { beings: all.filter(b => b.owner).map(b => ({ n: b.n, owner: short(b.owner), count: s[b.n] || 0 })).sort((a, b) => b.count - a.count || a.n - b.n) };
   }
 
-  async function me({ token, pid } = {}) {
+  async function me({ token, pid, tg } = {}) {
     let wallet = null;
     if (token) { wallet = walletOf(token); if (!wallet) return { error: "Your sign-in has expired. Sign in again.", status: 401 }; }
     if (!wallet && !isGuest(pid)) pid = crypto.randomBytes(12).toString("hex");
-    const out = { pid: wallet ? null : pid, wallet, name: who(wallet, pid).name, own: [], summonedToday: 0 };
+    const out = { pid: wallet ? null : pid, wallet, name: who(wallet, pid, tg).name, telegram: !wallet && !!(tg && tgUser(tg, tgToken())), own: [], summonedToday: 0 };
     if (wallet) {
       try { out.own = await ownedBy(wallet); } catch { out.own = null; }
       const s = B.summons[dayKey()] || {};
@@ -261,14 +288,28 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     return out;
   }
 
+  /* the bot's replies to /top and /league in the group */
+  function topText() {
+    const out = [];
+    if (comp && inComp(dayKey())) {
+      const rows = ranked(B.comps[comp.id] || {}).filter(x => !isTeam(x.key));
+      out.push(`🏆 <b>${esc(comp.title)}</b>: ${esc(comp.prize)} to the winner, ${leftText()}`);
+      out.push(rows.length ? tableLines(rows) : "No entries yet. Connect a wallet and play the Daily Trip to take first place.");
+    }
+    const today = ranked(B.days[dayKey()] || {});
+    out.push(`\n🎴 <b>Today's Daily Trip</b>`);
+    out.push(today.length ? today.slice(0, 5).map((x, k) => `${k + 1}. ${esc(x.name)}  <b>${fmtN(x.total)}</b>`).join("\n") : "Nobody has played today's yet.");
+    return out.join("\n");
+  }
+
   /* the league table page: the whole competition table, plus today's Daily Trip */
   function league({ token } = {}) {
     const wallet = walletOf(token), rows = ranked(B.days[dayKey()] || {});
     return { comp: compView(wallet, 100), today: rows.slice(0, 20).map(x => ({ name: x.name, total: x.total, cleared: x.cleared })), todayPlayers: rows.length };
   }
 
-  return { start, finish, board, league, summonable, me, cards, dailyDef, live: () => runs.size, _news: { sendLeader, finalNews, sendScores },
+  return { start, finish, board, league, summonable, me, cards, dailyDef, live: () => runs.size, _news: { sendLeader, finalNews, sendScores }, topText, links: () => LINKS_OF(),
     flush: () => { liveFile && liveFile.flush(); boardFile && boardFile.flush(); } };
 }
 
-module.exports = { create };
+module.exports = { create, tgUser };

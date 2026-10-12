@@ -245,3 +245,6 @@ section{position:relative;z-index:1}
 @media (prefers-reduced-motion:reduce){.bt-ring,.bt-hex{animation:none}}
 
 [data-whysheet]{z-index:60}
+
+.bt-cardimg{display:block;width:100%;margin:8px 0;border:2px solid var(--gold);box-shadow:0 0 0 2px #000;-webkit-touch-callout:default;user-select:auto;-webkit-user-select:auto}
+[data-sharesheet]{z-index:60}

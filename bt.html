@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="bt.css?v=8">
+<link rel="stylesheet" href="bt.css?v=9">
 </head>
 <body>
 <div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
@@ -137,9 +137,20 @@
     <div class="bt-endscore"><b data-end-total>0</b><span>points</span></div>
     <div class="bt-endrows" data-end-rows></div>
     <p class="bt-sub" data-end-rank></p>
-    <a class="bt-btn cast wide" data-share target="_blank" rel="noopener">Share on X</a>
+    <button class="bt-btn cast wide" data-share>Share my card on X</button>
     <div class="bt-row"><button class="bt-ghost" data-again>Play again</button><button class="bt-ghost" data-lobby>Menu</button></div>
     <a class="bt-link" href="/league">See the league table ›</a>
+  </div>
+</div>
+
+<!-- ============ share card (when the phone can't share a picture directly) ============ -->
+<div class="bt-sheet" data-sharesheet hidden>
+  <div class="bt-panel tall">
+    <h2 style="font-size:1.5rem">Your card</h2>
+    <img class="bt-cardimg" data-cardimg alt="Your BREAKTHROUGH score card">
+    <p class="bt-sub">Save the picture (press and hold it on a phone), then post it on X.</p>
+    <div class="bt-row"><a class="bt-ghost" data-cardsave download="breakthrough.jpg">Save picture</a><a class="bt-btn cast" data-cardpost target="_blank" rel="noopener">Post on X</a></div>
+    <button class="bt-link" data-share-close>Close</button>
   </div>
 </div>
 
@@ -217,6 +228,6 @@
 </div>
 
 <script src="bt/engine.js?v=2"></script>
-<script src="bt-page.js?v=9"></script>
+<script src="bt-page.js?v=11"></script>
 </body>
 </html>
