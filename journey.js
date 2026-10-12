@@ -16,6 +16,7 @@ window.RealmJourney = (() => {
   "use strict";
 
   const OPTIONS = [
+    { key: "break",   label: "BREAKTHROUGH", href: "/breakthrough" },
     { key: "mint",    label: "MINT",       panel: "mint" },
     { key: "beings",  label: "THE BEINGS", panel: "nfts" },
     { key: "rewards", label: "REWARDS",    panel: "rewards" },
@@ -704,6 +705,7 @@ window.RealmJourney = (() => {
       case "holders": return "what a wallet earns";
       case "map":     return "every being, live";
       case "duels":   return "battle your beings · weekly board";
+      case "break":   return "new · the card game · play free";
       default:        return "";
     }
   }
@@ -731,7 +733,7 @@ window.RealmJourney = (() => {
 
     OPTIONS.forEach(o => {
       const el = document.createElement(o.href ? "a" : "button");
-      el.className = "slab" + (o.key === "duels" ? " slab-duels" : "");
+      el.className = "slab" + (o.key === "duels" ? " slab-duels" : o.key === "break" ? " slab-break" : "");
       if (o.href) el.href = o.href; else el.type = "button";
 
       const word = document.createElement("b");

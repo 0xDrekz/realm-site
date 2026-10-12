@@ -617,3 +617,18 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .slab-duels .slab-in{color:#e3ba5c}
 .slab-duels .slab-note{color:#c9b27a}
 .slab-duels .slab-in .ch{color:#e3ba5c}
+
+/* BREAKTHROUGH, the card game: first in the menu, the whole row, in neon */
+.slab-break{grid-column:1 / -1;order:-1;padding:clamp(14px,2.2vh,20px) 10px;border:2px solid #5cf0ff;
+  background:linear-gradient(135deg,#2a0f4a,#06121c 60%,#2a0f4a);box-shadow:0 0 26px -4px rgba(92,240,255,.75),inset 0 0 22px rgba(255,79,195,.25);
+  animation:breakGlow 2.4s ease-in-out infinite}
+.slab-break .slab-in,.slab-break .slab-in .ch{color:#fff1c2;font-size:clamp(1.15rem,5.4vw,1.5rem);text-shadow:0 0 14px rgba(92,240,255,.9)}
+.slab-break .slab-note{color:#5cf0ff}
+@keyframes breakGlow{50%{box-shadow:0 0 40px 0 rgba(92,240,255,.9),inset 0 0 30px rgba(255,79,195,.4)}}
+/* and a way straight in from the door */
+.play-break{display:inline-flex;align-items:center;gap:10px;padding:11px 18px;text-decoration:none;
+  font-family:'Pixelify Sans',system-ui,sans-serif;font-weight:700;font-size:clamp(.86rem,3.8vw,1.02rem);letter-spacing:.1em;text-transform:uppercase;color:#fff1c2;
+  background:linear-gradient(135deg,rgba(42,15,74,.92),rgba(6,18,28,.92));border:2px solid #5cf0ff;
+  box-shadow:0 0 22px -4px rgba(92,240,255,.8);animation:breakGlow 2.4s ease-in-out infinite}
+.play-break span{padding:2px 6px;font-size:.7em;letter-spacing:.14em;background:#5cf0ff;color:#07040f}
+@media (prefers-reduced-motion:reduce){.slab-break,.play-break{animation:none}}
