@@ -68,6 +68,19 @@ section{position:relative;z-index:1}
 .bt-fine{margin:10px 0 0!important;font-family:var(--num);font-size:.72rem!important;color:var(--faint)!important;line-height:1.4}
 .bt-err{color:#ff8a9a!important}
 
+/* the competition banner */
+.bt-comp{width:100%;display:grid;gap:3px;margin:0 0 10px;padding:12px 14px;text-align:left;border:2px solid var(--chips);color:var(--bone);
+  background:linear-gradient(135deg,#06303c,#14072a 60%,#3c0830);box-shadow:0 0 24px -4px rgba(92,240,255,.7);animation:btCompGlow 2.4s ease-in-out infinite;position:relative}
+.bt-comp::after{content:"›";position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:1.8rem;color:var(--chips)}
+.bt-comp-k{font-size:1.5rem;font-weight:700;letter-spacing:.12em;color:var(--gold2);text-shadow:0 0 14px rgba(92,240,255,.8)}
+.bt-comp-t{font-family:var(--num);font-weight:600;font-size:.88rem}
+.bt-comp-s{font-family:var(--num);font-size:.76rem;color:var(--chips)}
+@keyframes btCompGlow{50%{box-shadow:0 0 36px 0 rgba(92,240,255,.9)}}
+.bt-compinfo{margin:0 0 12px;padding:10px 12px;text-align:left;font-family:var(--num);font-size:.8rem;line-height:1.45;color:var(--dim);background:rgba(7,4,15,.7);border-left:3px solid var(--chips)}
+.bt-compinfo b{color:var(--gold2)}
+.bt-win{margin:6px 0 0;padding:10px;font-family:var(--num);font-size:.85rem;line-height:1.4;background:rgba(92,240,255,.1);border:1px solid var(--chips);color:var(--bone)}
+.bt-win b{color:var(--chips)}
+
 /* ---------- a card ---------- */
 .bt-card,.bt-card *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .bt-card{width:var(--cw);height:var(--ch);position:relative;background:#07040f;border:3px solid var(--tc,#9ca3af);

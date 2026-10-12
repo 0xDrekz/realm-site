@@ -166,7 +166,21 @@
     const d = BOARD && BOARD.daily;
     $("[data-daily-note]").textContent = d && d.you ? `Your best today: ${fmt(d.you.total)} · #${d.you.rank} of ${d.players}` : d && d.players ? `${d.players} player${d.players === 1 ? "" : "s"} today · best run counts` : "Best run counts";
     $("[data-resume]").hidden = !store.get("run", null);
+    paintComp();
   }
+  /* the competition: a banner in the lobby while it runs */
+  function left(ms) { const h = Math.max(0, Math.floor(ms / 3600e3)); return h >= 48 ? Math.floor(h / 24) + " days left" : h >= 1 ? h + " hours left" : "ends soon"; }
+  function paintComp() {
+    const c = BOARD && BOARD.comp, el = $("[data-comp]");
+    $("[data-comptab]").hidden = !c;
+    if (!c || (!c.live && !c.over)) { el.hidden = true; return; }
+    el.hidden = false;
+    $("[data-comp-k]").textContent = c.over ? "COMPETITION OVER" : "WIN " + c.prize.toUpperCase();
+    $("[data-comp-t]").textContent = c.over ? (c.top[0] ? `Winner: ${c.top[0].name} with ${fmt(c.top[0].total)}` : "No entries") : "Highest Daily Trip score this week";
+    $("[data-comp-s]").textContent = c.over ? "Tap for the final board" : !session() ? `${left(c.endsAt - Date.now())} · connect a wallet below to enter`
+      : c.you ? `You're #${c.you.rank} of ${c.players} with ${fmt(c.you.total)} · ${left(c.endsAt - Date.now())}` : `${c.players} entered · ${left(c.endsAt - Date.now())} · play the Daily Trip`;
+  }
+  $("[data-comp]").addEventListener("click", async () => { tab = "comp"; $("[data-boardsheet]").hidden = false; paintBoard(); await loadBoard(); paintBoard(); });
 
   /* ---------- the run ---------- */
   let R = null;
@@ -395,8 +409,14 @@
     for (;;) {
       try {
         const d = await api("/api/bt/finish", { run: run.id, moves: run.moves });
-        const b = d.result && d.result.board;
+        const b = d.result && d.result.board, c = d.result && d.result.comp, cp = BOARD && BOARD.comp;
         $("[data-end-rank]").textContent = b ? `${b.best ? "New best! " : ""}#${b.rank} of ${b.of} on the ${run.mode === "daily" ? "Daily Trip board" : "Free Run board this week"}.` : "Counted.";
+        if (c) {
+          const w = document.createElement("p"); w.className = "bt-win";
+          w.innerHTML = c.entered ? `<b>${esc(cp ? cp.prize : "SOL")} competition:</b> you're <b>#${c.rank}</b> of ${c.of}${c.best ? " (your best this week)" : ""}.`
+            : `This run isn't in the <b>${esc(cp ? cp.prize : "SOL")} competition</b>: connect a wallet in the menu <i>before</i> you play, and your Daily Trip scores count.`;
+          $("[data-end-rank]").after(w);
+        }
         break;
       } catch (e) {
         if ((e.data && (e.data.gone || e.data.result)) || e.status === 400) { $("[data-end-rank]").textContent = e.message; break; }
@@ -406,8 +426,9 @@
     }
     store.set("run", null); R = null; loadBoard();
   }
-  $("[data-again]").addEventListener("click", () => { const m = $("[data-again]").dataset.mode || "daily"; $("[data-end]").hidden = true; startRun(m); });
-  $("[data-lobby]").addEventListener("click", () => { $("[data-end]").hidden = true; show("lobby"); paintLobby(); });
+  const clearWin = () => $$(".bt-win").forEach(e => e.remove());
+  $("[data-again]").addEventListener("click", () => { clearWin(); const m = $("[data-again]").dataset.mode || "daily"; $("[data-end]").hidden = true; startRun(m); });
+  $("[data-lobby]").addEventListener("click", () => { clearWin(); $("[data-end]").hidden = true; show("lobby"); paintLobby(); });
 
   /* ---------- menu, modes, sheets ---------- */
   $("[data-menu]").addEventListener("click", () => { $("[data-menusheet]").hidden = false; sfx.tap(); });
@@ -441,10 +462,18 @@
   let tab = "daily";
   function paintBoard() {
     const box = $("[data-board]"), v = BOARD && BOARD[tab];
+    if (tab === "comp" && v) {
+      $$("[data-btab]").forEach(b => b.classList.toggle("on", b.dataset.btab === tab));
+      const info = `<div class="bt-compinfo"><b>${esc(v.title)}: ${esc(v.prize)} to the winner.</b> ${esc(v.rules || "")}</div>`;
+      const rows = v.top.length ? `<div class="bt-rows">${v.top.map((r, i) => `<div class="${r.you ? "you" : ""}"><i>${i + 1}</i><span>${esc(r.wallet || r.name)}<small>${r.cleared} layer${r.cleared === 1 ? "" : "s"}</small></span><b>${fmt(r.total)}</b></div>`).join("")}</div>`
+        : '<p class="bt-sub">No entries yet. Sign in with a wallet and play the Daily Trip to be first.</p>';
+      box.innerHTML = info + rows + (v.you && v.you.rank > 10 ? `<p class="bt-sub">You: #${v.you.rank} with ${fmt(v.you.total)}</p>` : "");
+      return;
+    }
     $$("[data-btab]").forEach(b => b.classList.toggle("on", b.dataset.btab === tab));
     if (!v) { box.innerHTML = '<p class="bt-sub">Couldn\'t load the board.</p>'; return; }
     if (!v.top.length) { box.innerHTML = `<p class="bt-sub">Nobody on the board yet ${tab === "daily" ? "today" : "this week"}. Be the first.</p>`; return; }
-    box.innerHTML = `<div class="bt-rows">${v.top.map((r, i) => `<div class="${r.you ? "you" : ""}"><i>${i + 1}</i><span>${esc(r.name)}${r.holder ? ' <small>holder</small>' : ""}<small>${r.cleared} layer${r.cleared === 1 ? "" : "s"}</small></span><b>${fmt(r.total)}</b></div>`).join("")}</div>`
+    box.innerHTML = `<div class="bt-rows">${v.top.map((r, i) => `<div class="${r.you ? "you" : ""}"><i>${i + 1}</i><span>${esc(r.name)}<small>${r.cleared} layer${r.cleared === 1 ? "" : "s"}</small></span><b>${fmt(r.total)}</b></div>`).join("")}</div>`
       + (v.you && v.you.rank > 20 ? `<p class="bt-sub">You: #${v.you.rank} with ${fmt(v.you.total)}</p>` : "");
   }
   $("[data-board-open]").addEventListener("click", async () => { $("[data-boardsheet]").hidden = false; paintBoard(); await loadBoard(); paintBoard(); });

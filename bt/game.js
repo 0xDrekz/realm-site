@@ -20,16 +20,20 @@ const E = require("./engine"), C = require("./cards");
 
 const TTL = 3 * 3600e3, MAX_RUNS = 20000, PER_OWNER = 3, DECK = 20, OWN_IN_DECK = 8, MAX_MOVES = 800;
 
-function create({ log = () => {}, beings = async () => [], walletOf = () => null, dir = null } = {}) {
+/* a competition, when one is on (bt/comp.json): the best Daily Trip score of a signed-in wallet
+   between two dates wins a prize from the team's own funds. Free to enter, always. */
+function loadComp() { try { return JSON.parse(require("fs").readFileSync(path.join(__dirname, "comp.json"), "utf8")); } catch { return null; } }
+
+function create({ log = () => {}, beings = async () => [], walletOf = () => null, dir = null, comp = loadComp() } = {}) {
   const jf = file => dir ? require("../jsonfile").create(path.join(dir, file), { log: m => log("breakthrough: " + m), fallback: {} }) : null;
   const liveFile = jf("bt-live.json"), boardFile = jf("bt-board.json");
   let saved = {}; try { saved = liveFile ? liveFile.load() || {} : {}; } catch (e) { log("breakthrough: live runs could not be read, starting fresh: " + e.message); }
   const runs = new Map(Object.entries(saved));
   const saveLive = () => { if (liveFile) liveFile.save(() => { tidy(); return Object.fromEntries(runs); }); };
   let B = {}; try { B = boardFile ? boardFile.load() || {} : {}; } catch (e) { log("breakthrough: board could not be read, starting fresh: " + e.message); }
-  B.days = B.days || {}; B.weeks = B.weeks || {}; B.summons = B.summons || {};
+  B.days = B.days || {}; B.weeks = B.weeks || {}; B.summons = B.summons || {}; B.comps = B.comps || {};
   const trim = (o, k) => Object.fromEntries(Object.keys(o).sort().slice(-k).map(x => [x, o[x]]));
-  const saveBoard = () => { if (boardFile) boardFile.save(() => (B = { days: trim(B.days, 10), weeks: trim(B.weeks, 6), summons: trim(B.summons, 10) })); };
+  const saveBoard = () => { if (boardFile) boardFile.save(() => (B = { days: trim(B.days, 10), weeks: trim(B.weeks, 6), summons: trim(B.summons, 10), comps: B.comps })); };
   const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
   const weekKey = (d = new Date()) => { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); return m.toISOString().slice(0, 10); };
   function tidy() { const now = Date.now(); for (const [k, r] of runs) if (now - r.at > TTL) runs.delete(k); }
@@ -111,6 +115,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     r.done = true;
     const res = { mode: r.mode, cleared: E.cleared(S), total: S.total, best: S.best, bestHand: S.bestHand, broke: S.broke || E.cleared(S) >= E.LAYERS, over: S.over };
     if (r.pkey && S.total > 0) res.board = record(r, res);
+    if (r.mode === "daily" && S.total > 0) res.comp = enter(r, res);
     r.result = res; saveLive();
     log(`breakthrough: ${r.mode} ${res.cleared} layers, ${res.total} pts${r.wallet ? " (" + r.wallet.slice(0, 4) + ")" : ""}`);
     return { result: res };
@@ -126,6 +131,28 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     const rows = ranked(book), i = rows.findIndex(x => x.key === r.pkey);
     return { best: better, rank: i + 1, of: rows.length, top: book[r.pkey].total };
   }
+  /* the competition: a signed-in wallet's best Daily Trip of the competition's days */
+  const inComp = day => !!comp && day >= comp.start && day <= comp.end;
+  function enter(r, res) {
+    if (!inComp(r.day)) return null;
+    if (!r.wallet) return { entered: false };
+    const book = B.comps[comp.id] = B.comps[comp.id] || {};
+    const cur = book[r.wallet], better = !cur || res.total > cur.total;
+    if (better) book[r.wallet] = { total: res.total, cleared: res.cleared, day: r.day, at: Date.now() };
+    saveBoard();
+    const rows = ranked(book), i = rows.findIndex(x => x.key === r.wallet);
+    return { entered: true, best: better, rank: i + 1, of: rows.length };
+  }
+  function compView(wallet) {
+    if (!comp) return null;
+    const rows = ranked(B.comps[comp.id] || {}), day = dayKey(), over = day > comp.end;
+    const i = wallet ? rows.findIndex(x => x.key === wallet) : -1;
+    return { title: comp.title, prize: comp.prize, start: comp.start, end: comp.end, rules: comp.rules,
+      endsAt: Date.parse(comp.end + "T23:59:59Z"), live: inComp(day), over, players: rows.length,
+      // the winner's full address is shown once it's over, so anyone can check the prize was paid
+      top: rows.slice(0, 10).map((x, k) => ({ name: short(x.key), wallet: over && k === 0 ? x.key : undefined, total: x.total, cleared: x.cleared, you: x.key === wallet })),
+      you: i < 0 ? null : { rank: i + 1, total: rows[i].total } };
+  }
   const ranked = book => Object.entries(book).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.total - a.total || a.at - b.at);
 
   function board({ token, pid } = {}) {
@@ -138,7 +165,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     };
     const s = B.summons[day] || {};
     const summons = Object.entries(s).map(([n, c]) => ({ n: +n, count: c })).sort((a, b) => b.count - a.count).slice(0, 10);
-    return { day, week: wk, daily: view(B.days[day]), free: view(B.weeks[wk]), summons };
+    return { day, week: wk, daily: view(B.days[day]), free: view(B.weeks[wk]), summons, comp: compView(wallet) };
   }
 
   /* beings anyone can summon: every being a holder owns, with today's summon count */

@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="bt.css?v=5">
+<link rel="stylesheet" href="bt.css?v=6">
 </head>
 <body>
 <div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
@@ -34,6 +34,12 @@
     <p class="bt-lede">Match <b>Auras</b>. Chain the <b>traits</b>. Watch the numbers explode. Climb eight layers to <b>the Source</b>.</p>
   </div>
   <div class="bt-fan" data-fan aria-hidden="true"></div>
+
+  <button class="bt-comp" data-comp hidden>
+    <span class="bt-comp-k" data-comp-k>WIN 1 SOL</span>
+    <span class="bt-comp-t" data-comp-t>Highest Daily Trip score this week</span>
+    <span class="bt-comp-s" data-comp-s></span>
+  </button>
 
   <div class="bt-modes">
     <button class="bt-mode daily" data-play="daily">
@@ -171,9 +177,9 @@
 <!-- ============ board ============ -->
 <div class="bt-sheet" data-boardsheet hidden>
   <div class="bt-panel tall">
-    <div class="bt-tabs"><button class="on" data-btab="daily">Daily Trip</button><button data-btab="free">Free Run (week)</button></div>
+    <div class="bt-tabs"><button data-btab="comp" data-comptab hidden>Win SOL</button><button class="on" data-btab="daily">Daily Trip</button><button data-btab="free">Free Run (week)</button></div>
     <div data-board><p class="bt-sub">Loading…</p></div>
-    <p class="bt-fine">Prizes, when there are any, come from the team's own funds and go to holders on the board. It's always free to play.</p>
+    <p class="bt-fine">Prizes come only from the team's own funds, never from the holders' rewards pool. It's always free to play: no entry fee, nothing at stake.</p>
     <button class="bt-ghost wide" data-board-close>Close</button>
   </div>
 </div>
@@ -197,6 +203,6 @@
 </div>
 
 <script src="bt/engine.js?v=2"></script>
-<script src="bt-page.js?v=5"></script>
+<script src="bt-page.js?v=6"></script>
 </body>
 </html>

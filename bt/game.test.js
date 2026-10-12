@@ -54,3 +54,20 @@ test("a free run deals your own beings and a summoned one; the summon is counted
   const m = await g.me({ token: "tok" }); assert.deepEqual(m.own, [5, 9]);
   assert.ok((await g.start({ mode: "free", token: "expired" })).status === 401);
 });
+
+test("the competition counts a signed-in wallet's best Daily Trip, and not guests", async () => {
+  const day = new Date().toISOString().slice(0, 10);
+  const g = G.create({ beings: async () => [], walletOf: t => t === "tok" ? W : null, comp: { id: "t", title: "Test", prize: "1 SOL", start: day, end: day } });
+  const a = await g.start({ mode: "daily", token: "tok" });
+  const ra = await later(() => g.finish({ run: a.run, moves: playThrough(a).moves }));
+  assert.ok(ra.result.comp.entered); assert.equal(ra.result.comp.rank, 1);
+  const b = await g.start({ mode: "daily", pid: PID });
+  const rb = await later(() => g.finish({ run: b.run, moves: playThrough(b).moves }));
+  assert.equal(rb.result.comp.entered, false);
+  const v = g.board({ token: "tok" }).comp;
+  assert.equal(v.players, 1); assert.ok(v.top[0].you); assert.equal(v.top[0].wallet, undefined);   // full address only once it's over
+  const free = await g.start({ mode: "free", token: "tok" });
+  const rf = await later(() => g.finish({ run: free.run, moves: playThrough(free).moves }));
+  assert.equal(rf.result.comp, undefined);   // Free Runs don't count
+  const none = G.create({ comp: null }); assert.equal(none.board({}).comp, null);
+});
