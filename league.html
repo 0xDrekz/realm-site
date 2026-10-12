@@ -57,6 +57,8 @@ tr.p2 td:first-child{border-left-color:#d1d5db;color:#d1d5db}
 tr.p3 td:first-child{border-left-color:#d97706;color:#f59e0b}
 tr.you td{outline:2px solid var(--cy);outline-offset:-2px}
 .medal{display:inline-block;margin-left:6px;padding:1px 6px;font-family:var(--px);font-size:.62rem;letter-spacing:.12em;background:#fde68a;color:#140a02;vertical-align:middle}
+.medal.team{background:#3a3448;color:#cfc4ee}
+tr.team td{opacity:.6}
 .empty{padding:22px;text-align:center;font-family:var(--num);color:var(--dim);background:rgba(13,8,25,.8);border:1px dashed var(--line)}
 .you-line{margin:10px 0 0;text-align:center;font-family:var(--num);color:var(--cy)}
 .rules{margin:22px 0 0;padding:14px 16px;font-family:var(--num);font-size:.86rem;line-height:1.5;color:var(--dim);background:rgba(13,8,25,.8);border-left:3px solid var(--cy)}
@@ -102,7 +104,8 @@ tr.you td{outline:2px solid var(--cy);outline-offset:-2px}
   function rows(list, compMode) {
     if (!list.length) return `<div class="empty">${compMode ? "No entries yet. Connect a wallet in the game and play the Daily Trip to take first place." : "Nobody has played today's Daily Trip yet."}</div>`;
     return `<table><thead><tr><th>#</th><th>${compMode ? "Wallet" : "Player"}</th><th class="r">Layers</th><th class="r">Score</th></tr></thead><tbody>`
-      + list.map((r, i) => `<tr class="${i < 3 ? "p" + (i + 1) : ""}${r.you ? " you" : ""}"><td>${i + 1}</td><td class="w">${esc(r.wallet || r.name)}${compMode && i === 0 && D.comp.over ? '<span class="medal">WINNER</span>' : ""}${r.you ? ' <span class="medal" style="background:#5cf0ff">YOU</span>' : ""}</td><td class="r l">${r.cleared}</td><td class="r s">${fmt(r.total)}</td></tr>`).join("")
+      + list.map((r, i) => { const k = compMode ? r.rank : i + 1;
+        return `<tr class="${k && k <= 3 ? "p" + k : ""}${r.team ? " team" : ""}${r.you ? " you" : ""}"><td>${k || "–"}</td><td class="w">${esc(r.wallet || r.name)}${r.team ? '<span class="medal team">TEAM · NOT ELIGIBLE</span>' : ""}${compMode && k === 1 && D.comp.over ? '<span class="medal">WINNER</span>' : ""}${r.you ? ' <span class="medal" style="background:#5cf0ff">YOU</span>' : ""}</td><td class="r l">${r.cleared}</td><td class="r s">${fmt(r.total)}</td></tr>`; }).join("")
       + "</tbody></table>";
   }
   function paint() {
@@ -123,8 +126,8 @@ tr.you td{outline:2px solid var(--cy);outline-offset:-2px}
     if (tab === "comp" && c) {
       $("[data-table]").innerHTML = rows(c.top, true);
       const y = $("[data-you]");
-      y.hidden = !c.you || c.you.rank <= c.top.length;
-      if (c.you) y.textContent = `You're #${c.you.rank} with ${fmt(c.you.total)}`;
+      y.hidden = !c.you || c.you.team || c.you.rank <= c.top.filter(r => !r.team).length;
+      if (c.you && !c.you.team) y.textContent = `You're #${c.you.rank} with ${fmt(c.you.total)}`;
     } else { $("[data-table]").innerHTML = rows(D.today, false); $("[data-you]").hidden = true; }
     $("[data-at]").textContent = "Live · updated " + new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }

@@ -80,3 +80,16 @@ test("the league table lists the whole competition and today's runs", async () =
   const L = g.league({ token: "tok" });
   assert.equal(L.comp.top.length, 1); assert.ok(L.comp.top[0].you); assert.equal(L.today.length, 1); assert.equal(L.todayPlayers, 1);
 });
+
+test("team wallets play but can't win: unranked, and the next wallet is #1", async () => {
+  const day = new Date().toISOString().slice(0, 10), W2 = "Fan2222222222222222222222222222222222222222";
+  const g = G.create({ beings: async () => [], walletOf: t => t === "tok" ? W : t === "fan" ? W2 : null, comp: { id: "T", title: "T", prize: "1 SOL", start: day, end: day, team: [W] } });
+  const a = await g.start({ mode: "daily", token: "tok" }), ra = await later(() => g.finish({ run: a.run, moves: playThrough(a).moves }));
+  assert.ok(ra.result.comp.team);
+  const b = await g.start({ mode: "daily", token: "fan" });
+  const S = E.createRun({ seed: b.seed, deck: b.deck, cards: C.cardOf }); E.cast(S, [0]); E.cast(S, [0]); E.cast(S, [0]); E.cast(S, [0]);   // a weaker run
+  const rb = await later(() => g.finish({ run: b.run, moves: [["c", [0]], ["c", [0]], ["c", [0]], ["c", [0]]] }));
+  assert.equal(rb.result.comp.rank, 1);
+  const v = g.league({ token: "fan" }).comp;
+  assert.equal(v.players, 1); assert.equal(v.top[0].team, true); assert.equal(v.top[0].rank, null); assert.equal(v.top[1].rank, 1); assert.ok(v.top[1].you);
+});
