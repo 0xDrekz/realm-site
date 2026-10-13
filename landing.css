@@ -624,6 +624,10 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   animation:breakGlow 2.4s ease-in-out infinite}
 .slab-break .slab-in,.slab-break .slab-in .ch{color:#fff1c2;font-size:clamp(1.15rem,5.4vw,1.5rem);text-shadow:0 0 14px rgba(92,240,255,.9)}
 .slab-break .slab-note{color:#5cf0ff}
+.slab-comp{font-family:'Space Grotesk',system-ui,sans-serif;font-style:normal;font-weight:700;font-variant-numeric:tabular-nums;
+  font-size:.86rem;letter-spacing:.08em;color:#ffd35c;text-shadow:0 0 10px rgba(255,211,92,.6);white-space:nowrap}
+.slab-how{font-family:'Space Grotesk',system-ui,sans-serif;font-style:normal;font-size:.72rem;line-height:1.35;color:#cfc4ee;
+  white-space:normal;max-width:30em;text-align:center}
 @keyframes breakGlow{50%{box-shadow:0 0 40px 0 rgba(92,240,255,.9),inset 0 0 30px rgba(255,79,195,.4)}}
 /* and a way straight in from the door */
 .play-break{display:inline-flex;align-items:center;gap:10px;padding:11px 18px;text-decoration:none;

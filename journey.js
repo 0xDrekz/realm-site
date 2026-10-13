@@ -725,6 +725,26 @@ window.RealmJourney = (() => {
     });
   }
 
+  /* the competition under BREAKTHROUGH: what's to win, a live countdown, and how to enter */
+  function compLine(slab) {
+    const timer = document.createElement("i"); timer.className = "slab-comp"; timer.hidden = true;
+    const how = document.createElement("i"); how.className = "slab-how"; how.hidden = true;
+    how.textContent = "Sign in with your wallet to enter the free comp · play as many times as you like";
+    slab.append(timer, how);
+    fetch("/api/bt/league").then(r => r.json()).then(d => {
+      const c = d && d.comp; if (!c || !c.live || c.over) return;
+      const tick = () => {
+        const ms = c.endsAt - Date.now();
+        if (ms <= 0) { timer.textContent = "WIN " + c.prize + " · ENDING NOW"; return; }
+        const s = Math.floor(ms / 1000), dd = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600), mm = Math.floor(s % 3600 / 60), ss = s % 60;
+        const p = n => String(n).padStart(2, "0");
+        timer.textContent = `WIN ${c.prize} · ENDS IN ${dd ? dd + "d " : ""}${p(hh)}:${p(mm)}:${p(ss)}`;
+      };
+      tick(); setInterval(tick, 1000);
+      timer.hidden = false; how.hidden = false;
+    }).catch(() => { /* no comp line: the slab still works */ });
+  }
+
   function build() {
     const menu = document.querySelector(".j-menu");
     if (!menu || menu.children.length) return;
@@ -747,6 +767,7 @@ window.RealmJourney = (() => {
         if (!o.href) { e.preventDefault(); open(o); }
       });
       menu.appendChild(el);
+      if (o.key === "break") compLine(el);
     });
 
     const where = document.querySelector(".j-where");
