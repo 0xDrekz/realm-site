@@ -209,7 +209,7 @@
   /* ---------- the run ---------- */
   let R = null;
   const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, cards: card });
-  const saveRun = () => store.set("run", R ? { id: R.id, mode: R.mode, seed: R.seed, deck: R.deck, own: R.own, boost: R.boost, moves: R.moves, day: R.day, left: R.left, savedAt: Date.now() } : null);
+  const saveRun = () => store.set("run", R ? { id: R.id, mode: R.mode, seed: R.seed, deck: R.deck, own: R.own, boost: R.boost, duel: R.duel || null, moves: R.moves, day: R.day, left: R.left, savedAt: Date.now() } : null);
 
   /* ---------- the clock: 60 seconds a layer. It stops while a cast scores, between layers, and during the
      layer's opening banner; it keeps running if you look away (menu, card details, another tab). ---------- */
@@ -241,8 +241,9 @@
     const btns = $$("[data-play]"); btns.forEach(b => (b.disabled = true));
     try {
       await loadCards();
-      const d = await api("/api/bt/start", { ...auth(), mode, summon: summon || undefined });
-      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], boost: d.boost || 100, moves: [], summoned: d.summoned, bestCast: null, left: LAYER_MS };
+      const d = await api("/api/bt/start", { ...auth(), mode, summon: mode === "duel" ? undefined : summon || undefined, duel: mode === "duel" ? (summon || undefined) : undefined });
+      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], boost: d.boost || 100, moves: [], summoned: d.summoned, bestCast: null, left: LAYER_MS,
+        duel: d.duel ? d.duel.id : null };
       R.S = E.createRun(defOf(R)); R.sel = []; R.sort = store.get("sort", "aura"); $("[data-why]").hidden = true;
       saveRun(); show("game"); paint(true); layerIntro();
       if (!store.get("coached", false)) coach(0);
@@ -261,7 +262,7 @@
     const left = r.left == null ? LAYER_MS : r.left - (r.savedAt ? Date.now() - r.savedAt : 0);
     R = { ...r, S: out.S, sel: [], sort: store.get("sort", "aura"), left };
     show("game"); paint(true);
-    if (R.S.over) return finishRun();
+    if (R.S.over || (R.mode === "duel" && R.S.phase === "draft" && R.S.layer >= DUEL_LAYERS - 1)) return finishRun();
     if (R.S.phase === "play" && R.left <= 0) return timeUp();
     if (R.S.phase === "draft") openDraft();
   }
@@ -276,7 +277,7 @@
   }
   function paint(fresh) {
     const S = R.S, target = E.targetOf(S.layer);
-    $("[data-layer-n]").textContent = S.layer < E.LAYERS ? `LAYER ${S.layer + 1} OF ${E.LAYERS}` : `BEYOND · LAYER ${S.layer + 1}`;
+    $("[data-layer-n]").textContent = R.mode === "duel" ? `MIRROR DUEL · LAYER ${S.layer + 1} OF ${DUEL_LAYERS}` : S.layer < E.LAYERS ? `LAYER ${S.layer + 1} OF ${E.LAYERS}` : `BEYOND · LAYER ${S.layer + 1}`;
     $("[data-layer-name]").textContent = S.layer < E.LAYERS ? E.LAYER_NAMES[S.layer] : "Past the Source";
     $("[data-score]").textContent = fmt(S.score); $("[data-target]").textContent = fmt(target); $("[data-total]").textContent = fmt(S.total); paintTime();
     const bb = $("[data-boost]"); bb.hidden = !(R.boost > 100); bb.textContent = "×" + (R.boost / 100) + " BOOST";
@@ -421,7 +422,8 @@
     R.busy = false;
     const fresh = S.hand.filter(n => !old.includes(n));
     paint(false); renderHand(false, fresh); if (fresh.length) sfx.deal();
-    if (S.phase === "draft") { const me = R; await burst(S.layer === E.LAYERS - 1 ? "THE SOURCE!" : "BREAKTHROUGH!"); if (R === me && !R.finishing) openDraft(); }
+    if (S.phase === "draft" && R.mode === "duel" && S.layer >= DUEL_LAYERS - 1) { const me = R; await burst("DUEL DONE!"); if (R === me) finishRun(); }
+    else if (S.phase === "draft") { const me = R; await burst(S.layer === E.LAYERS - 1 ? "THE SOURCE!" : "BREAKTHROUGH!"); if (R === me && !R.finishing) openDraft(); }
     else if (S.over) finishRun();
   }
   function doDiscard() {
@@ -482,11 +484,12 @@
     const S = R.S, run = R;
     $("[data-draft]").hidden = true; $("[data-menusheet]").hidden = true;
     const cleared = E.cleared(S);
-    $("[data-end-kick]").textContent = S.broke || cleared >= E.LAYERS ? "YOU REACHED THE SOURCE" : "THE TRIP IS OVER";
+    $("[data-end-kick]").textContent = run.mode === "duel" ? "MIRROR DUEL" : S.broke || cleared >= E.LAYERS ? "YOU REACHED THE SOURCE" : "THE TRIP IS OVER";
+    $("[data-share]").hidden = run.mode === "duel";
     $("[data-end-title]").textContent = cleared >= E.LAYERS ? `Layer ${cleared}` : cleared ? `${cleared} layer${cleared === 1 ? "" : "s"} cleared` : "Lost at the Threshold";
     $("[data-end-total]").textContent = fmt(S.total);
     $("[data-end-rows]").innerHTML = `<div><span>BEST CAST</span><b>${fmt(S.best)}</b></div><div><span>BEST HAND</span><b>${esc(S.bestHand || "—")}</b></div>`
-      + `<div><span>MODE</span><b>${run.mode === "daily" ? "Daily Trip" : "Free Run"}</b></div><div><span>DECK</span><b>${S.deck.length} beings</b></div>`;
+      + `<div><span>MODE</span><b>${run.mode === "daily" ? "Daily Trip" : run.mode === "duel" ? "Mirror Duel" : "Free Run"}</b></div><div><span>DECK</span><b>${S.deck.length} beings</b></div>`;
     $("[data-end-rank]").textContent = "Counting your run…";
     const text = `I broke through ${cleared} layer${cleared === 1 ? "" : "s"} of the REALM with ${fmt(S.total)} points${run.mode === "daily" ? " on today's Daily Trip" : ""}. Beat that.\n\ndmt-realm.dev/breakthrough`;
     SHARE = { text, total: S.total, cleared, mode: run.mode, best: run.bestCast || null, deck: S.deck.slice(), rank: null };
@@ -496,6 +499,7 @@
     for (;;) {
       try {
         const d = await api("/api/bt/finish", { run: run.id, moves: run.moves });
+        if (run.mode === "duel") { duelResult(d.result && d.result.duel); break; }
         const b = d.result && d.result.board, c = d.result && d.result.comp, cp = BOARD && BOARD.comp;
         if (SHARE) SHARE.rank = c && c.entered && !c.team ? `#${c.rank} in the ${cp ? cp.prize : "SOL"} competition` : b && run.mode === "daily" ? `#${b.rank} on today's Daily Trip` : null;
         $("[data-end-rank]").textContent = b ? `${b.best ? "New best! " : ""}#${b.rank} of ${b.of} on the ${run.mode === "daily" ? "Daily Trip board" : "Free Run board this week"}.` : "Counted.";
@@ -584,13 +588,64 @@
   $("[data-again]").addEventListener("click", () => { clearWin(); const m = $("[data-again]").dataset.mode || "daily"; $("[data-end]").hidden = true; startRun(m); });
   $("[data-lobby]").addEventListener("click", () => { clearWin(); $("[data-end]").hidden = true; show("lobby"); paintLobby(); });
 
+  /* ---------- Mirror Duel: two players, the same deck and luck, three layers each ---------- */
+  const DUEL_LAYERS = 3;
+  const QS = new URLSearchParams(location.search);
+  const DUEL_ID = /^[a-f0-9]{10}$/.test(QS.get("duel") || "") ? QS.get("duel") : null;
+  const DUEL_ON = location.pathname === "/mirror" || !!DUEL_ID || QS.has("mirror");
+  if (DUEL_ON) $("[data-play=duel]").hidden = false;
+  const duelLink = id => location.origin + "/mirror?duel=" + id;
+  function vsRows(v) { return '<div class="vs">' + v.players.map(p => `<span>${esc(p.name)}${p.you ? " (you)" : ""}</span><b>${fmt(p.total)}</b>`).join("") + "</div>"; }
+  function duelResult(v) {
+    $("[data-end-rank]").textContent = "";
+    const box = document.createElement("div"); box.className = "bt-duelres bt-win";
+    if (!v) { box.textContent = "Counted."; $("[data-end-rank]").after(box); return; }
+    if (v.done) {
+      const me = v.players.findIndex(p => p.you), won = v.winner === me, tie = v.winner == null;
+      box.innerHTML = `<b class="${tie ? "" : won ? "win" : "lose"}">${tie ? "A DRAW!" : won ? "YOU WIN THE DUEL!" : "YOU LOST THIS ONE"}</b>${vsRows(v)}Rematch: start a new duel and send the link back.`;
+      won ? sfx.win() : sfx.lose();
+    } else {
+      box.innerHTML = `<b>Your score is in.</b> Now send this duel to someone: they get the same deck and the same luck, and the higher total wins.
+        <button class="bt-btn cast wide" data-duelsend style="margin-top:10px">Send the challenge</button><small style="display:block;margin-top:6px;color:var(--dim);word-break:break-all">${esc(duelLink(v.id))}</small>`;
+      box.querySelector("[data-duelsend]").onclick = () => sendDuel(v);
+    }
+    $("[data-end-rank]").after(box);
+    $("[data-again]").dataset.mode = "duel";
+  }
+  async function sendDuel(v) {
+    const me = v.players.find(p => p.you), url = duelLink(v.id);
+    const text = `I scored ${fmt(me ? me.total : 0)} in a REALM Mirror Duel. Same deck, same luck. Beat me:`;
+    try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(text + " " + url); alert("Challenge link copied. Paste it to your opponent."); } catch { prompt("Copy this link and send it:", url); }
+  }
+  // opened from a challenge link: who sent it, and the score to beat
+  async function paintDuelBox() {
+    const box = $("[data-duelbox]"); if (!DUEL_ID) return;
+    box.hidden = false; box.innerHTML = "<p>Reading the duel…</p>";
+    try {
+      const s = session(), q = "id=" + DUEL_ID + (PID && !s ? "&pid=" + PID : "");
+      const { duel: v } = await api("/api/bt/duel?" + q, null, s && s.token);
+      const mine = v.players.find(p => p.you);
+      if (v.done || mine) {
+        box.innerHTML = `<h3>MIRROR DUEL</h3>${v.done ? vsRows(v) + `<p>${v.winner == null ? "A draw." : esc(v.players[v.winner].name) + " won."}</p>` : `<p>You've played this one: <b>${fmt(mine.total)}</b>. Waiting for your opponent.</p>`}
+          <button class="bt-btn cast wide" data-duelnew>Start a new duel</button>`;
+        box.querySelector("[data-duelnew]").onclick = () => { $("[data-again]").dataset.mode = "duel"; startRun("duel"); };
+        return;
+      }
+      const opp = v.players[0];
+      box.innerHTML = `<h3>YOU'VE BEEN CHALLENGED</h3>${opp ? `<p><b>${esc(opp.name)}</b> scored <b>${fmt(opp.total)}</b>.</p>` : ""}
+        <p>Same deck, same luck, ${v.layers} layers. Highest total wins.</p><button class="bt-btn cast wide" data-duelgo>Play the duel</button>`;
+      box.querySelector("[data-duelgo]").onclick = () => { $("[data-again]").dataset.mode = "duel"; startRun("duel", DUEL_ID); };
+    } catch (e) { box.innerHTML = `<p>${esc(e.message || "That duel couldn't be found.")}</p>`; }
+  }
+
   /* ---------- menu, modes, sheets ---------- */
   $("[data-menu]").addEventListener("click", () => { $("[data-menusheet]").hidden = false; sfx.tap(); });
   $("[data-resume-game]").addEventListener("click", () => { $("[data-menusheet]").hidden = true; });
   $("[data-endrun]").addEventListener("click", () => { if (R && confirm("End this run now? Your score so far is counted.")) finishRun(); });
   $$("[data-play]").forEach(b => b.addEventListener("click", () => {
     $("[data-again]").dataset.mode = b.dataset.play;
-    if (b.dataset.play === "daily") startRun("daily"); else openSummon();
+    if (b.dataset.play === "daily") startRun("daily"); else if (b.dataset.play === "duel") startRun("duel"); else openSummon();
   }));
   $("[data-resume]").addEventListener("click", resumeRun);
   async function openSummon() {
@@ -700,6 +755,6 @@
   });
   window.addEventListener("resize", () => { if (R && !$("[data-screen=game]").hidden) renderHand(false); });
   loadCards().then(paintLobby).catch(() => {});
-  paintLobby(); loadMe(); loadBoard();
+  paintLobby(); loadMe().then(paintDuelBox); loadBoard();
   if (new URLSearchParams(location.search).has("debug")) window.__bt = () => R;
 })();

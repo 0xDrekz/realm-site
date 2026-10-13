@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="bt.css?v=16">
+<link rel="stylesheet" href="bt.css?v=17">
 </head>
 <body>
 <div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
@@ -35,6 +35,7 @@
   </div>
   <div class="bt-fan" data-fan aria-hidden="true"></div>
 
+  <div class="bt-duelbox" data-duelbox hidden></div>
   <button class="bt-comp" data-comp hidden>
     <span class="bt-comp-k" data-comp-k>WIN 1 SOL</span>
     <span class="bt-comp-t" data-comp-t>Highest Daily Trip score this week</span>
@@ -51,6 +52,11 @@
       <span class="bt-mode-k">FREE RUN</span>
       <span class="bt-mode-t" data-free-note>A fresh deck every time</span>
       <span class="bt-mode-s" data-summon-note>Summon a holder's being</span>
+    </button>
+    <button class="bt-mode duel" data-play="duel" hidden>
+      <span class="bt-mode-k">MIRROR DUEL <i class="bt-test">TEST</i></span>
+      <span class="bt-mode-t">1v1: the same deck and the same luck</span>
+      <span class="bt-mode-s">Play 3 layers, send the link, highest total wins</span>
     </button>
     <button class="bt-resume" data-resume hidden>Continue your run</button>
   </div>
@@ -230,6 +236,6 @@
 </div>
 
 <script src="bt/engine.js?v=3"></script>
-<script src="bt-page.js?v=15"></script>
+<script src="bt-page.js?v=16"></script>
 </body>
 </html>

@@ -445,7 +445,7 @@ function route(req, res) {
 
   if (urlPath === "/holders") urlPath = "/holders.html";
   if (urlPath === "/left" || urlPath === "/tracker") urlPath = "/left.html";
-  if (urlPath === "/breakthrough" || urlPath === "/bt") urlPath = "/bt.html";
+  if (urlPath === "/breakthrough" || urlPath === "/bt" || urlPath === "/mirror") urlPath = "/bt.html";
   if (urlPath === "/league") urlPath = "/league.html";
   if (urlPath === "/map") urlPath = "/map.html";
   if (urlPath === "/mint") urlPath = "/mint.html";
@@ -635,6 +635,7 @@ function route(req, res) {
     }
     if (urlPath === "/api/bt/league") return send(200, BT.league({ token: bearer(req) }));
     if (urlPath === "/api/bt/board") { const q = new URL(req.url, "http://x").searchParams; return send(200, BT.board({ token: bearer(req), pid: q.get("pid"), tg: q.get("tg") || undefined })); }
+    if (urlPath === "/api/bt/duel") { const q = new URL(req.url, "http://x").searchParams; const d = BT.duel({ id: q.get("id"), token: bearer(req), pid: q.get("pid"), tg: q.get("tg") || undefined }); return send(d.error ? 404 : 200, d); }
     if (urlPath === "/api/bt/summons") { BT.summonable().then(d => send(200, d)).catch(() => send(503, { error: "Couldn't read the chain just now." })); return; }
     const fn = { "/api/bt/start": BT.start, "/api/bt/finish": BT.finish, "/api/bt/me": BT.me }[urlPath];
     if (!fn) return send(404, { error: "Not found." });

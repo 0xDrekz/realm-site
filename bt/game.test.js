@@ -161,3 +161,25 @@ test("a holder's boost is read at the start, kept with the run, and counted by t
   assert.equal(res.result.total, a.S.total);
   assert.equal((await g.me({ token: "tok" })).boost, 130);
 });
+
+test("mirror duel: the same deck and seed for both, three layers, the higher total wins", async () => {
+  const g = G.create({ comp: null, beings: async () => [], boostOf: async () => 150, walletOf: t => t === "tok" ? W : null });
+  const P2 = "fedcba9876543210fedcba98";
+  const a = await g.start({ mode: "duel", pid: PID });
+  assert.ok(a.duel && a.duel.id); assert.equal(a.boost, 100); assert.equal(a.duel.players.length, 0);
+  // play past the third layer: anything after it isn't counted
+  const play = def => { const S = E.createRun({ ...def, cards: C.cardOf }), moves = []; for (let k = 0; k < 60 && !S.over; k++) { const m = S.phase === "draft" ? ["p", 0] : ["c", [0, 1, 2, 3, 4].slice(0, Math.min(5, S.hand.length))]; E.act(S, m); moves.push(m); } return moves; };
+  const ra = await later(() => g.finish({ run: a.run, moves: play(a) }));
+  assert.ok(ra.result.cleared <= 3); assert.equal(ra.result.duel.players.length, 1);
+  const again = await g.start({ mode: "duel", duel: a.duel.id, pid: PID });
+  assert.match(again.error, /already played/);
+  const b = await g.start({ mode: "duel", duel: a.duel.id, token: "tok" });
+  assert.deepEqual(b.deck, a.deck); assert.equal(b.seed, a.seed); assert.equal(b.boost, 100);
+  const rb = await later(() => g.finish({ run: b.run, moves: [["c", [0]]] }));
+  const v = rb.result.duel; assert.ok(v.done); assert.equal(v.players.length, 2);
+  assert.equal(v.winner, v.players[0].total > v.players[1].total ? 0 : 1);
+  const third = await g.start({ mode: "duel", duel: a.duel.id, pid: P2 }); assert.match(third.error, /both sides/);
+  assert.equal(g.duel({ id: a.duel.id, pid: PID }).duel.players[0].you, true);
+  // a duel never touches the boards or the competition
+  assert.equal(g.board({ pid: PID }).daily.top.length, 0);
+});

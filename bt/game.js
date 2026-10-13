@@ -19,6 +19,9 @@ const crypto = require("crypto"), path = require("path");
 const E = require("./engine"), C = require("./cards");
 
 const TTL = 3 * 3600e3, MAX_RUNS = 20000, PER_OWNER = 3, DECK = 20, OWN_IN_DECK = 8, MAX_MOVES = 800;
+/* MIRROR DUEL: two players, the same deck and the same seed, three layers each, played when each likes.
+   The higher run total wins. No holder boost here: the same cards and the same luck, so it's skill alone. */
+const DUEL_LAYERS = 3, DUEL_TTL = 7 * 86400e3, MAX_DUELS = 20000;
 
 /* a competition, when one is on (bt/comp.json): the best Daily Trip score of a signed-in wallet
    between two dates wins a prize from the team's own funds. Free to enter, always. */
@@ -51,7 +54,9 @@ function tgUser(initData, botToken) {
 
 function create({ log = () => {}, beings = async () => [], boostOf = async () => 100, walletOf = () => null, dir = null, comp = loadComp(), announce = null, tgToken = () => "", playUrl = () => "" } = {}) {
   const jf = file => dir ? require("../jsonfile").create(path.join(dir, file), { log: m => log("breakthrough: " + m), fallback: {} }) : null;
-  const liveFile = jf("bt-live.json"), boardFile = jf("bt-board.json");
+  const liveFile = jf("bt-live.json"), boardFile = jf("bt-board.json"), duelFile = jf("bt-duels.json");
+  let D = {}; try { D = duelFile ? duelFile.load() || {} : {}; } catch (e) { log("breakthrough: duels could not be read, starting fresh: " + e.message); }
+  const saveDuels = () => { if (duelFile) duelFile.save(() => { const now = Date.now(); for (const k of Object.keys(D)) if (now - D[k].at > DUEL_TTL) delete D[k]; return D; }); };
   let saved = {}; try { saved = liveFile ? liveFile.load() || {} : {}; } catch (e) { log("breakthrough: live runs could not be read, starting fresh: " + e.message); }
   const runs = new Map(Object.entries(saved));
   const saveLive = () => { if (liveFile) liveFile.save(() => { tidy(); return Object.fromEntries(runs); }); };
@@ -97,7 +102,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
 
   async function ownedBy(wallet) { const all = await beings(); return all.filter(b => b.owner === wallet).map(b => b.n); }
 
-  async function start({ token, pid, tg, mode, summon, ip } = {}) {
+  async function start({ token, pid, tg, mode, summon, duel, ip } = {}) {
     tidy();
     const wallet = walletOf(token);
     if (token && !wallet) return { error: "Your sign-in has expired. Sign in again.", status: 401 };
@@ -107,6 +112,21 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const day = dayKey();
     let r;
     if (mode === "daily") r = { mode, day, ...dailyDef(day) };
+    else if (mode === "duel") {
+      if (!me) return { error: "Open the game again to play a duel." };
+      let d = duel && D[String(duel)];
+      if (duel && !d) return { error: "That duel has ended. Start one of your own.", gone: true };
+      if (d) {
+        if (d.players.some(p => p.key === me.key)) return { error: "You've already played this duel. Send the link to someone else, or start a new one." };
+        if (d.players.length >= 2) return { error: "This duel has been played by both sides. Start one of your own.", gone: true };
+      } else {
+        if (Object.keys(D).length >= MAX_DUELS) return { error: "The realm is very busy. Try again in a minute.", status: 503 };
+        const deck = []; while (deck.length < DECK) { const n = 1 + crypto.randomInt(1111); if (!deck.includes(n)) deck.push(n); }
+        d = D[crypto.randomBytes(5).toString("hex")] = { seed: crypto.randomInt(2 ** 31), deck, at: Date.now(), players: [] };
+        d.id = Object.keys(D).find(k => D[k] === d); saveDuels();
+      }
+      r = { mode: "duel", day, duel: d.id, seed: d.seed, deck: d.deck.slice(), own: [] };
+    }
     else {
       let mine = [];
       if (wallet) { try { mine = await ownedBy(wallet); } catch { return { error: "Couldn't read your wallet just now. Retry in a moment.", status: 503 }; } }
@@ -124,11 +144,12 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     }
     // a holder's boost ($DMT bands and owning a being), read once when the run starts
     r.boost = 100;
-    if (wallet) { try { r.boost = Math.max(100, Math.min(200, Math.round(Number(await boostOf(wallet)) || 100))); } catch { /* the chain is slow: no boost this time */ } }
+    if (wallet && r.mode !== "duel") { try { r.boost = Math.max(100, Math.min(200, Math.round(Number(await boostOf(wallet)) || 100))); } catch { /* the chain is slow: no boost this time */ } }
     const id = crypto.randomBytes(16).toString("hex");
     Object.assign(r, { id, owner, wallet: wallet || null, pkey: me ? me.key : null, name: me ? me.name : null, at: Date.now(), done: false });
     runs.set(id, r); saveLive();
-    return { run: id, mode: r.mode, day, seed: r.seed, deck: r.deck, own: r.own, boost: r.boost, summoned: r.summoned || null, name: r.name };
+    return { run: id, mode: r.mode, day, seed: r.seed, deck: r.deck, own: r.own, boost: r.boost, summoned: r.summoned || null, name: r.name,
+      duel: r.duel ? duelView(D[r.duel], r.pkey) : undefined };
   }
 
   /* the run is over on the page: play it again here from the moves, and decide */
@@ -144,7 +165,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       if ((m[0] !== "c" && m[0] !== "d") || !Array.isArray(m[1]) || m[1].length > 5 || !m[1].every(Number.isInteger)) return { error: "Bad moves." };
       clean.push([m[0], m[1].slice()]);
     }
-    const R = E.replay(defOf(r), clean);
+    // a duel stops when its third layer is cleared: nothing after that counts
+    const R = r.mode === "duel" ? duelReplay(defOf(r), clean) : E.replay(defOf(r), clean);
     if (R.error) { r.done = true; saveLive(); return { error: "That run didn't add up: " + R.error }; }
     // it takes real time to play: a run can't be handed in faster than its moves could be made
     if ((Date.now() - r.at) / 1000 < clean.length * 0.35 - 2) { r.done = true; saveLive(); return { error: "That run came back faster than it could be played." }; }
@@ -152,12 +174,43 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     r.done = true;
     const res = { mode: r.mode, cleared: E.cleared(S), total: S.total, best: S.best, bestHand: S.bestHand, broke: S.broke || E.cleared(S) >= E.LAYERS, over: S.over };
     const secs = Math.round((Date.now() - r.at) / 1000);
+    if (r.mode === "duel") {
+      const d = D[r.duel];
+      if (d && r.pkey && !d.players.some(p => p.key === r.pkey) && d.players.length < 2) {
+        d.players.push({ key: r.pkey, name: r.name, total: S.total, cleared: Math.min(DUEL_LAYERS, E.cleared(S)), at: Date.now(), secs }); saveDuels();
+      }
+      res.cleared = Math.min(DUEL_LAYERS, res.cleared); res.duel = d ? duelView(d, r.pkey) : null;
+      r.result = res; saveLive();
+      log(`breakthrough: duel ${r.duel} ${res.total} pts in ${secs}s`);
+      return { result: res };
+    }
     if (r.pkey && S.total > 0) res.board = record(r, res);
     if (r.mode === "daily" && S.total > 0) res.comp = enter(r, Object.assign({}, res, { secs, moves: clean }));
     if (S.total > 0) scoreNews(r, res);
     r.result = res; saveLive();
     log(`breakthrough: ${r.mode} ${res.cleared} layers, ${res.total} pts in ${secs}s, ${clean.length} moves${r.wallet ? " (" + r.wallet.slice(0, 4) + ")" : ""}`);
     return { result: res };
+  }
+
+  function duelReplay(def, moves) {
+    const S = E.createRun(def);
+    for (let k = 0; k < moves.length; k++) {
+      if (S.over || (S.phase === "draft" && S.layer >= DUEL_LAYERS - 1)) break;
+      const x = E.act(S, moves[k]); if (x.error) return { error: "Move " + (k + 1) + ": " + x.error, S };
+    }
+    return { S };
+  }
+  // a duel as either player sees it: the other side's score shows once you've played (or if you're about to)
+  function duelView(d, key) {
+    if (!d) return null;
+    const ps = d.players.map(p => ({ name: p.name, total: p.total, cleared: p.cleared, you: !!key && p.key === key }));
+    const done = ps.length >= 2, win = done ? (ps[0].total === ps[1].total ? null : ps[0].total > ps[1].total ? 0 : 1) : null;
+    return { id: d.id, layers: DUEL_LAYERS, players: ps, done, winner: win, at: d.at };
+  }
+  function duelGet({ id, token, pid, tg } = {}) {
+    const d = D[String(id || "")]; if (!d) return { error: "That duel has ended. Start one of your own.", gone: true };
+    const me = who(walletOf(token), pid, tg);
+    return { duel: duelView(d, me ? me.key : null) };
   }
 
   function record(r, res) {
@@ -316,8 +369,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     return { comp: compView(wallet, 100), today: rows.slice(0, 20).map(x => ({ name: x.name, total: x.total, cleared: x.cleared })), todayPlayers: rows.length };
   }
 
-  return { start, finish, board, league, summonable, me, cards, dailyDef, live: () => runs.size, _news: { sendLeader, finalNews, sendScores }, topText, links: () => LINKS_OF(),
-    flush: () => { liveFile && liveFile.flush(); boardFile && boardFile.flush(); } };
+  return { start, finish, duel: duelGet, DUEL_LAYERS, board, league, summonable, me, cards, dailyDef, live: () => runs.size, _news: { sendLeader, finalNews, sendScores }, topText, links: () => LINKS_OF(),
+    flush: () => { liveFile && liveFile.flush(); boardFile && boardFile.flush(); duelFile && duelFile.flush(); } };
 }
 
 module.exports = { create, tgUser };

@@ -259,3 +259,17 @@ section{position:relative;z-index:1}
 
 .bt-cardimg{display:block;width:100%;margin:8px 0;border:2px solid var(--gold);box-shadow:0 0 0 2px #000;-webkit-touch-callout:default;user-select:auto;-webkit-user-select:auto}
 [data-sharesheet]{z-index:60}
+
+/* Mirror Duel */
+.bt-mode.duel{border-color:#ff4fc3;background:linear-gradient(135deg,rgba(255,79,195,.18),rgba(13,8,25,.85))}
+.bt-mode.duel .bt-mode-k{color:#ff9ce0}
+.bt-test{font-style:normal;margin-left:6px;padding:1px 5px;font-size:.6rem;letter-spacing:.12em;color:#07040f;background:#ff9ce0}
+.bt-duelbox{margin:0 0 10px;padding:12px 14px;border:2px solid #ff4fc3;background:rgba(40,8,32,.85);text-align:left;box-shadow:0 0 22px -6px #ff4fc3}
+.bt-duelbox h3{margin:0 0 4px;font-size:1rem;letter-spacing:.12em;color:#ff9ce0}
+.bt-duelbox p{margin:4px 0;font-family:var(--num);font-size:.86rem;line-height:1.4;color:var(--bone)}
+.bt-duelbox b{color:var(--gold2)}
+.bt-duelbox .bt-btn{margin-top:8px}
+.bt-duelres{margin:8px 0 0;padding:12px;border:2px solid #ff4fc3;background:rgba(40,8,32,.7);font-family:var(--num);font-size:.9rem;line-height:1.45;text-align:left}
+.bt-duelres .vs{display:grid;grid-template-columns:1fr auto;gap:4px 10px;margin:6px 0}
+.bt-duelres .vs b{text-align:right;color:var(--gold2)}
+.bt-duelres .win{color:#8dff5c}.bt-duelres .lose{color:#ff7a8a}
