@@ -87,8 +87,7 @@ test("team wallets play but can't win: unranked, and the next wallet is #1", asy
   const a = await g.start({ mode: "daily", token: "tok" }), ra = await later(() => g.finish({ run: a.run, moves: playThrough(a).moves }));
   assert.ok(ra.result.comp.team);
   const b = await g.start({ mode: "daily", token: "fan" });
-  const S = E.createRun({ seed: b.seed, deck: b.deck, cards: C.cardOf }); E.cast(S, [0]); E.cast(S, [0]); E.cast(S, [0]); E.cast(S, [0]);   // a weaker run
-  const rb = await later(() => g.finish({ run: b.run, moves: [["c", [0]], ["c", [0]], ["c", [0]], ["c", [0]]] }));
+  const rb = await later(() => g.finish({ run: b.run, moves: [["c", [0]]] }));   // a weaker run: one card, once
   assert.equal(rb.result.comp.rank, 1);
   const v = g.league({ token: "fan" }).comp;
   assert.equal(v.players, 1); assert.equal(v.top[0].team, true); assert.equal(v.top[0].rank, null); assert.equal(v.top[1].rank, 1); assert.ok(v.top[1].you);
@@ -104,7 +103,7 @@ test("a new competition leader is posted to Telegram, at most once every 10 minu
   assert.equal(posts.length, 1); assert.match(posts[0], /NEW TOP SCORE/); assert.match(posts[0], /1 SOL/);
   // a weaker score from someone else: no leader post
   const b = await g.start({ mode: "daily", token: "b" });
-  await later(() => g.finish({ run: b.run, moves: [["c", [0]], ["c", [0]], ["c", [0]], ["c", [0]]] }));
+  await later(() => g.finish({ run: b.run, moves: [["c", [0]]] }));
   await new Promise(r => setTimeout(r, 30));
   assert.equal(posts.length, 1);
   // ...but every run goes out as a line, gathered into one message
@@ -136,4 +135,15 @@ test("a Telegram player is recognised only with initData Telegram signed", async
   await later(() => g.finish({ run: d.run, moves: playThrough(d).moves }));
   assert.equal(g.board({ tg: good }).daily.top[0].name, "@bonedogg"); assert.ok(g.board({ tg: good }).daily.top[0].you);
   assert.match(g.topText(), /@bonedogg/);
+});
+
+test("from 14 Oct every daily deck is dealt fair; earlier days stay exactly as they were", () => {
+  const g = G.create({ comp: null });
+  assert.ok(g.dailyDef("2026-10-13").deck.includes(1111));        // the lucky day, unchanged
+  for (let d = 14; d <= 31; d++) {
+    const deck = g.dailyDef(`2026-10-${d}`).deck, aura = {}; let big = 0;
+    assert.equal(deck.length, 20); assert.equal(new Set(deck).size, 20);
+    for (const n of deck) { const c = C.cardOf(n); assert.ok(!["God", "Entity", "Source"].includes(c.tier)); aura[c.aura] = (aura[c.aura] || 0) + 1; if (c.tier === "Legendary" || c.tier === "Mythic") big++; }
+    assert.ok(Math.max(...Object.values(aura)) <= 5); assert.ok(big <= 2);
+  }
 });

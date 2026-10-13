@@ -18,6 +18,7 @@
 const crypto = require("crypto"), path = require("path");
 const E = require("./engine"), C = require("./cards");
 
+const BALANCED_FROM = "2026-10-14";
 const TTL = 3 * 3600e3, MAX_RUNS = 20000, PER_OWNER = 3, DECK = 20, OWN_IN_DECK = 8, MAX_MOVES = 800;
 
 /* a competition, when one is on (bt/comp.json): the best Daily Trip score of a signed-in wallet
@@ -81,7 +82,21 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
   function dailyDef(day) {
     const h = d => crypto.createHash("sha256").update("breakthrough|" + day + "|" + d).digest();
     const seed = h("seed").readInt32LE(0), deck = [];
-    for (let i = 0; deck.length < DECK; i++) { const n = 1 + (h("card" + i).readUInt32LE(0) % 1111); if (!deck.includes(n)) deck.push(n); }
+    // From 14 Oct the daily deck is dealt fair: no God, Entity or the Source to start with (they still turn up
+    // in the picks between layers), at most 5 of any one Aura, at most 2 Legendary or Mythic. Before that,
+    // purely random, which once dealt the Source and nine Acid beings into one deck (13 Oct): kept as it was,
+    // so the runs already played that day still replay.
+    const fair = day >= BALANCED_FROM, aura = {}, big = { n: 0 };
+    for (let i = 0; deck.length < DECK; i++) {
+      const n = 1 + (h("card" + i).readUInt32LE(0) % 1111); if (deck.includes(n)) continue;
+      if (fair) {
+        const c = C.cardOf(n);
+        if (["God", "Entity", "Source"].includes(c.tier) || (aura[c.aura] || 0) >= 5) continue;
+        if ((c.tier === "Legendary" || c.tier === "Mythic") && big.n >= 2) continue;
+        aura[c.aura] = (aura[c.aura] || 0) + 1; if (c.tier === "Legendary" || c.tier === "Mythic") big.n++;
+      }
+      deck.push(n);
+    }
     return { seed, deck, own: [] };
   }
   const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, cards: C.cardOf });
