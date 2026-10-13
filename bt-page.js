@@ -242,7 +242,7 @@
     const S = R.S, target = E.targetOf(S.layer);
     $("[data-layer-n]").textContent = S.layer < E.LAYERS ? `LAYER ${S.layer + 1} OF ${E.LAYERS}` : `BEYOND · LAYER ${S.layer + 1}`;
     $("[data-layer-name]").textContent = S.layer < E.LAYERS ? E.LAYER_NAMES[S.layer] : "Past the Source";
-    $("[data-score]").textContent = fmt(S.score); $("[data-target]").textContent = fmt(target);
+    $("[data-score]").textContent = fmt(S.score); $("[data-target]").textContent = fmt(target); $("[data-total]").textContent = fmt(S.total);
     const p = Math.min(1, S.score / target); $("[data-bar]").style.width = (p * 100).toFixed(1) + "%"; $(".bt-bar").classList.toggle("full", p >= 1);
     $("[data-casts]").textContent = "●".repeat(S.casts) + "○".repeat(Math.max(0, E.CASTS - S.casts));
     $("[data-discards]").textContent = "●".repeat(S.discards) + "○".repeat(Math.max(0, E.DISCARDS - S.discards));
@@ -368,7 +368,7 @@
     $$(".bt-played .bt-card.hit").forEach(e => e.classList.remove("hit"));
     // chips x mult: the total slams in
     const tot = document.createElement("div"); tot.className = "bt-total"; tot.textContent = fmt(ev.score); st.appendChild(tot); sfx.total();
-    const before = S.score;
+    const before = S.score, beforeTotal = S.total;
     const old = S.hand.slice();
     const done = E.cast(S, order);
     if (done.error) { R.busy = false; tot.remove(); played.innerHTML = ""; R.sel = []; paint(false); return; }
@@ -377,7 +377,8 @@
     if (!R.bestCast || ev.score > R.bestCast.score) R.bestCast = { score: ev.score, name: ev.name, ns: ev.scoring.map(k => ns[k]) };
     // the score counts up into the bar
     const t0 = performance.now(), dur = 650, target = E.targetOf(S.layer);
-    await new Promise(res => { const tick = () => { const p = Math.min(1, (performance.now() - t0) / dur); const v = before + (S.score - before) * p; $("[data-score]").textContent = fmt(v); $("[data-bar]").style.width = Math.min(100, v / target * 100).toFixed(1) + "%"; p < 1 ? requestAnimationFrame(tick) : res(); }; tick(); });
+    await new Promise(res => { const tick = () => { const p = Math.min(1, (performance.now() - t0) / dur); const v = before + (S.score - before) * p; $("[data-score]").textContent = fmt(v); $("[data-total]").textContent = fmt(beforeTotal + (S.total - beforeTotal) * p); $("[data-bar]").style.width = Math.min(100, v / target * 100).toFixed(1) + "%"; p < 1 ? requestAnimationFrame(tick) : res(); }; tick(); });
+    const tEl = $("[data-total]"); tEl.classList.add("up"); setTimeout(() => tEl.classList.remove("up"), 300);
     await sleep(500);
     tot.remove(); played.innerHTML = ""; hname.innerHTML = ""; chipsEl.textContent = "0"; multEl.textContent = "0"; st.classList.remove("hot");
     R.busy = false;

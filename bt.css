@@ -112,6 +112,9 @@ section{position:relative;z-index:1}
 .bt-layer span{display:block;font-size:.66rem;letter-spacing:.3em;color:var(--chips)}
 .bt-layer b{font-size:1.1rem;letter-spacing:.06em;color:var(--gold2)}
 .bt-goal{margin-top:6px;padding:8px 10px;background:rgba(13,8,25,.75);border:1px solid var(--line)}
+.bt-run{display:flex;justify-content:space-between;align-items:baseline;font-size:.62rem;letter-spacing:.16em;color:var(--dim)}
+.bt-run b{font-family:var(--num);font-size:.95rem;letter-spacing:0;color:var(--chips);margin-left:4px;display:inline-block;transition:transform .15s}
+.bt-run b.up{transform:scale(1.18);text-shadow:0 0 12px var(--chips)}
 .bt-score{display:flex;align-items:baseline;justify-content:center;gap:8px}
 .bt-score b{font-family:var(--num);font-size:1.9rem;color:var(--gold2);text-shadow:0 0 18px rgba(255,220,130,.4)}
 .bt-score span{font-family:var(--num);color:var(--dim);font-weight:600}
