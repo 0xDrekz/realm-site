@@ -659,3 +659,4 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .ca-chip.wide{display:inline-flex;max-width:100%;margin:6px 0}
 .ca-chip.wide b{word-break:break-all;font-size:.74rem;text-align:left}
 .ca-full a{color:#e3ba5c}
+.ca-chip.small{margin:0 auto;padding:5px 10px;font-size:.7rem}.ca-chip.small span{font-size:.64rem}
