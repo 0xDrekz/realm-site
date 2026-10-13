@@ -110,3 +110,13 @@ test("the being you take is in your next opening hand", () => {
     assert.ok(S.hand.includes(n), "seed " + seed);
   }
 });
+
+test("a holder boost multiplies the mult last, and only above 100%", () => {
+  const c = { n: 1, tier: "Common", chips: 6, aura: "Cold", geo: null, col: null, x: { L: "Strike" } };
+  const plain = E.evaluate([c, { ...c, n: 2 }], 0), boosted = E.evaluate([c, { ...c, n: 2 }], 0, [], 130);
+  assert.equal(boosted.mult, Math.floor(plain.mult * 13 / 10));
+  assert.equal(boosted.steps.filter(s => s.label === "Holder boost").length, 1);
+  assert.equal(E.evaluate([c], 0, [], 100).steps.some(s => s.label === "Holder boost"), false);
+  const S = E.createRun({ seed: 7, deck: [1, 2, 3, 4, 5, 6, 7, 8], boost: 999, cards: n => ({ ...c, n }) });
+  assert.equal(S.boost, 200);                                            // capped
+});

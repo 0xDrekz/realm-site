@@ -373,7 +373,14 @@ const TCG = require("./tcg2/game").create({ log: m => console.log(m), beings: ch
 const ARENA = require("./arena/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 /* BREAKTHROUGH (bt/game.js): the trait card game; the page plays, the server replays every run */
-const BT = require("./bt/game").create({ log: m => console.log(m), beings: chainBeings, walletOf: duelWalletOf,
+/* BREAKTHROUGH holder boost, in percent: +10% for owning a being, +10% for each $DMT band held (read only, never a transaction) */
+async function btBoostOf(wallet) {
+  const bands = require("./bot").readData(ROOT).TOKEN_BANDS;
+  const [tokens, all] = await Promise.all([tokensOf(wallet).catch(() => 0), chainBeings().catch(() => [])]);
+  const level = bands.filter(b => b.hold > 0 && tokens >= b.hold).length;
+  return 100 + 10 * level + (all.some(b => b.owner === wallet) ? 10 : 0);
+}
+const BT = require("./bt/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: btBoostOf, walletOf: duelWalletOf,
   announce: (html, links) => require("./bot").postHtml(html, links),
   tgToken: () => require("./bot").envVar("TG_BOT_TOKEN"), playUrl: () => require("./bot").envVar("TG_APP_URL"),
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });

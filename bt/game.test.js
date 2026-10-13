@@ -149,3 +149,15 @@ test("every daily deck is dealt purely at random, the same for everyone that day
   }
   assert.ok(rare > 0);                                              // Gods and Entities fall where they fall
 });
+
+test("a holder's boost is read at the start, kept with the run, and counted by the server", async () => {
+  const g = G.create({ comp: null, beings: async () => [], boostOf: async w => w === W ? 130 : 100, walletOf: t => t === "tok" ? W : null });
+  const d = await g.start({ mode: "daily", token: "tok" }), guest = await g.start({ mode: "daily", pid: PID });
+  assert.equal(d.boost, 130); assert.equal(guest.boost, 100);
+  const play = def => { const S = E.createRun({ ...def, cards: C.cardOf }), moves = []; for (let k = 0; k < 40 && !S.over; k++) { const m = S.phase === "draft" ? ["p", 0] : ["c", [0, 1, 2, 3, 4].slice(0, Math.min(5, S.hand.length))]; E.act(S, m); moves.push(m); } return { S, moves }; };
+  const a = play(d), b = play(guest);
+  assert.ok(a.S.total > b.S.total);
+  const res = await later(() => g.finish({ run: d.run, moves: a.moves }));
+  assert.equal(res.result.total, a.S.total);
+  assert.equal((await g.me({ token: "tok" })).boost, 130);
+});

@@ -93,7 +93,8 @@
   }
 
   /* ---------- the score of a cast, step by step (the page animates these steps) ---------- */
-  function evaluate(cards, castsSoFar, own) {
+  // boost: a holder's boost in percent (100 = none, 130 = ×1.3), applied to the mult last
+  function evaluate(cards, castsSoFar, own, boost) {
     const { id, scoring } = handOf(cards);
     const H = HANDS[id];
     let chips = H.chips, mt = H.mult * 10;
@@ -136,6 +137,7 @@
       if (x.U === "Few") draws += 2;
     }
     if (sc.length >= 3 && sc.every(c => c.col && c.col === sc[0].col)) xM(-1, 20, "Harmony: one Colourway");
+    if (boost > 100) xM(-1, Math.round(boost / 10), "Holder boost");
     if (draws) steps.push({ k: "ufo", label: "Abducted: draw " + draws, draws, chips, mult: mt });
     const score = Math.floor(chips * mt / 10);
     return { id, name: H.name, scoring, chips, mult: mt, score, draws, steps };
@@ -144,7 +146,7 @@
   /* ---------- a run ----------
      def: { seed, deck: [n...], own: [n...], cards: lookup n -> card, pool: N beings to draft from } */
   function createRun(def) {
-    const S = { rng: def.seed | 0, cards: def.cards, N: def.pool || 1111, own: def.own || [], deck: def.deck.slice(),
+    const S = { rng: def.seed | 0, cards: def.cards, N: def.pool || 1111, own: def.own || [], boost: Math.max(100, Math.min(200, def.boost | 0)), deck: def.deck.slice(),
       layer: 0, draw: [], hand: [], used: [], casts: 0, discards: 0, score: 0, total: 0, castsMade: 0, best: 0, bestHand: null,
       phase: "play", offer: null, over: false, broke: false, last: null, moves: 0, hands: {} };
     startLayer(S);
@@ -171,14 +173,14 @@
   const ordered = idx => idx.slice().sort((a, b) => a - b);
   function preview(S, idx) {
     if (checkPick(S, idx)) return null;
-    return evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own);
+    return evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost);
   }
   /* the order that scores most (the page always plays cards in their best order; 5 cards is 120 tries) */
   function bestOrder(S, idx) {
     if (checkPick(S, idx)) return null;
     let best = null, bestScore = -1;
     const perm = (a, k) => {
-      if (k === a.length) { const sc = evaluate(a.map(i => card(S, S.hand[i])), S.castsMade, S.own).score; if (sc > bestScore) { bestScore = sc; best = a.slice(); } return; }
+      if (k === a.length) { const sc = evaluate(a.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost).score; if (sc > bestScore) { bestScore = sc; best = a.slice(); } return; }
       for (let j = k; j < a.length; j++) { [a[k], a[j]] = [a[j], a[k]]; perm(a, k + 1); [a[k], a[j]] = [a[j], a[k]]; }
     };
     perm(ordered(idx), 0);
@@ -189,7 +191,7 @@
   function cast(S, idx) {
     const err = checkPick(S, idx); if (err) return { error: err };
     if (S.casts <= 0) return { error: "No casts left." };
-    const ev = evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own);
+    const ev = evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost);
     remove(S, idx);
     S.casts--; S.castsMade++; S.moves++; S.score += ev.score; S.total += ev.score;
     S.hands[ev.id] = (S.hands[ev.id] || 0) + 1;

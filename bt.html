@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="bt.css?v=15">
+<link rel="stylesheet" href="bt.css?v=16">
 </head>
 <body>
 <div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
@@ -62,7 +62,7 @@
   <a class="bt-ghost wide bt-league" href="/league">League table: this week's standings ›</a>
 
   <div class="bt-wallet">
-    <p data-w-who>Playing as a guest. Holders: your beings join your Free Run deck and score +50%.</p>
+    <p data-w-who>Playing as a guest. Holders get a boost on every cast: +10% for owning a being, +10% for each $DMT band (50k, 250k, 1M, 5M, 10M).</p>
     <button class="bt-ghost small" data-w-connect>Connect wallet</button>
     <a class="bt-ghost small" data-w-phantom hidden>Open in Phantom</a>
     <button class="bt-link" data-w-off hidden>Sign out</button>
@@ -79,7 +79,7 @@
     <button class="bt-icon" data-mute aria-label="Sound"><span data-mute-label>♪</span></button>
   </header>
   <div class="bt-goal">
-    <div class="bt-run"><span class="bt-time" data-timebox>TIME <b data-time>1:00</b></span><span>RUN TOTAL <b data-total>0</b></span></div>
+    <div class="bt-run"><span class="bt-time" data-timebox>TIME <b data-time>1:00</b></span><span><i class="bt-boost" data-boost hidden></i>RUN TOTAL <b data-total>0</b></span></div>
     <div class="bt-score"><b data-score>0</b><span>/ <i data-target>400</i></span></div>
     <div class="bt-bar"><i data-bar></i></div>
     <div class="bt-pips">
@@ -217,6 +217,7 @@
     <ol>
       <li><b>Pick up to 5 beings and Cast.</b> Matching <b>Auras</b> (the coloured gem on each card) make the hand.</li>
       <li><b>Hit the target in 4 casts, within 60 seconds</b>, to break through. The clock stops while a cast scores. Not happy with your hand? <b>Discard</b> up to 5 cards and draw new ones (3 times a layer).</li>
+      <li><b>Holders get a boost</b> on every cast: +10% for owning a REALM being, +10% for each $DMT band (50k, 250k, 1M, 5M, 10M). Sign in with your wallet to use it.</li>
       <li><b>Break through</b> and choose a new being for your deck. Eight layers to <b>the Source</b>, then keep going as deep as you dare.</li>
     </ol>
     <h3>The hands</h3>
@@ -228,7 +229,7 @@
   </div>
 </div>
 
-<script src="bt/engine.js?v=2"></script>
-<script src="bt-page.js?v=14"></script>
+<script src="bt/engine.js?v=3"></script>
+<script src="bt-page.js?v=15"></script>
 </body>
 </html>

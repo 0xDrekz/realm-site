@@ -49,7 +49,7 @@ function tgUser(initData, botToken) {
   } catch { return null; }
 }
 
-function create({ log = () => {}, beings = async () => [], walletOf = () => null, dir = null, comp = loadComp(), announce = null, tgToken = () => "", playUrl = () => "" } = {}) {
+function create({ log = () => {}, beings = async () => [], boostOf = async () => 100, walletOf = () => null, dir = null, comp = loadComp(), announce = null, tgToken = () => "", playUrl = () => "" } = {}) {
   const jf = file => dir ? require("../jsonfile").create(path.join(dir, file), { log: m => log("breakthrough: " + m), fallback: {} }) : null;
   const liveFile = jf("bt-live.json"), boardFile = jf("bt-board.json");
   let saved = {}; try { saved = liveFile ? liveFile.load() || {} : {}; } catch (e) { log("breakthrough: live runs could not be read, starting fresh: " + e.message); }
@@ -87,7 +87,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
     }
     return { seed, deck, own: [] };
   }
-  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, cards: C.cardOf });
+  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, cards: C.cardOf });
 
   let CARDS = null;
   function cards() {
@@ -122,10 +122,13 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
       r = { mode: "free", day, seed: crypto.randomInt(2 ** 31), deck, own: deck.filter(n => mine.includes(n)), summoned };
       if (summoned) { const d = B.summons[day] = B.summons[day] || {}; d[summoned] = (d[summoned] || 0) + 1; saveBoard(); }
     }
+    // a holder's boost ($DMT bands and owning a being), read once when the run starts
+    r.boost = 100;
+    if (wallet) { try { r.boost = Math.max(100, Math.min(200, Math.round(Number(await boostOf(wallet)) || 100))); } catch { /* the chain is slow: no boost this time */ } }
     const id = crypto.randomBytes(16).toString("hex");
     Object.assign(r, { id, owner, wallet: wallet || null, pkey: me ? me.key : null, name: me ? me.name : null, at: Date.now(), done: false });
     runs.set(id, r); saveLive();
-    return { run: id, mode: r.mode, day, seed: r.seed, deck: r.deck, own: r.own, summoned: r.summoned || null, name: r.name };
+    return { run: id, mode: r.mode, day, seed: r.seed, deck: r.deck, own: r.own, boost: r.boost, summoned: r.summoned || null, name: r.name };
   }
 
   /* the run is over on the page: play it again here from the moves, and decide */
@@ -288,6 +291,7 @@ function create({ log = () => {}, beings = async () => [], walletOf = () => null
       try { out.own = await ownedBy(wallet); } catch { out.own = null; }
       const s = B.summons[dayKey()] || {};
       if (out.own) out.summonedToday = out.own.reduce((a, n) => a + (s[n] || 0), 0);
+      try { out.boost = Math.max(100, Math.min(200, Math.round(Number(await boostOf(wallet)) || 100))); } catch { out.boost = 100; }
     }
     return out;
   }
