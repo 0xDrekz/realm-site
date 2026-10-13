@@ -94,6 +94,8 @@ section{position:relative;z-index:1}
 /* the traits sit down the left edge, under the Aura gem: the part of a card still showing when the hand overlaps */
 .bt-card .tr{position:absolute;left:3px;top:26px;display:flex;flex-direction:column;gap:2px}
 .bt-card .tr i{font-style:normal;width:16px;height:16px;display:grid;place-items:center;font-size:.66rem;font-weight:700;background:rgba(7,4,15,.85);color:var(--x);box-shadow:0 0 0 1px rgba(255,211,92,.6)}
+.bt-card .tr i svg{width:72%;height:auto;fill:currentColor;display:block}
+.bt-table b.ti svg{width:1.05em;height:auto;fill:var(--x);display:inline-block;vertical-align:-.1em}
 .bt-card .foot{position:relative;z-index:2;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 4px;background:linear-gradient(180deg,#160c26,#07040f);border-top:2px solid var(--tc,#9ca3af)}
 .bt-card .foot b{font-family:var(--num);font-size:.92rem;color:var(--chips);font-weight:700}
 .bt-card .foot span{font-size:.5rem;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;max-width:44px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}

@@ -15,6 +15,13 @@
   const TIER = { Common: "#9ca3af", Uncommon: "#34d399", Rare: "#3b82f6", Epic: "#a855f7", Legendary: "#f59e0b", Mythic: "#ef4444", Entity: "#a5f3fc", God: "#fde68a", Source: "#fff7d6" };
   const AURA_C = { Cold: "#5cf0ff", Rose: "#ff7ac8", Warm: "#ffc94a", Acid: "#8dff5c", Opposed: "#b18cff", Prime: "#fff1c2" };
   const GLYPH = { L: "ϟ", T: "♣", P: "◉", S: "✺", M: "✿", D: "☾", U: "◬" };
+  // the Mushroom and UFO icons are little pixel pictures (no font has a good one); the rest are characters
+  const PIX = {
+    M: ["....###....", "..#######..", ".##.###.##.", "###########", "###########", "....###....", "....###....", "...#####..."],
+    U: ["....###....", "...#####...", ".#########.", "###########", "#.#.#.#.#.#", ".#########.", "...#...#...", "..#.....#..", ".#.......#."],
+  };
+  const pixSvg = rows => `<svg viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true">${rows.map((r, y) => [...r].map((ch, x) => ch === "#" ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : "").join("")).join("")}</svg>`;
+  const icon = k => PIX[k] ? pixSvg(PIX[k]) : GLYPH[k];
   const TRAIT = {
     L: { name: "Lightning", Strike: "+4 mult", Storm: "+8 mult", Tempest: "×3 mult" },
     T: { name: "Trees", One: "+3 mult", Copse: "+6 mult", Forest: "×2 mult" },
@@ -34,7 +41,7 @@
     const c = card(n), el = document.createElement("div");
     el.className = "bt-card" + (big ? " big" : "") + (own ? " own" : "");
     el.style.setProperty("--tc", TIER[c.tier]); el.style.setProperty("--ac", AURA_C[c.aura] || "#fff");
-    const tr = Object.keys(c.x || {}).map(k => `<i title="${TRAIT[k].name}">${GLYPH[k]}</i>`).join("");
+    const tr = Object.keys(c.x || {}).map(k => `<i title="${TRAIT[k].name}">${icon(k)}</i>`).join("");
     el.innerHTML = `<div class="art" style="background-image:url(/thumbs/${n}.webp)"><span class="gem${c.aura === "Prime" ? " prime" : ""}">${c.aura === "Prime" ? "✦" : c.aura[0]}</span><span class="tr">${tr}</span></div>`
       + `<div class="foot"><b>${c.chips}</b><span>${esc(c.geo || c.tier)}</span></div>`;
     el.dataset.n = n;
@@ -651,9 +658,9 @@
       return `<div><span><b>${h.name}</b><small>${ex}</small></span><em><span class="c">${h.chips}</span> × <span class="m">${h.mult}</span></em></div>`;
     }).join("");
     const rows = [["Geometry", "Each pair sharing a Geometry", "+2 mult", "m"], ["Colourway", "3+ scoring, one Colourway", "×2", "x"]];
-    for (const [k, t] of Object.entries(TRAIT)) rows.push([GLYPH[k] + " " + t.name, Object.keys(t).filter(v => v !== "name").map(v => v + ": " + t[v]).join(" · "), "", ""]);
+    for (const [k, t] of Object.entries(TRAIT)) rows.push([icon(k) + " " + esc(t.name), Object.keys(t).filter(v => v !== "name").map(v => v + ": " + t[v]).join(" · "), "", ""]);
     rows.push(["Entity / God / Source", "+10 mult / ×2 / ×5 (and any Aura)", "", ""]);
-    $("[data-traits]").innerHTML = rows.map(([a, b, c, cl]) => `<div><span><b>${esc(a)}</b><small>${esc(b)}</small></span><em class="${cl}">${esc(c)}</em></div>`).join("");
+    $("[data-traits]").innerHTML = rows.map(([a, b, c, cl]) => `<div><span><b class="ti">${a}</b><small>${esc(b)}</small></span><em class="${cl}">${esc(c)}</em></div>`).join("");
   }
   fillHow();
   const openHow = () => { $("[data-howsheet]").hidden = false; sfx.tap(); };
