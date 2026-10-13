@@ -9,7 +9,7 @@
   --chips:#5cf0ff;--mult:#ff4fc3;--x:#ffd35c;
   --Cold:#5cf0ff;--Rose:#ff7ac8;--Warm:#ffc94a;--Acid:#8dff5c;--Opposed:#b18cff;
   --px:"Pixelify Sans",system-ui,sans-serif;--num:"Space Grotesk",system-ui,sans-serif;
-  --cw:76px;--ch:112px;
+  --cw:76px;--ch:130px;
 }
 /* no zoom anywhere: the page may only scroll up and down (pan-y), and the game screen takes no gestures at all */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:pan-y}
@@ -43,7 +43,7 @@ section{position:relative;z-index:1}
   text-shadow:0 0 28px rgba(255,200,90,.45),4px 4px 0 #7a5414,8px 8px 0 #000}
 .bt-lede{margin:14px auto 0;max-width:330px;color:var(--dim);line-height:1.45;font-size:.95rem}
 .bt-lede b{color:var(--gold2);font-weight:700}
-.bt-fan{position:relative;height:150px;margin:14px 0 4px}
+.bt-fan{position:relative;height:168px;margin:14px 0 4px}
 .bt-fan .bt-card{position:absolute;left:50%;top:14px;transform-origin:50% 140%}
 .bt-modes{display:flex;flex-direction:column;gap:10px}
 .bt-mode{display:grid;gap:3px;text-align:left;padding:14px 16px;border:0;position:relative;overflow:hidden;
@@ -92,17 +92,17 @@ section{position:relative;z-index:1}
   display:grid;place-items:center;font-size:.62rem;font-weight:700;color:#07040f}
 .bt-card .gem.prime{background:conic-gradient(var(--Cold),var(--Rose),var(--Warm),var(--Acid),var(--Opposed),var(--Cold))}
 /* the traits sit down the left edge, under the Aura gem: the part of a card still showing when the hand overlaps */
-.bt-card .tr{position:absolute;left:3px;top:27px;bottom:2px;display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;gap:2px}
-.bt-card .tr i{font-style:normal;width:18px;height:18px;display:grid;place-items:center;font-size:.7rem;font-weight:700;background:rgba(7,4,15,.85);color:var(--x);box-shadow:0 0 0 1px rgba(255,211,92,.6)}
+.bt-card .tr{position:absolute;left:3px;top:26px;display:flex;flex-direction:column;gap:2px}
+.bt-card .tr i{font-style:normal;width:16px;height:16px;display:grid;place-items:center;font-size:.66rem;font-weight:700;background:rgba(7,4,15,.85);color:var(--x);box-shadow:0 0 0 1px rgba(255,211,92,.6)}
 .bt-card .foot{position:relative;z-index:2;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 4px;background:linear-gradient(180deg,#160c26,#07040f);border-top:2px solid var(--tc,#9ca3af)}
 .bt-card .foot b{font-family:var(--num);font-size:.92rem;color:var(--chips);font-weight:700}
 .bt-card .foot span{font-size:.5rem;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;max-width:44px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .bt-card.own{box-shadow:0 0 0 2px #000,3px 4px 0 2px #000,0 0 18px var(--gold)}
 .bt-card.own::before{content:"YOURS";position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:2;padding:1px 4px;font-size:.5rem;letter-spacing:.12em;background:var(--gold);color:#140a02}
-.bt-card.big{--cw:30vw;--ch:44vw;max-width:130px;max-height:190px}
+.bt-card.big{--cw:30vw;--ch:50vw;max-width:130px;max-height:200px}
 .bt-card.big .gem{width:26px;height:26px;font-size:.8rem}
 .bt-card.big .foot{height:30px}.bt-card.big .foot b{font-size:1.15rem}.bt-card.big .foot span{font-size:.62rem;max-width:80px}
-.bt-card.big .tr{top:34px}.bt-card.big .tr i{width:22px;height:22px;font-size:.8rem}
+.bt-card.big .tr{top:34px}.bt-card.big .tr i{width:20px;height:20px;font-size:.78rem}
 
 /* ---------- the game ---------- */
 .bt-game,.bt-game *{touch-action:none}
@@ -145,8 +145,8 @@ section{position:relative;z-index:1}
 .bt-stage.hot .bt-hex{opacity:.9;animation-duration:12s}
 .bt-handname{position:relative;min-height:1.6em;font-size:1.35rem;font-weight:700;letter-spacing:.1em;color:var(--gold2);text-shadow:3px 3px 0 #000;text-align:center}
 .bt-handname small{display:block;font-family:var(--num);font-size:.75rem;letter-spacing:.06em;color:var(--dim);font-weight:500;text-shadow:none}
-.bt-played{position:relative;display:flex;gap:6px;min-height:0;--cw:58px;--ch:86px}
-.bt-played .bt-card .gem{width:15px;height:15px;font-size:.5rem}.bt-played .bt-card .tr{top:21px}.bt-played .bt-card .tr i{width:13px;height:13px;font-size:.55rem}
+.bt-played{position:relative;display:flex;gap:6px;min-height:0;--cw:58px;--ch:108px}
+.bt-played .bt-card .gem{width:15px;height:15px;font-size:.5rem}.bt-played .bt-card .tr{top:20px}.bt-played .bt-card .tr i{width:13px;height:13px;font-size:.55rem}.bt-played .bt-card .foot{height:22px}
 .bt-played .bt-card{animation:btIn .3s cubic-bezier(.3,1.5,.5,1) both}
 .bt-played .bt-card.dim{opacity:.35;filter:grayscale(.8)}
 .bt-played .bt-card.hit{transform:translateY(-10px) scale(1.12);box-shadow:0 0 0 2px #000,0 0 24px var(--x)}
@@ -239,7 +239,7 @@ section{position:relative;z-index:1}
 .bt-rows i{font-style:normal;color:var(--faint);font-weight:700}
 .bt-rows b{color:var(--gold2)}
 .bt-rows small{color:var(--dim);font-size:.7rem;margin-left:6px}
-.bt-summons{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px;justify-items:center;margin:6px 0 4px;--cw:80px;--ch:118px}
+.bt-summons{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px;justify-items:center;margin:6px 0 4px;--cw:80px;--ch:134px}
 .bt-summons button{background:none;border:0;padding:0;display:flex;flex-direction:column;align-items:center;gap:4px}
 .bt-summons small{font-family:var(--num);font-size:.66rem;color:var(--dim)}
 .bt-detail{display:flex;gap:14px;align-items:flex-start;text-align:left}
@@ -249,7 +249,7 @@ section{position:relative;z-index:1}
 .bt-burst{position:fixed;inset:0;z-index:40;pointer-events:none;display:grid;place-items:center}
 .bt-burst b{font-size:clamp(2rem,10.5vw,3.4rem);max-width:94vw;text-align:center;color:var(--gold2);letter-spacing:.04em;text-shadow:0 0 40px rgba(92,240,255,.9),4px 4px 0 #7a5414,8px 8px 0 #000;animation:btSlam .6s cubic-bezier(.2,1.6,.4,1) both}
 @media (min-width:430px){:root{--cw:84px;--ch:122px}}
-@media (max-height:700px){:root{--ch:100px;--cw:70px}.bt-stage{min-height:140px}.bt-score b{font-size:1.5rem}.bt-played{--cw:50px;--ch:74px}.bt-played .bt-card .foot{height:18px}.bt-played .bt-card .foot b{font-size:.78rem}.bt-played .bt-card .foot span{display:none}.bt-played .bt-card .gem{width:13px;height:13px}.bt-played .bt-card .tr{top:18px;left:2px}.bt-played .bt-card .tr i{width:11px;height:11px;font-size:.5rem}}
+@media (max-height:700px){:root{--ch:118px;--cw:70px}.bt-card .gem{width:18px;height:18px}.bt-card .tr{top:23px}.bt-card .tr i{width:14px;height:14px;font-size:.6rem}.bt-stage{min-height:140px}.bt-score b{font-size:1.5rem}.bt-played{--cw:50px;--ch:94px}.bt-played .bt-card .foot{height:18px}.bt-played .bt-card .foot b{font-size:.78rem}.bt-played .bt-card .foot span{display:none}.bt-played .bt-card .gem{width:13px;height:13px}.bt-played .bt-card .tr{top:18px;left:2px}.bt-played .bt-card .tr i{width:11px;height:11px;font-size:.5rem}}
 @media (prefers-reduced-motion:reduce){.bt-ring,.bt-hex{animation:none}}
 
 [data-whysheet]{z-index:60}
