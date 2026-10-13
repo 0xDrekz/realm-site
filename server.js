@@ -452,11 +452,10 @@ function route(req, res) {
   if (urlPath === "/owner") urlPath = "/owner.html";
   if (urlPath === "/wallet") urlPath = "/wallet.html";
   if (urlPath === "/payout") urlPath = "/payout.html";
-  // one game: /duels is the Arena. The card games are kept in the code but put away for now
-  if (urlPath === "/duels" || urlPath === "/arena") urlPath = "/arena.html";
-  if (urlPath === "/battler" || urlPath === "/duels-classic" || urlPath === "/cards") { res.writeHead(302, { Location: "/duels" }).end(); return; }
+  // one game: BREAKTHROUGH. Duels and the older card games are kept in the code but put away; their links lead here
+  if (["/duels", "/arena", "/arena.html", "/battler", "/duels-classic", "/cards"].includes(urlPath)) { res.writeHead(302, { Location: "/breakthrough" }).end(); return; }
   if (urlPath === "/codex") urlPath = "/codex.html";
-  if (urlPath === "/duels-beta" || urlPath === "/duels-beta.html" || urlPath === "/rc.html" || urlPath === "/duels.html") { res.writeHead(302, { Location: "/duels" }).end(); return; }
+  if (urlPath === "/duels-beta" || urlPath === "/duels-beta.html" || urlPath === "/rc.html" || urlPath === "/duels.html") { res.writeHead(302, { Location: "/breakthrough" }).end(); return; }
   // the saved snapshot is served through /api/snapshot only, after its hash is checked. Checked on the
   // normalised path (so //snapshot-data/, /./snapshot-data/ and the like are caught) and again on disk below.
   if (path.posix.normalize(urlPath.replace(/\\/g, "/")).replace(/^\/+/, "/").toLowerCase().startsWith("/snapshot-data")) { res.writeHead(404).end(); return; }
