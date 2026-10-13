@@ -91,8 +91,9 @@ section{position:relative;z-index:1}
 .bt-card .gem{position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--ac);box-shadow:0 0 0 2px #000,0 0 10px var(--ac);
   display:grid;place-items:center;font-size:.62rem;font-weight:700;color:#07040f}
 .bt-card .gem.prime{background:conic-gradient(var(--Cold),var(--Rose),var(--Warm),var(--Acid),var(--Opposed),var(--Cold))}
-.bt-card .tr{position:absolute;right:2px;top:2px;display:flex;flex-direction:column;gap:2px}
-.bt-card .tr i{font-style:normal;width:16px;height:16px;display:grid;place-items:center;font-size:.62rem;font-weight:700;background:rgba(7,4,15,.85);color:var(--x);box-shadow:0 0 0 1px rgba(255,211,92,.6)}
+/* the traits sit down the left edge, under the Aura gem: the part of a card still showing when the hand overlaps */
+.bt-card .tr{position:absolute;left:3px;top:27px;display:flex;flex-direction:column;gap:2px}
+.bt-card .tr i{font-style:normal;width:18px;height:18px;display:grid;place-items:center;font-size:.7rem;font-weight:700;background:rgba(7,4,15,.85);color:var(--x);box-shadow:0 0 0 1px rgba(255,211,92,.6)}
 .bt-card .foot{height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 4px;background:linear-gradient(180deg,#160c26,#07040f);border-top:2px solid var(--tc,#9ca3af)}
 .bt-card .foot b{font-family:var(--num);font-size:.92rem;color:var(--chips);font-weight:700}
 .bt-card .foot span{font-size:.5rem;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;max-width:44px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -101,7 +102,7 @@ section{position:relative;z-index:1}
 .bt-card.big{--cw:30vw;--ch:44vw;max-width:130px;max-height:190px}
 .bt-card.big .gem{width:26px;height:26px;font-size:.8rem}
 .bt-card.big .foot{height:30px}.bt-card.big .foot b{font-size:1.15rem}.bt-card.big .foot span{font-size:.62rem;max-width:80px}
-.bt-card.big .tr i{width:20px;height:20px;font-size:.75rem}
+.bt-card.big .tr{top:34px}.bt-card.big .tr i{width:22px;height:22px;font-size:.8rem}
 
 /* ---------- the game ---------- */
 .bt-game,.bt-game *{touch-action:none}
