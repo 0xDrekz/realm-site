@@ -384,6 +384,9 @@ const BT = require("./bt/game").create({ log: m => console.log(m), beings: chain
   announce: (html, links) => require("./bot").postHtml(html, links),
   tgToken: () => require("./bot").envVar("TG_BOT_TOKEN"), playUrl: () => require("./bot").envVar("TG_APP_URL"),
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
+/* SHOWDOWN (sd/game.js): heads-up hold'em with beings, played for match-only Essence. Test page /showdown, not linked */
+const SD = require("./sd/game").create({ log: m => console.log(m), walletOf: duelWalletOf,
+  tgToken: () => require("./bot").envVar("TG_BOT_TOKEN"), dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 /* REALM Cards (rc/game.js): the card game against the computer; every move checked here */
 const RC = require("./rc/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
@@ -446,6 +449,7 @@ function route(req, res) {
   if (urlPath === "/holders") urlPath = "/holders.html";
   if (urlPath === "/left" || urlPath === "/tracker") urlPath = "/left.html";
   if (urlPath === "/breakthrough" || urlPath === "/bt" || urlPath === "/mirror") urlPath = "/bt.html";
+  if (urlPath === "/showdown") urlPath = "/sd.html";
   if (urlPath === "/league") urlPath = "/league.html";
   if (urlPath === "/map") urlPath = "/map.html";
   if (urlPath === "/mint") urlPath = "/mint.html";
@@ -648,6 +652,21 @@ function route(req, res) {
     return;
   }
 
+  /* ---- SHOWDOWN: every deal, bet and result decided here ---- */
+  if (urlPath.startsWith("/api/sd/")) {
+    const send = replier(res);
+    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "?";
+    if (urlPath === "/api/sd/board") { const q = new URL(req.url, "http://x").searchParams; return send(200, SD.board({ token: bearer(req), pid: q.get("pid"), tg: q.get("tg") || undefined })); }
+    const fn = { "/api/sd/queue": SD.queue, "/api/sd/state": SD.state, "/api/sd/move": SD.move, "/api/sd/leave": SD.leave }[urlPath];
+    if (!fn) return send(404, { error: "Not found." });
+    if (req.method !== "POST") return send(405, { error: "POST" });
+    readJson(req, send, 8000, j => {
+      if (!tcgAllowed(ip, "move")) return send(429, { error: "Too fast. Take a breath and try again in a minute." });
+      try { const d = fn(j); send(d.status || (d.error ? 400 : 200), d); } catch (e) { console.error("showdown", e); send(500, { error: "Something went wrong." }); }
+    });
+    return;
+  }
+
   /* ---- the card battler: every move checked, every result decided here ---- */
   if (urlPath.startsWith("/api/tcg/")) {
     const send = replier(res);
@@ -839,7 +858,7 @@ function route(req, res) {
 /* a last line of defence: log anything that slips through and keep serving (the mint page lives here too) */
 process.on("uncaughtException", e => console.error("uncaught", e));
 /* on a redeploy Railway sends SIGTERM: save what's in memory, then go */
-for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush(), () => RC.flush(), () => ARENA.flush(), () => BT.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { for (const f of [() => SESS.flush(), () => TCG.flush(), () => DUELS.flush(), () => RC.flush(), () => ARENA.flush(), () => BT.flush(), () => SD.flush()]) { try { f(); } catch (e) { console.error("flush", e); } } process.exit(0); });
 process.on("unhandledRejection", e => console.error("unhandled rejection", e));
 
 server.listen(PORT, "0.0.0.0", () => {

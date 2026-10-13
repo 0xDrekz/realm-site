@@ -1,0 +1,71 @@
+/* SHOWDOWN: heads-up hold'em with beings. Uses bt.css for the cards, buttons and sheets. */
+body.sd{overflow-x:hidden}
+.sd [data-view]{position:relative;z-index:1}
+.sd-lobby{max-width:460px;margin:0 auto;padding:12px 16px 40px}
+.sd-test{margin-left:auto;padding:2px 7px;font-size:.62rem;letter-spacing:.14em;color:#07040f;background:#ff9ce0}
+.sd-find{margin:18px 0 12px}
+.sd-rules p{margin:8px 0;font-family:var(--num);font-size:.86rem;line-height:1.45;color:var(--dim)}
+.sd-rules b{color:var(--gold2)}
+.sd-h{margin:18px 0 6px;font-size:.8rem;letter-spacing:.24em;color:var(--chips)}
+.sd-board .row{display:grid;grid-template-columns:28px 1fr auto auto;gap:8px;align-items:center;padding:8px 10px;margin:4px 0;background:rgba(13,8,25,.8);border:1px solid var(--line);font-family:var(--num);font-size:.86rem}
+.sd-board .row.you{border-color:var(--chips)}
+.sd-board .row i{font-style:normal;color:var(--gold)}
+.sd-board .row b{color:var(--gold2)}
+.sd-board .row small{color:var(--dim)}
+
+.sd-wait{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;text-align:center}
+.sd-wait h2{margin:6px 0 0;color:var(--gold2)}
+.sd-spin{width:64px;height:64px;border:5px solid rgba(92,240,255,.2);border-top-color:var(--chips);border-radius:50%;animation:sdSpin 1s linear infinite}
+@keyframes sdSpin{to{transform:rotate(360deg)}}
+
+/* the table: opponent at the top, the shared beings in the middle, you at the bottom */
+.sd-table{--cw:62px;--ch:106px;min-height:100dvh;display:flex;flex-direction:column;max-width:460px;margin:0 auto;padding:8px 10px calc(10px + env(safe-area-inset-bottom));touch-action:none}
+.sd-bar{display:flex;align-items:center;gap:10px}
+.sd-bar.me{justify-content:space-between}
+.sd-who{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sd-who b{font-size:.86rem;letter-spacing:.06em;color:var(--bone);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.sd-who span{font-family:var(--num);font-size:1.15rem;font-weight:700;color:var(--gold2)}
+.sd-who i{font-style:normal;font-family:var(--num);font-size:.8rem;color:var(--chips)}
+.sd-who i.low{color:#ff5a6e}
+.sd-dealer{display:inline-grid;place-items:center;width:18px;height:18px;margin-left:6px;border-radius:50%;background:var(--gold);color:#140a02;font-size:.62rem;vertical-align:1px}
+.sd-holes{display:flex;gap:6px}
+.sd-holes.mine{--cw:84px;--ch:140px}
+.sd-bet{min-width:56px;font-family:var(--num);font-weight:700;font-size:.95rem;color:var(--chips);text-align:center}
+.sd-bet:not(:empty)::before{content:"BET ";font-family:var(--px);font-size:.6rem;letter-spacing:.14em;color:var(--dim)}
+.sd-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px 0;position:relative}
+.sd-info{margin:0;font-family:var(--num);font-size:.78rem;color:var(--dim)}
+.sd-pot{font-size:.8rem;letter-spacing:.2em;color:var(--dim)}
+.sd-pot b{font-family:var(--num);font-size:1.6rem;letter-spacing:0;color:var(--gold2);text-shadow:0 0 16px rgba(255,220,130,.4)}
+.sd-boardrow{display:flex;gap:5px;min-height:var(--ch)}
+.sd-slot{width:var(--cw);height:var(--ch);border:2px dashed rgba(227,186,92,.25)}
+.sd-best{margin:0;min-height:1.3em;font-family:var(--num);font-size:.86rem;color:var(--chips)}
+.sd-best b{color:var(--gold2)}
+.sd-card-back{width:var(--cw);height:var(--ch);border:3px solid #e3ba5c;background:radial-gradient(circle at 50% 50%,#3b1a63 0,#1a0b2e 55%,#0b0516 100%);position:relative;box-shadow:0 0 0 2px #000,3px 4px 0 2px #000}
+.sd-card-back::after{content:"";position:absolute;inset:26%;background:url(/logo.png) center/contain no-repeat;opacity:.9}
+.bt-card.dim{opacity:.35;filter:grayscale(.7)}
+.bt-card.hot{box-shadow:0 0 0 2px #000,0 0 18px var(--chips)}
+.bt-card.deal{animation:btIn .35s cubic-bezier(.3,1.5,.5,1) both}
+
+.sd-actions{margin-top:8px}
+.sd-btns{display:flex;gap:8px}
+.sd-btns .bt-btn{font-size:.95rem;padding:13px 4px}
+.sd-call{color:#07040f;background:linear-gradient(180deg,#9ff6ff,#5cf0ff);box-shadow:inset 0 3px 0 #e6fdff,inset 0 -4px 0 #2aa6b8,0 0 0 2px #000,0 5px 0 2px #000}
+.sd-raise{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.sd-raise button{padding:10px 2px;border:1px solid var(--gold);background:rgba(13,8,25,.9);color:var(--gold2);font:700 .78rem var(--px);letter-spacing:.06em}
+.sd-raise button b{display:block;font-family:var(--num);font-size:.9rem;color:var(--chips)}
+.sd-status{margin:8px 0 0;min-height:1.2em;text-align:center;font-family:var(--num);font-size:.84rem;color:var(--dim)}
+.sd-actions.off .bt-btn,.sd-actions.off .sd-raise button{filter:grayscale(.8) brightness(.55);pointer-events:none}
+
+/* a hand's result, over the middle of the table */
+.sd-result{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;background:rgba(5,2,12,.88);border:2px solid var(--gold);text-align:center;z-index:3;--cw:52px;--ch:88px}
+.sd-result h3{margin:0;font-size:1.1rem;letter-spacing:.08em;color:var(--gold2)}
+.sd-result h3.win{color:#8dff5c}.sd-result h3.lose{color:#ff7a8a}
+.sd-result .line{display:flex;flex-direction:column;align-items:center;gap:4px}
+.sd-result .line span{font-family:var(--num);font-size:.8rem;color:var(--bone)}
+.sd-result .line span b{color:var(--gold2)}
+.sd-result .cards{display:flex;gap:4px}
+.sd-result .bt-card .gem{width:13px;height:13px;font-size:.45rem;left:2px;top:2px}
+.sd-result .bt-card .tr{top:17px;left:2px}.sd-result .bt-card .tr i{width:10px;height:10px;font-size:.42rem}
+.sd-result .bt-card .foot{height:18px;padding:0 3px}.sd-result .bt-card .foot b{font-size:.72rem}.sd-result .bt-card .foot span{display:none}
+.sd-result small{font-family:var(--num);color:var(--dim)}
+@media (max-height:700px){.sd-table{--cw:54px;--ch:92px}.sd-holes.mine{--cw:70px;--ch:118px}}

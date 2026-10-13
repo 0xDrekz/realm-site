@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#05020c">
+<meta name="robots" content="noindex">
+<title>SHOWDOWN · REALM</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="bt.css?v=17">
+<link rel="stylesheet" href="sd.css?v=2">
+</head>
+<body class="sd">
+<div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
+
+<!-- the lobby -->
+<section class="sd-lobby" data-view="lobby">
+  <header class="bt-top"><a class="bt-brand" href="/breakthrough"><img src="logo-bar.png" alt="">REALM</a><span class="sd-test">TEST</span></header>
+  <div class="bt-title">
+    <p class="bt-kick">BREAKTHROUGH · 1v1</p>
+    <h1>SHOW<br>DOWN</h1>
+    <p class="bt-lede">Two secret beings each. Five shared beings turn over. Your best <b>five of seven</b> is scored like a BREAKTHROUGH cast. Bet, bluff, take the pot.</p>
+  </div>
+  <button class="bt-btn cast wide sd-find" data-find>Find an opponent</button>
+  <div class="sd-rules">
+    <p><b>Essence</b> is play money for one match: both start on <b data-start>1,000</b>. Blinds 10/20, then 25/50 from hand 7. Win every chip, or have the most after <b>12 hands</b>.</p>
+    <p>No one waiting? <b>The Realm</b> (a bot) takes the other seat after 15 seconds. Free to play: Essence can't be bought, kept or cashed.</p>
+  </div>
+  <h3 class="sd-h">Ranking</h3>
+  <div class="sd-board" data-board><p class="bt-sub">Loading…</p></div>
+</section>
+
+<!-- waiting for an opponent -->
+<section class="sd-wait" data-view="wait" hidden>
+  <div class="sd-spin" aria-hidden="true"></div>
+  <h2>Finding an opponent</h2>
+  <p class="bt-sub" data-wait-note>Looking for a real player…</p>
+  <button class="bt-ghost" data-cancel>Cancel</button>
+</section>
+
+<!-- the table -->
+<section class="sd-table" data-view="table" hidden>
+  <div class="sd-bar opp">
+    <div class="sd-who"><b data-opp-name>Opponent</b><span data-opp-stack>1,000</span></div>
+    <div class="sd-holes" data-opp-hole></div>
+    <div class="sd-bet" data-opp-bet></div>
+  </div>
+  <div class="sd-mid">
+    <p class="sd-info" data-info>Hand 1 of 12 · blinds 10/20</p>
+    <div class="sd-pot">POT <b data-pot>0</b></div>
+    <div class="sd-boardrow" data-boardcards></div>
+    <p class="sd-best" data-best></p>
+    <div class="sd-result" data-result hidden></div>
+  </div>
+  <div class="sd-bar me">
+    <div class="sd-bet" data-my-bet></div>
+    <div class="sd-holes mine" data-my-hole></div>
+    <div class="sd-who"><b data-my-name>You</b><span data-my-stack>1,000</span><i data-timer></i></div>
+  </div>
+  <div class="sd-actions" data-actions>
+    <div class="sd-raise" data-raiserow hidden></div>
+    <div class="sd-btns">
+      <button class="bt-btn discard" data-act="fold">Fold</button>
+      <button class="bt-btn sd-call" data-act="call">Check</button>
+      <button class="bt-btn cast" data-act="raise">Raise</button>
+    </div>
+  </div>
+  <p class="sd-status" data-status></p>
+</section>
+
+<!-- the end of a match -->
+<div class="bt-sheet" data-endsheet hidden>
+  <div class="bt-panel">
+    <p class="bt-kick">SHOWDOWN</p>
+    <h2 data-end-title>You win!</h2>
+    <div class="bt-endscore"><b data-end-score>1,620 – 380</b><span data-end-sub>Essence at the end</span></div>
+    <button class="bt-btn cast wide" data-again>Play again</button>
+    <button class="bt-ghost wide" data-back>Back to the lobby</button>
+  </div>
+</div>
+
+<!-- a card's details -->
+<div class="bt-sheet" data-cardsheet hidden><div class="bt-panel" data-carddetail></div></div>
+
+<script src="bt/engine.js?v=3"></script>
+<script src="sd-page.js?v=2"></script>
+</body>
+</html>
