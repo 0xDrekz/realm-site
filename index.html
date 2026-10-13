@@ -33,7 +33,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="landing.css?v=6">
+<link rel="stylesheet" href="landing.css?v=7">
 </head>
 <body class="landing">
 
@@ -78,6 +78,7 @@
       <span>Pool <b data-live-pool>0 SOL</b></span>
       <span><span data-token-name></span> <b data-live-mcap>&mdash;</b></span>
     </p>
+    <button class="ca-chip" type="button" data-ca="token" aria-label="Copy the $DMT contract address"></button>
   </div>
 </main>
 
@@ -156,6 +157,8 @@
         <p data-rw-pool></p>
         <p class="who">Paid when the last being is minted</p>
         <p class="who live-line">Raised so far: <b data-live-pool>0 SOL</b></p>
+        <p class="who ca-full">$DMT contract address<br><button class="ca-chip wide" type="button" data-ca="token" data-ca-full aria-label="Copy the $DMT contract address"></button><br>
+          <a data-ca-pump target="_blank" rel="noopener">pump.fun</a> &middot; <a data-ca-dex target="_blank" rel="noopener">DexScreener</a> &middot; <a data-ca-scan target="_blank" rel="noopener">Solscan</a></p>
         <p class="who rw-wallet" data-rw-wallet hidden>Rewards wallet holds <b data-rw-bal>&mdash;</b> &middot;
           <a data-rw-link target="_blank" rel="noopener">check it on Solscan &rarr;</a></p>
       </article>
@@ -205,6 +208,10 @@
   <button class="panel-close" aria-label="Close">&times;</button>
   <div class="panel-in">
     <h2>FAQ</h2>
+    <details><summary>What is the $DMT contract address?</summary>
+      <p>Only this one, on Solana: <button class="ca-chip wide" type="button" data-ca="token" data-ca-full aria-label="Copy the $DMT contract address"></button>
+      Always check it here before you buy anywhere. The REALM beings are one Metaplex Core collection:
+      <button class="ca-chip wide" type="button" data-ca="collection" data-ca-full aria-label="Copy the REALM collection address"></button></p></details>
     <details><summary>How many are there in total?</summary>
       <p><span data-total></span>, and that is all there will ever be.</p></details>
     <details><summary>Is this a staged release?</summary>
@@ -265,7 +272,7 @@
 <script src="forms.js"></script>
 <script src="journey.js?v=6"></script>
 <script src="portal.js?v=2"></script>
-<script src="landing.js?v=7"></script>
+<script src="landing.js?v=9"></script>
 <script src="wallet.js"></script>
 </body>
 </html>

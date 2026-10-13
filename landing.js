@@ -67,6 +67,28 @@
     el.textContent = poolFrom(n).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " SOL");
   showPool(minted);
   /* the rewards wallet: its address on Solscan at once, its balance once the server has read it */
+  /* the contract address: shown in full or short, a tap copies it */
+  const CA = { token: CONFIG.tokenMint || "", collection: CONFIG.collectionAddress || "" };
+  $$("[data-ca]").forEach(el => {
+    const a = CA[el.dataset.ca]; if (!a) { el.hidden = true; return; }
+    const label = el.dataset.ca === "token" ? "$DMT CA" : "Collection";
+    const show = () => { el.innerHTML = (el.hasAttribute("data-ca-full") ? "" : "<span>" + label + "</span> ") + "<b>" + (el.hasAttribute("data-ca-full") ? a : a.slice(0, 6) + "…" + a.slice(-4)) + "</b> <i>copy</i>"; };
+    show();
+    el.addEventListener("click", async e => {
+      e.stopPropagation();
+      try { await navigator.clipboard.writeText(a); } catch (err) {
+        const t = document.createElement("textarea"); t.value = a; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); } catch (x) { /* nothing more to try */ } t.remove();
+      }
+      el.classList.add("copied"); el.querySelector("i").textContent = "copied";
+      setTimeout(() => { el.classList.remove("copied"); show(); }, 1600);
+    });
+  });
+  if (CA.token) {
+    $$("[data-ca-pump]").forEach(x => x.href = "https://pump.fun/coin/" + CA.token);
+    $$("[data-ca-dex]").forEach(x => x.href = "https://dexscreener.com/solana/" + CA.token);
+    $$("[data-ca-scan]").forEach(x => x.href = "https://solscan.io/token/" + CA.token);
+  }
+
   if (CONFIG.rewardsWallet) {
     $$("[data-rw-wallet]").forEach(el => el.hidden = false);
     $$("[data-rw-link]").forEach(a => a.href = "https://solscan.io/account/" + CONFIG.rewardsWallet);
@@ -430,7 +452,7 @@
     const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const hits = [];
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
-      if (/\d/.test(n.nodeValue) && !(n.parentNode && n.parentNode.classList.contains("num")))
+      if (/\d/.test(n.nodeValue) && !(n.parentNode && (n.parentNode.classList.contains("num") || n.parentNode.closest(".ca-chip"))))
         hits.push(n);
     }
     for (const node of hits) {

@@ -647,3 +647,15 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .slab-how{font-size:.66rem}
 .j-more{gap:16px;flex-wrap:nowrap;margin-top:0}
 .j-more button,.j-more a{white-space:nowrap;font-size:.62rem;letter-spacing:.12em;padding:2px 1px}
+
+/* the contract address: one tap copies it */
+.ca-chip{display:inline-flex;align-items:center;gap:8px;margin:2px auto 0;padding:7px 12px;cursor:pointer;pointer-events:auto;
+  font-family:'Space Grotesk',system-ui,sans-serif;font-size:.78rem;letter-spacing:.02em;color:#f4efe4;
+  background:rgba(7,4,15,.82);border:1px solid rgba(227,186,92,.5);text-shadow:none;-webkit-tap-highlight-color:transparent}
+.ca-chip span{font-family:'Pixelify Sans',system-ui,sans-serif;font-size:.72rem;letter-spacing:.14em;color:#e3ba5c}
+.ca-chip b{font-weight:700;font-variant-numeric:tabular-nums;color:#fff1c2}
+.ca-chip i{font-style:normal;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:#5cf0ff}
+.ca-chip.copied{border-color:#5cf0ff}.ca-chip.copied i{color:#8dff5c}
+.ca-chip.wide{display:inline-flex;max-width:100%;margin:6px 0}
+.ca-chip.wide b{word-break:break-all;font-size:.74rem;text-align:left}
+.ca-full a{color:#e3ba5c}
