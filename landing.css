@@ -636,3 +636,14 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
   box-shadow:0 0 22px -4px rgba(92,240,255,.8);animation:breakGlow 2.4s ease-in-out infinite}
 .play-break span{padding:2px 6px;font-size:.7em;letter-spacing:.14em;background:#5cf0ff;color:#07040f}
 @media (prefers-reduced-motion:reduce){.slab-break,.play-break{animation:none}}
+/* everything sits low and tight, so the eye and its light stay clear */
+.j-frame{gap:clamp(6px,1.2vh,10px);padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+.j-where{padding:4px 12px 5px;font-size:.66rem}
+.j-menu{gap:6px}
+.j-menu .slab:not(.slab-break){padding:7px 6px;gap:3px}
+.j-menu .slab:not(.slab-break) .slab-in{font-size:clamp(.78rem,3.4vw,.95rem)}
+.j-menu .slab:not(.slab-break) .slab-note{font-size:.54rem;letter-spacing:.12em}
+.slab-break{padding:10px 10px 9px;gap:4px}
+.slab-how{font-size:.66rem}
+.j-more{gap:16px;flex-wrap:nowrap;margin-top:0}
+.j-more button,.j-more a{white-space:nowrap;font-size:.62rem;letter-spacing:.12em;padding:2px 1px}
