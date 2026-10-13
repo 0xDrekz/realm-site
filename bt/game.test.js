@@ -137,13 +137,15 @@ test("a Telegram player is recognised only with initData Telegram signed", async
   assert.match(g.topText(), /@bonedogg/);
 });
 
-test("from 14 Oct every daily deck is dealt fair; earlier days stay exactly as they were", () => {
+test("every daily deck is dealt purely at random, the same for everyone that day", () => {
   const g = G.create({ comp: null });
   assert.ok(g.dailyDef("2026-10-13").deck.includes(1111));        // the lucky day, unchanged
-  for (let d = 14; d <= 31; d++) {
-    const deck = g.dailyDef(`2026-10-${d}`).deck, aura = {}; let big = 0;
+  assert.deepEqual(g.dailyDef("2026-10-20").deck, G.create({ comp: null }).dailyDef("2026-10-20").deck);
+  let rare = 0;
+  for (let d = 1; d <= 60; d++) {
+    const day = new Date(Date.UTC(2026, 9, 13 + d)).toISOString().slice(0, 10), deck = g.dailyDef(day).deck;
     assert.equal(deck.length, 20); assert.equal(new Set(deck).size, 20);
-    for (const n of deck) { const c = C.cardOf(n); assert.ok(!["God", "Entity", "Source"].includes(c.tier)); aura[c.aura] = (aura[c.aura] || 0) + 1; if (c.tier === "Legendary" || c.tier === "Mythic") big++; }
-    assert.ok(Math.max(...Object.values(aura)) <= 5); assert.ok(big <= 2);
+    if (deck.some(n => ["God", "Entity", "Source"].includes(C.cardOf(n).tier))) rare++;
   }
+  assert.ok(rare > 0);                                              // Gods and Entities fall where they fall
 });

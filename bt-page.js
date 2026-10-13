@@ -202,14 +202,40 @@
   /* ---------- the run ---------- */
   let R = null;
   const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, cards: card });
-  const saveRun = () => store.set("run", R ? { id: R.id, mode: R.mode, seed: R.seed, deck: R.deck, own: R.own, moves: R.moves, day: R.day } : null);
+  const saveRun = () => store.set("run", R ? { id: R.id, mode: R.mode, seed: R.seed, deck: R.deck, own: R.own, moves: R.moves, day: R.day, left: R.left, savedAt: Date.now() } : null);
+
+  /* ---------- the clock: 60 seconds a layer. It stops while a cast scores, between layers, and during the
+     layer's opening banner; it keeps running if you look away (menu, card details, another tab). ---------- */
+  const LAYER_MS = 60e3;
+  let lastTick = performance.now(), lastSave = 0;
+  function paintTime() {
+    if (!R) return;
+    const s = Math.max(0, Math.ceil(R.left / 1000));
+    $("[data-time]").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    $("[data-timebox]").classList.toggle("low", s <= 10);
+  }
+  setInterval(() => {
+    const now = performance.now(), dt = now - lastTick; lastTick = now;
+    if (!R || R.finishing || R.S.over || R.S.phase !== "play" || R.busy || R.intro || $('[data-screen="game"]').hidden) return;
+    const before = Math.ceil(R.left / 1000);
+    R.left -= dt; paintTime();
+    const after = Math.ceil(R.left / 1000);
+    if (after < before && after <= 5 && after > 0) tone(after <= 2 ? 990 : 760, 0.07, "square", 0.05);
+    if (now - lastSave > 2000) { lastSave = now; saveRun(); }
+    if (R.left <= 0) timeUp();
+  }, 200);
+  async function timeUp() {
+    if (!R || R.finishing) return;
+    R.left = 0; R.intro = true; paintTime(); saveRun();
+    const me = R; await burst("TIME!"); if (R === me) finishRun();
+  }
   async function startRun(mode, summon) {
     sfx.tap();
     const btns = $$("[data-play]"); btns.forEach(b => (b.disabled = true));
     try {
       await loadCards();
       const d = await api("/api/bt/start", { ...auth(), mode, summon: summon || undefined });
-      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], moves: [], summoned: d.summoned, bestCast: null };
+      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], moves: [], summoned: d.summoned, bestCast: null, left: LAYER_MS };
       R.S = E.createRun(defOf(R)); R.sel = []; R.sort = store.get("sort", "aura"); $("[data-why]").hidden = true;
       saveRun(); show("game"); paint(true); layerIntro();
       if (!store.get("coached", false)) coach(0);
@@ -224,9 +250,12 @@
     await loadCards();
     const out = E.replay(defOf(r), r.moves);
     if (out.error) { store.set("run", null); paintLobby(); return alert("That run couldn't be picked up again. Start a new one."); }
-    R = { ...r, S: out.S, sel: [], sort: store.get("sort", "aura") };
+    // the clock kept running while you were away
+    const left = r.left == null ? LAYER_MS : r.left - (r.savedAt ? Date.now() - r.savedAt : 0);
+    R = { ...r, S: out.S, sel: [], sort: store.get("sort", "aura"), left };
     show("game"); paint(true);
     if (R.S.over) return finishRun();
+    if (R.S.phase === "play" && R.left <= 0) return timeUp();
     if (R.S.phase === "draft") openDraft();
   }
 
@@ -242,7 +271,7 @@
     const S = R.S, target = E.targetOf(S.layer);
     $("[data-layer-n]").textContent = S.layer < E.LAYERS ? `LAYER ${S.layer + 1} OF ${E.LAYERS}` : `BEYOND · LAYER ${S.layer + 1}`;
     $("[data-layer-name]").textContent = S.layer < E.LAYERS ? E.LAYER_NAMES[S.layer] : "Past the Source";
-    $("[data-score]").textContent = fmt(S.score); $("[data-target]").textContent = fmt(target); $("[data-total]").textContent = fmt(S.total);
+    $("[data-score]").textContent = fmt(S.score); $("[data-target]").textContent = fmt(target); $("[data-total]").textContent = fmt(S.total); paintTime();
     const p = Math.min(1, S.score / target); $("[data-bar]").style.width = (p * 100).toFixed(1) + "%"; $(".bt-bar").classList.toggle("full", p >= 1);
     $("[data-casts]").textContent = "●".repeat(S.casts) + "○".repeat(Math.max(0, E.CASTS - S.casts));
     $("[data-discards]").textContent = "●".repeat(S.discards) + "○".repeat(Math.max(0, E.DISCARDS - S.discards));
@@ -405,9 +434,11 @@
     sfx.win(); await sleep(1300); b.remove();
   }
   async function layerIntro() {
+    const run = R; run.intro = true;
     const S = R.S, b = document.createElement("div"); b.className = "bt-burst";
     b.innerHTML = `<b style="font-size:clamp(1.6rem,8vw,2.4rem);text-align:center">LAYER ${S.layer + 1}<br><span style="font-size:.6em;color:var(--chips)">${esc(S.layer < E.LAYERS ? E.LAYER_NAMES[S.layer] : "Past the Source")}</span></b>`;
     document.body.appendChild(b); await sleep(1000); b.remove();
+    run.intro = false;
   }
 
   /* ---------- the draft: one new being after each breakthrough ---------- */
@@ -431,7 +462,7 @@
     if (!R || R.S.phase !== "draft") return;
     const n = i >= 0 ? R.S.offer[i] : 0;
     if (E.pick(R.S, i).error) return;
-    R.fresh = n; R.moves.push(["p", i]); saveRun(); sfx.tap();
+    R.fresh = n; R.moves.push(["p", i]); R.left = LAYER_MS; saveRun(); sfx.tap();
     $("[data-draft]").hidden = true; paint(true); layerIntro();
   }
   $("[data-skip]").addEventListener("click", () => take(-1));

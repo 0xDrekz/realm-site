@@ -115,6 +115,9 @@ section{position:relative;z-index:1}
 .bt-run{display:flex;justify-content:space-between;align-items:baseline;font-size:.62rem;letter-spacing:.16em;color:var(--dim)}
 .bt-run b{font-family:var(--num);font-size:.95rem;letter-spacing:0;color:var(--chips);margin-left:4px;display:inline-block;transition:transform .15s}
 .bt-run b.up{transform:scale(1.18);text-shadow:0 0 12px var(--chips)}
+.bt-time b{font-family:var(--num);font-size:.95rem;letter-spacing:0;color:var(--bone);margin-left:4px}
+.bt-time.low b{color:#ff5a6e;text-shadow:0 0 10px #ff5a6e;animation:btLow .5s steps(2) infinite}
+@keyframes btLow{50%{opacity:.45}}
 .bt-score{display:flex;align-items:baseline;justify-content:center;gap:8px}
 .bt-score b{font-family:var(--num);font-size:1.9rem;color:var(--gold2);text-shadow:0 0 18px rgba(255,220,130,.4)}
 .bt-score span{font-family:var(--num);color:var(--dim);font-weight:600}
