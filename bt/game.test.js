@@ -183,3 +183,14 @@ test("mirror duel: the same deck and seed for both, three layers, the higher tot
   // a duel never touches the boards or the competition
   assert.equal(g.board({ pid: PID }).daily.top.length, 0);
 });
+
+test("from 14 Oct every daily deck holds at least one God and two Entities; 13 Oct is unchanged", () => {
+  const g = G.create({ comp: null });
+  assert.ok(g.dailyDef("2026-10-13").deck.includes(1111));
+  for (let d = 0; d < 40; d++) {
+    const day = new Date(Date.UTC(2026, 9, 14 + d)).toISOString().slice(0, 10), deck = g.dailyDef(day).deck, t = deck.map(n => C.cardOf(n).tier);
+    assert.equal(deck.length, 20); assert.equal(new Set(deck).size, 20);
+    assert.ok(t.filter(x => x === "God").length >= 1); assert.ok(t.filter(x => x === "Entity").length >= 2);
+    assert.deepEqual(deck, G.create({ comp: null }).dailyDef(day).deck);
+  }
+});

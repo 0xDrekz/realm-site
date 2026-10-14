@@ -21,6 +21,7 @@ const E = require("./engine"), C = require("./cards");
 const TTL = 3 * 3600e3, MAX_RUNS = 20000, PER_OWNER = 3, DECK = 20, OWN_IN_DECK = 8, MAX_MOVES = 800;
 /* MIRROR DUEL: two players, the same deck and the same seed, three layers each, played when each likes.
    The higher run total wins. No holder boost here: the same cards and the same luck, so it's skill alone. */
+const POWER_FROM = "2026-10-14";
 const DUEL_LAYERS = 3, DUEL_TTL = 7 * 86400e3, MAX_DUELS = 20000;
 
 /* a competition, when one is on (bt/comp.json): the best Daily Trip score of a signed-in wallet
@@ -89,6 +90,20 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     // purely random, and the same for everyone that day: Gods, Entities and the Source fall where they fall
     for (let i = 0; deck.length < DECK; i++) {
       const n = 1 + (h("card" + i).readUInt32LE(0) % 1111); if (!deck.includes(n)) deck.push(n);
+    }
+    // From 14 Oct every deck holds at least one God and two Entities, taking the places of its weakest
+    // beings, so no day is a grind. (Days before stay exactly as they were, so their runs still replay.)
+    if (day >= POWER_FROM) {
+      const T = C.byTier(), want = [["God", 1], ["Entity", 2]], keep = new Set();
+      for (const [tier, k] of want) {
+        const have = deck.filter(n => C.cardOf(n).tier === tier); have.slice(0, k).forEach(n => keep.add(n));
+        for (let i = 0, got = have.length; got < k; i++) {
+          const n = T[tier][h(tier + i).readUInt32LE(0) % T[tier].length]; if (deck.includes(n)) continue;
+          const out = deck.filter(x => !keep.has(x) && !["God", "Entity", "Source"].includes(C.cardOf(x).tier))
+            .sort((a, b) => C.cardOf(a).chips - C.cardOf(b).chips || a - b)[0];
+          deck[deck.indexOf(out)] = n; keep.add(n); got++;
+        }
+      }
     }
     return { seed, deck, own: [] };
   }
