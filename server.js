@@ -373,12 +373,10 @@ const TCG = require("./tcg2/game").create({ log: m => console.log(m), beings: ch
 const ARENA = require("./arena/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: w => DUELS.boostOf(w), walletOf: duelWalletOf,
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });
 /* BREAKTHROUGH (bt/game.js): the trait card game; the page plays, the server replays every run */
-/* BREAKTHROUGH holder boost, in percent: +10% for owning a being, +10% for each $DMT band held (read only, never a transaction) */
+/* BREAKTHROUGH holder boost, in percent (bt/engine.js boostFor): owning a being and the $DMT held, read only, never a transaction */
 async function btBoostOf(wallet) {
-  const bands = require("./bot").readData(ROOT).TOKEN_BANDS;
   const [tokens, all] = await Promise.all([tokensOf(wallet).catch(() => 0), chainBeings().catch(() => [])]);
-  const level = bands.filter(b => b.hold > 0 && tokens >= b.hold).length;
-  return 100 + 10 * level + (all.some(b => b.owner === wallet) ? 10 : 0);
+  return require("./bt/engine").boostFor(tokens, all.some(b => b.owner === wallet));
 }
 const BT = require("./bt/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: btBoostOf, walletOf: duelWalletOf,
   announce: (html, links) => require("./bot").postHtml(html, links),

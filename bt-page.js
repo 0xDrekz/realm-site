@@ -182,9 +182,9 @@
     if (s) { $("[data-w-phantom]").hidden = true; }
     const own = ME && ME.own;
     $("[data-w-who]").innerHTML = s
-      ? `Signed in as <b>${esc(s.wallet.slice(0, 4) + "…" + s.wallet.slice(-4))}</b>. ${own && own.length ? `<b>${own.length}</b> of your beings join every Free Run and score +50%.` : "No beings in this wallet yet: you'll play with borrowed ones."}${ME && ME.boost > 100 ? ` Your holder boost: <b>×${ME.boost / 100}</b> on every cast.` : ME && ME.boost === 100 ? " Hold a being or $DMT (from 50k) for a boost on every cast." : ""}${ME && ME.summonedToday ? ` Your beings were summoned <b>${ME.summonedToday}</b> times today.` : ""}`
+      ? `Signed in as <b>${esc(s.wallet.slice(0, 4) + "…" + s.wallet.slice(-4))}</b>. ${own && own.length ? `<b>${own.length}</b> of your beings join every Free Run and score +50%.` : "No beings in this wallet yet: you'll play with borrowed ones."}${ME && ME.boost > 100 ? ` Your holder boost: <b>×${ME.boost / 100}</b> on every cast.` : ME && ME.boost === 100 ? " Hold $DMT for a boost on every cast: 500k gives +50%." : ""}${ME && ME.summonedToday ? ` Your beings were summoned <b>${ME.summonedToday}</b> times today.` : ""}`
       : ME && ME.telegram ? `Playing as <b>${esc(ME.name)}</b> from Telegram: your scores show on the boards. To enter the SOL competition, open the game in your browser or Phantom and connect a wallet.`
-      : "Playing as a guest. Holders get a boost on every cast: +10% for owning a being, +10% for each $DMT band (50k, 250k, 1M, 5M, 10M).";
+      : "Playing as a guest. Holders get a boost on every cast: +10% for owning a being, and for $DMT 50k +10%, 250k +20%, 500k +50%, 1M +60%, 5M +100%, 10M +150% (up to ×2.6).";
     $("[data-free-note]").textContent = own && own.length ? `Your ${own.length} being${own.length === 1 ? "" : "s"} + a fresh deck` : "A fresh deck every time";
     const d = BOARD && BOARD.daily;
     $("[data-daily-note]").textContent = d && d.you ? `Your best today: ${fmt(d.you.total)} · #${d.you.rank} of ${d.players}` : d && d.players ? `${d.players} player${d.players === 1 ? "" : "s"} today · best run counts` : "Best run counts";
@@ -520,7 +520,21 @@
         $("[data-end-rank]").textContent = "Reconnecting…"; await sleep(1500 * tries);
       }
     }
+    if (run.mode !== "duel") upsell(run, S.total);
     store.set("run", null); R = null; loadBoard();
+  }
+  /* what the same run would have scored with more $DMT: the boost multiplies every cast's mult, so the
+     total scales with it (an estimate: the same moves, the same cards) */
+  function upsell(run, total) {
+    if (!total) return;
+    const being = !!(ME && ME.own && ME.own.length) ? E.BOOST_BEING : 0, cur = run.boost || 100;
+    const next = E.BOOST_BANDS.map(([t, p]) => [t, 100 + being + p]).find(([t, b]) => b > cur && t >= 500e3) || E.BOOST_BANDS.map(([t, p]) => [t, 100 + being + p]).find(([, b]) => b > cur);
+    if (!next) return;
+    const [tokens, b] = next, would = Math.floor(total * b / cur), amt = tokens >= 1e6 ? tokens / 1e6 + "M" : tokens / 1e3 + "k";
+    const el = document.createElement("div"); el.className = "bt-upsell bt-win";
+    el.innerHTML = `<b>With ${amt} $DMT</b> this run would have scored about <b>${fmt(would)}</b> <i>(+${fmt(would - total)})</i>. Holders score ×${b / 100} on every cast.`
+      + `<a href="https://pump.fun/coin/Bn7ga2URqhCaT23HfLRZNHhVBpxxhycVdUSQAVpYpump" target="_blank" rel="noopener">Get $DMT ›</a>`;
+    const after = $("[data-end-rows]"); after.after(el);
   }
   /* ---------- share card: a picture of the run, for X ---------- */
   let SHARE = null;

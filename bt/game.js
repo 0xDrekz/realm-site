@@ -159,7 +159,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     }
     // a holder's boost ($DMT bands and owning a being), read once when the run starts
     r.boost = 100;
-    if (wallet && r.mode !== "duel") { try { r.boost = Math.max(100, Math.min(200, Math.round(Number(await boostOf(wallet)) || 100))); } catch { /* the chain is slow: no boost this time */ } }
+    if (wallet && r.mode !== "duel") { try { r.boost = Math.max(100, Math.min(300, Math.round(Number(await boostOf(wallet)) || 100))); } catch { /* the chain is slow: no boost this time */ } }
     const id = crypto.randomBytes(16).toString("hex");
     Object.assign(r, { id, owner, wallet: wallet || null, pkey: me ? me.key : null, name: me ? me.name : null, at: Date.now(), done: false });
     runs.set(id, r); saveLive();
@@ -406,7 +406,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
       try { out.own = await ownedBy(wallet); } catch { out.own = null; }
       const s = B.summons[dayKey()] || {};
       if (out.own) out.summonedToday = out.own.reduce((a, n) => a + (s[n] || 0), 0);
-      try { out.boost = Math.max(100, Math.min(200, Math.round(Number(await boostOf(wallet)) || 100))); } catch { out.boost = 100; }
+      try { out.boost = Math.max(100, Math.min(300, Math.round(Number(await boostOf(wallet)) || 100))); } catch { out.boost = 100; }
     }
     return out;
   }

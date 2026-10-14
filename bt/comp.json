@@ -5,7 +5,7 @@
     "prize": "1 SOL",
     "start": "2026-10-12",
     "end": "2026-10-18",
-    "rules": "Highest Daily Trip score from 12 to 18 Oct (UTC) wins 1 SOL, paid from the team's own funds. Free to enter: sign in with a wallet before you play, and your best Daily Trip run of the week counts. A tie goes to whoever scored it first. Team wallets can play but can't win: the prize goes to the highest community wallet. Holders score a boost on every cast in every run: +10% for owning a REALM being and +10% for each $DMT band held (50k, 250k, 1M, 5M, 10M), up to x1.6. Playing stays free for everyone.",
+    "rules": "Highest Daily Trip score from 12 to 18 Oct (UTC) wins 1 SOL, paid from the team's own funds. Free to enter: sign in with a wallet before you play, and your best Daily Trip run of the week counts. A tie goes to whoever scored it first. Team wallets can play but can't win: the prize goes to the highest community wallet. Holders score a boost on every cast: +10% for owning a REALM being, and for holding $DMT 50k +10%, 250k +20%, 500k +50%, 1M +60%, 5M +100%, 10M +150%, up to x2.6. Playing stays free for everyone.",
     "team": [
       "BC5CV6ivBkWW2wL5YMsZovoYXBreM8mgdfL2cSjC45M2",
       "FCMFa6LBXSezfBaN6gqbrw7RbMuPSqgMEkCSRAQhZuiM",
@@ -26,7 +26,7 @@
       2,
       1
     ],
-    "rules": "Every day from 19 to 25 Oct (UTC) is its own race on that day's Daily Trip deck. The day's best scores earn points: 1st 10, 2nd 6, 3rd 4, 4th 2, 5th 1. The most points at the end of Sunday wins 1 SOL, paid from the team's own funds; a tie goes to more days won, then the higher single run. Free to enter: sign in with a wallet before you play, and play as many times as you like. Holders score a boost on every cast: +10% for owning a REALM being and +10% for each $DMT band held (50k, 250k, 1M, 5M, 10M), up to x1.6. Team wallets can play but can't win.",
+    "rules": "Every day from 19 to 25 Oct (UTC) is its own race on that day's Daily Trip deck. The day's best scores earn points: 1st 10, 2nd 6, 3rd 4, 4th 2, 5th 1. The most points at the end of Sunday wins 1 SOL, paid from the team's own funds; a tie goes to more days won, then the higher single run. Free to enter: sign in with a wallet before you play, and play as many times as you like. Holders score a boost on every cast: +10% for owning a REALM being, and for holding $DMT 50k +10%, 250k +20%, 500k +50%, 1M +60%, 5M +100%, 10M +150%, up to x2.6. Team wallets can play but can't win.",
     "team": [
       "BC5CV6ivBkWW2wL5YMsZovoYXBreM8mgdfL2cSjC45M2",
       "FCMFa6LBXSezfBaN6gqbrw7RbMuPSqgMEkCSRAQhZuiM",

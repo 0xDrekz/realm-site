@@ -146,7 +146,7 @@
   /* ---------- a run ----------
      def: { seed, deck: [n...], own: [n...], cards: lookup n -> card, pool: N beings to draft from } */
   function createRun(def) {
-    const S = { rng: def.seed | 0, cards: def.cards, N: def.pool || 1111, own: def.own || [], boost: Math.max(100, Math.min(200, def.boost | 0)), deck: def.deck.slice(),
+    const S = { rng: def.seed | 0, cards: def.cards, N: def.pool || 1111, own: def.own || [], boost: Math.max(100, Math.min(300, def.boost | 0)), deck: def.deck.slice(),
       layer: 0, draw: [], hand: [], used: [], casts: 0, discards: 0, score: 0, total: 0, castsMade: 0, best: 0, bestHand: null,
       phase: "play", offer: null, over: false, broke: false, last: null, moves: 0, hands: {} };
     startLayer(S);
@@ -249,6 +249,10 @@
   // how far a run got: layers cleared (8 = broke through to the Source)
   const cleared = S => S.layer + (S.phase === "draft" ? 1 : 0);
 
-  return { createRun, cast, discard, pick, act, replay, preview, bestOrder, evaluate, handOf, targetOf, cleared,
+  /* the holder boost, in percent: +10 for owning a REALM being, plus the highest $DMT band held */
+  const BOOST_BANDS = [[50e3, 10], [250e3, 20], [500e3, 50], [1e6, 60], [5e6, 100], [10e6, 150]], BOOST_BEING = 10, BOOST_MAX = 300;
+  const boostFor = (tokens, being) => Math.min(BOOST_MAX, 100 + (being ? BOOST_BEING : 0) + BOOST_BANDS.reduce((b, [t, p]) => tokens >= t ? p : b, 0));
+
+  return { createRun, cast, discard, pick, act, replay, preview, bestOrder, evaluate, handOf, targetOf, cleared, BOOST_BANDS, BOOST_BEING, BOOST_MAX, boostFor,
     HANDS, AURAS, TARGETS, LAYERS, LAYER_NAMES, HAND_SIZE, MAX_PICK, CASTS, DISCARDS };
 });

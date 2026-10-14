@@ -273,3 +273,8 @@ section{position:relative;z-index:1}
 .bt-duelres .vs{display:grid;grid-template-columns:1fr auto;gap:4px 10px;margin:6px 0}
 .bt-duelres .vs b{text-align:right;color:var(--gold2)}
 .bt-duelres .win{color:#8dff5c}.bt-duelres .lose{color:#ff7a8a}
+
+/* the end of a run: what more $DMT would have scored */
+.bt-upsell{margin:10px 0 0;padding:10px 12px;font-family:var(--num);font-size:.86rem;line-height:1.45;text-align:left;color:var(--bone);background:linear-gradient(135deg,rgba(255,211,92,.16),rgba(13,8,25,.9));border:1px solid var(--gold)}
+.bt-upsell b{color:var(--gold2)}.bt-upsell i{font-style:normal;color:#8dff5c}
+.bt-upsell a{display:block;margin-top:6px;color:var(--x);font-weight:700;letter-spacing:.04em}

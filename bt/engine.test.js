@@ -118,5 +118,12 @@ test("a holder boost multiplies the mult last, and only above 100%", () => {
   assert.equal(boosted.steps.filter(s => s.label === "Holder boost").length, 1);
   assert.equal(E.evaluate([c], 0, [], 100).steps.some(s => s.label === "Holder boost"), false);
   const S = E.createRun({ seed: 7, deck: [1, 2, 3, 4, 5, 6, 7, 8], boost: 999, cards: n => ({ ...c, n }) });
-  assert.equal(S.boost, 200);                                            // capped
+  assert.equal(S.boost, 300);                                            // capped
+});
+
+test("the holder boost: a being +10%, then the highest $DMT band held, up to x2.6", () => {
+  assert.equal(E.boostFor(0, false), 100); assert.equal(E.boostFor(0, true), 110);
+  assert.equal(E.boostFor(49999, false), 100); assert.equal(E.boostFor(50e3, false), 110);
+  assert.equal(E.boostFor(499999, true), 130); assert.equal(E.boostFor(500e3, false), 150); assert.equal(E.boostFor(500e3, true), 160);
+  assert.equal(E.boostFor(5e6, false), 200); assert.equal(E.boostFor(10e6, true), 260); assert.equal(E.boostFor(1e12, true), 260);
 });
