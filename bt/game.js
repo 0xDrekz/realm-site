@@ -62,9 +62,9 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   const runs = new Map(Object.entries(saved));
   const saveLive = () => { if (liveFile) liveFile.save(() => { tidy(); return Object.fromEntries(runs); }); };
   let B = {}; try { B = boardFile ? boardFile.load() || {} : {}; } catch (e) { log("breakthrough: board could not be read, starting fresh: " + e.message); }
-  B.days = B.days || {}; B.weeks = B.weeks || {}; B.summons = B.summons || {}; B.comps = B.comps || {}; B.posted = B.posted || {};
+  B.days = B.days || {}; B.weeks = B.weeks || {}; B.summons = B.summons || {}; B.comps = B.comps || {}; B.compDays = B.compDays || {}; B.posted = B.posted || {};
   const trim = (o, k) => Object.fromEntries(Object.keys(o).sort().slice(-k).map(x => [x, o[x]]));
-  const saveBoard = () => { if (boardFile) boardFile.save(() => (B = { days: trim(B.days, 10), weeks: trim(B.weeks, 6), summons: trim(B.summons, 10), comps: B.comps, posted: B.posted })); };
+  const saveBoard = () => { if (boardFile) boardFile.save(() => (B = { days: trim(B.days, 10), weeks: trim(B.weeks, 6), summons: trim(B.summons, 10), comps: B.comps, compDays: B.compDays, posted: B.posted })); };
   const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
   const weekKey = (d = new Date()) => { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); return m.toISOString().slice(0, 10); };
   function tidy() { const now = Date.now(); for (const [k, r] of runs) if (now - r.at > TTL) runs.delete(k); }
@@ -238,42 +238,82 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const rows = ranked(book), i = rows.findIndex(x => x.key === r.pkey);
     return { best: better, rank: i + 1, of: rows.length, top: book[r.pkey].total };
   }
-  /* the competition: a signed-in wallet's best Daily Trip of the competition's days */
-  const inComp = day => !!comp && day >= comp.start && day <= comp.end;
+  /* ---------- the competitions (bt/comp.json: one, or a list in date order) ----------
+     Two ways to score one:
+       highest score   the best single Daily Trip run of the dates wins
+       daily points    every day is its own race on that day's deck: 1st 10 points, 2nd 6, 3rd 4, 4th 2,
+                       5th 1 (a competition can set its own "points"). Most points at the end wins; a tie
+                       goes to more days won, then the higher single run, then whoever scored first.
+     A signed-in wallet's runs count; the team's own wallets can play, but can't win. */
+  const COMPS = (Array.isArray(comp) ? comp : comp ? [comp] : []).filter(c => c && c.id && c.start && c.end);
+  const compOf = day => COMPS.find(c => day >= c.start && day <= c.end) || null;
+  // the one to show: the one running today, else the one that finished last (until the next begins)
+  const showing = () => compOf(dayKey()) || COMPS.filter(c => c.end < dayKey()).sort((a, b) => (a.end < b.end ? -1 : 1)).pop() || null;
+  const isPoints = c => !!c && c.scoring === "daily-points";
+  const PTS = c => (Array.isArray(c.points) && c.points.length ? c.points : [10, 6, 4, 2, 1]);
+  const isTeam = (c, w) => !!c && Array.isArray(c.team) && c.team.includes(w);
+  const dayRows = (c, day) => ranked(((B.compDays[c.id] || {})[day]) || {}).filter(x => !isTeam(c, x.key));
+  function standings(c) {
+    if (!isPoints(c)) return ranked(B.comps[c.id] || {}).filter(x => !isTeam(c, x.key));
+    const P = PTS(c), acc = {};
+    for (const day of Object.keys(B.compDays[c.id] || {})) {
+      dayRows(c, day).forEach((x, i) => {
+        const a = acc[x.key] = acc[x.key] || { key: x.key, points: 0, wins: 0, days: 0, total: 0, cleared: 0, at: x.at };
+        a.points += P[i] || 0; a.days++; if (i === 0) a.wins++;
+        if (x.total > a.total) { a.total = x.total; a.cleared = x.cleared; }
+        a.at = Math.min(a.at, x.at);
+      });
+    }
+    return Object.values(acc).sort((a, b) => b.points - a.points || b.wins - a.wins || b.total - a.total || a.at - b.at);
+  }
   function enter(r, res) {
-    if (!inComp(r.day)) return null;
+    const c = compOf(r.day); if (!c) return null;
     if (!r.wallet) return { entered: false };
-    const book = B.comps[comp.id] = B.comps[comp.id] || {};
+    const book = B.comps[c.id] = B.comps[c.id] || {};
     const cur = book[r.wallet], better = !cur || res.total > cur.total;
     if (better) book[r.wallet] = { total: res.total, cleared: res.cleared, day: r.day, at: Date.now(), secs: res.secs, moves: res.moves };
+    let dayBetter = false;
+    if (isPoints(c)) {
+      const days = B.compDays[c.id] = B.compDays[c.id] || {}, db = days[r.day] = days[r.day] || {}, dc = db[r.wallet];
+      dayBetter = !dc || res.total > dc.total;
+      if (dayBetter) db[r.wallet] = { total: res.total, cleared: res.cleared, at: Date.now(), secs: res.secs, moves: res.moves };
+    }
     saveBoard();
-    if (isTeam(r.wallet)) return { entered: true, team: true, best: better };
-    const rows = ranked(book).filter(x => !isTeam(x.key)), i = rows.findIndex(x => x.key === r.wallet);
+    if (isTeam(c, r.wallet)) return { entered: true, team: true, best: isPoints(c) ? dayBetter : better };
+    const st = standings(c), i = st.findIndex(x => x.key === r.wallet);
+    if (isPoints(c)) {
+      const today = dayRows(c, r.day), j = today.findIndex(x => x.key === r.wallet);
+      if (j === 0 && dayBetter) leaderNews();
+      return { entered: true, points: true, best: dayBetter, dayRank: j + 1, dayOf: today.length, dayPts: PTS(c)[j] || 0, rank: i + 1, of: st.length, pts: i < 0 ? 0 : st[i].points };
+    }
     if (i === 0 && better) leaderNews();
-    return { entered: true, best: better, rank: i + 1, of: rows.length };
+    return { entered: true, best: better, rank: i + 1, of: st.length };
   }
-  // the team's own wallets play like anyone, but can't win the prize: they're shown, unranked
-  const isTeam = w => !!comp && Array.isArray(comp.team) && comp.team.includes(w);
   function compView(wallet, limit = 10) {
-    if (!comp) return null;
-    const all = ranked(B.comps[comp.id] || {}), day = dayKey(), over = day > comp.end;
-    const rows = all.filter(x => !isTeam(x.key)), i = wallet ? rows.findIndex(x => x.key === wallet) : -1;
+    const c = showing(); if (!c) return null;
+    const day = dayKey(), over = day > c.end, live = !!compOf(day) && compOf(day).id === c.id, pts = isPoints(c);
+    const rows = standings(c), i = wallet ? rows.findIndex(x => x.key === wallet) : -1;
+    // the team's wallets are shown too, unranked: at the end on a points table, in score order otherwise
+    const team = Object.entries(B.comps[c.id] || {}).filter(([k]) => isTeam(c, k)).map(([key, v]) => ({ key, ...v, team: true }));
+    const all = pts ? rows.concat(team) : rows.concat(team).sort((a, b) => b.total - a.total || a.at - b.at);
     let rank = 0;
-    return { title: comp.title, prize: comp.prize, start: comp.start, end: comp.end, rules: comp.rules,
-      endsAt: Date.parse(comp.end + "T23:59:59Z"), live: inComp(day), over, players: rows.length,
-      // everyone in score order; team wallets have no rank. The winner's full address is shown once it's over.
-      top: all.slice(0, limit).map(x => { const team = isTeam(x.key), r = team ? null : ++rank;
-        return { name: short(x.key), rank: r, team, wallet: over && r === 1 ? x.key : undefined, total: x.total, cleared: x.cleared, you: x.key === wallet }; }),
-      you: wallet && isTeam(wallet) ? { team: true } : i < 0 ? null : { rank: i + 1, total: rows[i].total } };
+    return { id: c.id, title: c.title, prize: c.prize, start: c.start, end: c.end, rules: c.rules, scoring: pts ? "points" : "score", points: pts ? PTS(c) : undefined,
+      endsAt: Date.parse(c.end + "T23:59:59Z"), live, over, players: rows.length,
+      // everyone in order; the winner's full address is shown once it's over
+      top: all.slice(0, limit).map(x => { const r = x.team ? null : ++rank;
+        return { name: short(x.key), rank: r, team: !!x.team, wallet: over && r === 1 ? x.key : undefined, total: x.total, cleared: x.cleared,
+          points: pts && !x.team ? x.points : undefined, wins: pts && !x.team ? x.wins : undefined, you: x.key === wallet }; }),
+      today: pts && live ? dayRows(c, day).slice(0, 10).map((x, k) => ({ name: short(x.key), total: x.total, cleared: x.cleared, pts: PTS(c)[k] || 0, you: x.key === wallet })) : undefined,
+      you: wallet && isTeam(c, wallet) ? { team: true } : i < 0 ? null : { rank: i + 1, total: rows[i].total, points: pts ? rows[i].points : undefined } };
   }
   /* ---------- Telegram: the league table, as it happens ---------- */
   const fmtN = n => Math.round(n).toLocaleString("en-GB");
   const esc = t => String(t).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   // the Play button opens the Telegram Mini App when one is set up (TG_APP_URL), else the website
   const LINKS_OF = () => [["Play BREAKTHROUGH", playUrl() || "https://dmt-realm.dev/breakthrough"], ["League table", "https://dmt-realm.dev/league"]];
-  function tableLines(rows) { return rows.slice(0, 3).map((x, k) => `${k + 1}. ${esc(short(x.key))}  <b>${fmtN(x.total)}</b>`).join("\n"); }
-  function leftText() {
-    const h = Math.max(0, Math.floor((Date.parse(comp.end + "T23:59:59Z") - Date.now()) / 3600e3));
+  function tableLines(rows, c) { return rows.slice(0, 3).map((x, k) => `${k + 1}. ${esc(short(x.key))}  <b>${isPoints(c) ? x.points + " pts" : fmtN(x.total)}</b>`).join("\n"); }
+  function leftText(c) {
+    const h = Math.max(0, Math.floor((Date.parse(c.end + "T23:59:59Z") - Date.now()) / 3600e3));
     return h >= 48 ? Math.floor(h / 24) + " days left" : h >= 1 ? h + " hours left" : "under an hour left";
   }
   /* every finished run, as one line in the group. Gathered for a few seconds and sent together,
@@ -282,8 +322,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   let pending = [], scoreTimer = null;
   function scoreNews(r, res) {
     if (!announce) return;
-    const where = r.mode === "daily" ? "Daily Trip" : "Free Run";
-    const extra = res.comp && res.comp.entered && !res.comp.team ? ` · <b>#${res.comp.rank}</b> in the ${esc(comp.prize)} comp`
+    const where = r.mode === "daily" ? "Daily Trip" : "Free Run", c = compOf(r.day), x = res.comp;
+    const extra = x && x.entered && !x.team && c ? (x.points ? ` · <b>#${x.dayRank}</b> today in the ${esc(c.prize)} comp` : ` · <b>#${x.rank}</b> in the ${esc(c.prize)} comp`)
       : res.board && r.mode === "daily" ? ` · #${res.board.rank} today` : "";
     pending.push(`${esc(r.name || "A player")} scored <b>${fmtN(res.total)}</b> on the ${where} (${res.cleared} layer${res.cleared === 1 ? "" : "s"})${extra}`);
     if (pending.length > 200) pending = pending.slice(-200);
@@ -307,26 +347,33 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   }
   function sendLeader() {
     postTimer = null;
-    if (!comp || !inComp(dayKey())) return;
-    const rows = ranked(B.comps[comp.id] || {}).filter(x => !isTeam(x.key));
-    if (!rows.length || (B.posted.leaderKey === rows[0].key && B.posted.leaderTotal === rows[0].total)) return;
-    B.posted.leaderAt = Date.now(); B.posted.leaderKey = rows[0].key; B.posted.leaderTotal = rows[0].total; saveBoard();
-    const top = rows[0];
-    Promise.resolve(announce(`🏆 <b>NEW TOP SCORE in BREAKTHROUGH</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n${tableLines(rows)}\n\n${esc(comp.prize)} to the highest Daily Trip score. ${leftText()}. Free to enter: connect a wallet, then play.`, LINKS_OF()))
-      .then(r => { if (r && r.ok === false) log("breakthrough: telegram post failed: " + r.problem); }).catch(() => {});
+    const day = dayKey(), c = compOf(day); if (!c) return;
+    const lead = isPoints(c) ? dayRows(c, day) : standings(c);
+    if (!lead.length) return;
+    const tag = (isPoints(c) ? day + ":" : "") + lead[0].key;
+    if (B.posted.leaderKey === tag && B.posted.leaderTotal === lead[0].total) return;
+    B.posted.leaderAt = Date.now(); B.posted.leaderKey = tag; B.posted.leaderTotal = lead[0].total; saveBoard();
+    const top = lead[0];
+    const text = isPoints(c)
+      ? `🏆 <b>NEW LEADER OF TODAY'S DAILY TRIP</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n<b>Today</b>\n${lead.slice(0, 3).map((x, k) => `${k + 1}. ${esc(short(x.key))}  <b>${fmtN(x.total)}</b>`).join("\n")}\n\n<b>The week, in points</b>\n${tableLines(standings(c), c)}\n\nToday's winner takes ${PTS(c)[0]} points. Most points by the end wins ${esc(c.prize)}. ${leftText(c)}. Free to enter: connect a wallet, then play.`
+      : `🏆 <b>NEW TOP SCORE in BREAKTHROUGH</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n${tableLines(lead, c)}\n\n${esc(c.prize)} to the highest Daily Trip score. ${leftText(c)}. Free to enter: connect a wallet, then play.`;
+    Promise.resolve(announce(text, LINKS_OF())).then(r => { if (r && r.ok === false) log("breakthrough: telegram post failed: " + r.problem); }).catch(() => {});
   }
-  // once it's over, post the result (checked every few minutes, and once at start)
+  // once one is over, post the result (checked every few minutes, and once at start)
   function finalNews() {
-    if (!announce || !comp || dayKey() <= comp.end || B.posted["final:" + comp.id]) return;
-    const rows = ranked(B.comps[comp.id] || {}).filter(x => !isTeam(x.key));
-    B.posted["final:" + comp.id] = Date.now(); saveBoard();
-    if (!rows.length) return;
-    const w = rows[0];
-    Promise.resolve(announce(`🏆 <b>${esc(comp.title)} is over</b>\n\nThe winner of ${esc(comp.prize)}: <b>${esc(short(w.key))}</b> with <b>${fmtN(w.total)}</b>.\n\n${tableLines(rows)}\n\nWinner's wallet: <code>${esc(w.key)}</code>`, LINKS_OF())).catch(() => {});
+    if (!announce) return;
+    for (const c of COMPS) {
+      if (dayKey() <= c.end || B.posted["final:" + c.id]) continue;
+      const rows = standings(c);
+      B.posted["final:" + c.id] = Date.now(); saveBoard();
+      if (!rows.length) continue;
+      const w = rows[0];
+      Promise.resolve(announce(`🏆 <b>${esc(c.title)} is over</b>\n\nThe winner of ${esc(c.prize)}: <b>${esc(short(w.key))}</b> with <b>${isPoints(c) ? w.points + " points" : fmtN(w.total)}</b>.\n\n${tableLines(rows, c)}\n\nWinner's wallet: <code>${esc(w.key)}</code>`, LINKS_OF())).catch(() => {});
+    }
   }
   if (announce) {
     const t = setInterval(finalNews, 5 * 60e3); if (t.unref) t.unref();
-    const s = setTimeout(() => { finalNews(); if (comp && inComp(dayKey()) && !B.posted.leaderKey) leaderNews(); }, 5000); if (s.unref) s.unref();
+    const s = setTimeout(() => { finalNews(); if (compOf(dayKey()) && !B.posted.leaderKey) leaderNews(); }, 5000); if (s.unref) s.unref();
   }
 
   const ranked = book => Object.entries(book).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.total - a.total || a.at - b.at);
@@ -366,13 +413,19 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
 
   /* the bot's replies to /top and /league in the group */
   function topText() {
-    const out = [];
-    if (comp && inComp(dayKey())) {
-      const rows = ranked(B.comps[comp.id] || {}).filter(x => !isTeam(x.key));
-      out.push(`🏆 <b>${esc(comp.title)}</b>: ${esc(comp.prize)} to the winner, ${leftText()}`);
-      out.push(rows.length ? tableLines(rows) : "No entries yet. Connect a wallet and play the Daily Trip to take first place.");
+    const out = [], day = dayKey(), c = compOf(day);
+    if (c) {
+      out.push(`🏆 <b>${esc(c.title)}</b>: ${esc(c.prize)} to the winner, ${leftText(c)}`);
+      const rows = standings(c);
+      if (isPoints(c)) {
+        const t = dayRows(c, day);
+        out.push(`<b>Today's race</b> (the winner takes ${PTS(c)[0]} points)`);
+        out.push(t.length ? t.slice(0, 3).map((x, k) => `${k + 1}. ${esc(short(x.key))}  <b>${fmtN(x.total)}</b>`).join("\n") : "Nobody has entered today yet.");
+        out.push(`<b>The week, in points</b>`);
+      }
+      out.push(rows.length ? tableLines(rows, c) : "No entries yet. Connect a wallet and play the Daily Trip to take first place.");
     }
-    const today = ranked(B.days[dayKey()] || {});
+    const today = ranked(B.days[day] || {});
     out.push(`\n🎴 <b>Today's Daily Trip</b>`);
     out.push(today.length ? today.slice(0, 5).map((x, k) => `${k + 1}. ${esc(x.name)}  <b>${fmtN(x.total)}</b>`).join("\n") : "Nobody has played today's yet.");
     return out.join("\n");

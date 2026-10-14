@@ -194,3 +194,31 @@ test("from 14 Oct every daily deck holds at least one God and two Entities; 13 O
     assert.deepEqual(deck, G.create({ comp: null }).dailyDef(day).deck);
   }
 });
+
+test("daily points: every day is its own race, points add up across the week, and the next competition takes over", async () => {
+  const W2 = "Wa22etBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", W3 = "Wa33etCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
+  const RealDate = Date; let fake = RealDate.UTC(2030, 0, 6, 12);           // Sunday 6 Jan 2030, noon
+  class FakeDate extends RealDate { constructor(...a) { if (a.length) super(...a); else super(fake); } static now() { return fake; } }
+  global.Date = FakeDate;
+  try {
+    const old = { id: "w1", title: "Week 1", prize: "1 SOL", start: "2030-01-01", end: "2030-01-06" };
+    const pts = { id: "w2", title: "Points Week", prize: "1 SOL", start: "2030-01-07", end: "2030-01-13", scoring: "daily-points" };
+    const g = G.create({ beings: async () => [], walletOf: t => ({ a: W, b: W2, c: W3 })[t] || null, comp: [old, pts] });
+    assert.equal(g.board({}).comp.id, "w1");                                // still week 1 on Sunday
+    fake = RealDate.UTC(2030, 0, 7, 12);                                    // Monday: points week
+    assert.equal(g.board({}).comp.id, "w2"); assert.equal(g.board({}).comp.scoring, "points");
+    const play = async (tok, moves) => { const d = await g.start({ mode: "daily", token: tok }); fake += 3600e3; const m = moves || playThrough(d).moves; return g.finish({ run: d.run, moves: m }); };
+    const big = await play("a"), mid = await play("b", [["c", [0]]]);
+    assert.ok(big.result.comp.points); assert.equal(big.result.comp.dayRank, 1); assert.equal(big.result.comp.dayPts, 10);
+    assert.equal(mid.result.comp.dayRank, 2); assert.equal(mid.result.comp.pts, 6);
+    fake = RealDate.UTC(2030, 0, 8, 12);                                    // Tuesday: a new race
+    await play("b"); await play("c", [["c", [0]]]);
+    const v = g.board({ token: "b" }).comp;
+    assert.equal(v.top[0].name, W2.slice(0, 4) + "…" + W2.slice(-4)); assert.equal(v.top[0].points, 16); assert.equal(v.top[0].wins, 1);
+    assert.equal(v.top[1].points, 10); assert.equal(v.top[2].points, 6); assert.equal(v.you.points, 16);
+    assert.equal(v.today.length, 2); assert.equal(v.today[0].pts, 10);
+    // the old week's table is still there, untouched
+    fake = RealDate.UTC(2030, 0, 14, 12);
+    assert.equal(g.board({}).comp.over, true); assert.equal(g.board({}).comp.top[0].wallet, W2);
+  } finally { global.Date = RealDate; }
+});

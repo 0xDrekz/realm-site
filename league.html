@@ -7,7 +7,7 @@
 <title>League Table · BREAKTHROUGH</title>
 <meta name="description" content="The live BREAKTHROUGH league table: the highest Daily Trip score this week wins the prize. Free to enter.">
 <meta property="og:title" content="BREAKTHROUGH League Table">
-<meta property="og:description" content="Live standings. Highest Daily Trip score this week wins. Free to enter.">
+<meta property="og:description" content="Live standings for the BREAKTHROUGH competition. Free to enter.">
 <meta property="og:image" content="https://dmt-realm.dev/og.png?v=2">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -101,6 +101,20 @@ tr.team td{opacity:.6}
   const session = () => { try { const s = JSON.parse(localStorage.getItem("realm-tcg-session") || "null"); return s && Date.now() - s.at < 23 * 3600e3 ? s : null; } catch { return null; } };
   let D = null, tab = "comp";
 
+  // a points week: the week's table in points, and today's race (whose winner takes the most points)
+  function pointRows(list) {
+    if (!list.length) return `<div class="empty">No entries yet. Connect a wallet in the game and play the Daily Trip to take first place.</div>`;
+    return `<table><thead><tr><th>#</th><th>Wallet</th><th class="r">Days won</th><th class="r">Points</th></tr></thead><tbody>`
+      + list.map(r => { const k = r.rank;
+        return `<tr class="${k && k <= 3 ? "p" + k : ""}${r.team ? " team" : ""}${r.you ? " you" : ""}"><td>${k || "–"}</td><td class="w">${esc(r.wallet || r.name)}${r.team ? '<span class="medal team">TEAM · NOT ELIGIBLE</span>' : ""}${k === 1 && D.comp.over ? '<span class="medal">WINNER</span>' : ""}${r.you ? ' <span class="medal" style="background:#5cf0ff">YOU</span>' : ""}<br><small style="color:#a597cf">best run ${fmt(r.total)}</small></td><td class="r l">${r.team ? "–" : r.wins}</td><td class="r s">${r.team ? "–" : r.points}</td></tr>`; }).join("")
+      + "</tbody></table>";
+  }
+  function raceRows(list) {
+    if (!list.length) return `<div class="empty">Nobody has entered today's race yet. Sign in with a wallet and play the Daily Trip.</div>`;
+    return `<table><thead><tr><th>#</th><th>Wallet</th><th class="r">Score</th><th class="r">Pts</th></tr></thead><tbody>`
+      + list.map((r, i) => `<tr class="${i < 3 ? "p" + (i + 1) : ""}${r.you ? " you" : ""}"><td>${i + 1}</td><td class="w">${esc(r.name)}${r.you ? ' <span class="medal" style="background:#5cf0ff">YOU</span>' : ""}</td><td class="r s">${fmt(r.total)}</td><td class="r l">+${r.pts}</td></tr>`).join("")
+      + "</tbody></table>";
+  }
   function rows(list, compMode) {
     if (!list.length) return `<div class="empty">${compMode ? "No entries yet. Connect a wallet in the game and play the Daily Trip to take first place." : "Nobody has played today's Daily Trip yet."}</div>`;
     return `<table><thead><tr><th>#</th><th>${compMode ? "Wallet" : "Player"}</th><th class="r">Layers</th><th class="r">Score</th></tr></thead><tbody>`
@@ -123,7 +137,15 @@ tr.team td{opacity:.6}
       $("[data-rules]").innerHTML = "<b>Daily Trip:</b> the same deck and the same luck for everyone, all day. Your best run counts.";
       tab = "today"; $("[data-tab=comp]").hidden = true;
     }
-    if (tab === "comp" && c) {
+    const pts = c && c.scoring === "points";
+    $("[data-tab=today]").textContent = pts && c.today ? "Today's race" : "Today's Daily Trip";
+    if (tab === "comp" && c && pts) {
+      $("[data-table]").innerHTML = pointRows(c.top);
+      const y = $("[data-you]");
+      y.hidden = !c.you || c.you.team || c.you.rank <= c.top.filter(r => !r.team).length;
+      if (c.you && !c.you.team) y.textContent = `You're #${c.you.rank} with ${c.you.points} points`;
+    } else if (tab === "today" && pts && c.today) { $("[data-table]").innerHTML = raceRows(c.today); $("[data-you]").hidden = true; }
+    else if (tab === "comp" && c) {
       $("[data-table]").innerHTML = rows(c.top, true);
       const y = $("[data-you]");
       y.hidden = !c.you || c.you.team || c.you.rank <= c.top.filter(r => !r.team).length;

@@ -199,10 +199,12 @@
     if (!c || (!c.live && !c.over)) { el.hidden = true; return; }
     el.hidden = false;
     $("[data-comp-k]").textContent = c.over ? "COMPETITION OVER" : "WIN " + c.prize.toUpperCase();
-    $("[data-comp-t]").textContent = c.over ? (c.top[0] ? `Winner: ${c.top[0].name} with ${fmt(c.top[0].total)}` : "No entries") : "Highest Daily Trip score this week";
+    const pts = c.scoring === "points";
+    $("[data-comp-t]").textContent = c.over ? (c.top[0] ? `Winner: ${c.top[0].name} with ${pts ? c.top[0].points + " points" : fmt(c.top[0].total)}` : "No entries")
+      : pts ? `Win today's Daily Trip for ${c.points[0]} points · most points this week wins` : "Highest Daily Trip score this week";
     $("[data-comp-s]").textContent = c.over ? "Tap for the final board" : !session() ? `${left(c.endsAt - Date.now())} · connect a wallet below to enter`
       : c.you && c.you.team ? `Team wallet: you can play, but not win · ${left(c.endsAt - Date.now())}`
-      : c.you ? `You're #${c.you.rank} of ${c.players} with ${fmt(c.you.total)} · ${left(c.endsAt - Date.now())}` : `${c.players} entered · ${left(c.endsAt - Date.now())} · play the Daily Trip`;
+      : c.you ? `You're #${c.you.rank} of ${c.players} with ${pts ? c.you.points + " pts" : fmt(c.you.total)} · ${left(c.endsAt - Date.now())}` : `${c.players} entered · ${left(c.endsAt - Date.now())} · play the Daily Trip`;
   }
   $("[data-comp]").addEventListener("click", async () => { tab = "comp"; $("[data-boardsheet]").hidden = false; paintBoard(); await loadBoard(); paintBoard(); });
 
@@ -501,11 +503,12 @@
         const d = await api("/api/bt/finish", { run: run.id, moves: run.moves });
         if (run.mode === "duel") { duelResult(d.result && d.result.duel); break; }
         const b = d.result && d.result.board, c = d.result && d.result.comp, cp = BOARD && BOARD.comp;
-        if (SHARE) SHARE.rank = c && c.entered && !c.team ? `#${c.rank} in the ${cp ? cp.prize : "SOL"} competition` : b && run.mode === "daily" ? `#${b.rank} on today's Daily Trip` : null;
+        if (SHARE) SHARE.rank = c && c.entered && !c.team ? (c.points ? `#${c.dayRank} in today's ${cp ? cp.prize : "SOL"} race` : `#${c.rank} in the ${cp ? cp.prize : "SOL"} competition`) : b && run.mode === "daily" ? `#${b.rank} on today's Daily Trip` : null;
         $("[data-end-rank]").textContent = b ? `${b.best ? "New best! " : ""}#${b.rank} of ${b.of} on the ${run.mode === "daily" ? "Daily Trip board" : "Free Run board this week"}.` : "Counted.";
         if (c) {
           const w = document.createElement("p"); w.className = "bt-win";
           w.innerHTML = c.team ? `<b>Team wallet:</b> your score shows on the league table, but the prize goes to the highest community wallet.`
+            : c.entered && c.points ? `<b>Today's race:</b> you're <b>#${c.dayRank}</b> of ${c.dayOf}${c.dayPts ? ` (worth ${c.dayPts} points if it holds)` : ""}. <b>The week:</b> #${c.rank} with ${c.pts} points.`
             : c.entered ? `<b>${esc(cp ? cp.prize : "SOL")} competition:</b> you're <b>#${c.rank}</b> of ${c.of}${c.best ? " (your best this week)" : ""}.`
             : `This run isn't in the <b>${esc(cp ? cp.prize : "SOL")} competition</b>: connect a wallet in the menu <i>before</i> you play, and your Daily Trip scores count.`;
           $("[data-end-rank]").after(w);
@@ -674,7 +677,7 @@
     if (tab === "comp" && v) {
       $$("[data-btab]").forEach(b => b.classList.toggle("on", b.dataset.btab === tab));
       const info = `<div class="bt-compinfo"><b>${esc(v.title)}: ${esc(v.prize)} to the winner.</b> ${esc(v.rules || "")}</div>`;
-      const rows = v.top.length ? `<div class="bt-rows">${v.top.map(r => `<div class="${r.you ? "you" : ""}"${r.team ? ' style="opacity:.6"' : ""}><i>${r.rank || "–"}</i><span>${esc(r.wallet || r.name)}${r.team ? "<small>team · not eligible</small>" : ""}<small>${r.cleared} layer${r.cleared === 1 ? "" : "s"}</small></span><b>${fmt(r.total)}</b></div>`).join("")}</div>`
+      const rows = v.top.length ? `<div class="bt-rows">${v.top.map(r => `<div class="${r.you ? "you" : ""}"${r.team ? ' style="opacity:.6"' : ""}><i>${r.rank || "–"}</i><span>${esc(r.wallet || r.name)}${r.team ? "<small>team · not eligible</small>" : ""}<small>${r.points != null ? "best run " + fmt(r.total) : r.cleared + " layer" + (r.cleared === 1 ? "" : "s")}</small></span><b>${r.points != null ? r.points + " pts" : fmt(r.total)}</b></div>`).join("")}</div>`
         : '<p class="bt-sub">No entries yet. Sign in with a wallet and play the Daily Trip to be first.</p>';
       box.innerHTML = info + rows + (v.you && v.you.rank > 10 ? `<p class="bt-sub">You: #${v.you.rank} with ${fmt(v.you.total)}</p>` : "") + '<a class="bt-ghost wide bt-league" href="/league">Full league table ›</a>';
       return;
