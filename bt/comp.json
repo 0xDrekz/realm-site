@@ -13,24 +13,32 @@
     ]
   },
   {
-    "id": "daily-week-2",
-    "title": "Daily Trip Points Week",
+    "id": "holder-league-1",
+    "title": "Holder League",
     "prize": "1 SOL",
     "start": "2026-10-19",
     "end": "2026-10-25",
     "scoring": "daily-points",
-    "points": [
-      10,
-      6,
-      4,
-      2,
-      1
-    ],
-    "rules": "Every day from 19 to 25 Oct (UTC) is its own race on that day's Daily Trip deck. The day's best scores earn points: 1st 10, 2nd 6, 3rd 4, 4th 2, 5th 1. The most points at the end of Sunday wins 1 SOL, paid from the team's own funds; a tie goes to more days won, then the higher single run. Free to enter: sign in with a wallet before you play, and play as many times as you like. Holders score a boost on every cast: +10% for owning a REALM being, and for holding $DMT 50k +10%, 250k +20%, 500k +50%, 1M +60%, 5M +100%, 10M +150%, up to x2.6. Team wallets can play but can't win.",
+    "minTokens": 500000,
     "team": [
       "BC5CV6ivBkWW2wL5YMsZovoYXBreM8mgdfL2cSjC45M2",
       "FCMFa6LBXSezfBaN6gqbrw7RbMuPSqgMEkCSRAQhZuiM",
       "9NaeNsRoMcjwBXjDtvEJqx3ngJMuzPi74H4SEevVrrcN"
-    ]
+    ],
+    "rules": "For $DMT holders: a wallet holding 500,000 $DMT or more can enter. Every day from 19 to 25 Oct (UTC) is its own race on that day's Daily Trip deck. The day's best scores earn points: 1st 10, 2nd 6, 3rd 4, 4th 2, 5th 1. The most points at the end of Sunday wins 1 SOL, paid from the team's own funds. Your $DMT is checked when a run starts and again when it's handed in. A tie goes to more days won, then the higher single run, then whoever scored first. Team wallets can play but can't win. Playing is always free."
+  },
+  {
+    "id": "open-league-1",
+    "title": "Open League",
+    "prize": "250,000 $DMT",
+    "start": "2026-10-19",
+    "end": "2026-10-25",
+    "scoring": "daily-points",
+    "team": [
+      "BC5CV6ivBkWW2wL5YMsZovoYXBreM8mgdfL2cSjC45M2",
+      "FCMFa6LBXSezfBaN6gqbrw7RbMuPSqgMEkCSRAQhZuiM",
+      "9NaeNsRoMcjwBXjDtvEJqx3ngJMuzPi74H4SEevVrrcN"
+    ],
+    "rules": "Free for everyone: sign in with any wallet, no tokens needed. Every day from 19 to 25 Oct (UTC) is its own race on that day's Daily Trip deck. The day's best scores earn points: 1st 10, 2nd 6, 3rd 4, 4th 2, 5th 1. The most points at the end of Sunday wins 250,000 $DMT, paid from the team's own funds. A tie goes to more days won, then the higher single run, then whoever scored first. Team wallets can play but can't win."
   }
 ]

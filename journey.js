@@ -727,12 +727,15 @@ window.RealmJourney = (() => {
     slab.append(timer, how);
     fetch("/api/bt/league").then(r => r.json()).then(d => {
       const c = d && d.comp; if (!c || !c.live || c.over) return;
+      // two leagues at once: both prizes on the one line
+      const L = (d.comps || []).filter(x => x.live), prize = L.length > 1 ? L.map(x => x.prize).join(" · ") : c.prize;
+      if (L.length > 1) how.textContent = "Holders of " + (L.find(x => x.minTokens) || {}).minTokens?.toLocaleString("en-GB") + "+ $DMT play for " + (L.find(x => x.minTokens) || c).prize + " · the Open League is free for everyone";
       const tick = () => {
         const ms = c.endsAt - Date.now();
-        if (ms <= 0) { timer.textContent = "WIN " + c.prize + " · ENDING NOW"; return; }
+        if (ms <= 0) { timer.textContent = "WIN " + prize + " · ENDING NOW"; return; }
         const s = Math.floor(ms / 1000), dd = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600), mm = Math.floor(s % 3600 / 60), ss = s % 60;
         const p = n => String(n).padStart(2, "0");
-        timer.textContent = `WIN ${c.prize} · ENDS IN ${dd ? dd + "d " : ""}${p(hh)}:${p(mm)}:${p(ss)}`;
+        timer.textContent = `WIN ${prize} · ENDS IN ${dd ? dd + "d " : ""}${p(hh)}:${p(mm)}:${p(ss)}`;
       };
       tick(); setInterval(tick, 1000);
       timer.hidden = false; how.hidden = false;

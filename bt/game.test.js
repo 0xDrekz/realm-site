@@ -246,3 +246,29 @@ test("daily points: every day is its own race, points add up across the week, an
     assert.equal(g.board({}).comp.over, true); assert.equal(g.board({}).comp.top[0].wallet, W2);
   } finally { global.Date = RealDate; }
 });
+
+test("two leagues at once: the Holder League needs 500k $DMT (checked at the start and again at the end), the Open League is free", async () => {
+  const W2 = "Wa22etBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+  const RealDate = Date, fake = RealDate.UTC(2030, 0, 8, 12);
+  class FakeDate extends RealDate { constructor(...a) { if (a.length) super(...a); else super(fake + (RealDate.now() - t0)); } static now() { return fake + (RealDate.now() - t0); } }
+  const t0 = RealDate.now(); global.Date = FakeDate;
+  try {
+    const hold = { [W]: 600000, [W2]: 1000 };
+    const holders = { id: "h", title: "Holder League", prize: "1 SOL", start: "2030-01-07", end: "2030-01-13", scoring: "daily-points", minTokens: 500000 };
+    const open = { id: "o", title: "Open League", prize: "250,000 $DMT", start: "2030-01-07", end: "2030-01-13", scoring: "daily-points" };
+    const g = G.create({ beings: async () => [], walletOf: t => ({ a: W, b: W2 })[t] || null, tokensOf: async w => hold[w] || 0, comp: [holders, open] });
+    const b = g.board({ token: "a" }); assert.equal(b.comps.length, 2); assert.equal(b.comps[0].minTokens, 500000);
+    const play = async tok => { const d = await g.start({ mode: "daily", token: tok }); const { moves } = playThrough(d); return later(() => g.finish({ run: d.run, moves })); };
+    const a = (await play("a")).result.comp;
+    assert.equal(a.all.length, 2); assert.ok(a.all.every(x => x.entered)); assert.equal(a.holders, true);
+    const c = (await play("b")).result.comp;
+    assert.equal(c.all.find(x => x.id === "h").entered, false); assert.equal(c.all.find(x => x.id === "h").need, 500000);
+    assert.equal(c.all.find(x => x.id === "o").entered, true);
+    let lg = g.league({ token: "a" }); assert.equal(lg.comps[0].players, 1); assert.equal(lg.comps[1].players, 2);
+    // a wallet that sells its $DMT during the run: in at the start, off the Holder League once the second check fails
+    hold[W2] = 900000; const d = await g.start({ mode: "daily", token: "b" }); hold[W2] = 0;
+    const { moves } = playThrough(d); await later(() => g.finish({ run: d.run, moves }));
+    await new Promise(r => setTimeout(r, 20));
+    lg = g.league({ token: "b" }); assert.equal(lg.comps[0].players, 1); assert.equal(lg.comps[0].top.some(r => r.you), false);
+  } finally { global.Date = RealDate; }
+});

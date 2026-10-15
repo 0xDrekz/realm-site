@@ -378,7 +378,7 @@ async function btBoostOf(wallet) {
   const [tokens, all] = await Promise.all([tokensOf(wallet).catch(() => 0), chainBeings().catch(() => [])]);
   return require("./bt/engine").boostFor(tokens, all.some(b => b.owner === wallet));
 }
-const BT = require("./bt/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: btBoostOf, walletOf: duelWalletOf,
+const BT = require("./bt/game").create({ log: m => console.log(m), beings: chainBeings, boostOf: btBoostOf, tokensOf: w => tokensOf(w), walletOf: duelWalletOf,
   announce: (html, links) => require("./bot").postHtml(html, links),
   tgToken: () => require("./bot").envVar("TG_BOT_TOKEN"), playUrl: () => require("./bot").envVar("TG_APP_URL"),
   dir: require("./bot").envVar("SNAPSHOT_DIR") || path.join(ROOT, "snapshot-data") });

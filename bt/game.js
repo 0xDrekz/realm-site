@@ -59,7 +59,7 @@ function tgUser(initData, botToken) {
   } catch { return null; }
 }
 
-function create({ log = () => {}, beings = async () => [], boostOf = async () => 100, walletOf = () => null, dir = null, comp = loadComp(), announce = null, tgToken = () => "", playUrl = () => "" } = {}) {
+function create({ log = () => {}, beings = async () => [], boostOf = async () => 100, tokensOf = async () => 0, walletOf = () => null, dir = null, comp = loadComp(), announce = null, tgToken = () => "", playUrl = () => "" } = {}) {
   const jf = file => dir ? require("../jsonfile").create(path.join(dir, file), { log: m => log("breakthrough: " + m), fallback: {} }) : null;
   const liveFile = jf("bt-live.json"), boardFile = jf("bt-board.json"), duelFile = jf("bt-duels.json");
   let D = {}; try { D = duelFile ? duelFile.load() || {} : {}; } catch (e) { log("breakthrough: duels could not be read, starting fresh: " + e.message); }
@@ -178,6 +178,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (wallet && r.mode !== "duel") { try { r.boost = Math.max(100, Math.min(300, Math.round(Number(await boostOf(wallet)) || 100))); } catch { /* the chain is slow: no boost this time */ } }
     const id = crypto.randomBytes(16).toString("hex");
     Object.assign(r, { id, owner, wallet: wallet || null, pkey: me ? me.key : null, name: me ? me.name : null, at: Date.now(), done: false });
+    // a league with a $DMT minimum: the wallet's balance is read now (and again when the run is handed in)
+    if (r.mode === "daily" && wallet && compsOf(day).some(c => c.minTokens)) { try { r.tokens = Number(await tokensOf(wallet)) || 0; } catch { r.tokens = 0; } }
     // the Gods, Entities and the Source have their powers on runs started from 19 Oct (not in Mirror Duels)
     if (day >= FRESH_FROM && r.mode !== "duel") r.powers = true;
     runs.set(id, r); saveLive();
@@ -264,9 +266,15 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
                        goes to more days won, then the higher single run, then whoever scored first.
      A signed-in wallet's runs count; the team's own wallets can play, but can't win. */
   const COMPS = (Array.isArray(comp) ? comp : comp ? [comp] : []).filter(c => c && c.id && c.start && c.end);
-  const compOf = day => COMPS.find(c => day >= c.start && day <= c.end) || null;
-  // the one to show: the one running today, else the one that finished last (until the next begins)
-  const showing = () => compOf(dayKey()) || COMPS.filter(c => c.end < dayKey()).sort((a, b) => (a.end < b.end ? -1 : 1)).pop() || null;
+  /* Several can run at once (a Holder League with a $DMT minimum, minTokens, beside a free Open League).
+     A run counts in every one running that day that its wallet qualifies for. */
+  const compsOf = day => COMPS.filter(c => day >= c.start && day <= c.end);
+  const compOf = day => compsOf(day)[0] || null;
+  // the ones to show: those running today, else those that finished last (until the next begin)
+  const showingAll = () => { const now = compsOf(dayKey()); if (now.length) return now;
+    const past = COMPS.filter(c => c.end < dayKey()); if (!past.length) return [];
+    const last = past.reduce((m, c) => (c.end > m ? c.end : m), ""); return past.filter(c => c.end === last); };
+  const showing = () => showingAll()[0] || null;
   const isPoints = c => !!c && c.scoring === "daily-points";
   const PTS = c => (Array.isArray(c.points) && c.points.length ? c.points : [10, 6, 4, 2, 1]);
   const isTeam = (c, w) => !!c && Array.isArray(c.team) && c.team.includes(w);
@@ -284,38 +292,60 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     }
     return Object.values(acc).sort((a, b) => b.points - a.points || b.wins - a.wins || b.total - a.total || a.at - b.at);
   }
-  function enter(r, res) {
-    const c = compOf(r.day); if (!c) return null;
-    if (!r.wallet) return { entered: false };
+  // one competition: the run's best is kept, with what it replaced, so a failed $DMT re-check can undo it
+  function enterOne(c, r, res) {
     const book = B.comps[c.id] = B.comps[c.id] || {};
-    const cur = book[r.wallet], better = !cur || res.total > cur.total;
-    if (better) book[r.wallet] = { total: res.total, cleared: res.cleared, day: r.day, at: Date.now(), secs: res.secs, moves: res.moves };
+    const cur = book[r.wallet], better = !cur || res.total > cur.total, undo = [];
+    if (better) { undo.push([book, r.wallet, cur]); book[r.wallet] = { total: res.total, cleared: res.cleared, day: r.day, at: Date.now(), secs: res.secs, moves: res.moves }; }
     let dayBetter = false;
     if (isPoints(c)) {
       const days = B.compDays[c.id] = B.compDays[c.id] || {}, db = days[r.day] = days[r.day] || {}, dc = db[r.wallet];
       dayBetter = !dc || res.total > dc.total;
-      if (dayBetter) db[r.wallet] = { total: res.total, cleared: res.cleared, at: Date.now(), secs: res.secs, moves: res.moves };
+      if (dayBetter) { undo.push([db, r.wallet, dc]); db[r.wallet] = { total: res.total, cleared: res.cleared, at: Date.now(), secs: res.secs, moves: res.moves }; }
     }
     saveBoard();
-    if (isTeam(c, r.wallet)) return { entered: true, team: true, best: isPoints(c) ? dayBetter : better };
+    const head = { id: c.id, title: c.title, prize: c.prize, holders: !!c.minTokens };
+    if (c.minTokens && undo.length) recheck(c, r.wallet, undo);
+    if (isTeam(c, r.wallet)) return { ...head, entered: true, team: true, best: isPoints(c) ? dayBetter : better };
     const st = standings(c), i = st.findIndex(x => x.key === r.wallet);
     if (isPoints(c)) {
       const today = dayRows(c, r.day), j = today.findIndex(x => x.key === r.wallet);
-      if (j === 0 && dayBetter) leaderNews();
-      return { entered: true, points: true, best: dayBetter, dayRank: j + 1, dayOf: today.length, dayPts: PTS(c)[j] || 0, rank: i + 1, of: st.length, pts: i < 0 ? 0 : st[i].points };
+      if (j === 0 && dayBetter) leaderNews(c);
+      return { ...head, entered: true, points: true, best: dayBetter, dayRank: j + 1, dayOf: today.length, dayPts: PTS(c)[j] || 0, rank: i + 1, of: st.length, pts: i < 0 ? 0 : st[i].points };
     }
-    if (i === 0 && better) leaderNews();
-    return { entered: true, best: better, rank: i + 1, of: st.length };
+    if (i === 0 && better) leaderNews(c);
+    return { ...head, entered: true, best: better, rank: i + 1, of: st.length };
   }
-  function compView(wallet, limit = 10) {
-    const c = showing(); if (!c) return null;
-    const day = dayKey(), over = day > c.end, live = !!compOf(day) && compOf(day).id === c.id, pts = isPoints(c);
+  /* the Holder League's $DMT is checked when the run starts, and again once it's handed in:
+     if the wallet no longer holds the minimum, that score comes off the Holder League board */
+  function recheck(c, wallet, undo) {
+    Promise.resolve().then(() => tokensOf(wallet)).then(t => {
+      if (Number(t) >= c.minTokens) return;
+      for (const [book, key, prev] of undo.reverse()) { if (prev) book[key] = prev; else delete book[key]; }
+      saveBoard(); log(`breakthrough: ${short(wallet)} no longer holds ${c.minTokens} $DMT; their ${c.id} score is taken off`);
+    }).catch(() => { /* the chain couldn't be read: the check at the start of the run stands */ });
+  }
+  function enter(r, res) {
+    const cs = compsOf(r.day); if (!cs.length) return null;
+    if (!r.wallet) return { entered: false };
+    const all = [];
+    for (const c of cs) {
+      if (c.minTokens && !(r.tokens >= c.minTokens)) { all.push({ id: c.id, title: c.title, prize: c.prize, holders: true, entered: false, need: c.minTokens }); continue; }
+      all.push(enterOne(c, r, res));
+    }
+    // the one the page shows first: the Holder League when it was entered, else the first entered
+    const main = all.find(x => x.entered && x.holders) || all.find(x => x.entered) || all[0];
+    return { ...main, all };
+  }
+  function compView(wallet, limit = 10, c = showing()) {
+    if (!c) return null;
+    const day = dayKey(), over = day > c.end, live = compsOf(day).some(x => x.id === c.id), pts = isPoints(c);
     const rows = standings(c), i = wallet ? rows.findIndex(x => x.key === wallet) : -1;
     // the team's wallets are shown too, unranked: at the end on a points table, in score order otherwise
     const team = Object.entries(B.comps[c.id] || {}).filter(([k]) => isTeam(c, k)).map(([key, v]) => ({ key, ...v, team: true }));
     const all = pts ? rows.concat(team) : rows.concat(team).sort((a, b) => b.total - a.total || a.at - b.at);
     let rank = 0;
-    return { id: c.id, title: c.title, prize: c.prize, start: c.start, end: c.end, rules: c.rules, scoring: pts ? "points" : "score", points: pts ? PTS(c) : undefined,
+    return { id: c.id, title: c.title, prize: c.prize, start: c.start, end: c.end, rules: c.rules, minTokens: c.minTokens || 0, scoring: pts ? "points" : "score", points: pts ? PTS(c) : undefined,
       endsAt: Date.parse(c.end + "T23:59:59Z"), live, over, players: rows.length,
       // everyone in order; the winner's full address is shown once it's over
       top: all.slice(0, limit).map(x => { const r = x.team ? null : ++rank;
@@ -340,7 +370,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   let pending = [], scoreTimer = null;
   function scoreNews(r, res) {
     if (!announce) return;
-    const where = r.mode === "daily" ? "Daily Trip" : "Free Run", c = compOf(r.day), x = res.comp;
+    const where = r.mode === "daily" ? "Daily Trip" : "Free Run", x = res.comp, c = x && x.id ? COMPS.find(k => k.id === x.id) : null;
     const extra = x && x.entered && !x.team && c ? (x.points ? ` · <b>#${x.dayRank}</b> today in the ${esc(c.prize)} comp` : ` · <b>#${x.rank}</b> in the ${esc(c.prize)} comp`)
       : res.board && r.mode === "daily" ? ` · #${res.board.rank} today` : "";
     pending.push(`${esc(r.name || "A player")} scored <b>${fmtN(res.total)}</b> on the ${where} (${res.cleared} layer${res.cleared === 1 ? "" : "s"})${extra}`);
@@ -356,25 +386,28 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (more) { scoreTimer = setTimeout(sendScores, SCORE_GAP_MS); if (scoreTimer.unref) scoreTimer.unref(); }
   }
 
-  let postTimer = null;
-  function leaderNews() {
-    if (!announce) return;
-    if (postTimer) return;                                   // one is already waiting: it will carry the latest leader
-    const wait = Math.max(0, (B.posted.leaderAt || 0) + POST_GAP_MS - Date.now());
-    postTimer = setTimeout(sendLeader, wait); if (postTimer.unref) postTimer.unref();
+  const postTimers = {};
+  function leaderNews(c = compOf(dayKey())) {
+    if (!announce || !c) return;
+    if (postTimers[c.id]) return;                            // one is already waiting: it will carry the latest leader
+    const P = B.posted[c.id] = B.posted[c.id] || {};
+    const wait = Math.max(0, (P.leaderAt || 0) + POST_GAP_MS - Date.now());
+    postTimers[c.id] = setTimeout(() => sendLeader(c), wait); if (postTimers[c.id].unref) postTimers[c.id].unref();
   }
-  function sendLeader() {
-    postTimer = null;
-    const day = dayKey(), c = compOf(day); if (!c) return;
+  function sendLeader(c = compOf(dayKey())) {
+    if (!c) return;
+    postTimers[c.id] = null;
+    const day = dayKey(); if (!compsOf(day).some(x => x.id === c.id)) return;
+    const P = B.posted[c.id] = B.posted[c.id] || {};
     const lead = isPoints(c) ? dayRows(c, day) : standings(c);
     if (!lead.length) return;
     const tag = (isPoints(c) ? day + ":" : "") + lead[0].key;
-    if (B.posted.leaderKey === tag && B.posted.leaderTotal === lead[0].total) return;
-    B.posted.leaderAt = Date.now(); B.posted.leaderKey = tag; B.posted.leaderTotal = lead[0].total; saveBoard();
-    const top = lead[0];
+    if (P.leaderKey === tag && P.leaderTotal === lead[0].total) return;
+    P.leaderAt = Date.now(); P.leaderKey = tag; P.leaderTotal = lead[0].total; saveBoard();
+    const top = lead[0], name = esc(c.title.toUpperCase()), entry = c.minTokens ? `Holders of ${fmtN(c.minTokens)}+ $DMT: connect your wallet, then play.` : "Free to enter: connect a wallet, then play.";
     const text = isPoints(c)
-      ? `🏆 <b>NEW LEADER OF TODAY'S DAILY TRIP</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n<b>Today</b>\n${lead.slice(0, 3).map((x, k) => `${k + 1}. ${esc(short(x.key))}  <b>${fmtN(x.total)}</b>`).join("\n")}\n\n<b>The week, in points</b>\n${tableLines(standings(c), c)}\n\nToday's winner takes ${PTS(c)[0]} points. Most points by the end wins ${esc(c.prize)}. ${leftText(c)}. Free to enter: connect a wallet, then play.`
-      : `🏆 <b>NEW TOP SCORE in BREAKTHROUGH</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n${tableLines(lead, c)}\n\n${esc(c.prize)} to the highest Daily Trip score. ${leftText(c)}. Free to enter: connect a wallet, then play.`;
+      ? `🏆 <b>${name}: NEW LEADER OF TODAY'S DAILY TRIP</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n<b>Today</b>\n${lead.slice(0, 3).map((x, k) => `${k + 1}. ${esc(short(x.key))}  <b>${fmtN(x.total)}</b>`).join("\n")}\n\n<b>The week, in points</b>\n${tableLines(standings(c), c)}\n\nToday's winner takes ${PTS(c)[0]} points. Most points by the end wins ${esc(c.prize)}. ${leftText(c)}. ${entry}`
+      : `🏆 <b>${name}: NEW TOP SCORE</b>\n\n<b>${fmtN(top.total)}</b> by ${esc(short(top.key))} (${top.cleared} layers deep)\n\n${tableLines(lead, c)}\n\n${esc(c.prize)} to the highest Daily Trip score. ${leftText(c)}. ${entry}`;
     Promise.resolve(announce(text, LINKS_OF())).then(r => { if (r && r.ok === false) log("breakthrough: telegram post failed: " + r.problem); }).catch(() => {});
   }
   // once one is over, post the result (checked every few minutes, and once at start)
@@ -391,7 +424,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   }
   if (announce) {
     const t = setInterval(finalNews, 5 * 60e3); if (t.unref) t.unref();
-    const s = setTimeout(() => { finalNews(); if (compOf(dayKey()) && !B.posted.leaderKey) leaderNews(); }, 5000); if (s.unref) s.unref();
+    const s = setTimeout(() => { finalNews(); for (const c of compsOf(dayKey())) if (!(B.posted[c.id] || {}).leaderKey) leaderNews(c); }, 5000); if (s.unref) s.unref();
   }
 
   const ranked = book => Object.entries(book).map(([key, v]) => ({ key, ...v })).sort((a, b) => b.total - a.total || a.at - b.at);
@@ -407,7 +440,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const s = B.summons[day] || {};
     const summons = Object.entries(s).map(([n, c]) => ({ n: +n, count: c })).sort((a, b) => b.count - a.count).slice(0, 10);
     const w = weatherOf(day);
-    return { day, week: wk, weather: w ? { id: w, ...E.WEATHER[w] } : null, daily: view(B.days[day]), free: view(B.weeks[wk]), summons, comp: compView(wallet) };
+    return { day, week: wk, weather: w ? { id: w, ...E.WEATHER[w] } : null, daily: view(B.days[day]), free: view(B.weeks[wk]), summons, comp: compView(wallet), comps: showingAll().map(c => compView(wallet, 10, c)) };
   }
 
   /* beings anyone can summon: every being a holder owns, with today's summon count */
@@ -432,8 +465,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
 
   /* the bot's replies to /top and /league in the group */
   function topText() {
-    const out = [], day = dayKey(), c = compOf(day);
-    if (c) {
+    const out = [], day = dayKey();
+    for (const c of compsOf(day)) {
       out.push(`🏆 <b>${esc(c.title)}</b>: ${esc(c.prize)} to the winner, ${leftText(c)}`);
       const rows = standings(c);
       if (isPoints(c)) {
@@ -453,7 +486,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   /* the league table page: the whole competition table, plus today's Daily Trip */
   function league({ token } = {}) {
     const wallet = walletOf(token), rows = ranked(B.days[dayKey()] || {});
-    return { comp: compView(wallet, 100), today: rows.slice(0, 20).map(x => ({ name: x.name, total: x.total, cleared: x.cleared })), todayPlayers: rows.length };
+    return { comp: compView(wallet, 100), comps: showingAll().map(c => compView(wallet, 100, c)), today: rows.slice(0, 20).map(x => ({ name: x.name, total: x.total, cleared: x.cleared })), todayPlayers: rows.length };
   }
 
   return { start, finish, duel: duelGet, DUEL_LAYERS, board, league, summonable, me, cards, dailyDef, weatherOf, live: () => runs.size, _news: { sendLeader, finalNews, sendScores }, topText, links: () => LINKS_OF(),

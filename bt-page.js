@@ -201,6 +201,15 @@
     $("[data-comptab]").hidden = !c;
     if (!c || (!c.live && !c.over)) { el.hidden = true; return; }
     el.hidden = false;
+    const L = (BOARD.comps || []).filter(x => x.live);
+    if (L.length > 1) {
+      // two leagues at once: both prizes, and where you stand in each
+      $("[data-comp-k]").textContent = L.map(x => "WIN " + x.prize.toUpperCase()).join(" · ");
+      $("[data-comp-t]").textContent = L.map(x => x.minTokens ? `${x.title} (hold ${fmt(x.minTokens)} $DMT)` : `${x.title} (free)`).join(" · ");
+      const mine = L.filter(x => x.you && !x.you.team).map(x => `${x.title} #${x.you.rank}`);
+      $("[data-comp-s]").textContent = !session() ? `${left(c.endsAt - Date.now())} · connect a wallet below to enter` : mine.length ? `You: ${mine.join(" · ")} · ${left(c.endsAt - Date.now())}` : `${left(c.endsAt - Date.now())} · play the Daily Trip`;
+      return;
+    }
     $("[data-comp-k]").textContent = c.over ? "COMPETITION OVER" : "WIN " + c.prize.toUpperCase();
     const pts = c.scoring === "points";
     $("[data-comp-t]").textContent = c.over ? (c.top[0] ? `Winner: ${c.top[0].name} with ${pts ? c.top[0].points + " points" : fmt(c.top[0].total)}` : "No entries")
@@ -534,9 +543,24 @@
         const d = await api("/api/bt/finish", { run: run.id, moves: run.moves });
         if (run.mode === "duel") { duelResult(d.result && d.result.duel); break; }
         const b = d.result && d.result.board, c = d.result && d.result.comp, cp = BOARD && BOARD.comp;
-        if (SHARE) SHARE.rank = c && c.entered && !c.team ? (c.points ? `#${c.dayRank} in today's ${cp ? cp.prize : "SOL"} race` : `#${c.rank} in the ${cp ? cp.prize : "SOL"} competition`) : b && run.mode === "daily" ? `#${b.rank} on today's Daily Trip` : null;
+        if (SHARE) SHARE.rank = c && c.entered && !c.team ? (c.points ? `#${c.dayRank} in today's ${c.title || (cp ? cp.prize : "SOL")} race` : `#${c.rank} in the ${c.title || (cp ? cp.prize : "SOL")}`) : b && run.mode === "daily" ? `#${b.rank} on today's Daily Trip` : null;
         $("[data-end-rank]").textContent = b ? `${b.best ? "New best! " : ""}#${b.rank} of ${b.of} on the ${run.mode === "daily" ? "Daily Trip board" : "Free Run board this week"}.` : "Counted.";
-        if (c) {
+        if (c && Array.isArray(c.all) && c.all.length > 1) {
+          // one line for each league running today
+          for (const x of c.all.slice().reverse()) {
+            const w = document.createElement("p"); w.className = "bt-win";
+            w.innerHTML = x.entered === false && x.need ? `<b>${esc(x.title)}:</b> hold <b>${fmt(x.need)} $DMT</b> in the wallet you play with to enter, and play for ${esc(x.prize)}.`
+              : x.team ? `<b>${esc(x.title)}:</b> team wallet, so your score shows but can't win.`
+              : x.entered && x.points ? `<b>${esc(x.title)}:</b> #${x.dayRank} of ${x.dayOf} today${x.dayPts ? ` (worth ${x.dayPts} pts if it holds)` : ""} · #${x.rank} this week with ${x.pts} pts.`
+              : x.entered ? `<b>${esc(x.title)}:</b> #${x.rank} of ${x.of}${x.best ? " (your best this week)" : ""}.`
+              : `<b>${esc(x.title)}:</b> connect a wallet <i>before</i> you play, and your Daily Trip scores count.`;
+            $("[data-end-rank]").parentNode.insertBefore(w, $("[data-end-rank]").nextSibling);
+          }
+        } else if (c && c.entered === false && !session()) {
+          const w = document.createElement("p"); w.className = "bt-win";
+          w.innerHTML = `This run isn't in the competitions: connect a wallet in the menu <i>before</i> you play, and your Daily Trip scores count.`;
+          $("[data-end-rank]").after(w);
+        } else if (c) {
           const w = document.createElement("p"); w.className = "bt-win";
           w.innerHTML = c.team ? `<b>Team wallet:</b> your score shows on the league table, but the prize goes to the highest community wallet.`
             : c.entered && c.points ? `<b>Today's race:</b> you're <b>#${c.dayRank}</b> of ${c.dayOf}${c.dayPts ? ` (worth ${c.dayPts} points if it holds)` : ""}. <b>The week:</b> #${c.rank} with ${c.pts} points.`
@@ -721,6 +745,13 @@
     const box = $("[data-board]"), v = BOARD && BOARD[tab];
     if (tab === "comp" && v) {
       $$("[data-btab]").forEach(b => b.classList.toggle("on", b.dataset.btab === tab));
+      const many = (BOARD.comps || []).filter(x => x.live || x.over);
+      if (many.length > 1) {
+        box.innerHTML = many.map((x, li) => `<div class="bt-compinfo"><b>${esc(x.title)}: ${esc(x.prize)} to the winner.</b>${x.minTokens ? ` Hold ${fmt(x.minTokens)} $DMT or more to enter.` : " Free for everyone."}</div>`
+          + (x.top.length ? `<div class="bt-rows">${x.top.slice(0, 5).map(r => `<div class="${r.you ? "you" : ""}"${r.team ? ' style="opacity:.6"' : ""}><i>${r.rank || "–"}</i><span>${esc(r.wallet || r.name)}${r.team ? "<small>team · not eligible</small>" : ""}<small>best run ${fmt(r.total)}</small></span><b>${r.points != null ? r.points + " pts" : fmt(r.total)}</b></div>`).join("")}</div>` : '<p class="bt-sub">No entries yet.</p>')
+          + `<a class="bt-ghost wide bt-league" href="/league?l=${li}">Full ${esc(x.title)} table ›</a>`).join("");
+        return;
+      }
       const info = `<div class="bt-compinfo"><b>${esc(v.title)}: ${esc(v.prize)} to the winner.</b> ${esc(v.rules || "")}</div>`;
       const rows = v.top.length ? `<div class="bt-rows">${v.top.map(r => `<div class="${r.you ? "you" : ""}"${r.team ? ' style="opacity:.6"' : ""}><i>${r.rank || "–"}</i><span>${esc(r.wallet || r.name)}${r.team ? "<small>team · not eligible</small>" : ""}<small>${r.points != null ? "best run " + fmt(r.total) : r.cleared + " layer" + (r.cleared === 1 ? "" : "s")}</small></span><b>${r.points != null ? r.points + " pts" : fmt(r.total)}</b></div>`).join("")}</div>`
         : '<p class="bt-sub">No entries yet. Sign in with a wallet and play the Daily Trip to be first.</p>';
