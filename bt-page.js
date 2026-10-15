@@ -280,6 +280,11 @@
     else idx.sort((a, b) => card(S.hand[b]).chips - card(S.hand[a]).chips);
     return idx;
   }
+  /* ---------- big numbers fit: each number box knows how many characters it holds, and CSS sizes the text to suit ---------- */
+  const fitLen = el => el.style.setProperty("--len", Math.max(1, el.textContent.length));
+  { const t = $("[data-target]"), sp = t && t.closest("span"); if (sp) { const f = () => sp.style.setProperty("--tlen", Math.max(1, t.textContent.length + 2)); f(); new MutationObserver(f).observe(t, { childList: true, characterData: true, subtree: true }); } }
+  ["[data-chips]", "[data-mult]", "[data-score]"].forEach(q => { const el = $(q); if (!el) return; fitLen(el); new MutationObserver(() => fitLen(el)).observe(el, { childList: true, characterData: true, subtree: true }); });
+
   /* ---------- the sky follows the run ---------- */
   function sky(depthLayer, heat) {
     const skyEl = document.querySelector(".bt-sky"); if (!skyEl) return;
@@ -430,7 +435,7 @@
     skyFlash(ev.score / E.targetOf(S.layer));
     try { const [cx, cy] = calcAt(); window.BTFX && BTFX.cast(stRect.left + cx, stRect.top + cy + 30, (ev.score + 0) / Math.max(1, E.targetOf(S.layer) - S.score)); } catch (e) { /* effects only */ }
     // chips x mult: the total slams in
-    const tot = document.createElement("div"); tot.className = "bt-total"; tot.textContent = fmt(ev.score); st.appendChild(tot); sfx.total();
+    const tot = document.createElement("div"); tot.className = "bt-total"; tot.textContent = fmt(ev.score); tot.style.setProperty("--len", tot.textContent.length); st.appendChild(tot); sfx.total();
     const before = S.score, beforeTotal = S.total;
     const old = S.hand.slice();
     const done = E.cast(S, order);
