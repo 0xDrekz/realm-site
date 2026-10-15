@@ -180,12 +180,10 @@
     const s = session();
     $("[data-w-connect]").hidden = !!s; $("[data-w-off]").hidden = !s;
     if (s) { $("[data-w-phantom]").hidden = true; }
-    const own = ME && ME.own;
     $("[data-w-who]").innerHTML = s
-      ? `Signed in as <b>${esc(s.wallet.slice(0, 4) + "…" + s.wallet.slice(-4))}</b>. ${own && own.length ? `<b>${own.length}</b> of your beings join every Free Run and score +50%.` : "No beings in this wallet yet: you'll play with borrowed ones."}${ME && ME.boost > 100 ? ` Your holder boost: <b>×${ME.boost / 100}</b> on every cast.` : ME && ME.boost === 100 ? " Hold $DMT for a boost on every cast: 500k gives +50%." : ""}${ME && ME.summonedToday ? ` Your beings were summoned <b>${ME.summonedToday}</b> times today.` : ""}`
+      ? `Signed in as <b>${esc(s.wallet.slice(0, 4) + "…" + s.wallet.slice(-4))}</b>.${ME && ME.boost > 100 ? ` Your holder boost: <b>×${ME.boost / 100}</b> on every cast.` : ME && ME.boost === 100 ? " Hold $DMT for a boost on every cast: 500k gives +50%." : ""}`
       : ME && ME.telegram ? `Playing as <b>${esc(ME.name)}</b> from Telegram: your scores show on the boards. To enter the SOL competition, open the game in your browser or Phantom and connect a wallet.`
-      : "Playing as a guest. Holders get a boost on every cast: +10% for owning a being, and for $DMT 50k +10%, 250k +20%, 500k +50%, 1M +60%, 5M +100%, 10M +150% (up to ×2.6).";
-    $("[data-free-note]").textContent = own && own.length ? `Your ${own.length} being${own.length === 1 ? "" : "s"} + a fresh deck` : "A fresh deck every time";
+      : "Playing as a guest. Hold $DMT and every cast scores more: 50k +10%, 250k +20%, 500k +50%, 1M +60%, 5M +100%, 10M +150% (up to ×2.5).";
     const d = BOARD && BOARD.daily;
     $("[data-daily-note]").textContent = d && d.you ? `Your best today: ${fmt(d.you.total)} · #${d.you.rank} of ${d.players}` : d && d.players ? `${d.players} player${d.players === 1 ? "" : "s"} today · best run counts` : "Best run counts";
     $("[data-resume]").hidden = !store.get("run", null);
@@ -662,7 +660,7 @@
   $("[data-endrun]").addEventListener("click", () => { if (R && confirm("End this run now? Your score so far is counted.")) finishRun(); });
   $$("[data-play]").forEach(b => b.addEventListener("click", () => {
     $("[data-again]").dataset.mode = b.dataset.play;
-    if (b.dataset.play === "daily") startRun("daily"); else if (b.dataset.play === "duel") startRun("duel"); else openSummon();
+    if (b.dataset.play === "daily") startRun("daily"); else if (b.dataset.play === "duel") startRun("duel"); else startRun("free");
   }));
   $("[data-resume]").addEventListener("click", resumeRun);
   async function openSummon() {

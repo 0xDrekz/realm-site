@@ -17,10 +17,9 @@ window.RealmJourney = (() => {
 
   const OPTIONS = [
     { key: "break",   label: "BREAKTHROUGH", href: "/breakthrough" },
-    { key: "mint",    label: "MINT",       panel: "mint" },
-    { key: "beings",  label: "THE BEINGS", panel: "nfts" },
-    { key: "rewards", label: "REWARDS",    panel: "rewards" },
-    { key: "map",     label: "THE MAP",    href: "/map" }
+    { key: "dmt",     label: "$DMT BOOST", panel: "dmt" },
+    { key: "league",  label: "LEAGUE",     href: "/league" },
+    { key: "beings",  label: "THE CARDS",  panel: "nfts" }
 
   ];
 
@@ -693,17 +692,12 @@ window.RealmJourney = (() => {
 
   /* ---------- what each way on says about itself ---------- */
   function noteFor(o) {
-    const cfg  = g_("CONFIG", {});
     const all  = g_("TOTAL_BEINGS", 1111);
-    const gone = Math.min(Math.max(cfg.minted || 0, 0), all);
     switch (o.key) {
-      case "mint":    return cfg.mintLink ? "open" : "shut";
-      case "beings":  return all.toLocaleString() + " & their lore";
-      case "rewards": return g_("POOL_PERCENT", 75) + "% · any wallet";
-      case "lore":    return "who they are";
-      case "holders": return "what a wallet earns";
-      case "map":     return "every being, live";
-      case "break":   return "new · the card game · play free";
+      case "dmt":     return "hold more · score more";
+      case "league":  return "the boards & the comp";
+      case "beings":  return all.toLocaleString() + " beings, the game's cards";
+      case "break":   return "the card game · play free";
       default:        return "";
     }
   }
@@ -772,11 +766,7 @@ window.RealmJourney = (() => {
 
     const where = document.querySelector(".j-where");
     if (where) {
-      const all  = g_("TOTAL_BEINGS", 1111);
-      const gone = Math.min(Math.max((g_("CONFIG", {}).minted) || 0, 0), all);
-      where.textContent = gone
-        ? `${gone.toLocaleString()} of ${all.toLocaleString()} taken`
-        : `${all.toLocaleString()} beings · one drop`;
+      where.textContent = "$DMT · BREAKTHROUGH";
     }
   }
 

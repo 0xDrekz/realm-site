@@ -444,16 +444,13 @@ function route(req, res) {
 
   if (urlPath === "/") urlPath = "/index.html";
 
-  if (urlPath === "/holders") urlPath = "/holders.html";
-  if (urlPath === "/left" || urlPath === "/tracker") urlPath = "/left.html";
+  // REALM is $DMT and BREAKTHROUGH now: the mint and the NFT pages are put away (the collection itself is untouched on-chain)
+  if (["/mint", "/mint.html", "/holders", "/holders.html", "/left", "/left.html", "/tracker", "/map", "/map.html", "/payout", "/payout.html"].includes(urlPath)) { res.writeHead(302, { Location: "/" }).end(); return; }
   if (urlPath === "/breakthrough" || urlPath === "/bt" || urlPath === "/mirror") urlPath = "/bt.html";
   if (urlPath === "/showdown") urlPath = "/sd.html";
   if (urlPath === "/league") urlPath = "/league.html";
-  if (urlPath === "/map") urlPath = "/map.html";
-  if (urlPath === "/mint") urlPath = "/mint.html";
   if (urlPath === "/owner") urlPath = "/owner.html";
   if (urlPath === "/wallet") urlPath = "/wallet.html";
-  if (urlPath === "/payout") urlPath = "/payout.html";
   // one game: BREAKTHROUGH. Duels and the older card games are kept in the code but put away; their links lead here
   if (["/duels", "/arena", "/arena.html", "/battler", "/duels-classic", "/cards"].includes(urlPath)) { res.writeHead(302, { Location: "/breakthrough" }).end(); return; }
   if (urlPath === "/codex") urlPath = "/codex.html";

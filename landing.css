@@ -641,6 +641,7 @@ body[data-phase="tunnel"] .topbar{opacity:0;pointer-events:none}
 .j-where{padding:4px 12px 5px;font-size:.66rem}
 .j-menu{gap:6px}
 .j-menu .slab:not(.slab-break){padding:7px 6px;gap:3px}
+.j-menu .slab:not(.slab-break):last-child:nth-child(even){grid-column:1/-1}
 .j-menu .slab:not(.slab-break) .slab-in{font-size:clamp(.78rem,3.4vw,.95rem)}
 .j-menu .slab:not(.slab-break) .slab-note{font-size:.54rem;letter-spacing:.12em}
 .slab-break{padding:10px 10px 9px;gap:4px}
