@@ -1,3 +1,5 @@
+/* no double-tap zoom on a quick second tap (pinch zoom still works) */
+html,body,a,button{touch-action:manipulation}
 /* ============================================================
    REALM — the landing page. One screen, six gates.
    ============================================================ */

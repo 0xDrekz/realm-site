@@ -772,25 +772,34 @@
 
   /* no zoom on the game. Double-tap zoom is off through touch-action (bt.css); pinches are stopped here.
      And if the phone zooms anyway, it is put straight back to normal size. */
-  document.addEventListener("gesturestart", e => e.preventDefault());
-  document.addEventListener("gesturechange", e => e.preventDefault());
-  document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-  document.addEventListener("touchstart", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  // ...but if the phone has zoomed in anyway, a pinch is let through, so it can always be pinched back out
+  const zoomed = () => !!(window.visualViewport && visualViewport.scale > 1.01);
+  document.addEventListener("gesturestart", e => { if (!zoomed()) e.preventDefault(); });
+  document.addEventListener("gesturechange", e => { if (!zoomed()) e.preventDefault(); });
+  document.addEventListener("touchmove", e => { if (e.touches.length > 1 && !zoomed()) e.preventDefault(); }, { passive: false });
+  document.addEventListener("touchstart", e => { if (e.touches.length > 1 && !zoomed()) e.preventDefault(); }, { passive: false });
   /* Some phone browsers (in-app ones especially) still zoom on a quick second tap. So a tap that comes
      right after another has its default (the zoom) cancelled, and its click is then fired by hand, so
      the button still works: no tap is ever lost. Cards listen to pointer events, which aren't affected. */
   let lastEnd = 0;
   document.addEventListener("touchend", e => {
-    const now = Date.now(), quick = now - lastEnd < 400; lastEnd = now;
+    const now = Date.now(), quick = now - lastEnd < 500; lastEnd = now;
     if (!quick || e.touches.length || e.changedTouches.length !== 1) return;
     e.preventDefault();
     const t = e.target && e.target.closest ? e.target.closest("button, a, [data-cardsheet]") || e.target : e.target;
     if (t && typeof t.click === "function") t.click();
   }, { passive: false });
   const vp = document.querySelector('meta[name=viewport]'), VP = vp && vp.content;
-  if (window.visualViewport && vp) visualViewport.addEventListener("resize", () => {
-    if (visualViewport.scale > 1.01) { vp.content = VP.replace("maximum-scale=1", "maximum-scale=1.01"); setTimeout(() => { vp.content = VP; window.scrollTo(0, 0); }, 60); }
-  });
+  // put a zoom straight back: nudge the viewport's scale settings so the browser re-applies them, then restore
+  let unzooming = false;
+  function unzoom() {
+    if (!vp || unzooming || !zoomed()) return;
+    unzooming = true;
+    vp.content = "width=device-width, initial-scale=1.0001, minimum-scale=1, maximum-scale=1.0001, viewport-fit=cover, user-scalable=no";
+    setTimeout(() => { vp.content = VP; window.scrollTo(0, 0); unzooming = false; }, 120);
+  }
+  if (window.visualViewport && vp) { visualViewport.addEventListener("resize", unzoom); visualViewport.addEventListener("scroll", unzoom); }
+  document.addEventListener("touchend", () => setTimeout(unzoom, 350), { passive: true });
   window.addEventListener("resize", () => { if (R && !$("[data-screen=game]").hidden) renderHand(false); });
   loadCards().then(paintLobby).catch(() => {});
   paintLobby(); loadMe().then(paintDuelBox); loadBoard();

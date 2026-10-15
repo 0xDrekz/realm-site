@@ -12,8 +12,8 @@
   --cw:76px;--ch:130px;
 }
 /* no zoom anywhere: the page may only scroll up and down (pan-y), and the game screen takes no gestures at all */
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:pan-y}
-html,body{touch-action:pan-y;margin:0;height:100%;background:var(--void);color:var(--bone);font-family:var(--px);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{touch-action:manipulation;margin:0;height:100%;background:var(--void);color:var(--bone);font-family:var(--px);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 html,body{overflow-x:hidden;max-width:100%}
 body{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 button{font:inherit;color:inherit;cursor:pointer}
@@ -219,7 +219,7 @@ section{position:relative;z-index:1}
 .bt-btn:not(:disabled):active{transform:translateY(3px)}
 
 /* ---------- sheets ---------- */
-.bt-sheet{touch-action:pan-y;position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(3,1,8,.82);backdrop-filter:blur(3px);animation:btFade .2s both}
+.bt-sheet{touch-action:manipulation;position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(3,1,8,.82);backdrop-filter:blur(3px);animation:btFade .2s both}
 @keyframes btFade{from{opacity:0}}
 .bt-panel{width:100%;max-width:440px;max-height:calc(100dvh - 32px);overflow:auto;padding:20px 16px;background:linear-gradient(180deg,#1a0b2e,#0d0819);border:2px solid var(--gold);box-shadow:0 0 0 3px #000,0 0 50px rgba(197,107,255,.35);text-align:center}
 .bt-panel.tall{max-height:calc(100dvh - 32px)}
