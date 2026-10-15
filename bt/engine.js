@@ -70,6 +70,42 @@
   };
   const castsOf = S => S.weather === "swift" ? 3 : CASTS;
 
+  /* ---------- powers: each God, Entity and the Source has one (from 19 Oct; a run says whether it has them) ----------
+     A power works when its being is one of the scoring beings in a cast. */
+  const POWERS = {
+    1111: { name: "All Light",          text: "Counts as every Aura, and doubles the final mult" },
+    569:  { name: "Hidden Storm",       text: "Every Storm and Lightning in the cast fires twice" },
+    176:  { name: "Crown of the Low",   text: "Commons and Uncommons in the cast get +10 chips each" },
+    460:  { name: "Swallow the Moon",   text: "×1.5 mult for every Opposed being in the cast" },
+    485:  { name: "Solar Flare",        text: "Every Supernova in the cast multiplies one extra time" },
+    649:  { name: "Star Nursery",       text: "Every planet in the cast adds +3 mult" },
+    762:  { name: "Spiral Ascent",      text: "×3 mult if the cast is a Quad or Ascension" },
+    784:  { name: "Bloom Tide",         text: "Every Mushroom repeat in the cast adds +2 mult" },
+    806:  { name: "Deep Sight",         text: "Every UFO in the cast draws one more being" },
+    842:  { name: "Root Network",       text: "+4 mult for every Tree in the cast" },
+    858:  { name: "Tentacle Grip",      text: "The weakest being in the cast scores 61 chips" },
+    29:   { name: "Diamond Light",      text: "+20 chips to every Cold being in the cast" },
+    56:   { name: "Ring Sight",         text: "Ringed planets in the cast multiply ×1.5" },
+    86:   { name: "High Tide",          text: "Opposed beings in the cast add +4 mult each" },
+    189:  { name: "Full Bloom",         text: "+30 chips when the cast has 5 beings" },
+    233:  { name: "Herald's Call",      text: "Lightning in the cast adds +4 extra mult" },
+    253:  { name: "Rose Halo",          text: "Rose beings in the cast add +3 mult each" },
+    329:  { name: "Perfect Form",       text: "Sacred Geometry pairs add +4 more mult" },
+    368:  { name: "Lotus Fire",         text: "+15 chips per Mushroom and Supernova in the cast" },
+    436:  { name: "Lone Smoke",         text: "×5 mult if it's the only scoring being" },
+    438:  { name: "Spore Rule",         text: "Every Mushroom in the cast fires once more" },
+    541:  { name: "Dark Star",          text: "×1.5 mult if the cast includes a Supernova" },
+    597:  { name: "Mist Breath",        text: "Moon dust in the cast counts double" },
+    601:  { name: "Void Pull",          text: "+50 chips for every UFO in the cast" },
+    641:  { name: "Planet Throne",      text: "Planets in the cast add double chips" },
+    658:  { name: "Many Hands",         text: "+2 mult for every other being in the cast" },
+    697:  { name: "Bone Guard",         text: "Commons in the cast get +15 chips each" },
+    701:  { name: "Coil of Roots",      text: "Trees in the cast add +3 extra mult" },
+    817:  { name: "Sky Spectrum",       text: "+8 mult if the cast is a Spectrum" },
+    908:  { name: "Ancient",            text: "+1 mult for every 4 casts made this run" },
+    1086: { name: "Petrify",            text: "The strongest being in the cast scores its chips twice" },
+  };
+
   /* ---------- one seeded generator (mulberry32: integer maths only) ---------- */
   function next(S) {
     let t = (S.rng = (S.rng + 0x6D2B79F5) | 0);
@@ -112,17 +148,23 @@
   /* ---------- the score of a cast, step by step (the page animates these steps) ---------- */
   // boost: a holder's boost in percent (100 = none, 130 = ×1.3), applied to the mult last
   // weather: the day's Realm Weather id, or nothing
-  function evaluate(cards, castsSoFar, own, boost, weather) {
+  function evaluate(cards, castsSoFar, own, boost, weather, powers) {
     const W = weather || "", tide = W.startsWith("tide-") ? W.slice(5) : null, WN = WEATHER[W] ? WEATHER[W].name : "";
     const { id, scoring } = handOf(cards);
     const H = HANDS[id];
     let chips = H.chips, mt = H.mult * 10;
     const steps = [{ k: "hand", id, name: H.name, chips, mult: mt }];
     const sc = scoring.map(i => cards[i]);
+    // the powers at work in this cast: scoring beings that have one (only on runs that have powers)
+    const PW = {}; if (powers) scoring.forEach(i => { if (POWERS[cards[i].n]) PW[cards[i].n] = i; });
+    const has = n => n in PW, pn = n => POWERS[n].name;
+    let weak = -1, strong = -1;
+    if (has(858)) scoring.forEach(i => { if (cards[i].n !== 858 && (weak < 0 || cards[i].chips < cards[weak].chips)) weak = i; });
+    if (has(1086)) scoring.forEach(i => { if (strong < 0 || cards[i].chips > cards[strong].chips) strong = i; });
     // sacred geometry: every pair of scoring beings sharing a Geometry
     const geo = {}; for (const c of sc) if (c.geo) geo[c.geo] = (geo[c.geo] || 0) + 1;
     let pairs = 0; for (const n of Object.values(geo)) pairs += n * (n - 1) / 2;
-    const geoAdd = (W === "sacred" ? 6 : 2) * pairs;
+    const geoAdd = (W === "sacred" ? 6 : 2) * pairs + (has(329) ? 4 * pairs : 0);
     if (pairs) { mt += 10 * geoAdd; steps.push({ k: "geo", label: W === "sacred" ? "Sacred Geometry (Sacred Hour)" : "Sacred Geometry", add: geoAdd, chips, mult: mt }); }
     const addM = (i, n, label) => { mt += n * 10; steps.push({ k: "mult", i, label, add: n, chips, mult: mt }); };
     const xM = (i, t, label) => { mt = Math.floor(mt * t / 10); steps.push({ k: "x", i, label, x: t / 10, chips, mult: mt }); };
@@ -130,34 +172,63 @@
     let draws = 0;
     for (const i of scoring) {
       const c = cards[i], x = c.x || {};
-      const reps = 1 + ({ Few: 1, Cluster: 2, Grove: 3 }[x.M] || 0) + (W === "spores" && x.M ? 1 : 0);
+      const reps = 1 + ({ Few: 1, Cluster: 2, Grove: 3 }[x.M] || 0) + (W === "spores" && x.M ? 1 : 0) + (has(438) && x.M ? 1 : 0);
       for (let r = 0; r < reps; r++) {
         if (r) steps.push({ k: "again", i, label: "Spores: again!", chips, mult: mt });
-        addC(i, own && own.includes(c.n) ? c.chips + (c.chips >> 1) : c.chips, own && own.includes(c.n) ? "Yours: +50%" : "");
+        if (r && has(784)) addM(i, 2, pn(784));
+        addC(i, i === weak ? 61 : own && own.includes(c.n) ? c.chips + (c.chips >> 1) : c.chips, i === weak ? pn(858) : own && own.includes(c.n) ? "Yours: +50%" : "");
+        if (i === strong) addC(i, c.chips, pn(1086));
+        if (has(176) && (c.tier === "Common" || c.tier === "Uncommon")) addC(i, 10, pn(176));
+        if (has(697) && c.tier === "Common") addC(i, 15, pn(697));
+        if (has(29) && c.aura === "Cold") addC(i, 20, pn(29));
+        if (has(86) && c.aura === "Opposed") addM(i, 4, pn(86));
+        if (has(253) && c.aura === "Rose") addM(i, 3, pn(253));
+        if (has(368)) { if (x.M) addC(i, 15, pn(368)); if (x.S) addC(i, 15, pn(368)); }
         if (tide && (c.aura === tide || c.aura === "Prime")) addC(i, c.chips, WN);
         if (W === "humble" && (c.tier === "Common" || c.tier === "Uncommon")) addC(i, 2 * c.chips, WN);
-        if (x.P === "One") addC(i, 20, "Planet");
-        if (x.P === "Two") addC(i, 40, "Twin planets");
-        if (x.P === "Ringed") { addC(i, 30, "Ringed planet"); addM(i, 2, "Ringed planet"); }
-        if (x.P === "Cluster") addC(i, 150, "Planet cluster");
+        const pl = has(641) ? 2 : 1;
+        if (x.P === "One") addC(i, 20 * pl, "Planet");
+        if (x.P === "Two") addC(i, 40 * pl, "Twin planets");
+        if (x.P === "Ringed") { addC(i, 30 * pl, "Ringed planet"); addM(i, 2, "Ringed planet"); if (has(56)) xM(i, 15, pn(56)); }
+        if (x.P === "Cluster") addC(i, 150 * pl, "Planet cluster");
+        if (x.P && has(649)) addM(i, 3, pn(649));
         const dust = { Faint: 4, Drifting: 8, Heavy: 20 }[x.D];
-        if (dust && castsSoFar) addC(i, dust * castsSoFar * (W === "moon" ? 3 : 1), W === "moon" ? "Moon dust (Moon Rain)" : "Moon dust");
-        if (x.L === "Strike") addM(i, W === "ion" ? 8 : 4, "Lightning");
-        if (x.L === "Storm") addM(i, W === "ion" ? 16 : 8, "Storm");
+        if (dust && castsSoFar) addC(i, dust * castsSoFar * (W === "moon" ? 3 : 1) * (has(597) ? 2 : 1), W === "moon" ? "Moon dust (Moon Rain)" : has(597) ? "Moon dust (" + pn(597) + ")" : "Moon dust");
+        for (let f = 0; f < (has(569) && (x.L === "Strike" || x.L === "Storm") ? 2 : 1); f++) {
+          if (x.L === "Strike") addM(i, W === "ion" ? 8 : 4, f ? pn(569) : "Lightning");
+          if (x.L === "Storm") addM(i, W === "ion" ? 16 : 8, f ? pn(569) : "Storm");
+        }
+        if (x.L && has(233)) addM(i, 4, pn(233));
         if (x.L === "Tempest") xM(i, 30, "Tempest");
         if (x.T === "One") addM(i, 3, "Tree");
         if (x.T === "Copse") addM(i, 6, "Copse");
         if (x.T === "Forest") xM(i, 20, "Forest");
-        if (x.S === "One") xM(i, W === "nova" ? 20 : 15, "Supernova");
-        if (x.S === "Two") xM(i, W === "nova" ? 25 : 20, "Twin supernova");
-        if (x.S === "Barrage") xM(i, W === "nova" ? 50 : 40, "Supernova barrage");
+        if (x.T && has(842)) addM(i, 4, pn(842));
+        if (x.T && has(701)) addM(i, 3, pn(701));
+        for (let f = 0; f < (has(485) && x.S ? 2 : 1); f++) {
+          if (x.S === "One") xM(i, W === "nova" ? 20 : 15, f ? pn(485) : "Supernova");
+          if (x.S === "Two") xM(i, W === "nova" ? 25 : 20, f ? pn(485) : "Twin supernova");
+          if (x.S === "Barrage") xM(i, W === "nova" ? 50 : 40, f ? pn(485) : "Supernova barrage");
+        }
         if (c.tier === "Entity") addM(i, 10, "Entity");
         if (c.tier === "God") xM(i, 20, "God");
         if (c.tier === "Source") xM(i, 50, "The Prime Source");
       }
       if (x.U === "One") draws += 1;
       if (x.U === "Few") draws += 2;
+      if (x.U && has(806)) draws += 1;
+      if (x.U && has(601)) addC(i, 50, pn(601));
     }
+    // the powers that look at the whole cast
+    if (has(189) && cards.length === 5) addC(PW[189], 30, pn(189));
+    if (has(658) && cards.length > 1) addM(PW[658], 2 * (cards.length - 1), pn(658));
+    if (has(817) && id === "spectrum") addM(PW[817], 8, pn(817));
+    if (has(908) && castsSoFar >= 4) addM(PW[908], Math.floor(castsSoFar / 4), pn(908));
+    if (has(541) && sc.some(c => (c.x || {}).S)) xM(PW[541], 15, pn(541));
+    if (has(460)) for (const c of sc) if (c.aura === "Opposed") xM(PW[460], 15, pn(460));
+    if (has(762) && (id === "quad" || id === "ascension")) xM(PW[762], 30, pn(762));
+    if (has(436) && sc.length === 1) xM(PW[436], 50, pn(436));
+    if (has(1111)) xM(PW[1111], 20, pn(1111));
     if (sc.length >= 3 && sc.every(c => c.col && c.col === sc[0].col)) xM(-1, 20, "Harmony: one Colourway");
     if (W === "swift") xM(-1, 15, WN);
     if (boost > 100) xM(-1, Math.round(boost / 10), "Holder boost");
@@ -169,7 +240,7 @@
   /* ---------- a run ----------
      def: { seed, deck: [n...], own: [n...], cards: lookup n -> card, pool: N beings to draft from } */
   function createRun(def) {
-    const S = { rng: def.seed | 0, weather: WEATHER[def.weather] ? def.weather : null, cards: def.cards, N: def.pool || 1111, own: def.own || [], boost: Math.max(100, Math.min(300, def.boost | 0)), deck: def.deck.slice(),
+    const S = { rng: def.seed | 0, weather: WEATHER[def.weather] ? def.weather : null, powers: !!def.powers, cards: def.cards, N: def.pool || 1111, own: def.own || [], boost: Math.max(100, Math.min(300, def.boost | 0)), deck: def.deck.slice(),
       layer: 0, draw: [], hand: [], used: [], casts: 0, discards: 0, score: 0, total: 0, castsMade: 0, best: 0, bestHand: null,
       phase: "play", offer: null, over: false, broke: false, last: null, moves: 0, hands: {} };
     startLayer(S);
@@ -196,14 +267,14 @@
   const ordered = idx => idx.slice().sort((a, b) => a - b);
   function preview(S, idx) {
     if (checkPick(S, idx)) return null;
-    return evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather);
+    return evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather, S.powers);
   }
   /* the order that scores most (the page always plays cards in their best order; 5 cards is 120 tries) */
   function bestOrder(S, idx) {
     if (checkPick(S, idx)) return null;
     let best = null, bestScore = -1;
     const perm = (a, k) => {
-      if (k === a.length) { const sc = evaluate(a.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather).score; if (sc > bestScore) { bestScore = sc; best = a.slice(); } return; }
+      if (k === a.length) { const sc = evaluate(a.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather, S.powers).score; if (sc > bestScore) { bestScore = sc; best = a.slice(); } return; }
       for (let j = k; j < a.length; j++) { [a[k], a[j]] = [a[j], a[k]]; perm(a, k + 1); [a[k], a[j]] = [a[j], a[k]]; }
     };
     perm(ordered(idx), 0);
@@ -214,7 +285,7 @@
   function cast(S, idx) {
     const err = checkPick(S, idx); if (err) return { error: err };
     if (S.casts <= 0) return { error: "No casts left." };
-    const ev = evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather);
+    const ev = evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather, S.powers);
     remove(S, idx);
     S.casts--; S.castsMade++; S.moves++; S.score += ev.score; S.total += ev.score;
     S.hands[ev.id] = (S.hands[ev.id] || 0) + 1;
@@ -276,6 +347,6 @@
   const BOOST_BANDS = [[50e3, 10], [250e3, 20], [500e3, 50], [1e6, 60], [5e6, 100], [10e6, 150]], BOOST_BEING = 10, BOOST_MAX = 300;
   const boostFor = (tokens, being) => Math.min(BOOST_MAX, 100 + (being ? BOOST_BEING : 0) + BOOST_BANDS.reduce((b, [t, p]) => tokens >= t ? p : b, 0));
 
-  return { createRun, cast, discard, pick, act, replay, preview, bestOrder, evaluate, handOf, targetOf, cleared, BOOST_BANDS, BOOST_BEING, BOOST_MAX, boostFor, WEATHER,
+  return { createRun, cast, discard, pick, act, replay, preview, bestOrder, evaluate, handOf, targetOf, cleared, BOOST_BANDS, BOOST_BEING, BOOST_MAX, boostFor, WEATHER, POWERS,
     HANDS, AURAS, TARGETS, LAYERS, LAYER_NAMES, HAND_SIZE, MAX_PICK, CASTS, DISCARDS };
 });

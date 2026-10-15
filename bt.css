@@ -30,6 +30,21 @@ button{font:inherit;color:inherit;cursor:pointer}
 @keyframes btSpin{to{transform:rotate(360deg)}}
 @keyframes btPulse{50%{opacity:.4;transform:scale(1.08)}}
 section{position:relative;z-index:1}
+/* the sky follows the run: deeper layers burn brighter, shifting from violet towards gold; a filling bar warms it;
+   a strong cast flashes it, and a cast that smashes the whole target strobes (set from bt-page.js) */
+.bt-sky{--depth:0;--heat:0;--fc:rgba(92,240,255,.55);
+  filter:brightness(calc(.8 + var(--depth) * .95 + var(--heat) * .22)) saturate(calc(1 + var(--depth) * .9)) hue-rotate(calc(var(--depth) * 85deg));
+  transition:filter 1.4s ease}
+.bt-sky[data-tier="1"] .bt-ring{animation-duration:38s}.bt-sky[data-tier="1"] .bt-ring.b{animation-duration:55s}
+.bt-sky[data-tier="2"] .bt-ring{animation-duration:22s}.bt-sky[data-tier="2"] .bt-ring.b{animation-duration:30s}.bt-sky[data-tier="2"] .bt-ring.c{animation-duration:2s}
+.bt-sky[data-tier="3"] .bt-ring{animation-duration:11s}.bt-sky[data-tier="3"] .bt-ring.b{animation-duration:15s}.bt-sky[data-tier="3"] .bt-ring.c{animation-duration:1s}
+.bt-sky::after{content:"";position:absolute;inset:0;opacity:0;background:radial-gradient(ellipse 70% 60% at 50% 45%,var(--fc),transparent 70%)}
+.bt-sky.boom::after{animation:btBoom .7s ease-out}
+.bt-sky.strobe::after{animation:btStrobe 1.3s steps(1,end)}
+.bt-sky.hot .bt-ring.c{background:radial-gradient(circle,rgba(255,211,92,.32),transparent 62%)}
+@keyframes btBoom{0%{opacity:.95}100%{opacity:0}}
+@keyframes btStrobe{0%{opacity:1}12%{opacity:0}24%{opacity:.9}36%{opacity:0}48%{opacity:.8}60%{opacity:0}72%{opacity:.6}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.bt-sky.strobe::after{animation:btBoom .9s ease-out}}
 
 /* ---------- lobby ---------- */
 .bt-lobby{max-width:480px;margin:0 auto;padding:0 16px calc(28px + env(safe-area-inset-bottom));min-height:100%}

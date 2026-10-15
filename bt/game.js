@@ -114,7 +114,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (SPECIAL_DECKS[day]) return { seed, deck: SPECIAL_DECKS[day].slice(), own: [] };
     return { seed, deck, own: [] };
   }
-  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, weather: r.weather || null, cards: C.cardOf });
+  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, weather: r.weather || null, powers: !!r.powers, cards: C.cardOf });
   // the day's Realm Weather: the same for everyone, from the day alone
   function weatherOf(day) {
     if (day < FRESH_FROM) return null;
@@ -178,8 +178,10 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (wallet && r.mode !== "duel") { try { r.boost = Math.max(100, Math.min(300, Math.round(Number(await boostOf(wallet)) || 100))); } catch { /* the chain is slow: no boost this time */ } }
     const id = crypto.randomBytes(16).toString("hex");
     Object.assign(r, { id, owner, wallet: wallet || null, pkey: me ? me.key : null, name: me ? me.name : null, at: Date.now(), done: false });
+    // the Gods, Entities and the Source have their powers on runs started from 19 Oct (not in Mirror Duels)
+    if (day >= FRESH_FROM && r.mode !== "duel") r.powers = true;
     runs.set(id, r); saveLive();
-    return { run: id, mode: r.mode, day, seed: r.seed, deck: r.deck, own: r.own, boost: r.boost, weather: r.weather || null, summoned: r.summoned || null, name: r.name,
+    return { run: id, mode: r.mode, day, seed: r.seed, deck: r.deck, own: r.own, boost: r.boost, weather: r.weather || null, powers: !!r.powers, summoned: r.summoned || null, name: r.name,
       duel: r.duel ? duelView(D[r.duel], r.pkey) : undefined };
   }
 

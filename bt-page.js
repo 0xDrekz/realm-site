@@ -55,6 +55,9 @@
     if (c.col) out.push(["Colourway", c.col + ": 3+ scoring in one Colourway is ×2"]);
     for (const [k, v] of Object.entries(c.x || {})) out.push([TRAIT[k].name, v + ": " + TRAIT[k][v]]);
     if (TIER_POWER[c.tier]) out.push([c.tier, TIER_POWER[c.tier]]);
+    // its own power (Gods, Entities and the Source), live on runs from 19 Oct
+    const P = E.POWERS && E.POWERS[n];
+    if (P) out.unshift(["Power: " + P.name, P.text + (new Date().toISOString().slice(0, 10) < "2026-10-19" ? " (from 19 Oct)" : "")]);
     return out;
   }
   function showCard(n) {
@@ -176,6 +179,7 @@
     [29, 193, 1111, 762, 569].forEach((n, i) => { const el = cardEl(n); el.style.transform = `translateX(-50%) rotate(${(i - 2) * 11}deg) translateY(${Math.abs(i - 2) * 8}px)`; el.style.zIndex = i === 2 ? 5 : 5 - Math.abs(i - 2); fan.appendChild(el); });
   }
   function paintLobby() {
+    sky(0, 0);
     paintFan();
     const s = session();
     $("[data-w-connect]").hidden = !!s; $("[data-w-off]").hidden = !s;
@@ -209,8 +213,8 @@
 
   /* ---------- the run ---------- */
   let R = null;
-  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, weather: r.weather || null, cards: card });
-  const saveRun = () => store.set("run", R ? { id: R.id, mode: R.mode, seed: R.seed, deck: R.deck, own: R.own, boost: R.boost, weather: R.weather || null, duel: R.duel || null, moves: R.moves, day: R.day, left: R.left, savedAt: Date.now() } : null);
+  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, weather: r.weather || null, powers: !!r.powers, cards: card });
+  const saveRun = () => store.set("run", R ? { id: R.id, mode: R.mode, seed: R.seed, deck: R.deck, own: R.own, boost: R.boost, weather: R.weather || null, powers: !!R.powers, duel: R.duel || null, moves: R.moves, day: R.day, left: R.left, savedAt: Date.now() } : null);
 
   /* ---------- the clock: 60 seconds a layer. It stops while a cast scores, between layers, and during the
      layer's opening banner; it keeps running if you look away (menu, card details, another tab). ---------- */
@@ -243,7 +247,7 @@
     try {
       await loadCards();
       const d = await api("/api/bt/start", { ...auth(), mode, summon: mode === "duel" ? undefined : summon || undefined, duel: mode === "duel" ? (summon || undefined) : undefined });
-      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], boost: d.boost || 100, weather: d.weather || null, moves: [], summoned: d.summoned, bestCast: null, left: LAYER_MS,
+      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], boost: d.boost || 100, weather: d.weather || null, powers: !!d.powers, moves: [], summoned: d.summoned, bestCast: null, left: LAYER_MS,
         duel: d.duel ? d.duel.id : null };
       R.S = E.createRun(defOf(R)); R.sel = []; R.sort = store.get("sort", "aura"); $("[data-why]").hidden = true;
       saveRun(); show("game"); paint(true); layerIntro();
@@ -276,8 +280,23 @@
     else idx.sort((a, b) => card(S.hand[b]).chips - card(S.hand[a]).chips);
     return idx;
   }
+  /* ---------- the sky follows the run ---------- */
+  function sky(depthLayer, heat) {
+    const skyEl = document.querySelector(".bt-sky"); if (!skyEl) return;
+    const depth = Math.min(1, Math.max(0, depthLayer) / 12);
+    skyEl.style.setProperty("--depth", depth.toFixed(3)); skyEl.style.setProperty("--heat", Math.min(1, Math.max(0, heat)).toFixed(3));
+    skyEl.dataset.tier = depth >= .75 ? 3 : depth >= .45 ? 2 : depth >= .2 ? 1 : 0;
+    skyEl.classList.toggle("hot", heat >= .75);
+  }
+  function skyFlash(ratio) {
+    const skyEl = document.querySelector(".bt-sky"); if (!skyEl || ratio < .35) return;
+    const big = ratio >= 1;
+    skyEl.style.setProperty("--fc", big ? "rgba(255,226,140,.85)" : ratio >= .7 ? "rgba(255,120,220,.6)" : "rgba(92,240,255,.5)");
+    skyEl.classList.remove("boom", "strobe"); void skyEl.offsetWidth; skyEl.classList.add(big ? "strobe" : "boom");
+  }
   function paint(fresh) {
     const S = R.S, target = E.targetOf(S.layer);
+    sky(S.layer, S.score / target);
     $("[data-layer-n]").textContent = R.mode === "duel" ? `MIRROR DUEL · LAYER ${S.layer + 1} OF ${DUEL_LAYERS}` : S.layer < E.LAYERS ? `LAYER ${S.layer + 1} OF ${E.LAYERS}` : `BEYOND · LAYER ${S.layer + 1}`;
     $("[data-layer-name]").textContent = S.layer < E.LAYERS ? E.LAYER_NAMES[S.layer] : "Past the Source";
     const wx = S.weather && E.WEATHER[S.weather], wEl = $("[data-weather]");
@@ -407,6 +426,7 @@
       await sleep(delay); delay = Math.max(120, delay * 0.88);
     }
     $$(".bt-played .bt-card.hit").forEach(e => e.classList.remove("hit"));
+    skyFlash(ev.score / E.targetOf(S.layer));
     // chips x mult: the total slams in
     const tot = document.createElement("div"); tot.className = "bt-total"; tot.textContent = fmt(ev.score); st.appendChild(tot); sfx.total();
     const before = S.score, beforeTotal = S.total;
@@ -418,7 +438,7 @@
     if (!R.bestCast || ev.score > R.bestCast.score) R.bestCast = { score: ev.score, name: ev.name, ns: ev.scoring.map(k => ns[k]) };
     // the score counts up into the bar
     const t0 = performance.now(), dur = 650, target = E.targetOf(S.layer);
-    await new Promise(res => { const tick = () => { const p = Math.min(1, (performance.now() - t0) / dur); const v = before + (S.score - before) * p; $("[data-score]").textContent = fmt(v); $("[data-total]").textContent = fmt(beforeTotal + (S.total - beforeTotal) * p); $("[data-bar]").style.width = Math.min(100, v / target * 100).toFixed(1) + "%"; p < 1 ? requestAnimationFrame(tick) : res(); }; tick(); });
+    await new Promise(res => { const tick = () => { const p = Math.min(1, (performance.now() - t0) / dur); const v = before + (S.score - before) * p; $("[data-score]").textContent = fmt(v); $("[data-total]").textContent = fmt(beforeTotal + (S.total - beforeTotal) * p); $("[data-bar]").style.width = Math.min(100, v / target * 100).toFixed(1) + "%"; sky(S.layer, v / target); p < 1 ? requestAnimationFrame(tick) : res(); }; tick(); });
     const tEl = $("[data-total]"); tEl.classList.add("up"); setTimeout(() => tEl.classList.remove("up"), 300);
     await sleep(500);
     tot.remove(); played.innerHTML = ""; hname.innerHTML = ""; chipsEl.textContent = "0"; multEl.textContent = "0"; st.classList.remove("hot");

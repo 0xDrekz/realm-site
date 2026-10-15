@@ -148,3 +148,28 @@ test("Swift Day: three casts a layer", () => {
   assert.equal(E.createRun({ seed: 7, deck, cards: C.cardOf, weather: "swift" }).casts, 3);
   assert.equal(E.createRun({ seed: 7, deck, cards: C.cardOf }).casts, E.CASTS);
 });
+
+test("powers: every God, Entity and the Source has one, and they only work on runs that have powers", () => {
+  const rare = C.all().filter(c => ["God", "Entity", "Source"].includes(c.tier));
+  assert.equal(rare.length, 31);
+  for (const c of rare) assert.ok(E.POWERS[c.n] && E.POWERS[c.n].name && E.POWERS[c.n].text, c.n + " has no power");
+  const sage = C.cardOf(569), mate = mk("Rose", { n: 2, x: { L: "Storm" } });
+  const off = E.evaluate([sage, mate], 0, [], 100, null, false), on = E.evaluate([sage, mate], 0, [], 100, null, true);
+  assert.equal(E.evaluate([sage, mate], 0, [], 100).score, off.score);
+  assert.ok(on.score > off.score);
+  assert.equal(on.steps.filter(s => s.label === "Hidden Storm").length, 5);  // the Sage fires 4 times (its Grove of Mushrooms) and its mate once: each Storm once more
+  // a power only works when its being scores
+  const lone = [mk("Cold", { n: 1 }), mk("Cold", { n: 3 }), C.cardOf(569)];
+  assert.equal(E.evaluate(lone, 0, [], 100, null, true).score, E.evaluate(lone, 0, [], 100, null, false).score);
+  // the Source doubles the final mult
+  const src = [C.cardOf(1111), mk("Cold", { n: 4 })];
+  assert.equal(E.evaluate(src, 0, [], 100, null, true).mult, E.evaluate(src, 0, [], 100, null, false).mult * 2);
+});
+
+test("a run with powers replays the same way", () => {
+  const deck = [569, 1111, 842, 29, 86, ...C.all().slice(0, 15).map(c => c.n)];
+  const S = E.createRun({ seed: 99, deck, cards: C.cardOf, powers: true }), moves = [];
+  for (let k = 0; k < 40 && !S.over; k++) { const m = S.phase === "draft" ? ["p", 0] : ["c", [0, 1, 2, 3, 4].slice(0, Math.min(5, S.hand.length))]; E.act(S, m); moves.push(m); }
+  const R = E.replay({ seed: 99, deck, cards: C.cardOf, powers: true }, moves);
+  assert.equal(R.S.total, S.total);
+});
