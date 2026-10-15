@@ -184,7 +184,8 @@
       ? `Signed in as <b>${esc(s.wallet.slice(0, 4) + "…" + s.wallet.slice(-4))}</b>.${ME && ME.boost > 100 ? ` Your holder boost: <b>×${ME.boost / 100}</b> on every cast.` : ME && ME.boost === 100 ? " Hold $DMT for a boost on every cast: 500k gives +50%." : ""}`
       : ME && ME.telegram ? `Playing as <b>${esc(ME.name)}</b> from Telegram: your scores show on the boards. To enter the SOL competition, open the game in your browser or Phantom and connect a wallet.`
       : "Playing as a guest. Hold $DMT and every cast scores more: 50k +10%, 250k +20%, 500k +50%, 1M +60%, 5M +100%, 10M +150% (up to ×2.5).";
-    const d = BOARD && BOARD.daily;
+    const d = BOARD && BOARD.daily, wxd = BOARD && BOARD.weather, wxEl = $("[data-daily-weather]");
+    wxEl.hidden = !wxd; if (wxd) wxEl.textContent = `Today's weather: ${wxd.name}. ${wxd.text}`;
     $("[data-daily-note]").textContent = d && d.you ? `Your best today: ${fmt(d.you.total)} · #${d.you.rank} of ${d.players}` : d && d.players ? `${d.players} player${d.players === 1 ? "" : "s"} today · best run counts` : "Best run counts";
     $("[data-resume]").hidden = !store.get("run", null);
     paintComp();
@@ -208,8 +209,8 @@
 
   /* ---------- the run ---------- */
   let R = null;
-  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, cards: card });
-  const saveRun = () => store.set("run", R ? { id: R.id, mode: R.mode, seed: R.seed, deck: R.deck, own: R.own, boost: R.boost, duel: R.duel || null, moves: R.moves, day: R.day, left: R.left, savedAt: Date.now() } : null);
+  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, weather: r.weather || null, cards: card });
+  const saveRun = () => store.set("run", R ? { id: R.id, mode: R.mode, seed: R.seed, deck: R.deck, own: R.own, boost: R.boost, weather: R.weather || null, duel: R.duel || null, moves: R.moves, day: R.day, left: R.left, savedAt: Date.now() } : null);
 
   /* ---------- the clock: 60 seconds a layer. It stops while a cast scores, between layers, and during the
      layer's opening banner; it keeps running if you look away (menu, card details, another tab). ---------- */
@@ -242,7 +243,7 @@
     try {
       await loadCards();
       const d = await api("/api/bt/start", { ...auth(), mode, summon: mode === "duel" ? undefined : summon || undefined, duel: mode === "duel" ? (summon || undefined) : undefined });
-      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], boost: d.boost || 100, moves: [], summoned: d.summoned, bestCast: null, left: LAYER_MS,
+      R = { id: d.run, mode: d.mode, day: d.day, seed: d.seed, deck: d.deck, own: d.own || [], boost: d.boost || 100, weather: d.weather || null, moves: [], summoned: d.summoned, bestCast: null, left: LAYER_MS,
         duel: d.duel ? d.duel.id : null };
       R.S = E.createRun(defOf(R)); R.sel = []; R.sort = store.get("sort", "aura"); $("[data-why]").hidden = true;
       saveRun(); show("game"); paint(true); layerIntro();
@@ -279,10 +280,12 @@
     const S = R.S, target = E.targetOf(S.layer);
     $("[data-layer-n]").textContent = R.mode === "duel" ? `MIRROR DUEL · LAYER ${S.layer + 1} OF ${DUEL_LAYERS}` : S.layer < E.LAYERS ? `LAYER ${S.layer + 1} OF ${E.LAYERS}` : `BEYOND · LAYER ${S.layer + 1}`;
     $("[data-layer-name]").textContent = S.layer < E.LAYERS ? E.LAYER_NAMES[S.layer] : "Past the Source";
+    const wx = S.weather && E.WEATHER[S.weather], wEl = $("[data-weather]");
+    wEl.hidden = !wx; if (wx) wEl.innerHTML = `<b>${esc(wx.name)}</b> ${esc(wx.text)}`;
     $("[data-score]").textContent = fmt(S.score); $("[data-target]").textContent = fmt(target); $("[data-total]").textContent = fmt(S.total); paintTime();
     const bb = $("[data-boost]"); bb.hidden = !(R.boost > 100); bb.textContent = "×" + (R.boost / 100) + " BOOST";
     const p = Math.min(1, S.score / target); $("[data-bar]").style.width = (p * 100).toFixed(1) + "%"; $(".bt-bar").classList.toggle("full", p >= 1);
-    $("[data-casts]").textContent = "●".repeat(S.casts) + "○".repeat(Math.max(0, E.CASTS - S.casts));
+    $("[data-casts]").textContent = "●".repeat(S.casts) + "○".repeat(Math.max(0, (S.weather === "swift" ? 3 : E.CASTS) - S.casts));
     $("[data-discards]").textContent = "●".repeat(S.discards) + "○".repeat(Math.max(0, E.DISCARDS - S.discards));
     $("[data-deck]").textContent = S.draw.length + "/" + S.deck.length;
     $("[data-sort]").textContent = "Sort: " + (R.sort === "aura" ? "Aura" : "Power");

@@ -53,6 +53,23 @@
     spark:     { name: "Spark",        chips: 5,   mult: 1, rank: 0 },
   };
 
+  /* ---------- Realm Weather: one rule twist on the day's Daily Trip (from 19 Oct; the server picks it) ---------- */
+  const WEATHER = {
+    "tide-Cold":    { name: "Cold Tide",     text: "Cold beings score double chips" },
+    "tide-Rose":    { name: "Rose Tide",     text: "Rose beings score double chips" },
+    "tide-Warm":    { name: "Warm Tide",     text: "Warm beings score double chips" },
+    "tide-Acid":    { name: "Acid Tide",     text: "Acid beings score double chips" },
+    "tide-Opposed": { name: "Opposed Tide",  text: "Opposed beings score double chips" },
+    spores:         { name: "Spore Bloom",   text: "Every Mushroom fires one extra time" },
+    ion:            { name: "Ion Storm",     text: "Lightning and Storm add double mult" },
+    sacred:         { name: "Sacred Hour",   text: "Sacred Geometry adds triple mult" },
+    humble:         { name: "Humble Day",    text: "Commons and Uncommons score triple chips" },
+    nova:           { name: "Nova Night",    text: "Every Supernova multiplies harder" },
+    moon:           { name: "Moon Rain",     text: "Moon dust counts triple" },
+    swift:          { name: "Swift Day",     text: "3 casts a layer, but every cast scores ×1.5 mult" },
+  };
+  const castsOf = S => S.weather === "swift" ? 3 : CASTS;
+
   /* ---------- one seeded generator (mulberry32: integer maths only) ---------- */
   function next(S) {
     let t = (S.rng = (S.rng + 0x6D2B79F5) | 0);
@@ -94,7 +111,9 @@
 
   /* ---------- the score of a cast, step by step (the page animates these steps) ---------- */
   // boost: a holder's boost in percent (100 = none, 130 = ×1.3), applied to the mult last
-  function evaluate(cards, castsSoFar, own, boost) {
+  // weather: the day's Realm Weather id, or nothing
+  function evaluate(cards, castsSoFar, own, boost, weather) {
+    const W = weather || "", tide = W.startsWith("tide-") ? W.slice(5) : null, WN = WEATHER[W] ? WEATHER[W].name : "";
     const { id, scoring } = handOf(cards);
     const H = HANDS[id];
     let chips = H.chips, mt = H.mult * 10;
@@ -103,32 +122,35 @@
     // sacred geometry: every pair of scoring beings sharing a Geometry
     const geo = {}; for (const c of sc) if (c.geo) geo[c.geo] = (geo[c.geo] || 0) + 1;
     let pairs = 0; for (const n of Object.values(geo)) pairs += n * (n - 1) / 2;
-    if (pairs) { mt += 20 * pairs; steps.push({ k: "geo", label: "Sacred Geometry", add: 2 * pairs, chips, mult: mt }); }
+    const geoAdd = (W === "sacred" ? 6 : 2) * pairs;
+    if (pairs) { mt += 10 * geoAdd; steps.push({ k: "geo", label: W === "sacred" ? "Sacred Geometry (Sacred Hour)" : "Sacred Geometry", add: geoAdd, chips, mult: mt }); }
     const addM = (i, n, label) => { mt += n * 10; steps.push({ k: "mult", i, label, add: n, chips, mult: mt }); };
     const xM = (i, t, label) => { mt = Math.floor(mt * t / 10); steps.push({ k: "x", i, label, x: t / 10, chips, mult: mt }); };
     const addC = (i, n, label) => { chips += n; steps.push({ k: "chips", i, label, add: n, chips, mult: mt }); };
     let draws = 0;
     for (const i of scoring) {
       const c = cards[i], x = c.x || {};
-      const reps = 1 + ({ Few: 1, Cluster: 2, Grove: 3 }[x.M] || 0);
+      const reps = 1 + ({ Few: 1, Cluster: 2, Grove: 3 }[x.M] || 0) + (W === "spores" && x.M ? 1 : 0);
       for (let r = 0; r < reps; r++) {
         if (r) steps.push({ k: "again", i, label: "Spores: again!", chips, mult: mt });
         addC(i, own && own.includes(c.n) ? c.chips + (c.chips >> 1) : c.chips, own && own.includes(c.n) ? "Yours: +50%" : "");
+        if (tide && (c.aura === tide || c.aura === "Prime")) addC(i, c.chips, WN);
+        if (W === "humble" && (c.tier === "Common" || c.tier === "Uncommon")) addC(i, 2 * c.chips, WN);
         if (x.P === "One") addC(i, 20, "Planet");
         if (x.P === "Two") addC(i, 40, "Twin planets");
         if (x.P === "Ringed") { addC(i, 30, "Ringed planet"); addM(i, 2, "Ringed planet"); }
         if (x.P === "Cluster") addC(i, 150, "Planet cluster");
         const dust = { Faint: 4, Drifting: 8, Heavy: 20 }[x.D];
-        if (dust && castsSoFar) addC(i, dust * castsSoFar, "Moon dust");
-        if (x.L === "Strike") addM(i, 4, "Lightning");
-        if (x.L === "Storm") addM(i, 8, "Storm");
+        if (dust && castsSoFar) addC(i, dust * castsSoFar * (W === "moon" ? 3 : 1), W === "moon" ? "Moon dust (Moon Rain)" : "Moon dust");
+        if (x.L === "Strike") addM(i, W === "ion" ? 8 : 4, "Lightning");
+        if (x.L === "Storm") addM(i, W === "ion" ? 16 : 8, "Storm");
         if (x.L === "Tempest") xM(i, 30, "Tempest");
         if (x.T === "One") addM(i, 3, "Tree");
         if (x.T === "Copse") addM(i, 6, "Copse");
         if (x.T === "Forest") xM(i, 20, "Forest");
-        if (x.S === "One") xM(i, 15, "Supernova");
-        if (x.S === "Two") xM(i, 20, "Twin supernova");
-        if (x.S === "Barrage") xM(i, 40, "Supernova barrage");
+        if (x.S === "One") xM(i, W === "nova" ? 20 : 15, "Supernova");
+        if (x.S === "Two") xM(i, W === "nova" ? 25 : 20, "Twin supernova");
+        if (x.S === "Barrage") xM(i, W === "nova" ? 50 : 40, "Supernova barrage");
         if (c.tier === "Entity") addM(i, 10, "Entity");
         if (c.tier === "God") xM(i, 20, "God");
         if (c.tier === "Source") xM(i, 50, "The Prime Source");
@@ -137,6 +159,7 @@
       if (x.U === "Few") draws += 2;
     }
     if (sc.length >= 3 && sc.every(c => c.col && c.col === sc[0].col)) xM(-1, 20, "Harmony: one Colourway");
+    if (W === "swift") xM(-1, 15, WN);
     if (boost > 100) xM(-1, Math.round(boost / 10), "Holder boost");
     if (draws) steps.push({ k: "ufo", label: "Abducted: draw " + draws, draws, chips, mult: mt });
     const score = Math.floor(chips * mt / 10);
@@ -146,7 +169,7 @@
   /* ---------- a run ----------
      def: { seed, deck: [n...], own: [n...], cards: lookup n -> card, pool: N beings to draft from } */
   function createRun(def) {
-    const S = { rng: def.seed | 0, cards: def.cards, N: def.pool || 1111, own: def.own || [], boost: Math.max(100, Math.min(300, def.boost | 0)), deck: def.deck.slice(),
+    const S = { rng: def.seed | 0, weather: WEATHER[def.weather] ? def.weather : null, cards: def.cards, N: def.pool || 1111, own: def.own || [], boost: Math.max(100, Math.min(300, def.boost | 0)), deck: def.deck.slice(),
       layer: 0, draw: [], hand: [], used: [], casts: 0, discards: 0, score: 0, total: 0, castsMade: 0, best: 0, bestHand: null,
       phase: "play", offer: null, over: false, broke: false, last: null, moves: 0, hands: {} };
     startLayer(S);
@@ -158,7 +181,7 @@
   function startLayer(S, fresh) {
     S.draw = shuffle(S, S.deck.slice()); S.hand = []; S.used = [];
     if (fresh) { S.draw.splice(S.draw.indexOf(fresh), 1); S.draw.push(fresh); }
-    S.casts = CASTS; S.discards = DISCARDS; S.score = 0; S.phase = "play"; S.offer = null;
+    S.casts = castsOf(S); S.discards = DISCARDS; S.score = 0; S.phase = "play"; S.offer = null;
     draw(S, HAND_SIZE);
   }
   function checkPick(S, idx) {
@@ -173,14 +196,14 @@
   const ordered = idx => idx.slice().sort((a, b) => a - b);
   function preview(S, idx) {
     if (checkPick(S, idx)) return null;
-    return evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost);
+    return evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather);
   }
   /* the order that scores most (the page always plays cards in their best order; 5 cards is 120 tries) */
   function bestOrder(S, idx) {
     if (checkPick(S, idx)) return null;
     let best = null, bestScore = -1;
     const perm = (a, k) => {
-      if (k === a.length) { const sc = evaluate(a.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost).score; if (sc > bestScore) { bestScore = sc; best = a.slice(); } return; }
+      if (k === a.length) { const sc = evaluate(a.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather).score; if (sc > bestScore) { bestScore = sc; best = a.slice(); } return; }
       for (let j = k; j < a.length; j++) { [a[k], a[j]] = [a[j], a[k]]; perm(a, k + 1); [a[k], a[j]] = [a[j], a[k]]; }
     };
     perm(ordered(idx), 0);
@@ -191,7 +214,7 @@
   function cast(S, idx) {
     const err = checkPick(S, idx); if (err) return { error: err };
     if (S.casts <= 0) return { error: "No casts left." };
-    const ev = evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost);
+    const ev = evaluate(idx.map(i => card(S, S.hand[i])), S.castsMade, S.own, S.boost, S.weather);
     remove(S, idx);
     S.casts--; S.castsMade++; S.moves++; S.score += ev.score; S.total += ev.score;
     S.hands[ev.id] = (S.hands[ev.id] || 0) + 1;
@@ -253,6 +276,6 @@
   const BOOST_BANDS = [[50e3, 10], [250e3, 20], [500e3, 50], [1e6, 60], [5e6, 100], [10e6, 150]], BOOST_BEING = 10, BOOST_MAX = 300;
   const boostFor = (tokens, being) => Math.min(BOOST_MAX, 100 + (being ? BOOST_BEING : 0) + BOOST_BANDS.reduce((b, [t, p]) => tokens >= t ? p : b, 0));
 
-  return { createRun, cast, discard, pick, act, replay, preview, bestOrder, evaluate, handOf, targetOf, cleared, BOOST_BANDS, BOOST_BEING, BOOST_MAX, boostFor,
+  return { createRun, cast, discard, pick, act, replay, preview, bestOrder, evaluate, handOf, targetOf, cleared, BOOST_BANDS, BOOST_BEING, BOOST_MAX, boostFor, WEATHER,
     HANDS, AURAS, TARGETS, LAYERS, LAYER_NAMES, HAND_SIZE, MAX_PICK, CASTS, DISCARDS };
 });

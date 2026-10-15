@@ -6,18 +6,42 @@ const make = () => G.create({ beings: async () => [{ n: 5, owner: W }, { n: 9, o
 const PID = "0123456789abcdef01234567";
 // plays a run like a careless player: cast the first five, take the first offer
 function playThrough(d) {
-  const S = E.createRun({ seed: d.seed, deck: d.deck, own: d.own, cards: C.cardOf }), moves = [];
+  const S = E.createRun({ seed: d.seed, deck: d.deck, own: d.own, weather: d.weather, cards: C.cardOf }), moves = [];
   for (let k = 0; k < 40 && !S.over; k++) { const m = S.phase === "draft" ? ["p", 0] : ["c", [0, 1, 2, 3, 4].slice(0, Math.min(5, S.hand.length))]; E.act(S, m); moves.push(m); }
   return { S, moves };
 }
 async function later(fn) { const real = Date.now; Date.now = () => real() + 3600e3; try { return await fn(); } finally { Date.now = real; } }
 
-test("the daily trip is the same deck and seed for everybody", async () => {
+// runs a test as if it were a given moment (the server's day comes from Date.now)
+async function at(iso, fn) { const real = Date.now, t0 = Date.parse(iso), r0 = real(); Date.now = () => t0 + (real() - r0); try { return await fn(); } finally { Date.now = real; } }
+
+test("the daily trip is the same deck and seed for everybody", async () => at("2026-10-15T12:00:00Z", async () => {
   const g = make();
   const a = await g.start({ mode: "daily", pid: PID }), b = await g.start({ mode: "daily", token: "tok" });
   assert.deepEqual(a.deck, b.deck); assert.equal(a.seed, b.seed); assert.equal(a.deck.length, 20);
   assert.deepEqual(g.dailyDef("2026-10-12"), g.dailyDef("2026-10-12"));
   assert.notDeepEqual(g.dailyDef("2026-10-12").deck, g.dailyDef("2026-10-13").deck);
+  assert.equal(a.weather, null);
+}));
+
+test("from 19 Oct: the same 20 beings, a fresh shuffle every attempt, and the day's weather", async () => at("2026-10-20T12:00:00Z", async () => {
+  const g = make();
+  const a = await g.start({ mode: "daily", pid: PID }), b = await g.start({ mode: "daily", pid: PID });
+  assert.deepEqual(a.deck, b.deck); assert.notEqual(a.seed, b.seed);
+  assert.ok(E.WEATHER[a.weather]); assert.equal(a.weather, b.weather); assert.equal(a.weather, g.weatherOf("2026-10-20"));
+  assert.equal(g.board({ pid: PID }).weather.id, a.weather);
+  assert.equal(g.weatherOf("2026-10-18"), null);
+  // the server replays with the run's own seed and weather
+  const S = E.createRun({ seed: a.seed, deck: a.deck, own: a.own, weather: a.weather, cards: C.cardOf }), moves = [];
+  for (let k = 0; k < 40 && !S.over; k++) { const m = S.phase === "draft" ? ["p", 0] : ["c", [0, 1, 2, 3, 4].slice(0, Math.min(5, S.hand.length))]; E.act(S, m); moves.push(m); }
+  const r = await later(() => g.finish({ run: a.run, moves }));
+  assert.ok(r.result, r.error); assert.equal(r.result.total, S.total);
+}));
+
+test("the Ultimate Deck on 18 Oct, and every other day as it was", () => {
+  const g = make(), d = g.dailyDef("2026-10-18").deck;
+  assert.equal(d.length, 20); assert.equal(new Set(d).size, 20); assert.ok(d.includes(1111));
+  assert.equal(d.filter(n => C.cardOf(n).tier === "God").length, 4);
 });
 
 test("the server replays the moves and decides the score", async () => {

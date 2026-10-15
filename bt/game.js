@@ -22,6 +22,9 @@ const TTL = 3 * 3600e3, MAX_RUNS = 20000, PER_OWNER = 3, DECK = 20, OWN_IN_DECK 
 /* MIRROR DUEL: two players, the same deck and the same seed, three layers each, played when each likes.
    The higher run total wins. No holder boost here: the same cards and the same luck, so it's skill alone. */
 const POWER_FROM = "2026-10-14";
+/* From 19 Oct every Daily Trip attempt gets its own shuffle and draft offers (the 20 beings stay the same
+   for everyone), so a day can't be learned by heart and replayed; and each day has its Realm Weather. */
+const FRESH_FROM = "2026-10-19";
 /* special days get a hand-picked deck. 18 Oct, the last day of the first comp, is the Ultimate Deck: the
    15 Oct record deck with the Prime Source and three more Gods in place of its weakest beings. */
 const SPECIAL_DECKS = { "2026-10-18": [15, 133, 218, 90, 569, 1111, 217, 817, 762, 1078, 335, 113, 697, 382, 709, 176, 649, 1107, 814, 1064] };
@@ -68,8 +71,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
   B.days = B.days || {}; B.weeks = B.weeks || {}; B.summons = B.summons || {}; B.comps = B.comps || {}; B.compDays = B.compDays || {}; B.posted = B.posted || {};
   const trim = (o, k) => Object.fromEntries(Object.keys(o).sort().slice(-k).map(x => [x, o[x]]));
   const saveBoard = () => { if (boardFile) boardFile.save(() => (B = { days: trim(B.days, 10), weeks: trim(B.weeks, 6), summons: trim(B.summons, 10), comps: B.comps, compDays: B.compDays, posted: B.posted })); };
-  const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
-  const weekKey = (d = new Date()) => { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); return m.toISOString().slice(0, 10); };
+  const dayKey = (d = new Date(Date.now())) => d.toISOString().slice(0, 10);
+  const weekKey = (d = new Date(Date.now())) => { const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); return m.toISOString().slice(0, 10); };
   function tidy() { const now = Date.now(); for (const [k, r] of runs) if (now - r.at > TTL) runs.delete(k); }
   function room(owner) {
     const mine = [...runs.entries()].filter(([, r]) => r.owner === owner).sort((a, b) => a[1].at - b[1].at);
@@ -111,7 +114,13 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (SPECIAL_DECKS[day]) return { seed, deck: SPECIAL_DECKS[day].slice(), own: [] };
     return { seed, deck, own: [] };
   }
-  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, cards: C.cardOf });
+  const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, weather: r.weather || null, cards: C.cardOf });
+  // the day's Realm Weather: the same for everyone, from the day alone
+  function weatherOf(day) {
+    if (day < FRESH_FROM) return null;
+    const ids = Object.keys(E.WEATHER);
+    return ids[crypto.createHash("sha256").update("weather|" + day).digest().readUInt32LE(0) % ids.length];
+  }
 
   let CARDS = null;
   function cards() {
@@ -130,7 +139,10 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     if (!room(owner)) return { error: "The realm is very busy. Try again in a minute.", status: 503 };
     const day = dayKey();
     let r;
-    if (mode === "daily") r = { mode, day, ...dailyDef(day) };
+    if (mode === "daily") {
+      r = { mode, day, ...dailyDef(day) };
+      if (day >= FRESH_FROM) { r.seed = crypto.randomInt(2 ** 31); r.weather = weatherOf(day); }
+    }
     else if (mode === "duel") {
       if (!me) return { error: "Open the game again to play a duel." };
       let d = duel && D[String(duel)];
@@ -167,7 +179,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     const id = crypto.randomBytes(16).toString("hex");
     Object.assign(r, { id, owner, wallet: wallet || null, pkey: me ? me.key : null, name: me ? me.name : null, at: Date.now(), done: false });
     runs.set(id, r); saveLive();
-    return { run: id, mode: r.mode, day, seed: r.seed, deck: r.deck, own: r.own, boost: r.boost, summoned: r.summoned || null, name: r.name,
+    return { run: id, mode: r.mode, day, seed: r.seed, deck: r.deck, own: r.own, boost: r.boost, weather: r.weather || null, summoned: r.summoned || null, name: r.name,
       duel: r.duel ? duelView(D[r.duel], r.pkey) : undefined };
   }
 
@@ -392,7 +404,8 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     };
     const s = B.summons[day] || {};
     const summons = Object.entries(s).map(([n, c]) => ({ n: +n, count: c })).sort((a, b) => b.count - a.count).slice(0, 10);
-    return { day, week: wk, daily: view(B.days[day]), free: view(B.weeks[wk]), summons, comp: compView(wallet) };
+    const w = weatherOf(day);
+    return { day, week: wk, weather: w ? { id: w, ...E.WEATHER[w] } : null, daily: view(B.days[day]), free: view(B.weeks[wk]), summons, comp: compView(wallet) };
   }
 
   /* beings anyone can summon: every being a holder owns, with today's summon count */
@@ -441,7 +454,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
     return { comp: compView(wallet, 100), today: rows.slice(0, 20).map(x => ({ name: x.name, total: x.total, cleared: x.cleared })), todayPlayers: rows.length };
   }
 
-  return { start, finish, duel: duelGet, DUEL_LAYERS, board, league, summonable, me, cards, dailyDef, live: () => runs.size, _news: { sendLeader, finalNews, sendScores }, topText, links: () => LINKS_OF(),
+  return { start, finish, duel: duelGet, DUEL_LAYERS, board, league, summonable, me, cards, dailyDef, weatherOf, live: () => runs.size, _news: { sendLeader, finalNews, sendScores }, topText, links: () => LINKS_OF(),
     flush: () => { liveFile && liveFile.flush(); boardFile && boardFile.flush(); duelFile && duelFile.flush(); } };
 }
 

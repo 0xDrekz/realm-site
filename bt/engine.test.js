@@ -127,3 +127,24 @@ test("the holder boost: a being +10%, then the highest $DMT band held, up to x2.
   assert.equal(E.boostFor(499999, true), 130); assert.equal(E.boostFor(500e3, false), 150); assert.equal(E.boostFor(500e3, true), 160);
   assert.equal(E.boostFor(5e6, false), 200); assert.equal(E.boostFor(10e6, true), 260); assert.equal(E.boostFor(1e12, true), 260);
 });
+
+test("Realm Weather twists the score, and no weather changes nothing", () => {
+  const five = [mk("Cold", { n: 1 }), mk("Cold", { n: 2 }), mk("Cold", { n: 3 }), mk("Rose", { n: 4 }), mk("Rose", { n: 5 })];
+  const base = E.evaluate(five, 0, [], 100).score;
+  assert.equal(E.evaluate(five, 0, [], 100, null).score, base);
+  assert.equal(E.evaluate(five, 0, [], 100, "nonsense").score, base);
+  assert.ok(E.evaluate(five, 0, [], 100, "tide-Cold").score > base);
+  assert.equal(E.evaluate(five, 0, [], 100, "tide-Warm").score, base);
+  assert.equal(E.evaluate(five, 0, [], 100, "humble").chips, E.evaluate(five, 0, [], 100).chips + 2 * 5 * 6);
+  const myco = [mk("Cold", { x: { M: "Few" } }), mk("Cold")];
+  assert.ok(E.evaluate(myco, 0, [], 100, "spores").score > E.evaluate(myco, 0, [], 100).score);
+  const stormy = [mk("Cold", { x: { L: "Storm" } }), mk("Cold")];
+  assert.equal(E.evaluate(stormy, 0, [], 100, "ion").mult - E.evaluate(stormy, 0, [], 100).mult, 80);
+  for (const id of Object.keys(E.WEATHER)) assert.ok(E.WEATHER[id].name && E.WEATHER[id].text);
+});
+
+test("Swift Day: three casts a layer", () => {
+  const deck = C.all().slice(0, 20).map(c => c.n);
+  assert.equal(E.createRun({ seed: 7, deck, cards: C.cardOf, weather: "swift" }).casts, 3);
+  assert.equal(E.createRun({ seed: 7, deck, cards: C.cardOf }).casts, E.CASTS);
+});

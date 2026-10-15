@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preload" href="fonts/pixelify-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="bt.css?v=18">
+<link rel="stylesheet" href="bt.css?v=19">
 </head>
 <body>
 <div class="bt-sky" aria-hidden="true"><i class="bt-ring"></i><i class="bt-ring b"></i><i class="bt-ring c"></i></div>
@@ -47,6 +47,7 @@
       <span class="bt-mode-k">DAILY TRIP</span>
       <span class="bt-mode-t">Same deck for everyone today</span>
       <span class="bt-mode-s" data-daily-note>Best run counts</span>
+      <span class="bt-mode-w" data-daily-weather hidden></span>
     </button>
     <button class="bt-mode free" data-play="free">
       <span class="bt-mode-k">FREE RUN</span>
@@ -85,6 +86,7 @@
     <button class="bt-icon" data-mute aria-label="Sound"><span data-mute-label>♪</span></button>
   </header>
   <div class="bt-goal">
+    <p class="bt-weather" data-weather hidden></p>
     <div class="bt-run"><span class="bt-time" data-timebox>TIME <b data-time>1:00</b></span><span><i class="bt-boost" data-boost hidden></i>RUN TOTAL <b data-total>0</b></span></div>
     <div class="bt-score"><b data-score>0</b><span>/ <i data-target>400</i></span></div>
     <div class="bt-bar"><i data-bar></i></div>
@@ -235,7 +237,7 @@
   </div>
 </div>
 
-<script src="bt/engine.js?v=4"></script>
-<script src="bt-page.js?v=18"></script>
+<script src="bt/engine.js?v=5"></script>
+<script src="bt-page.js?v=19"></script>
 </body>
 </html>
