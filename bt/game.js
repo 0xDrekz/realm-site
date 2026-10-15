@@ -22,6 +22,9 @@ const TTL = 3 * 3600e3, MAX_RUNS = 20000, PER_OWNER = 3, DECK = 20, OWN_IN_DECK 
 /* MIRROR DUEL: two players, the same deck and the same seed, three layers each, played when each likes.
    The higher run total wins. No holder boost here: the same cards and the same luck, so it's skill alone. */
 const POWER_FROM = "2026-10-14";
+/* special days get a hand-picked deck. 18 Oct, the last day of the first comp, is the Ultimate Deck: the
+   15 Oct record deck with the Prime Source and three more Gods in place of its weakest beings. */
+const SPECIAL_DECKS = { "2026-10-18": [15, 133, 218, 90, 569, 1111, 217, 817, 762, 1078, 335, 113, 697, 382, 709, 176, 649, 1107, 814, 1064] };
 const DUEL_LAYERS = 3, DUEL_TTL = 7 * 86400e3, MAX_DUELS = 20000;
 
 /* a competition, when one is on (bt/comp.json): the best Daily Trip score of a signed-in wallet
@@ -105,6 +108,7 @@ function create({ log = () => {}, beings = async () => [], boostOf = async () =>
         }
       }
     }
+    if (SPECIAL_DECKS[day]) return { seed, deck: SPECIAL_DECKS[day].slice(), own: [] };
     return { seed, deck, own: [] };
   }
   const defOf = r => ({ seed: r.seed, deck: r.deck, own: r.own, boost: r.boost || 100, cards: C.cardOf });
