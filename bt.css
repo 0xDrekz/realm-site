@@ -312,3 +312,7 @@ section{position:relative;z-index:1}
 /* the round score and its target stay on one line, however big they get */
 .bt-score{white-space:nowrap}
 .bt-score span{font-size:min(1em,calc(34vw / (var(--tlen,6) * .62)))}
+
+/* the cast total sits above the chips x mult boxes (top set from bt-page.js), not over them */
+.bt-total.above{transform:translate(-50%,-100%);animation:btSlamUp .5s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes btSlamUp{from{transform:translate(-50%,-100%) scale(2.2);opacity:0}}

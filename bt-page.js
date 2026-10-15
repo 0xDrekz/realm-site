@@ -435,7 +435,10 @@
     skyFlash(ev.score / E.targetOf(S.layer));
     try { const [cx, cy] = calcAt(); window.BTFX && BTFX.cast(stRect.left + cx, stRect.top + cy + 30, (ev.score + 0) / Math.max(1, E.targetOf(S.layer) - S.score)); } catch (e) { /* effects only */ }
     // chips x mult: the total slams in
-    const tot = document.createElement("div"); tot.className = "bt-total"; tot.textContent = fmt(ev.score); tot.style.setProperty("--len", tot.textContent.length); st.appendChild(tot); sfx.total();
+    const tot = document.createElement("div"); tot.className = "bt-total"; tot.textContent = fmt(ev.score); tot.style.setProperty("--len", tot.textContent.length);
+    // it lands just above the chips x mult boxes, so the sum and its answer can be read together
+    { const [, cy] = calcAt(); tot.classList.add("above"); tot.style.top = Math.max(4, cy - 6) + "px"; }
+    st.appendChild(tot); sfx.total();
     const before = S.score, beforeTotal = S.total;
     const old = S.hand.slice();
     const done = E.cast(S, order);
