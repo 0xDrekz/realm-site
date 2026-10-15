@@ -179,7 +179,7 @@
     [29, 193, 1111, 762, 569].forEach((n, i) => { const el = cardEl(n); el.style.transform = `translateX(-50%) rotate(${(i - 2) * 11}deg) translateY(${Math.abs(i - 2) * 8}px)`; el.style.zIndex = i === 2 ? 5 : 5 - Math.abs(i - 2); fan.appendChild(el); });
   }
   function paintLobby() {
-    sky(0, 0);
+    sky(0, 0); try { window.BTFX && BTFX.rest(); } catch (e) { /* effects only */ }
     paintFan();
     const s = session();
     $("[data-w-connect]").hidden = !!s; $("[data-w-off]").hidden = !s;
@@ -287,6 +287,7 @@
     skyEl.style.setProperty("--depth", depth.toFixed(3)); skyEl.style.setProperty("--heat", Math.min(1, Math.max(0, heat)).toFixed(3));
     skyEl.dataset.tier = depth >= .75 ? 3 : depth >= .45 ? 2 : depth >= .2 ? 1 : 0;
     skyEl.classList.toggle("hot", heat >= .75);
+    try { window.BTFX && BTFX.level(heat, depth); } catch (e) { /* effects only */ }
   }
   function skyFlash(ratio) {
     const skyEl = document.querySelector(".bt-sky"); if (!skyEl || ratio < .35) return;
@@ -296,7 +297,7 @@
   }
   function paint(fresh) {
     const S = R.S, target = E.targetOf(S.layer);
-    sky(S.layer, S.score / target);
+    sky(S.layer, S.score / target); try { window.BTFX && BTFX.total(S.total); } catch (e) { /* effects only */ }
     $("[data-layer-n]").textContent = R.mode === "duel" ? `MIRROR DUEL · LAYER ${S.layer + 1} OF ${DUEL_LAYERS}` : S.layer < E.LAYERS ? `LAYER ${S.layer + 1} OF ${E.LAYERS}` : `BEYOND · LAYER ${S.layer + 1}`;
     $("[data-layer-name]").textContent = S.layer < E.LAYERS ? E.LAYER_NAMES[S.layer] : "Past the Source";
     const wx = S.weather && E.WEATHER[S.weather], wEl = $("[data-weather]");
@@ -417,16 +418,17 @@
         $$(".bt-played .bt-card.hit").forEach(e => e.classList.remove("hit"));
         if (target) target.classList.add("hit");
         const [x, y] = target ? at(target) : calcAt();
-        if (s.k === "chips") { float("+" + fmt(s.add), s.label, x, y, "#5cf0ff"); bump(chipsEl); sfx.step(++k); }
-        else if (s.k === "mult" || s.k === "geo") { float("+" + s.add + " mult", s.label, x, y, "#ff9ce0"); bump(multEl); sfx.mult(++k); }
-        else if (s.k === "x") { float("×" + s.x, s.label, x, y, "#ffd35c"); bump(multEl); sfx.x(); const f = $("[data-flash]"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
-        else if (s.k === "again") { float("AGAIN!", s.label, x, y, "#8dff5c"); sfx.step(++k); }
+        if (s.k === "chips") { float("+" + fmt(s.add), s.label, x, y, "#5cf0ff"); try { window.BTFX && BTFX.burst(stRect.left + x, stRect.top + y, "chips"); } catch (e) { /* effects only */ } bump(chipsEl); sfx.step(++k); }
+        else if (s.k === "mult" || s.k === "geo") { float("+" + s.add + " mult", s.label, x, y, "#ff9ce0"); try { window.BTFX && BTFX.burst(stRect.left + x, stRect.top + y, "mult"); } catch (e) { /* effects only */ } bump(multEl); sfx.mult(++k); }
+        else if (s.k === "x") { float("×" + s.x, s.label, x, y, "#ffd35c"); try { window.BTFX && BTFX.burst(stRect.left + x, stRect.top + y, "x"); } catch (e) { /* effects only */ } bump(multEl); sfx.x(); const f = $("[data-flash]"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+        else if (s.k === "again") { float("AGAIN!", s.label, x, y, "#8dff5c"); try { window.BTFX && BTFX.burst(stRect.left + x, stRect.top + y, "again"); } catch (e) { /* effects only */ } sfx.step(++k); }
         else if (s.k === "ufo") { float("+" + s.draws + " cards", "Abducted", x, y, "#8dff5c"); sfx.step(++k); }
       }
       await sleep(delay); delay = Math.max(120, delay * 0.88);
     }
     $$(".bt-played .bt-card.hit").forEach(e => e.classList.remove("hit"));
     skyFlash(ev.score / E.targetOf(S.layer));
+    try { const [cx, cy] = calcAt(); window.BTFX && BTFX.cast(stRect.left + cx, stRect.top + cy + 30, (ev.score + 0) / Math.max(1, E.targetOf(S.layer) - S.score)); } catch (e) { /* effects only */ }
     // chips x mult: the total slams in
     const tot = document.createElement("div"); tot.className = "bt-total"; tot.textContent = fmt(ev.score); st.appendChild(tot); sfx.total();
     const before = S.score, beforeTotal = S.total;
@@ -438,7 +440,7 @@
     if (!R.bestCast || ev.score > R.bestCast.score) R.bestCast = { score: ev.score, name: ev.name, ns: ev.scoring.map(k => ns[k]) };
     // the score counts up into the bar
     const t0 = performance.now(), dur = 650, target = E.targetOf(S.layer);
-    await new Promise(res => { const tick = () => { const p = Math.min(1, (performance.now() - t0) / dur); const v = before + (S.score - before) * p; $("[data-score]").textContent = fmt(v); $("[data-total]").textContent = fmt(beforeTotal + (S.total - beforeTotal) * p); $("[data-bar]").style.width = Math.min(100, v / target * 100).toFixed(1) + "%"; sky(S.layer, v / target); p < 1 ? requestAnimationFrame(tick) : res(); }; tick(); });
+    await new Promise(res => { const tick = () => { const p = Math.min(1, (performance.now() - t0) / dur); const v = before + (S.score - before) * p; $("[data-score]").textContent = fmt(v); $("[data-total]").textContent = fmt(beforeTotal + (S.total - beforeTotal) * p); $("[data-bar]").style.width = Math.min(100, v / target * 100).toFixed(1) + "%"; sky(S.layer, v / target); try { window.BTFX && BTFX.total(beforeTotal + (S.total - beforeTotal) * p); } catch (e) { /* effects only */ } p < 1 ? requestAnimationFrame(tick) : res(); }; tick(); });
     const tEl = $("[data-total]"); tEl.classList.add("up"); setTimeout(() => tEl.classList.remove("up"), 300);
     await sleep(500);
     tot.remove(); played.innerHTML = ""; hname.innerHTML = ""; chipsEl.textContent = "0"; multEl.textContent = "0"; st.classList.remove("hot");
@@ -446,7 +448,7 @@
     const fresh = S.hand.filter(n => !old.includes(n));
     paint(false); renderHand(false, fresh); if (fresh.length) sfx.deal();
     if (S.phase === "draft" && R.mode === "duel" && S.layer >= DUEL_LAYERS - 1) { const me = R; await burst("DUEL DONE!"); if (R === me) finishRun(); }
-    else if (S.phase === "draft") { const me = R; await burst(S.layer === E.LAYERS - 1 ? "THE SOURCE!" : "BREAKTHROUGH!"); if (R === me && !R.finishing) openDraft(); }
+    else if (S.phase === "draft") { const me = R; try { window.BTFX && BTFX.breakthrough(); } catch (e) { /* effects only */ } await burst(S.layer === E.LAYERS - 1 ? "THE SOURCE!" : "BREAKTHROUGH!"); if (R === me && !R.finishing) openDraft(); }
     else if (S.over) finishRun();
   }
   function doDiscard() {
