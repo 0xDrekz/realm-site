@@ -29,6 +29,7 @@ a{color:inherit}
 .brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;letter-spacing:.22em;margin-right:auto}
 .brand img{width:30px;height:30px}
 .top .back{font-size:.82rem;color:var(--dim);text-decoration:none}
+.top .close{display:grid;place-items:center;width:40px;height:40px;margin-left:6px;font:700 1.5rem/1 var(--num);color:var(--bone);text-decoration:none;background:#000;border:1px solid var(--gold)}
 .hero{margin-top:16px;text-align:center}
 .kick{margin:0;font-size:.74rem;letter-spacing:.32em;color:var(--cy)}
 h1{margin:6px 0 0;font-size:clamp(2.3rem,10vw,3.6rem);line-height:.95;color:var(--gold);text-shadow:0 0 26px rgba(255,200,90,.4),4px 4px 0 #7a5414,8px 8px 0 #000}
@@ -71,7 +72,7 @@ tr.team td{opacity:.6}
 </head>
 <body>
 <div class="wrap">
-  <header class="top"><a class="brand" href="/"><img src="logo-bar.png" alt="">REALM</a><a class="back" href="/breakthrough">Play BREAKTHROUGH</a></header>
+  <header class="top"><a class="brand" href="/"><img src="logo-bar.png" alt="">REALM</a><a class="back" href="/breakthrough">Play BREAKTHROUGH</a><a class="close" href="/#chamber" aria-label="Close the league" data-close>&times;</a></header>
 
   <div class="hero">
     <p class="kick" data-kick>BREAKTHROUGH · LEAGUE TABLE</p>
