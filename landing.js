@@ -68,8 +68,9 @@
 
   fetch("/api/stats").then(r => r.json()).then(s => {
     if (s.token) $$("[data-live-mcap]").forEach(el => {
+      // in the top bar the label is hidden on a phone, so the chip says what the number is
       el.innerHTML = '<a href="https://dexscreener.com/solana/' + encodeURIComponent(s.token) + '" target="_blank" rel="noopener" style="color:inherit">'
-        + (s.dmt && s.dmt.mcap ? usd(s.dmt.mcap) : "LIVE") + ' &nearr;</a>';
+        + (el.closest(".top-stats") ? "<small>MCAP</small>" : "") + (s.dmt && s.dmt.mcap ? usd(s.dmt.mcap) : "LIVE") + ' &nearr;</a>';
     });
   }).catch(() => {});
 
